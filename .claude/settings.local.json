@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(psql:*)",
+      "Bash(node check-users.js:*)",
+      "Bash(npm install:*)",
+      "Bash(node test-login.js:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(node test-devtunnel.js:*)",
+      "Bash(node check-tables.js:*)",
+      "Bash(node test-empleados-api.js:*)",
+      "Bash(node test-empleados-usuario.js:*)",
+      "Bash(node apply-empleado-schema.js:*)",
+      "Bash(node:*)",
+      "Bash(tasklist:*)",
+      "Bash(taskkill:*)",
+      "Bash(curl:*)",
+      "Bash(npm run dev:backend:*)",
+      "Bash(timeout /t 3 /nobreak)",
+      "Bash(nul)",
+      "Bash(devtunnel list:*)",
+      "Bash(where:*)",
+      "Bash(dir:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

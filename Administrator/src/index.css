@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        /* Fondos */
+        --bg-primary: 255 255 255;
+        /* #FFFFFF */
+        --bg-secondary: 245 245 247;
+        /* #F5F5F7 */
+        --bg-tertiary: 251 251 253;
+        /* #FBFBFD */
+
+        /* Textos */
+        --text-primary: 29 29 31;
+        /* #1D1D1F */
+        --text-secondary: 110 110 115;
+        /* #6E6E73 */
+        --text-tertiary: 134 134 139;
+        /* #86868B */
+        --text-disabled: 210 210 215;
+        /* #D2D2D7 */
+
+        /* Acento/Brand */
+        --accent: 0 113 227;
+        /* #0071E3 */
+        --accent-hover: 0 119 237;
+        /* #0077ED */
+        --accent-active: 0 110 219;
+        /* #006EDB */
+        --accent-light: 232 243 255;
+        /* #E8F3FF */
+
+        /* Bordes */
+        --border-subtle: 210 210 215;
+        /* #D2D2D7 */
+        --border-medium: 184 184 189;
+        /* #B8B8BD */
+        --border-divider: 229 229 231;
+        /* #E5E5E7 */
+
+        /* Estados */
+        --success: 52 199 89;
+        /* #34C759 */
+        --warning: 255 149 0;
+        /* #FF9500 */
+        --error: 255 59 48;
+        /* #FF3B30 */
+        --info: 0 122 255;
+        /* #007AFF */
+
+        /* Sombras */
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+        --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+        --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.12);
+    }
+}

@@ -1,0 +1,10 @@
+   affiliation
+   kiosk
+   {affiliation,kiosk,session,shared}
+  components
+  constants
+  pages
+  utils
+  {components,pages,utils,constants,hooks}
+ src
+.

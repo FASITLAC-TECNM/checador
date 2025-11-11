@@ -1,0 +1,108 @@
+import { Building2, Info } from "lucide-react";
+import StepIndicator from "./StepIndicator";
+
+export default function AffiliationStep({
+  companyId,
+  setCompanyId,
+  onSubmit,
+  onPrevious,
+  onShowWelcome,
+}) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
+      <button
+        onClick={onShowWelcome}
+        className="fixed top-6 right-6 w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 flex items-center justify-center z-10"
+        title="Ver información de bienvenida"
+      >
+        <Info className="w-6 h-6" />
+      </button>
+
+      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">
+            Paso 3: Afiliación a Empresa
+          </h1>
+          <p className="text-gray-600 text-sm">
+            Ingrese el ID único de su empresa para vincular este nodo
+          </p>
+        </div>
+
+        <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-6 mb-6">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+              <Building2 className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold text-gray-800 mb-3">
+                ID de la Empresa
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Este código único fue proporcionado por el administrador de su
+                empresa. Generalmente tiene el formato ABC-XYZ-123
+              </p>
+              <input
+                type="text"
+                value={companyId}
+                onChange={(e) => setCompanyId(e.target.value)}
+                placeholder="ABC-XYZ-123"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="text-center text-sm text-gray-600 pb-8">
+            ¿No conoce el ID de su empresa?{" "}
+            <button className="text-blue-600 hover:underline font-medium">
+              Click aquí
+            </button>{" "}
+            para soporte
+          </div>
+        </div>
+
+        <div className="flex justify-between mt-6 mb-6">
+          <button
+            onClick={onPrevious}
+            className="px-6 py-2.5 text-gray-600 hover:text-gray-800 font-medium transition-colors flex items-center gap-2"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+            Anterior
+          </button>
+          <button
+            onClick={onSubmit}
+            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium transition-all shadow-sm hover:shadow-md flex items-center gap-2"
+          >
+            Solicitar Afiliación
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <StepIndicator currentStep={3} />
+      </div>
+    </div>
+  );
+}

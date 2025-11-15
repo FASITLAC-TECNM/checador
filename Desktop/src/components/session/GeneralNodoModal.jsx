@@ -1,7 +1,9 @@
-import React, { useState } from "react";
-import { X, HardDrive, Save } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { X, HardDrive, Save, RefreshCw } from "lucide-react";
+import { getSystemInfo } from "../../utils/systemInfo";
 
 export default function GeneralNodoModal({ onClose, initialConfig = {} }) {
+  const [isDetecting, setIsDetecting] = useState(false);
   const [nodeConfig, setNodeConfig] = useState({
     nodeName: initialConfig.nodeName || "Entrada Principal",
     nodeDescription: initialConfig.nodeDescription || "Control de acceso principal del edificio A",
@@ -9,6 +11,30 @@ export default function GeneralNodoModal({ onClose, initialConfig = {} }) {
     macAddress: initialConfig.macAddress || "00:1A:2B:3C:4D:5E",
     operatingSystem: initialConfig.operatingSystem || "Linux Debian 11",
   });
+
+  // Detectar información del sistema al cargar el componente si no hay configuración inicial
+  useEffect(() => {
+    if (!initialConfig.ipAddress && !initialConfig.macAddress && !initialConfig.operatingSystem) {
+      detectSystemInfo();
+    }
+  }, []);
+
+  const detectSystemInfo = async () => {
+    setIsDetecting(true);
+    try {
+      const systemInfo = await getSystemInfo();
+      setNodeConfig(prev => ({
+        ...prev,
+        ipAddress: systemInfo.ipAddress,
+        macAddress: systemInfo.macAddress,
+        operatingSystem: systemInfo.operatingSystem,
+      }));
+    } catch (error) {
+      console.error("Error al detectar información del sistema:", error);
+    } finally {
+      setIsDetecting(false);
+    }
+  };
 
   const handleSave = () => {
     console.log("Configuración del nodo guardada:", nodeConfig);
@@ -18,12 +44,12 @@ export default function GeneralNodoModal({ onClose, initialConfig = {} }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden">
+      <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-6">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-bg-primary/20 rounded-xl flex items-center justify-center">
                 <HardDrive className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -35,7 +61,7 @@ export default function GeneralNodoModal({ onClose, initialConfig = {} }) {
             </div>
             <button
               onClick={onClose}
-              className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+              className="text-white hover:bg-bg-primary/20 rounded-lg p-2 transition-colors"
             >
               <X className="w-6 h-6" />
             </button>
@@ -44,14 +70,25 @@ export default function GeneralNodoModal({ onClose, initialConfig = {} }) {
 
         {/* Body */}
         <div className="p-6">
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-5 mb-6">
-            <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <HardDrive className="w-5 h-5 text-blue-600" />
-              Información del Nodo
-            </h4>
+          <div className="bg-bg-secondary border-2 border-blue-200 rounded-xl p-5 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-bold text-text-primary flex items-center gap-2">
+                <HardDrive className="w-5 h-5 text-blue-600" />
+                Información del Nodo
+              </h4>
+              <button
+                type="button"
+                onClick={detectSystemInfo}
+                disabled={isDetecting}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw className={`w-4 h-4 ${isDetecting ? 'animate-spin' : ''}`} />
+                {isDetecting ? 'Detectando...' : 'Autodetectar'}
+              </button>
+            </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-text-secondary mb-2">
                   Nombre del Nodo <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -60,13 +97,13 @@ export default function GeneralNodoModal({ onClose, initialConfig = {} }) {
                   onChange={(e) =>
                     setNodeConfig({ ...nodeConfig, nodeName: e.target.value })
                   }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-text-primary placeholder:text-text-disabled"
                   placeholder="Ej: Entrada Principal"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-text-secondary mb-2">
                   Descripción
                 </label>
                 <textarea
@@ -75,54 +112,48 @@ export default function GeneralNodoModal({ onClose, initialConfig = {} }) {
                     setNodeConfig({ ...nodeConfig, nodeDescription: e.target.value })
                   }
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  className="w-full px-4 py-2 bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-text-primary placeholder:text-text-disabled"
                   placeholder="Descripción del nodo de trabajo"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-text-secondary mb-2">
                     Dirección IP <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={nodeConfig.ipAddress}
-                    onChange={(e) =>
-                      setNodeConfig({ ...nodeConfig, ipAddress: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled
+                    className="w-full px-4 py-2 bg-bg-secondary border border-border-subtle rounded-lg text-text-secondary cursor-not-allowed"
                     placeholder="192.168.1.100"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-text-secondary mb-2">
                     Dirección MAC <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={nodeConfig.macAddress}
-                    onChange={(e) =>
-                      setNodeConfig({ ...nodeConfig, macAddress: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled
+                    className="w-full px-4 py-2 bg-bg-secondary border border-border-subtle rounded-lg text-text-secondary cursor-not-allowed"
                     placeholder="00:1A:2B:3C:4D:5E"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-text-secondary mb-2">
                   Sistema Operativo <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={nodeConfig.operatingSystem}
-                  onChange={(e) =>
-                    setNodeConfig({ ...nodeConfig, operatingSystem: e.target.value })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled
+                  className="w-full px-4 py-2 bg-bg-secondary border border-border-subtle rounded-lg text-text-secondary cursor-not-allowed"
                   placeholder="Linux Debian 11"
                 />
               </div>
@@ -133,7 +164,7 @@ export default function GeneralNodoModal({ onClose, initialConfig = {} }) {
           <div className="flex gap-4">
             <button
               onClick={onClose}
-              className="flex-1 px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-colors"
+              className="flex-1 px-6 py-3 bg-bg-primary border-2 border-border-subtle text-text-secondary rounded-xl font-bold hover:bg-bg-secondary transition-colors"
             >
               Cancelar
             </button>

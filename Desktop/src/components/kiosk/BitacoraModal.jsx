@@ -10,7 +10,7 @@ const getRowColor = (type) => {
     case "info":
       return "hover:bg-blue-50";
     default:
-      return "hover:bg-gray-50";
+      return "hover:bg-bg-secondary";
   }
 };
 
@@ -48,7 +48,7 @@ const getStatusIcon = (type) => {
 export default function BitacoraModal({ onClose }) {
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-4">
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -62,7 +62,7 @@ export default function BitacoraModal({ onClose }) {
             </div>
             <button
               onClick={onClose}
-              className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+              className="text-white hover:bg-bg-primary/20 rounded-lg p-2 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -70,20 +70,20 @@ export default function BitacoraModal({ onClose }) {
         </div>
 
         <div className="p-4 overflow-y-auto flex-1">
-          <div className="border border-gray-200 rounded-xl overflow-hidden">
+          <div className="border border-border-subtle rounded-xl overflow-hidden">
             <table className="w-full">
-              <thead className="bg-gray-100 border-b-2 border-gray-300">
+              <thead className="bg-bg-secondary border-b-2 border-border-subtle">
                 <tr>
-                  <th className="text-center py-2 px-3 font-bold text-gray-700 text-xs">
+                  <th className="text-center py-2 px-3 font-bold text-text-secondary text-xs">
                     ⏰ Hora
                   </th>
-                  <th className="text-left py-2 px-3 font-bold text-gray-700 text-xs">
+                  <th className="text-left py-2 px-3 font-bold text-text-secondary text-xs">
                     👤 Usuario
                   </th>
-                  <th className="text-left py-2 px-3 font-bold text-gray-700 text-xs">
+                  <th className="text-left py-2 px-3 font-bold text-text-secondary text-xs">
                     📋 Acción
                   </th>
-                  <th className="text-center py-2 px-3 font-bold text-gray-700 text-xs">
+                  <th className="text-center py-2 px-3 font-bold text-text-secondary text-xs">
                     ✓ Estado
                   </th>
                 </tr>
@@ -92,17 +92,17 @@ export default function BitacoraModal({ onClose }) {
                 {eventLog.map((event, idx) => (
                   <tr
                     key={idx}
-                    className={`border-b border-gray-200 transition-colors ${getRowColor(
+                    className={`border-b border-border-subtle transition-colors ${getRowColor(
                       event.type
                     )}`}
                   >
-                    <td className="py-2 px-3 text-gray-600 font-mono text-center font-semibold text-xs">
+                    <td className="py-2 px-3 text-text-secondary font-mono text-center font-semibold text-xs">
                       {event.timestamp}
                     </td>
-                    <td className="py-2 px-3 text-gray-800 font-semibold text-xs">
+                    <td className="py-2 px-3 text-text-primary font-semibold text-xs">
                       {event.user}
                     </td>
-                    <td className="py-2 px-3 text-gray-700 text-xs">
+                    <td className="py-2 px-3 text-text-secondary text-xs">
                       {event.action}
                     </td>
                     <td className="py-2 px-3">{getStatusIcon(event.type)}</td>
@@ -113,7 +113,7 @@ export default function BitacoraModal({ onClose }) {
           </div>
         </div>
 
-        <div className="p-4 bg-gray-50 border-t border-gray-200">
+        <div className="p-4 bg-bg-secondary border-t border-border-subtle">
           <button
             onClick={onClose}
             className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-xl font-bold text-base shadow-lg transition-all"

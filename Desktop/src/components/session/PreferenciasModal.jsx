@@ -1,12 +1,39 @@
 import React, { useState, useEffect } from "react";
 import { X, Sliders, Save, Bell, Moon, Globe, Volume2 } from "lucide-react";
+import { useTheme } from "../../context/ThemeContext";
 
-export default function PreferenciasModal({ onClose, onToggleDarkMode, isDarkMode }) {
-  const [preferences, setPreferences] = useState({
+export default function PreferenciasModal({ onClose }) {
+  const { isDarkMode, setDarkMode } = useTheme();
+
+  // Valores por defecto
+  const defaultPreferences = {
     notifications: true,
-    darkMode: isDarkMode || false,
+    darkMode: false,
     language: "es",
     soundEnabled: true,
+  };
+
+  const [preferences, setPreferences] = useState(() => {
+    // Cargar preferencias guardadas
+    const savedPreferences = localStorage.getItem("userPreferences");
+    if (savedPreferences) {
+      try {
+        const parsed = JSON.parse(savedPreferences);
+        // Asegurar que todos los campos tengan un valor definido
+        return {
+          notifications: parsed.notifications ?? defaultPreferences.notifications,
+          darkMode: isDarkMode,
+          language: parsed.language ?? defaultPreferences.language,
+          soundEnabled: parsed.soundEnabled ?? defaultPreferences.soundEnabled,
+        };
+      } catch (error) {
+        console.error("Error al cargar preferencias:", error);
+      }
+    }
+    return {
+      ...defaultPreferences,
+      darkMode: isDarkMode,
+    };
   });
 
   useEffect(() => {
@@ -15,7 +42,7 @@ export default function PreferenciasModal({ onClose, onToggleDarkMode, isDarkMod
 
   const handleDarkModeToggle = (checked) => {
     setPreferences({ ...preferences, darkMode: checked });
-    onToggleDarkMode(checked);
+    setDarkMode(checked);
   };
 
   const handleSave = () => {
@@ -27,12 +54,12 @@ export default function PreferenciasModal({ onClose, onToggleDarkMode, isDarkMod
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
+      <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 to-purple-500 p-6">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-bg-primary/20 rounded-xl flex items-center justify-center">
                 <Sliders className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -44,7 +71,7 @@ export default function PreferenciasModal({ onClose, onToggleDarkMode, isDarkMod
             </div>
             <button
               onClick={onClose}
-              className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+              className="text-white hover:bg-bg-primary/20 rounded-lg p-2 transition-colors"
             >
               <X className="w-6 h-6" />
             </button>
@@ -54,13 +81,13 @@ export default function PreferenciasModal({ onClose, onToggleDarkMode, isDarkMod
         {/* Body */}
         <div className="p-6 space-y-6">
           {/* Notificaciones */}
-          <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-5">
+          <div className="bg-bg-secondary border-2 border-purple-200 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <Bell className="w-5 h-5 text-purple-600" />
                 <div>
-                  <h4 className="font-bold text-gray-800">Notificaciones</h4>
-                  <p className="text-sm text-gray-600">
+                  <h4 className="font-bold text-text-primary">Notificaciones</h4>
+                  <p className="text-sm text-text-secondary">
                     Recibir alertas y avisos del sistema
                   </p>
                 </div>
@@ -77,19 +104,19 @@ export default function PreferenciasModal({ onClose, onToggleDarkMode, isDarkMod
                   }
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                <div className="w-11 h-6 bg-bg-tertiary peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-bg-primary after:border-border-subtle after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
               </label>
             </div>
           </div>
 
           {/* Modo Oscuro */}
-          <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-5">
+          <div className="bg-bg-secondary border-2 border-purple-200 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <Moon className="w-5 h-5 text-purple-600" />
                 <div>
-                  <h4 className="font-bold text-gray-800">Modo Oscuro</h4>
-                  <p className="text-sm text-gray-600">
+                  <h4 className="font-bold text-text-primary">Modo Oscuro</h4>
+                  <p className="text-sm text-text-secondary">
                     Cambiar la apariencia de todo el sistema
                   </p>
                 </div>
@@ -101,19 +128,19 @@ export default function PreferenciasModal({ onClose, onToggleDarkMode, isDarkMod
                   onChange={(e) => handleDarkModeToggle(e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                <div className="w-11 h-6 bg-bg-tertiary peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-bg-primary after:border-border-subtle after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
               </label>
             </div>
           </div>
 
           {/* Sonido */}
-          <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-5">
+          <div className="bg-bg-secondary border-2 border-purple-200 rounded-xl p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <Volume2 className="w-5 h-5 text-purple-600" />
                 <div>
-                  <h4 className="font-bold text-gray-800">Sonidos del Sistema</h4>
-                  <p className="text-sm text-gray-600">
+                  <h4 className="font-bold text-text-primary">Sonidos del Sistema</h4>
+                  <p className="text-sm text-text-secondary">
                     Activar alertas sonoras y notificaciones
                   </p>
                 </div>
@@ -130,27 +157,27 @@ export default function PreferenciasModal({ onClose, onToggleDarkMode, isDarkMod
                   }
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                <div className="w-11 h-6 bg-bg-tertiary peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-bg-primary after:border-border-subtle after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
               </label>
             </div>
           </div>
 
           {/* Idioma */}
-          <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-5">
+          <div className="bg-bg-secondary border-2 border-purple-200 rounded-xl p-5">
             <div className="flex items-start gap-3">
               <Globe className="w-5 h-5 text-purple-600 mt-1" />
               <div className="flex-1">
-                <h4 className="font-bold text-gray-800 mb-2">Idioma</h4>
+                <h4 className="font-bold text-text-primary mb-2">Idioma</h4>
                 <select
                   value={preferences.language}
                   onChange={(e) =>
                     setPreferences({ ...preferences, language: e.target.value })
                   }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-2 bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-text-primary"
                 >
-                  <option value="es">Español</option>
-                  <option value="en">English</option>
-                  <option value="fr">Français</option>
+                  <option value="es" className="bg-bg-primary text-text-primary">Español</option>
+                  <option value="en" className="bg-bg-primary text-text-primary">English</option>
+                  <option value="fr" className="bg-bg-primary text-text-primary">Français</option>
                 </select>
               </div>
             </div>
@@ -159,11 +186,11 @@ export default function PreferenciasModal({ onClose, onToggleDarkMode, isDarkMod
         </div>
 
         {/* Footer */}
-        <div className="bg-slate-50 p-4 border-t border-slate-200">
+        <div className="bg-bg-secondary p-4 border-t border-border-subtle">
           <div className="flex gap-4">
             <button
               onClick={onClose}
-              className="flex-1 px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-colors"
+              className="flex-1 px-6 py-3 bg-bg-primary border-2 border-border-subtle text-text-secondary rounded-xl font-bold hover:bg-bg-secondary transition-colors"
             >
               Cancelar
             </button>

@@ -8,7 +8,7 @@ export default function ConfigModal({ onClose, onSelectOption }) {
       title: "General del Nodo",
       description: "Configuración general del sistema y nodo de trabajo",
       icon: Settings,
-      bgColor: "bg-blue-50",
+      bgColor: "bg-bg-secondary",
       iconBg: "bg-blue-500",
       borderColor: "border-blue-200",
     },
@@ -17,7 +17,7 @@ export default function ConfigModal({ onClose, onSelectOption }) {
       title: "Dispositivos Conectados",
       description: "Gestiona los dispositivos vinculados a tu cuenta",
       icon: Smartphone,
-      bgColor: "bg-green-50",
+      bgColor: "bg-bg-secondary",
       iconBg: "bg-green-500",
       borderColor: "border-green-200",
     },
@@ -26,7 +26,7 @@ export default function ConfigModal({ onClose, onSelectOption }) {
       title: "Preferencias",
       description: "Personaliza tu experiencia y ajustes del usuario",
       icon: Sliders,
-      bgColor: "bg-purple-50",
+      bgColor: "bg-bg-secondary",
       iconBg: "bg-purple-500",
       borderColor: "border-purple-200",
     },
@@ -38,15 +38,15 @@ export default function ConfigModal({ onClose, onSelectOption }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
+      <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-700 to-slate-600 p-6">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-6">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <Settings className="w-8 h-8 text-white" />
               <div>
                 <h3 className="text-2xl font-bold text-white">Configuración</h3>
-                <p className="text-slate-200 text-sm mt-1">
+                <p className="text-blue-100 text-sm mt-1">
                   Gestiona la configuración del sistema
                 </p>
               </div>
@@ -77,15 +77,15 @@ export default function ConfigModal({ onClose, onSelectOption }) {
                     <Icon className="w-7 h-7 text-white" />
                   </div>
                   <div className="flex-1 text-left">
-                    <h4 className="font-bold text-gray-800 text-lg mb-1">
+                    <h4 className="font-bold text-text-primary text-lg mb-1">
                       {option.title}
                     </h4>
-                    <p className="text-gray-600 text-sm">
+                    <p className="text-text-secondary text-sm">
                       {option.description}
                     </p>
                   </div>
                   <svg
-                    className="w-6 h-6 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-1 transition-all"
+                    className="w-6 h-6 text-text-disabled group-hover:text-text-secondary group-hover:translate-x-1 transition-all"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -104,10 +104,10 @@ export default function ConfigModal({ onClose, onSelectOption }) {
         </div>
 
         {/* Footer */}
-        <div className="bg-slate-50 p-4 border-t border-slate-200">
+        <div className="bg-bg-secondary p-4 border-t border-border-subtle">
           <button
             onClick={onClose}
-            className="w-full py-3 bg-slate-600 hover:bg-slate-700 text-white rounded-xl font-bold transition-colors"
+            className="w-full py-3 bg-bg-primary border-2 border-border-subtle hover:bg-bg-secondary text-text-primary rounded-xl font-bold transition-colors"
           >
             Cerrar
           </button>

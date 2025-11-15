@@ -1,5 +1,7 @@
-import { HardDrive, Info } from "lucide-react";
+import { useEffect, useState } from "react";
+import { HardDrive, Info, RefreshCw } from "lucide-react";
 import StepIndicator from "./StepIndicator";
+import { getSystemInfo } from "../../utils/systemInfo";
 
 export default function NodeConfigStep({
   nodeConfig,
@@ -7,8 +9,33 @@ export default function NodeConfigStep({
   onNext,
   onShowWelcome,
 }) {
+  const [isDetecting, setIsDetecting] = useState(false);
+
+  // Detectar información del sistema al cargar el componente
+  useEffect(() => {
+    detectSystemInfo();
+  }, []);
+
+  const detectSystemInfo = async () => {
+    setIsDetecting(true);
+    try {
+      const systemInfo = await getSystemInfo();
+      console.log('Información del sistema detectada:', systemInfo);
+      setNodeConfig({
+        ...nodeConfig,
+        ipAddress: systemInfo.ipAddress,
+        macAddress: systemInfo.macAddress,
+        operatingSystem: systemInfo.operatingSystem,
+      });
+    } catch (error) {
+      console.error("Error al detectar información del sistema:", error);
+    } finally {
+      setIsDetecting(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-bg-secondary flex items-center justify-center p-4">
       <button
         onClick={onShowWelcome}
         className="fixed top-6 right-6 w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 flex items-center justify-center z-10"
@@ -17,29 +44,29 @@ export default function NodeConfigStep({
         <Info className="w-6 h-6" />
       </button>
 
-      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl">
+      <div className="bg-bg-primary rounded-2xl shadow-xl p-6 w-full max-w-2xl">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">
+          <h1 className="text-2xl font-bold text-text-primary mb-2">
             Paso 1: Configurar Nodo
           </h1>
-          <p className="text-gray-600 text-sm">
+          <p className="text-text-secondary text-sm">
             Complete la información del nodo de control de acceso
           </p>
         </div>
 
         <div className="space-y-4 mb-6">
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-5">
+          <div className="bg-bg-secondary border-2 border-blue-200 rounded-xl p-5">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
                 <HardDrive className="w-6 h-6 text-white" />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-gray-800 mb-3">
+                <h3 className="font-bold text-text-primary mb-3">
                   Información del Nodo
                 </h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-text-secondary mb-1">
                       Nombre del Nodo *
                     </label>
                     <input
@@ -52,11 +79,11 @@ export default function NodeConfigStep({
                         })
                       }
                       placeholder="ej. Entrada Principal"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-border-subtle rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-text-secondary mb-1">
                       Descripción *
                     </label>
                     <textarea
@@ -69,43 +96,63 @@ export default function NodeConfigStep({
                       }
                       placeholder="Describa la ubicación o función de este nodo"
                       rows="2"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                      className="w-full px-3 py-2 border border-border-subtle rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Dirección MAC *
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm font-medium text-text-secondary">
+                        Información del Sistema
                       </label>
-                      <input
-                        type="text"
-                        value={nodeConfig.macAddress}
-                        onChange={(e) =>
-                          setNodeConfig({
-                            ...nodeConfig,
-                            macAddress: e.target.value,
-                          })
-                        }
-                        placeholder="00:1A:2B:3C:4D:5E"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
+                      <button
+                        type="button"
+                        onClick={detectSystemInfo}
+                        disabled={isDetecting}
+                        className="flex items-center gap-1 px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${isDetecting ? 'animate-spin' : ''}`} />
+                        {isDetecting ? 'Detectando...' : 'Redetectar'}
+                      </button>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Sistema Operativo *
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeConfig.operatingSystem}
-                        onChange={(e) =>
-                          setNodeConfig({
-                            ...nodeConfig,
-                            operatingSystem: e.target.value,
-                          })
-                        }
-                        placeholder="ej. Linux Debian 11"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-text-secondary mb-1">
+                          Dirección IP *
+                        </label>
+                        <input
+                          type="text"
+                          value={nodeConfig.ipAddress || ''}
+                          disabled
+                          placeholder="192.168.1.100"
+                          className="w-full px-3 py-2 bg-bg-secondary border border-border-subtle rounded-lg font-mono text-sm text-text-secondary cursor-not-allowed"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-medium text-text-secondary mb-1">
+                            Dirección MAC *
+                          </label>
+                          <input
+                            type="text"
+                            value={nodeConfig.macAddress}
+                            disabled
+                            placeholder="00:1A:2B:3C:4D:5E"
+                            className="w-full px-3 py-2 bg-bg-secondary border border-border-subtle rounded-lg font-mono text-sm text-text-secondary cursor-not-allowed"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-text-secondary mb-1">
+                            Sistema Operativo *
+                          </label>
+                          <input
+                            type="text"
+                            value={nodeConfig.operatingSystem}
+                            disabled
+                            placeholder="ej. Linux Debian 11"
+                            className="w-full px-3 py-2 bg-bg-secondary border border-border-subtle rounded-lg text-text-secondary cursor-not-allowed"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -113,7 +160,7 @@ export default function NodeConfigStep({
             </div>
           </div>
 
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+          <div className="bg-bg-secondary border border-amber-200 rounded-lg p-3 flex items-start gap-2">
             <svg
               className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5"
               fill="none"
@@ -127,7 +174,7 @@ export default function NodeConfigStep({
                 d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <p className="text-sm text-gray-700">
+            <p className="text-sm text-text-secondary">
               Todos los campos marcados con * son obligatorios. La información
               debe ser exacta para el correcto funcionamiento del sistema.
             </p>

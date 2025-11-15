@@ -52,12 +52,12 @@ export default function DispositivosModal({ onClose, initialDevices = [] }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="bg-gradient-to-r from-green-600 to-green-500 p-6 flex-shrink-0">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-bg-primary/20 rounded-xl flex items-center justify-center">
                 <Smartphone className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -71,7 +71,7 @@ export default function DispositivosModal({ onClose, initialDevices = [] }) {
             </div>
             <button
               onClick={onClose}
-              className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+              className="text-white hover:bg-bg-primary/20 rounded-lg p-2 transition-colors"
             >
               <X className="w-6 h-6" />
             </button>
@@ -84,10 +84,10 @@ export default function DispositivosModal({ onClose, initialDevices = [] }) {
             {devices.map((device) => (
               <div
                 key={device.id}
-                className="bg-green-50 border-2 border-green-200 rounded-xl p-4"
+                className="bg-bg-secondary border-2 border-green-500 rounded-xl p-4"
               >
                 <div className="flex items-start justify-between mb-4">
-                  <h4 className="font-bold text-gray-800 flex items-center gap-2">
+                  <h4 className="font-bold text-text-primary flex items-center gap-2">
                     <Smartphone className="w-5 h-5 text-green-600" />
                     Dispositivo #{device.id}
                   </h4>
@@ -101,7 +101,7 @@ export default function DispositivosModal({ onClose, initialDevices = [] }) {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-text-secondary mb-2">
                       Nombre del Dispositivo
                     </label>
                     <input
@@ -110,13 +110,13 @@ export default function DispositivosModal({ onClose, initialDevices = [] }) {
                       onChange={(e) =>
                         updateDevice(device.id, "nombre", e.target.value)
                       }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      className="w-full px-4 py-2 bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-text-primary placeholder:text-text-disabled"
                       placeholder="Ej: Lector de Huella"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-text-secondary mb-2">
                       Tipo
                     </label>
                     <select
@@ -124,17 +124,17 @@ export default function DispositivosModal({ onClose, initialDevices = [] }) {
                       onChange={(e) =>
                         updateDevice(device.id, "tipo", e.target.value)
                       }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      className="w-full px-4 py-2 bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-text-primary"
                     >
-                      <option value="Cámara">Cámara</option>
-                      <option value="Biométrico">Biométrico</option>
-                      <option value="Lector RFID">Lector RFID</option>
-                      <option value="Teclado">Teclado</option>
+                      <option value="Cámara" className="bg-bg-primary text-text-primary">Cámara</option>
+                      <option value="Biométrico" className="bg-bg-primary text-text-primary">Biométrico</option>
+                      <option value="Lector RFID" className="bg-bg-primary text-text-primary">Lector RFID</option>
+                      <option value="Teclado" className="bg-bg-primary text-text-primary">Teclado</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-text-secondary mb-2">
                       Puerto/Conexión
                     </label>
                     <input
@@ -143,13 +143,13 @@ export default function DispositivosModal({ onClose, initialDevices = [] }) {
                       onChange={(e) =>
                         updateDevice(device.id, "puerto", e.target.value)
                       }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      className="w-full px-4 py-2 bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-text-primary placeholder:text-text-disabled"
                       placeholder="Ej: USB-001"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-text-secondary mb-2">
                       Descripción
                     </label>
                     <input
@@ -158,7 +158,7 @@ export default function DispositivosModal({ onClose, initialDevices = [] }) {
                       onChange={(e) =>
                         updateDevice(device.id, "descripcion", e.target.value)
                       }
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      className="w-full px-4 py-2 bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-text-primary placeholder:text-text-disabled"
                       placeholder="Descripción breve"
                     />
                   </div>
@@ -177,11 +177,11 @@ export default function DispositivosModal({ onClose, initialDevices = [] }) {
         </div>
 
         {/* Footer */}
-        <div className="bg-slate-50 p-4 border-t border-slate-200 flex-shrink-0">
+        <div className="bg-bg-secondary p-4 border-t border-border-subtle flex-shrink-0">
           <div className="flex gap-4">
             <button
               onClick={onClose}
-              className="flex-1 px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-colors"
+              className="flex-1 px-6 py-3 bg-bg-primary border-2 border-border-subtle text-text-secondary rounded-xl font-bold hover:bg-bg-secondary transition-colors"
             >
               Cancelar
             </button>

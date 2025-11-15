@@ -22,7 +22,7 @@ export default function StepIndicator({ currentStep }) {
                       ? "bg-green-500 text-white shadow-lg"
                       : currentStep === stepItem.number
                       ? "bg-blue-600 text-white ring-4 ring-blue-300 shadow-lg animate-pulse"
-                      : "bg-white text-gray-400 border-2 border-gray-300"
+                      : "bg-bg-primary text-text-disabled border-2 border-border-subtle"
                   }
                 `}
               >
@@ -37,8 +37,8 @@ export default function StepIndicator({ currentStep }) {
                   mt-2 text-xs font-medium text-center
                   ${
                     currentStep >= stepItem.number
-                      ? "text-gray-800"
-                      : "text-gray-400"
+                      ? "text-text-primary"
+                      : "text-text-disabled"
                   }
                 `}
               >
@@ -52,7 +52,7 @@ export default function StepIndicator({ currentStep }) {
                   ${
                     currentStep > stepItem.number
                       ? "bg-green-500"
-                      : "bg-gray-300"
+                      : "bg-border-subtle"
                   }
                 `}
               />

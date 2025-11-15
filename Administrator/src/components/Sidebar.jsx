@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, ShieldUser, Scale, TabletSmartphone, Settings, LogOut, Server, Building2, History, Clock, Home } from 'lucide-react';
+import { Users, ShieldUser, TabletSmartphone, Settings, LogOut, Server, Building2, History, Clock, Home } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getApiEndpoint } from '../config/api';
 
@@ -15,7 +15,6 @@ const Sidebar = ({ activeView, setActiveView }) => {
         { id: 'departments', label: 'Departamentos', icon: Building2 },
         { id: 'devices', label: 'Dispositivos', icon: TabletSmartphone },
         { id: 'schedules', label: 'Horarios', icon: Clock },
-        { id: 'permissions', label: 'Permisos', icon: Scale },
         { id: 'history', label: 'Historial', icon: History },
         { id: 'settings', label: 'Configuración', icon: Settings },
     ];

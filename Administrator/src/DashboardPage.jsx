@@ -6,7 +6,6 @@ import RolesPage from './modules/roles/RolesPage';
 import SettingsPage from './modules/settings/SettingsPage';
 import DevicesPage from './modules/devices/DevicesPage';
 import DeviceRequestPage from './modules/devices/DeviceRequestPage';
-import PermissionsPage from './modules/permissions/PermissionsPage';
 import DepartmentsPage from './modules/departments/DepartmentsPage';
 import HistoryPage from './modules/history/HistoryPage';
 import SchedulesPage from './modules/schedules/SchedulesPage';
@@ -60,8 +59,6 @@ const DashboardPage = () => {
                 );
             case 'schedules':
                 return <SchedulesPage />;
-            case 'permissions':
-                return <PermissionsPage />;
             case 'history':
                 return <HistoryPage />;
             default:

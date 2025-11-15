@@ -367,7 +367,7 @@ export const getStats = async (req, res) => {
     try {
         const result = await pool.query(`
       SELECT
-          COUNT(*) as total_usuarios,
+          COUNT(*) as total,
           COUNT(CASE WHEN activo = 'ACTIVO' THEN 1 END) as activos,
           COUNT(CASE WHEN activo = 'SUSPENDIDO' THEN 1 END) as suspendidos,
           COUNT(CASE WHEN activo = 'BAJA' THEN 1 END) as baja,

@@ -14,7 +14,7 @@ export default function CameraModal({
       }`}
     >
       <div
-        className={`bg-white rounded-2xl shadow-2xl max-w-xl w-full overflow-hidden transition-all duration-500 ${
+        className={`bg-bg-primary rounded-2xl shadow-2xl max-w-xl w-full overflow-hidden transition-all duration-500 ${
           isClosing ? "opacity-0 scale-95" : "opacity-100 scale-100"
         }`}
       >
@@ -46,7 +46,7 @@ export default function CameraModal({
 
         <div className="p-4">
           <div
-            className="relative bg-gray-900 rounded-xl overflow-hidden"
+            className="relative bg-bg-secondary rounded-xl overflow-hidden"
             style={{ aspectRatio: "4/3" }}
           >
             <video
@@ -92,7 +92,7 @@ export default function CameraModal({
             )}
           </div>
           <div className="mt-2 text-center">
-            <p className="text-gray-600 text-sm">
+            <p className="text-text-secondary text-sm">
               {captureSuccess
                 ? cameraMode === "asistencia"
                   ? "¡Asistencia registrada correctamente! Bienvenida, Amaya Abarca"

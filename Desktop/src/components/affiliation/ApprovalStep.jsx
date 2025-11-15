@@ -12,7 +12,7 @@ export default function ApprovalStep({
 }) {
   if (requestStatus === "approved") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-bg-secondary flex items-center justify-center p-4">
         <button
           onClick={onShowWelcome}
           className="fixed top-6 right-6 w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 flex items-center justify-center z-10"
@@ -21,12 +21,12 @@ export default function ApprovalStep({
           <Info className="w-6 h-6" />
         </button>
 
-        <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl border-2 border-green-400">
+        <div className="bg-bg-primary rounded-2xl shadow-xl p-6 w-full max-w-2xl border-2 border-green-400">
           <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-800 mb-2 text-center">
+            <h1 className="text-2xl font-bold text-text-primary mb-2 text-center">
               ¡Solicitud Aceptada!
             </h1>
-            <p className="text-gray-600 text-sm text-center">
+            <p className="text-text-secondary text-sm text-center">
               Su instalación ha sido vinculada exitosamente
             </p>
           </div>
@@ -38,8 +38,8 @@ export default function ApprovalStep({
               </div>
             </div>
 
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="text-sm text-gray-700 text-center">
+            <div className="bg-bg-secondary border border-green-500 rounded-lg p-4">
+              <p className="text-sm text-text-secondary text-center">
                 Ya puede iniciar sesión para comenzar a utilizar el sistema.
               </p>
             </div>
@@ -74,7 +74,7 @@ export default function ApprovalStep({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-bg-secondary flex items-center justify-center p-4">
       <button
         onClick={onShowWelcome}
         className="fixed top-6 right-6 w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 flex items-center justify-center z-10"
@@ -83,12 +83,12 @@ export default function ApprovalStep({
         <Info className="w-6 h-6" />
       </button>
 
-      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl">
+      <div className="bg-bg-primary rounded-2xl shadow-xl p-6 w-full max-w-2xl">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">
+          <h1 className="text-2xl font-bold text-text-primary mb-2">
             Solicitud Pendiente
           </h1>
-          <p className="text-gray-600 text-sm">
+          <p className="text-text-secondary text-sm">
             Esperando aprobación del administrador
           </p>
         </div>
@@ -102,11 +102,11 @@ export default function ApprovalStep({
               </div>
             </div>
 
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2 mb-3">
-              <p className="text-sm text-gray-700">
+            <div className="bg-bg-secondary border border-amber-200 rounded-lg p-3 space-y-2 mb-3">
+              <p className="text-sm text-text-secondary">
                 <strong>ID de la Empresa:</strong> {companyId || "ABC-XYZ-123"}
               </p>
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-text-secondary">
                 <strong>Estado:</strong> En Revisión por el Administrador
               </p>
               <p className="text-base font-bold text-amber-600">
@@ -114,7 +114,7 @@ export default function ApprovalStep({
               </p>
             </div>
 
-            <p className="text-sm text-gray-600 mb-3">
+            <p className="text-sm text-text-secondary mb-3">
               Recibirá una notificación cuando el administrador apruebe su
               solicitud.
             </p>
@@ -122,7 +122,7 @@ export default function ApprovalStep({
             <div className="space-y-2">
               <button
                 onClick={onRetry}
-                className="w-full px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium transition-colors"
+                className="w-full px-6 py-2 bg-bg-secondary text-text-secondary rounded-lg hover:bg-bg-tertiary text-sm font-medium transition-colors"
               >
                 Reenviar Solicitud
               </button>

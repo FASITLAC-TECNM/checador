@@ -134,12 +134,12 @@ export default function KioskScreen() {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-gray-100 to-gray-200 flex overflow-hidden">
+    <div className="h-screen bg-bg-secondary flex overflow-hidden">
       {/* Barra lateral izquierda */}
-      <div className="w-20 bg-white shadow-lg flex flex-col items-center py-6 gap-4">
+      <div className="w-20 bg-bg-primary shadow-lg flex flex-col items-center py-6 gap-4">
         <button
           onClick={() => setShowLoginModal(true)}
-          className="flex flex-col items-center gap-1 text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-all w-16"
+          className="flex flex-col items-center gap-1 text-blue-600 hover:bg-bg-secondary p-2 rounded-lg transition-all w-16"
         >
           <User className="w-5 h-5" />
           <span className="text-xs font-semibold">Usuario</span>
@@ -147,7 +147,7 @@ export default function KioskScreen() {
 
         <button
           onClick={() => setShowBitacora(true)}
-          className="flex flex-col items-center gap-1 text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-all w-16"
+          className="flex flex-col items-center gap-1 text-blue-600 hover:bg-bg-secondary p-2 rounded-lg transition-all w-16"
         >
           <Activity className="w-5 h-5" />
           <span className="text-xs font-semibold">Bitácora</span>
@@ -205,8 +205,8 @@ export default function KioskScreen() {
 
         {/* Sección de avisos - Compacta */}
         <div className="flex-1 flex flex-col min-h-0">
-          <div className="bg-white rounded-2xl shadow-sm p-4 h-full flex flex-col">
-            <h3 className="text-lg font-bold text-gray-800 mb-3 flex-shrink-0">
+          <div className="bg-bg-primary rounded-2xl shadow-sm p-4 h-full flex flex-col border border-border-subtle">
+            <h3 className="text-lg font-bold text-text-primary mb-3 flex-shrink-0">
               Avisos Generales
             </h3>
 
@@ -215,15 +215,15 @@ export default function KioskScreen() {
                 <div
                   key={index}
                   onClick={() => setSelectedNotice(notice)}
-                  className="flex-shrink-0 w-56 bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all p-3 cursor-pointer"
+                  className="flex-shrink-0 w-56 bg-bg-secondary rounded-xl shadow-sm border border-border-subtle hover:shadow-md transition-all p-3 cursor-pointer hover:bg-bg-tertiary"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-blue-600">
+                    <span className="text-xs font-bold text-accent">
                       {notice.time}
                     </span>
-                    <Bell className="w-4 h-4 text-blue-500" />
+                    <Bell className="w-4 h-4 text-accent" />
                   </div>
-                  <h4 className="font-bold text-gray-800 text-sm leading-tight line-clamp-2">
+                  <h4 className="font-bold text-text-primary text-sm leading-tight line-clamp-2">
                     {notice.subject || notice.message.substring(0, 50)}
                   </h4>
                 </div>

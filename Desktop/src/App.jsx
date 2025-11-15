@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ThemeProvider } from "./context/ThemeContext";
 import AffiliationRequest from "./pages/AffiliationRequest";
 import KioskScreen from "./pages/KioskScreen";
 import SessionScreen from "./pages/SessionScreen";
@@ -9,13 +10,15 @@ function App() {
   const [currentPage, setCurrentPage] = useState("kiosk"); // 'affiliation', 'kiosk', 'session'
 
   return (
-    <div className="App">
-      {currentPage === "affiliation" && <AffiliationRequest />}
-      {currentPage === "kiosk" && <KioskScreen />}
-      {currentPage === "session" && (
-        <SessionScreen onLogout={() => setCurrentPage("kiosk")} />
-      )}
-    </div>
+    <ThemeProvider>
+      <div className="App">
+        {currentPage === "affiliation" && <AffiliationRequest />}
+        {currentPage === "kiosk" && <KioskScreen />}
+        {currentPage === "session" && (
+          <SessionScreen onLogout={() => setCurrentPage("kiosk")} />
+        )}
+      </div>
+    </ThemeProvider>
   );
 }
 

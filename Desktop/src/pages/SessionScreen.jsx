@@ -130,10 +130,10 @@ export default function SessionScreen({ onLogout, usuario }) {
   };
 
   return (
-    <div className="h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 overflow-hidden">
+    <div className="h-screen bg-bg-secondary p-4 overflow-hidden">
       <div className="max-w-[1600px] mx-auto h-full flex flex-col">
         {/* Header con información del usuario */}
-        <div className="bg-white rounded-2xl shadow-lg p-4 mb-4 flex-shrink-0">
+        <div className="bg-bg-primary rounded-2xl shadow-lg p-4 mb-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               {/* Foto del usuario */}
@@ -151,7 +151,7 @@ export default function SessionScreen({ onLogout, usuario }) {
 
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-xl font-bold text-gray-800">
+                  <h1 className="text-xl font-bold text-text-primary">
                     {userName}
                   </h1>
                   <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded">
@@ -161,7 +161,7 @@ export default function SessionScreen({ onLogout, usuario }) {
                     {usuario?.estado || "Estado"}
                   </span>
                 </div>
-                <div className="grid grid-cols-3 gap-x-4 gap-y-0.5 mt-1 text-xs text-gray-600">
+                <div className="grid grid-cols-3 gap-x-4 gap-y-0.5 mt-1 text-xs text-text-secondary">
                   <div>
                     <span className="font-medium">Id:</span> {userId}
                   </div>
@@ -180,14 +180,14 @@ export default function SessionScreen({ onLogout, usuario }) {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowConfigModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-50 hover:bg-purple-100 text-purple-600 rounded-xl font-semibold transition-all border-2 border-purple-200 text-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-bg-secondary hover:bg-bg-tertiary text-text-primary rounded-xl font-semibold transition-all border-2 border-border-subtle text-sm"
               >
                 <Settings className="w-4 h-4" />
                 Configuración
               </button>
               <button
                 onClick={onLogout}
-                className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-semibold transition-all border-2 border-red-200 text-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-bg-secondary hover:bg-bg-tertiary text-text-primary rounded-xl font-semibold transition-all border-2 border-border-subtle text-sm"
               >
                 <LogOut className="w-4 h-4" />
                 Cerrar Sesión
@@ -201,30 +201,30 @@ export default function SessionScreen({ onLogout, usuario }) {
           {/* Columna 1 - Estado Actual y Estadísticas */}
           <div className="flex flex-col gap-3 min-h-0">
             {/* Estado Actual */}
-            <div className="bg-white rounded-2xl shadow-lg p-4 flex-shrink-0">
+            <div className="bg-bg-primary rounded-2xl shadow-lg p-4 flex-shrink-0">
               <div className="flex items-center gap-2 mb-3">
                 <Clock className="w-5 h-5 text-blue-600" />
-                <h2 className="text-base font-bold text-gray-800">
+                <h2 className="text-base font-bold text-text-primary">
                   Estado Actual
                 </h2>
               </div>
 
               {/* Hora y Fecha */}
-              <div className="bg-blue-50 rounded-xl p-3 mb-3">
-                <p className="text-4xl font-bold text-gray-800">
+              <div className="bg-bg-secondary rounded-xl p-3 mb-3 border border-border-subtle">
+                <p className="text-4xl font-bold text-text-primary">
                   {formatTime(time).replace(/\s/g, "\u00A0")}
                 </p>
-                <p className="text-xs text-gray-600 mt-1">
+                <p className="text-xs text-text-secondary mt-1">
                   {formatDateShort(time)} • {formatDay(time)}
                 </p>
               </div>
 
               {/* Estado - Retardo */}
-              <div className="bg-amber-50 border-l-4 border-amber-500 rounded-lg p-2 mb-3">
+              <div className="bg-bg-secondary border-l-4 border-amber-500 rounded-lg p-2 mb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-amber-600" />
-                    <span className="font-bold text-gray-800 text-sm">
+                    <span className="font-bold text-text-primary text-sm">
                       Estado: Retardo
                     </span>
                   </div>
@@ -237,65 +237,65 @@ export default function SessionScreen({ onLogout, usuario }) {
               {/* Grid con ÚLTIMO y PRÓXIMO */}
               <div className="grid grid-cols-2 gap-2">
                 {/* Último registro */}
-                <div className="bg-green-50 rounded-xl p-3">
-                  <div className="flex items-center gap-1 text-green-700 mb-1">
+                <div className="bg-bg-secondary border-l-4 border-green-500 rounded-xl p-3">
+                  <div className="flex items-center gap-1 text-green-500 mb-1">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     <span className="text-xs font-bold">ÚLTIMO</span>
                   </div>
-                  <p className="text-3xl font-bold text-gray-800">08:05</p>
-                  <p className="text-xs text-green-700 mt-1">Entrada</p>
-                  <p className="text-xs text-gray-500">02/11/2025</p>
+                  <p className="text-3xl font-bold text-text-primary">08:05</p>
+                  <p className="text-xs text-green-500 mt-1">Entrada</p>
+                  <p className="text-xs text-text-tertiary">02/11/2025</p>
                 </div>
 
                 {/* Próximo registro */}
-                <div className="bg-red-50 rounded-xl p-3">
-                  <div className="flex items-center gap-1 text-red-700 mb-1">
+                <div className="bg-bg-secondary border-l-4 border-red-500 rounded-xl p-3">
+                  <div className="flex items-center gap-1 text-red-500 mb-1">
                     <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                     <span className="text-xs font-bold">PRÓXIMO</span>
                   </div>
-                  <p className="text-3xl font-bold text-gray-800">13:00</p>
-                  <p className="text-xs text-red-700 mt-1">Comida</p>
-                  <p className="text-xs text-gray-500">02/11/2025</p>
+                  <p className="text-3xl font-bold text-text-primary">13:00</p>
+                  <p className="text-xs text-red-500 mt-1">Comida</p>
+                  <p className="text-xs text-text-tertiary">02/11/2025</p>
                 </div>
               </div>
             </div>
 
             {/* Resumen Semanal */}
-            <div className="bg-white rounded-2xl shadow-lg p-4 flex-shrink-0">
-              <h3 className="text-base font-bold text-gray-800 mb-3">
+            <div className="bg-bg-primary rounded-2xl shadow-lg p-4 flex-shrink-0">
+              <h3 className="text-base font-bold text-text-primary mb-3">
                 Resumen Semanal
               </h3>
               <div className="grid grid-cols-2 gap-3">
                 <div className="text-center">
                   <p className="text-4xl font-bold text-blue-600">32.5</p>
-                  <p className="text-xs text-gray-600 mt-1">Total de horas</p>
-                  <p className="text-xs text-gray-500">esta semana</p>
+                  <p className="text-xs text-text-secondary mt-1">Total de horas</p>
+                  <p className="text-xs text-text-tertiary">esta semana</p>
                 </div>
                 <div className="text-center">
                   <p className="text-4xl font-bold text-green-600">5</p>
-                  <p className="text-xs text-gray-600 mt-1">Días laborales</p>
-                  <p className="text-xs text-gray-500">de 7 días</p>
+                  <p className="text-xs text-text-secondary mt-1">Días laborales</p>
+                  <p className="text-xs text-text-tertiary">de 7 días</p>
                 </div>
               </div>
             </div>
 
             {/* Estadísticas de Noviembre */}
-            <div className="bg-white rounded-2xl shadow-lg p-4 flex-shrink-0">
-              <h3 className="text-base font-bold text-gray-800 mb-3">
+            <div className="bg-bg-primary rounded-2xl shadow-lg p-4 flex-shrink-0">
+              <h3 className="text-base font-bold text-text-primary mb-3">
                 Estadísticas de Noviembre
               </h3>
               <div className="grid grid-cols-3 gap-2">
                 <div className="text-center">
                   <p className="text-3xl font-bold text-green-600">8</p>
-                  <p className="text-xs text-gray-600 mt-1">Días asistidos</p>
+                  <p className="text-xs text-text-secondary mt-1">Días asistidos</p>
                 </div>
                 <div className="text-center">
                   <p className="text-3xl font-bold text-red-600">2</p>
-                  <p className="text-xs text-gray-600 mt-1">Faltas</p>
+                  <p className="text-xs text-text-secondary mt-1">Faltas</p>
                 </div>
                 <div className="text-center">
                   <p className="text-3xl font-bold text-blue-600">90%</p>
-                  <p className="text-xs text-gray-600 mt-1">Asistencia</p>
+                  <p className="text-xs text-text-secondary mt-1">Asistencia</p>
                 </div>
               </div>
             </div>
@@ -303,10 +303,10 @@ export default function SessionScreen({ onLogout, usuario }) {
 
           {/* Columna 2 - Avisos Personales */}
           <div className="flex flex-col min-h-0">
-            <div className="bg-white rounded-2xl shadow-lg p-4 flex flex-col h-full">
+            <div className="bg-bg-primary rounded-2xl shadow-lg p-4 flex flex-col h-full">
               <div className="flex items-center gap-2 mb-3 flex-shrink-0">
                 <Bell className="w-5 h-5 text-blue-600" />
-                <h2 className="text-base font-bold text-gray-800">
+                <h2 className="text-base font-bold text-text-primary">
                   Avisos Personales
                 </h2>
               </div>
@@ -315,7 +315,7 @@ export default function SessionScreen({ onLogout, usuario }) {
                   <div
                     key={index}
                     onClick={() => setSelectedNotice(notice)}
-                    className="bg-white rounded-xl p-3 border border-gray-200 cursor-pointer hover:shadow-lg transition-all"
+                    className="bg-bg-primary rounded-xl p-3 border border-border-subtle cursor-pointer hover:shadow-lg transition-all"
                   >
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -325,7 +325,7 @@ export default function SessionScreen({ onLogout, usuario }) {
                         <div className="flex items-center gap-2 text-xs text-blue-600 font-bold mb-1">
                           <span>{notice.time}</span>
                         </div>
-                        <h4 className="font-bold text-gray-800 text-sm leading-tight truncate">
+                        <h4 className="font-bold text-text-primary text-sm leading-tight truncate">
                           {notice.subject}
                         </h4>
                       </div>
@@ -432,7 +432,7 @@ export default function SessionScreen({ onLogout, usuario }) {
       {/* Notice Detail Modal */}
       {selectedNotice && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
+          <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
             <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-6">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
@@ -443,33 +443,33 @@ export default function SessionScreen({ onLogout, usuario }) {
                 </div>
                 <button
                   onClick={() => setSelectedNotice(null)}
-                  className="text-white hover:bg-white/20 rounded-lg p-2"
+                  className="text-white hover:bg-bg-primary/20 rounded-lg p-2"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
             </div>
             <div className="p-6 space-y-4">
-              <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4">
+              <div className="bg-bg-secondary border-l-4 border-blue-500 rounded-lg p-4">
                 <h4 className="font-bold text-lg text-blue-800 mb-2">
                   {selectedNotice.subject}
                 </h4>
-                <p className="text-gray-700">{selectedNotice.detail}</p>
+                <p className="text-text-secondary">{selectedNotice.detail}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-xs font-semibold text-gray-600 mb-1">
+                <div className="bg-bg-secondary rounded-lg p-4">
+                  <p className="text-xs font-semibold text-text-secondary mb-1">
                     AUTOR
                   </p>
-                  <p className="text-sm font-medium text-gray-800">
+                  <p className="text-sm font-medium text-text-primary">
                     {selectedNotice.author}
                   </p>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-xs font-semibold text-gray-600 mb-1">
+                <div className="bg-bg-secondary rounded-lg p-4">
+                  <p className="text-xs font-semibold text-text-secondary mb-1">
                     FECHA Y HORA
                   </p>
-                  <p className="text-sm font-medium text-gray-800">
+                  <p className="text-sm font-medium text-text-primary">
                     {selectedNotice.date} - {selectedNotice.time}
                   </p>
                 </div>
@@ -488,13 +488,13 @@ export default function SessionScreen({ onLogout, usuario }) {
       {/* HORARIO MODAL */}
       {showHorarioModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+          <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-md w-full">
             <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-6">
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold text-white">Mi Horario</h3>
                 <button
                   onClick={() => setShowHorarioModal(false)}
-                  className="text-white hover:bg-white/20 rounded-lg p-2"
+                  className="text-white hover:bg-bg-primary/20 rounded-lg p-2"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -502,14 +502,14 @@ export default function SessionScreen({ onLogout, usuario }) {
             </div>
             <div className="p-6">
               <div className="space-y-3">
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm font-semibold text-gray-600 mb-2">
+                <div className="bg-bg-secondary rounded-lg p-4">
+                  <p className="text-sm font-semibold text-text-secondary mb-2">
                     HORARIO REGULAR
                   </p>
-                  <p className="font-bold text-gray-800">
+                  <p className="font-bold text-text-primary">
                     Lunes a Viernes: 8:00 AM - 5:00 PM
                   </p>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-text-secondary mt-1">
                     Comida: 1:00 PM - 2:00 PM
                   </p>
                 </div>

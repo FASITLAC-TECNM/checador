@@ -2,12 +2,12 @@ import { Monitor, HardDrive, Wifi, Building2, Lock } from "lucide-react";
 
 export default function WelcomeScreen({ onClose }) {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-bg-secondary flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl mx-4 overflow-hidden">
+        <div className="bg-bg-primary rounded-2xl shadow-2xl w-full max-w-5xl mx-4 overflow-hidden">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6 text-white">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-white bg-opacity-20 rounded-full flex items-center justify-center backdrop-blur-sm">
+              <div className="w-14 h-14 bg-bg-primary bg-opacity-20 rounded-full flex items-center justify-center backdrop-blur-sm">
                 <Monitor className="w-7 h-7" />
               </div>
               <div>
@@ -29,10 +29,10 @@ export default function WelcomeScreen({ onClose }) {
                     1
                   </div>
                   <HardDrive className="w-8 h-8 text-blue-600 mb-3" />
-                  <h3 className="font-bold text-gray-800 mb-2">
+                  <h3 className="font-bold text-text-primary mb-2">
                     Configurar Nodo
                   </h3>
-                  <p className="text-sm text-gray-600 leading-relaxed">
+                  <p className="text-sm text-text-secondary leading-relaxed">
                     Registre nombre, descripción, dirección MAC y sistema
                     operativo del nodo
                   </p>
@@ -45,10 +45,10 @@ export default function WelcomeScreen({ onClose }) {
                     2
                   </div>
                   <Wifi className="w-8 h-8 text-indigo-600 mb-3" />
-                  <h3 className="font-bold text-gray-800 mb-2">
+                  <h3 className="font-bold text-text-primary mb-2">
                     Agregar Dispositivos
                   </h3>
-                  <p className="text-sm text-gray-600 leading-relaxed">
+                  <p className="text-sm text-text-secondary leading-relaxed">
                     Configure cámaras IP, lectores USB y otros dispositivos
                     conectados
                   </p>
@@ -61,10 +61,10 @@ export default function WelcomeScreen({ onClose }) {
                     3
                   </div>
                   <Building2 className="w-8 h-8 text-purple-600 mb-3" />
-                  <h3 className="font-bold text-gray-800 mb-2">
+                  <h3 className="font-bold text-text-primary mb-2">
                     Afiliarse a Empresa
                   </h3>
-                  <p className="text-sm text-gray-600 leading-relaxed">
+                  <p className="text-sm text-text-secondary leading-relaxed">
                     Ingrese el código único de su empresa para vincular este
                     nodo
                   </p>
@@ -77,10 +77,10 @@ export default function WelcomeScreen({ onClose }) {
                     4
                   </div>
                   <Lock className="w-8 h-8 text-green-600 mb-3" />
-                  <h3 className="font-bold text-gray-800 mb-2">
+                  <h3 className="font-bold text-text-primary mb-2">
                     Esperando Aprobación
                   </h3>
-                  <p className="text-sm text-gray-600 leading-relaxed">
+                  <p className="text-sm text-text-secondary leading-relaxed">
                     El administrador de la empresa validará su solicitud de
                     acceso
                   </p>
@@ -89,7 +89,7 @@ export default function WelcomeScreen({ onClose }) {
             </div>
 
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-100">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">
+              <h3 className="text-lg font-bold text-text-primary mb-4">
                 📋 Antes de comenzar, asegúrese de tener:
               </h3>
               <div className="grid grid-cols-2 gap-4">
@@ -98,10 +98,10 @@ export default function WelcomeScreen({ onClose }) {
                     ✓
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-800 text-sm">
+                    <p className="font-semibold text-text-primary text-sm">
                       Código de la Empresa
                     </p>
-                    <p className="text-xs text-gray-600 mt-1">
+                    <p className="text-xs text-text-secondary mt-1">
                       Proporcionado por su administrador (formato ABC-XYZ-123)
                     </p>
                   </div>
@@ -111,10 +111,10 @@ export default function WelcomeScreen({ onClose }) {
                     ✓
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-800 text-sm">
+                    <p className="font-semibold text-text-primary text-sm">
                       Información del Nodo
                     </p>
-                    <p className="text-xs text-gray-600 mt-1">
+                    <p className="text-xs text-text-secondary mt-1">
                       Nombre, MAC, IP y descripción del sistema de control
                     </p>
                   </div>
@@ -124,10 +124,10 @@ export default function WelcomeScreen({ onClose }) {
                     ✓
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-800 text-sm">
+                    <p className="font-semibold text-text-primary text-sm">
                       Dispositivos Conectados
                     </p>
-                    <p className="text-xs text-gray-600 mt-1">
+                    <p className="text-xs text-text-secondary mt-1">
                       Detalles de cámaras, sensores y lectores biométricos
                     </p>
                   </div>
@@ -137,10 +137,10 @@ export default function WelcomeScreen({ onClose }) {
                     ✓
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-800 text-sm">
+                    <p className="font-semibold text-text-primary text-sm">
                       Permisos de Administrador
                     </p>
-                    <p className="text-xs text-gray-600 mt-1">
+                    <p className="text-xs text-text-secondary mt-1">
                       Para configurar el sistema y vincular dispositivos
                     </p>
                   </div>

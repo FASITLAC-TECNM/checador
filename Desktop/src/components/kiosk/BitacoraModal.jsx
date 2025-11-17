@@ -1,16 +1,18 @@
 import { Activity, X } from "lucide-react";
 import { eventLog } from "../../constants/notices";
+import { obtenerBitacora } from "../../services/bitacoraService";
+import { useState, useEffect } from "react";
 
 const getRowColor = (type) => {
   switch (type) {
     case "success":
-      return "hover:bg-green-50";
+      return "hover:bg-green-50 dark:hover:bg-green-900/20";
     case "error":
-      return "hover:bg-red-50";
+      return "hover:bg-red-50 dark:hover:bg-red-900/20";
     case "info":
-      return "hover:bg-blue-50";
+      return "hover:bg-blue-50 dark:hover:bg-blue-900/20";
     default:
-      return "hover:bg-bg-secondary";
+      return "hover:bg-bg-secondary dark:hover:bg-bg-tertiary";
   }
 };
 
@@ -46,6 +48,32 @@ const getStatusIcon = (type) => {
 };
 
 export default function BitacoraModal({ onClose }) {
+  const [eventos, setEventos] = useState([]);
+
+  useEffect(() => {
+    // Función para cargar eventos
+    const cargarEventos = () => {
+      const eventosDinamicos = obtenerBitacora();
+
+      // Si hay eventos en localStorage, usarlos; si no, usar los de ejemplo
+      if (eventosDinamicos.length > 0) {
+        setEventos(eventosDinamicos);
+      } else {
+        setEventos(eventLog);
+      }
+    };
+
+    // Cargar eventos inicialmente
+    cargarEventos();
+
+    // Actualizar cada 2 segundos para reflejar nuevos eventos
+    const interval = setInterval(() => {
+      cargarEventos();
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
@@ -53,11 +81,11 @@ export default function BitacoraModal({ onClose }) {
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <h3 className="text-xl font-bold text-white mb-1">
-                Bitácora de Eventos del Sistema
+                Bitácora de Eventos de los empleados
               </h3>
               <div className="flex items-center gap-2 text-white/90 text-sm">
                 <Activity className="w-4 h-4" />
-                <span>Registro de actividad del sistema</span>
+                <span>Registro de actividad de los empleados ({eventos.length} eventos)</span>
               </div>
             </div>
             <button
@@ -89,7 +117,7 @@ export default function BitacoraModal({ onClose }) {
                 </tr>
               </thead>
               <tbody>
-                {eventLog.map((event, idx) => (
+                {eventos.map((event, idx) => (
                   <tr
                     key={idx}
                     className={`border-b border-border-subtle transition-colors ${getRowColor(

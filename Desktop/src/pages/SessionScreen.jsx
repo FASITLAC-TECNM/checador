@@ -24,6 +24,8 @@ import ConfigModal from "../components/session/ConfigModal";
 import GeneralNodoModal from "../components/session/GeneralNodoModal";
 import DispositivosModal from "../components/session/DispositivosModal";
 import PreferenciasModal from "../components/session/PreferenciasModal";
+import EmployeeInfo from "../components/session/EmployeeInfo";
+import NoEmployeeInfo from "../components/session/NoEmployeeInfo";
 
 export default function SessionScreen({ onLogout, usuario }) {
   const [time, setTime] = useState(new Date());
@@ -72,6 +74,11 @@ export default function SessionScreen({ onLogout, usuario }) {
   const userEmail = usuario?.email || "N/A";
   const userPhone = usuario?.telefono || "N/A";
   const userUsername = usuario?.username || "N/A";
+  const userRFC = usuario?.rfc;
+  const userNSS = usuario?.nss;
+
+  // Verificar si es un empleado (tiene RFC y NSS)
+  const isEmployee = userRFC && userNSS;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -163,9 +170,6 @@ export default function SessionScreen({ onLogout, usuario }) {
                 </div>
                 <div className="grid grid-cols-3 gap-x-4 gap-y-0.5 mt-1 text-xs text-text-secondary">
                   <div>
-                    <span className="font-medium">Id:</span> {userId}
-                  </div>
-                  <div>
                     <span className="font-medium">Usuario:</span> {userUsername}
                   </div>
                   <div>
@@ -197,182 +201,90 @@ export default function SessionScreen({ onLogout, usuario }) {
         </div>
 
         {/* Main Content - 3 Columnas */}
-        <div className="grid grid-cols-3 gap-4 flex-1 min-h-0">
-          {/* Columna 1 - Estado Actual y Estadísticas */}
-          <div className="flex flex-col gap-3 min-h-0">
-            {/* Estado Actual */}
-            <div className="bg-bg-primary rounded-2xl shadow-lg p-4 flex-shrink-0">
-              <div className="flex items-center gap-2 mb-3">
-                <Clock className="w-5 h-5 text-blue-600" />
-                <h2 className="text-base font-bold text-text-primary">
-                  Estado Actual
-                </h2>
-              </div>
-
-              {/* Hora y Fecha */}
-              <div className="bg-bg-secondary rounded-xl p-3 mb-3 border border-border-subtle">
-                <p className="text-4xl font-bold text-text-primary">
-                  {formatTime(time).replace(/\s/g, "\u00A0")}
-                </p>
-                <p className="text-xs text-text-secondary mt-1">
-                  {formatDateShort(time)} • {formatDay(time)}
-                </p>
-              </div>
-
-              {/* Estado - Retardo */}
-              <div className="bg-bg-secondary border-l-4 border-amber-500 rounded-lg p-2 mb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-amber-600" />
-                    <span className="font-bold text-text-primary text-sm">
-                      Estado: Retardo
-                    </span>
-                  </div>
-                  <span className="text-amber-600 font-bold text-sm">
-                    +5 min
-                  </span>
-                </div>
-              </div>
-
-              {/* Grid con ÚLTIMO y PRÓXIMO */}
-              <div className="grid grid-cols-2 gap-2">
-                {/* Último registro */}
-                <div className="bg-bg-secondary border-l-4 border-green-500 rounded-xl p-3">
-                  <div className="flex items-center gap-1 text-green-500 mb-1">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="text-xs font-bold">ÚLTIMO</span>
-                  </div>
-                  <p className="text-3xl font-bold text-text-primary">08:05</p>
-                  <p className="text-xs text-green-500 mt-1">Entrada</p>
-                  <p className="text-xs text-text-tertiary">02/11/2025</p>
-                </div>
-
-                {/* Próximo registro */}
-                <div className="bg-bg-secondary border-l-4 border-red-500 rounded-xl p-3">
-                  <div className="flex items-center gap-1 text-red-500 mb-1">
-                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                    <span className="text-xs font-bold">PRÓXIMO</span>
-                  </div>
-                  <p className="text-3xl font-bold text-text-primary">13:00</p>
-                  <p className="text-xs text-red-500 mt-1">Comida</p>
-                  <p className="text-xs text-text-tertiary">02/11/2025</p>
-                </div>
-              </div>
+        {isEmployee ? (
+          <div className="grid grid-cols-3 gap-4 flex-1 min-h-0">
+            {/* Columna 1 - Estado Actual y Estadísticas */}
+            <div className="flex flex-col gap-3 min-h-0">
+              <EmployeeInfo time={time} />
             </div>
 
-            {/* Resumen Semanal */}
-            <div className="bg-bg-primary rounded-2xl shadow-lg p-4 flex-shrink-0">
-              <h3 className="text-base font-bold text-text-primary mb-3">
-                Resumen Semanal
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="text-center">
-                  <p className="text-4xl font-bold text-blue-600">32.5</p>
-                  <p className="text-xs text-text-secondary mt-1">Total de horas</p>
-                  <p className="text-xs text-text-tertiary">esta semana</p>
+            {/* Columna 2 - Avisos Personales */}
+            <div className="flex flex-col min-h-0">
+              <div className="bg-bg-primary rounded-2xl shadow-lg p-4 flex flex-col h-full">
+                <div className="flex items-center gap-2 mb-3 flex-shrink-0">
+                  <Bell className="w-5 h-5 text-blue-600" />
+                  <h2 className="text-base font-bold text-text-primary">
+                    Avisos Personales
+                  </h2>
                 </div>
-                <div className="text-center">
-                  <p className="text-4xl font-bold text-green-600">5</p>
-                  <p className="text-xs text-text-secondary mt-1">Días laborales</p>
-                  <p className="text-xs text-text-tertiary">de 7 días</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Estadísticas de Noviembre */}
-            <div className="bg-bg-primary rounded-2xl shadow-lg p-4 flex-shrink-0">
-              <h3 className="text-base font-bold text-text-primary mb-3">
-                Estadísticas de Noviembre
-              </h3>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-green-600">8</p>
-                  <p className="text-xs text-text-secondary mt-1">Días asistidos</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-red-600">2</p>
-                  <p className="text-xs text-text-secondary mt-1">Faltas</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-3xl font-bold text-blue-600">90%</p>
-                  <p className="text-xs text-text-secondary mt-1">Asistencia</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Columna 2 - Avisos Personales */}
-          <div className="flex flex-col min-h-0">
-            <div className="bg-bg-primary rounded-2xl shadow-lg p-4 flex flex-col h-full">
-              <div className="flex items-center gap-2 mb-3 flex-shrink-0">
-                <Bell className="w-5 h-5 text-blue-600" />
-                <h2 className="text-base font-bold text-text-primary">
-                  Avisos Personales
-                </h2>
-              </div>
-              <div className="space-y-2 flex-1 min-h-0 overflow-auto">
-                {notices.slice(0, 5).map((notice, index) => (
-                  <div
-                    key={index}
-                    onClick={() => setSelectedNotice(notice)}
-                    className="bg-bg-primary rounded-xl p-3 border border-border-subtle cursor-pointer hover:shadow-lg transition-all"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <Bell className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 text-xs text-blue-600 font-bold mb-1">
-                          <span>{notice.time}</span>
+                <div className="space-y-2 flex-1 min-h-0 overflow-auto">
+                  {notices.slice(0, 5).map((notice, index) => (
+                    <div
+                      key={index}
+                      onClick={() => setSelectedNotice(notice)}
+                      className="bg-bg-primary rounded-xl p-3 border border-border-subtle cursor-pointer hover:shadow-lg transition-all"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Bell className="w-5 h-5 text-blue-600" />
                         </div>
-                        <h4 className="font-bold text-text-primary text-sm leading-tight truncate">
-                          {notice.subject}
-                        </h4>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 text-xs text-blue-600 font-bold mb-1">
+                            <span>{notice.time}</span>
+                          </div>
+                          <h4 className="font-bold text-text-primary text-sm leading-tight truncate">
+                            {notice.subject}
+                          </h4>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
+
+            {/* Columna 3 - Acciones Rápidas */}
+            <div className="flex flex-col gap-3 min-h-0">
+              {/* Ver Horario */}
+              <button
+                onClick={() => setShowHorarioModal(true)}
+                className="w-full bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 dark:from-blue-800 dark:to-blue-900 dark:hover:from-blue-700 dark:hover:to-blue-800 rounded-2xl shadow-lg p-5 text-white transition-all hover:shadow-xl flex-1"
+              >
+                <Calendar className="w-12 h-12 mx-auto mb-2" />
+                <h3 className="text-base font-bold mb-1">Ver Horario</h3>
+                <p className="text-xs text-blue-100">Lunes a Domingo</p>
+              </button>
+
+              {/* Historial de Registros */}
+              <button
+                onClick={() => setShowHistorialModal(true)}
+                className="w-full bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 dark:from-green-800 dark:to-green-900 dark:hover:from-green-700 dark:hover:to-green-800 rounded-2xl shadow-lg p-5 text-white transition-all hover:shadow-xl flex-1"
+              >
+                <Calendar className="w-12 h-12 mx-auto mb-2" />
+                <h3 className="text-base font-bold mb-1">
+                  Historial de Registros
+                </h3>
+                <p className="text-xs text-green-100">
+                  Consultar días anteriores
+                </p>
+              </button>
+
+              {/* Solicitar Ausencia */}
+              <button
+                onClick={() => setShowAusenciaModal(true)}
+                className="w-full bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 dark:from-purple-800 dark:to-purple-900 dark:hover:from-purple-700 dark:hover:to-purple-800 rounded-2xl shadow-lg p-5 text-white transition-all hover:shadow-xl flex-1"
+              >
+                <FileText className="w-12 h-12 mx-auto mb-2" />
+                <h3 className="text-base font-bold mb-1">Solicitar Ausencia</h3>
+                <p className="text-xs text-purple-100">Permisos y vacaciones</p>
+              </button>
+            </div>
           </div>
-
-          {/* Columna 3 - Acciones Rápidas */}
-          <div className="flex flex-col gap-3 min-h-0">
-            {/* Ver Horario */}
-            <button
-              onClick={() => setShowHorarioModal(true)}
-              className="w-full bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-2xl shadow-lg p-5 text-white transition-all hover:shadow-xl flex-1"
-            >
-              <Calendar className="w-12 h-12 mx-auto mb-2" />
-              <h3 className="text-base font-bold mb-1">Ver Horario</h3>
-              <p className="text-xs text-blue-100">Lunes a Domingo</p>
-            </button>
-
-            {/* Historial de Registros */}
-            <button
-              onClick={() => setShowHistorialModal(true)}
-              className="w-full bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 rounded-2xl shadow-lg p-5 text-white transition-all hover:shadow-xl flex-1"
-            >
-              <Calendar className="w-12 h-12 mx-auto mb-2" />
-              <h3 className="text-base font-bold mb-1">
-                Historial de Registros
-              </h3>
-              <p className="text-xs text-green-100">
-                Consultar días anteriores
-              </p>
-            </button>
-
-            {/* Solicitar Ausencia */}
-            <button
-              onClick={() => setShowAusenciaModal(true)}
-              className="w-full bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 rounded-2xl shadow-lg p-5 text-white transition-all hover:shadow-xl flex-1"
-            >
-              <FileText className="w-12 h-12 mx-auto mb-2" />
-              <h3 className="text-base font-bold mb-1">Solicitar Ausencia</h3>
-              <p className="text-xs text-purple-100">Permisos y vacaciones</p>
-            </button>
+        ) : (
+          <div className="flex-1 min-h-0">
+            <NoEmployeeInfo />
           </div>
-        </div>
+        )}
       </div>
 
       {/* MODALES */}

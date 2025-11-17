@@ -193,3 +193,96 @@ code {
   scrollbar-width: thin;
   scrollbar-color: rgb(var(--border-subtle) / 0.5) transparent;
 }
+
+/* Animación de borde con gradiente giratorio */
+@keyframes rotate-gradient {
+  0% {
+    --angle: 0deg;
+  }
+  100% {
+    --angle: 360deg;
+  }
+}
+
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.animated-border {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Gradiente para modo claro - tonos suaves */
+:root.light .animated-border::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 1rem;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    #E0E7FF,
+    #C7D2FE,
+    #A5B4FC,
+    #818CF8,
+    #6366F1,
+    #818CF8,
+    #A5B4FC,
+    #C7D2FE,
+    #E0E7FF
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: rotate-gradient 4s linear infinite;
+  pointer-events: none;
+}
+
+/* Gradiente para modo oscuro - tonos oscuros */
+:root.dark .animated-border::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 1rem;
+  padding: 2px;
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    #CBD5E1,
+    #94A3B8,
+    #64748B,
+    #475569,
+    #334155,
+    #1E293B,
+    #0F172A,
+    #1E293B,
+    #334155,
+    #475569,
+    #64748B,
+    #94A3B8,
+    #CBD5E1
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: rotate-gradient 4s linear infinite;
+  pointer-events: none;
+}

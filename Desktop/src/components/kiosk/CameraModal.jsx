@@ -4,6 +4,7 @@ export default function CameraModal({
   cameraMode,
   captureProgress,
   captureSuccess,
+  captureFailed,
   isClosing,
   onClose,
 }) {
@@ -60,17 +61,20 @@ export default function CameraModal({
               <div
                 className="w-40 h-52 border-4 rounded-3xl transition-all duration-300"
                 style={{
-                  borderColor:
-                    captureProgress === 0
-                      ? "rgba(59, 130, 246, 0.5)"
-                      : `rgb(${Math.max(
-                          59 - captureProgress * 0.37,
-                          34
-                        )}, ${Math.min(
-                          130 + captureProgress * 0.99,
-                          197
-                        )}, ${Math.max(246 - captureProgress * 1.63, 94)})`,
-                  boxShadow: captureSuccess
+                  borderColor: captureFailed
+                    ? "rgba(239, 68, 68, 0.8)"
+                    : captureProgress === 0
+                    ? "rgba(59, 130, 246, 0.5)"
+                    : `rgb(${Math.max(
+                        59 - captureProgress * 0.37,
+                        34
+                      )}, ${Math.min(
+                        130 + captureProgress * 0.99,
+                        197
+                      )}, ${Math.max(246 - captureProgress * 1.63, 94)})`,
+                  boxShadow: captureFailed
+                    ? "0 0 30px rgba(239, 68, 68, 0.6)"
+                    : captureSuccess
                     ? "0 0 30px rgba(34, 197, 94, 0.6)"
                     : captureProgress > 0
                     ? `0 0 ${captureProgress * 0.2}px rgba(59, 130, 246, ${
@@ -90,10 +94,18 @@ export default function CameraModal({
                 , Amaya Abarca
               </div>
             )}
+
+            {captureFailed && (
+              <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-full font-bold text-lg shadow-2xl whitespace-nowrap">
+                ✕ Rostro no identificado
+              </div>
+            )}
           </div>
           <div className="mt-2 text-center">
             <p className="text-text-secondary text-sm">
-              {captureSuccess
+              {captureFailed
+                ? "El rostro no pudo ser identificado. Por favor, intenta de nuevo."
+                : captureSuccess
                 ? cameraMode === "asistencia"
                   ? "¡Asistencia registrada correctamente! Bienvenida, Amaya Abarca"
                   : "¡Acceso concedido! Bienvenida, Amaya Abarca"

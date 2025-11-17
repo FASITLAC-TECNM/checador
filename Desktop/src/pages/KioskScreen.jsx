@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Camera, Wifi, Database, User, Activity, Bell } from "lucide-react";
 import { formatTime, formatDate, formatDay } from "../utils/dateHelpers";
 import { notices } from "../constants/notices";
@@ -9,6 +9,7 @@ import BitacoraModal from "../components/kiosk/BitacoraModal";
 import NoticeDetailModal from "../components/kiosk/NoticeDetailModal";
 import SessionScreen from "./SessionScreen";
 import { cerrarSesion } from "../services/authService";
+import { agregarEvento } from "../services/bitacoraService";
 
 export default function KioskScreen() {
   const methodsEnabled = {
@@ -32,7 +33,9 @@ export default function KioskScreen() {
   const [stream, setStream] = useState(null);
   const [captureProgress, setCaptureProgress] = useState(0);
   const [captureSuccess, setCaptureSuccess] = useState(false);
+  const [captureFailed, setCaptureFailed] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const hasProcessedCapture = useRef(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -45,7 +48,9 @@ export default function KioskScreen() {
     if (showCamera) {
       setCaptureProgress(0);
       setCaptureSuccess(false);
+      setCaptureFailed(false);
       setIsClosing(false);
+      hasProcessedCapture.current = false; // Resetear el flag
 
       navigator.mediaDevices
         .getUserMedia({ video: true })
@@ -59,40 +64,90 @@ export default function KioskScreen() {
           setTimeout(() => {
             const interval = setInterval(() => {
               setCaptureProgress((prev) => {
-                if (prev >= 100) {
+                if (prev >= 100 && !hasProcessedCapture.current) {
                   clearInterval(interval);
-                  setCaptureSuccess(true);
+                  hasProcessedCapture.current = true; // Marcar como procesado
 
-                  const successMessage =
-                    cameraMode === "asistencia"
-                      ? "Registro exitoso, Amaya Abarca"
-                      : "Acceso concedido, Amaya Abarca";
-                  const utterance = new SpeechSynthesisUtterance(
-                    successMessage
-                  );
-                  utterance.lang = "es-MX";
-                  utterance.rate = 0.9;
-                  window.speechSynthesis.speak(utterance);
+                  // Simular reconocimiento fallido aleatoriamente (20% de probabilidad)
+                  const reconocimientoFallido = Math.random() < 0.2;
 
-                  setTimeout(() => {
-                    setIsClosing(true);
+                  if (reconocimientoFallido) {
+                    // Reconocimiento fallido
+                    setCaptureFailed(true);
+                    const nombreUsuarioDesconocido = "Usuario no identificado";
+
+                    agregarEvento({
+                      user: nombreUsuarioDesconocido,
+                      action: `Intento de ${cameraMode === "asistencia" ? "registro de asistencia" : "acceso"} - Rostro no identificado`,
+                      type: "error",
+                    });
+
+                    const errorMessage = "Rostro no identificado. Intenta de nuevo.";
+                    const utterance = new SpeechSynthesisUtterance(errorMessage);
+                    utterance.lang = "es-MX";
+                    utterance.rate = 0.9;
+                    window.speechSynthesis.speak(utterance);
+
+                    // Cerrar modal después de mostrar error
                     setTimeout(() => {
-                      setShowCamera(false);
-                      if (cameraMode === "login") {
-                        setIsLoggedIn(true);
-                      }
-                    }, 500);
-                  }, 3000);
+                      setIsClosing(true);
+                      setTimeout(() => {
+                        setShowCamera(false);
+                      }, 500);
+                    }, 2000);
+                  } else {
+                    // Reconocimiento exitoso
+                    setCaptureSuccess(true);
+
+                    // Registrar evento en la bitácora
+                    const nombreUsuario = usuarioActual?.nombre || "Amaya Abarca";
+                    const metodoReconocimiento = "Reconocimiento facial";
+
+                    agregarEvento({
+                      user: nombreUsuario,
+                      action: `Registro de ${cameraMode === "asistencia" ? "asistencia" : "entrada"} exitoso - ${metodoReconocimiento}`,
+                      type: "success",
+                    });
+
+                    const successMessage =
+                      cameraMode === "asistencia"
+                        ? `Registro exitoso, ${nombreUsuario}`
+                        : `Acceso concedido, ${nombreUsuario}`;
+                    const utterance = new SpeechSynthesisUtterance(
+                      successMessage
+                    );
+                    utterance.lang = "es-MX";
+                    utterance.rate = 0.9;
+                    window.speechSynthesis.speak(utterance);
+
+                    setTimeout(() => {
+                      setIsClosing(true);
+                      setTimeout(() => {
+                        setShowCamera(false);
+                        if (cameraMode === "login") {
+                          setIsLoggedIn(true);
+                        }
+                      }, 500);
+                    }, 3000);
+                  }
 
                   return 100;
                 }
-                return prev + 4;
+                return prev >= 100 ? 100 : prev + 4;
               });
             }, 80);
           }, 1500);
         })
         .catch((err) => {
           console.error("Error al acceder a la cámara:", err);
+
+          // Registrar evento de error en la bitácora
+          agregarEvento({
+            user: "Sistema",
+            action: "Error al acceder a la cámara - Permisos denegados",
+            type: "error",
+          });
+
           alert(
             "No se pudo acceder a la cámara. Por favor, verifica los permisos."
           );
@@ -160,7 +215,7 @@ export default function KioskScreen() {
           <span className="text-xs font-semibold">WiFi</span>
         </div>
 
-        <div className="flex flex-col items-center gap-1 text-blue-600 p-2">
+        <div className="flex flex-col items-center gap-1 text-green-600 p-2">
           <Database className="w-5 h-5" />
           <span className="text-xs font-semibold">BD</span>
         </div>
@@ -175,7 +230,7 @@ export default function KioskScreen() {
               setCameraMode("asistencia");
               setShowCamera(true);
             }}
-            className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl shadow-2xl h-full text-white text-center cursor-pointer hover:shadow-3xl transition-all hover:scale-[1.01] flex flex-col items-center justify-center p-8"
+            className="bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 dark:from-slate-700 dark:to-slate-800 dark:hover:from-slate-600 dark:hover:to-slate-700 rounded-3xl shadow-2xl h-full text-white text-center cursor-pointer hover:shadow-3xl transition-all hover:scale-[1.01] flex flex-col items-center justify-center p-8"
           >
             <h2 className="text-3xl font-bold mb-4">Registrar Asistencia</h2>
 
@@ -205,7 +260,7 @@ export default function KioskScreen() {
 
         {/* Sección de avisos - Compacta */}
         <div className="flex-1 flex flex-col min-h-0">
-          <div className="bg-bg-primary rounded-2xl shadow-sm p-4 h-full flex flex-col border border-border-subtle">
+          <div className="animated-border bg-bg-primary rounded-2xl shadow-sm p-4 h-full flex flex-col border border-border-subtle">
             <h3 className="text-lg font-bold text-text-primary mb-3 flex-shrink-0">
               Avisos Generales
             </h3>
@@ -270,6 +325,7 @@ export default function KioskScreen() {
           cameraMode={cameraMode}
           captureProgress={captureProgress}
           captureSuccess={captureSuccess}
+          captureFailed={captureFailed}
           isClosing={isClosing}
           onClose={() => {
             setIsClosing(true);

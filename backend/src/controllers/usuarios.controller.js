@@ -5,18 +5,19 @@ import { pool } from '../config/db.js';
 export const getUsuarios = async (req, res) => {
     try {
         const result = await pool.query(`
-      SELECT
-          id_usuario as id,
-          username,
-          correo as email,
-          nombre,
-          telefono,
-          foto,
-          activo,
-          estado
-      FROM usuarios
-      ORDER BY id_usuario
-    `);
+            SELECT
+                id as id_usuario,
+                id_empresa,
+                username,
+                correo as email,
+                nombre,
+                telefono,
+                foto,
+                activo,
+                conexion
+            FROM Usuario
+            ORDER BY id
+        `);
         res.json(result.rows);
     } catch (err) {
         console.error('Error obteniendo usuarios:', err);
@@ -28,19 +29,20 @@ export const getUsuarioById = async (req, res) => {
     try {
         const { id } = req.params;
         const result = await pool.query(`
-      SELECT 
-          id_usuario as id,
-          username,
-          correo as email,
-          contraseña as password,
-          nombre,
-          telefono,
-          foto,
-          activo,
-          estado
-      FROM usuarios 
-      WHERE id_usuario = $1
-    `, [id]);
+            SELECT
+                id as id_usuario,
+                id_empresa,
+                username,
+                correo as email,
+                contraseña as password,
+                nombre,
+                telefono,
+                foto,
+                activo,
+                conexion
+            FROM Usuario
+            WHERE id = $1
+        `, [id]);
 
         if (result.rows.length === 0)
             return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -55,14 +57,15 @@ export const getUsuarioById = async (req, res) => {
 export const createUsuario = async (req, res) => {
     try {
         const {
+            id_empresa,
             username,
             email,
             password,
             nombre,
             telefono,
             foto,
-            activo = 'ACTIVO',
-            estado = 'DESCONECTADO'
+            activo = 'Activo',
+            conexion = 'Desconectado'
         } = req.body;
 
         if (!username || !email || !password || !nombre) {
@@ -74,12 +77,9 @@ export const createUsuario = async (req, res) => {
 
         // Validar longitud de campos
         const validaciones = [
-            { campo: 'username', valor: username, max: 50 },
-            { campo: 'email', valor: email, max: 100 },
-            { campo: 'password', valor: password, max: 255 },
-            { campo: 'nombre', valor: nombre, max: 100 },
-            { campo: 'telefono', valor: telefono, max: 20 },
-            { campo: 'foto', valor: foto, max: 255 }
+            { campo: 'username', valor: username, max: 55 },
+            { campo: 'email', valor: email, max: 55 },
+            { campo: 'telefono', valor: telefono, max: 10 }
         ];
 
         for (const { campo, valor, max } of validaciones) {
@@ -94,27 +94,29 @@ export const createUsuario = async (req, res) => {
         }
 
         const result = await pool.query(`
-      INSERT INTO usuarios (
-        username,
-        correo,
-        contraseña,
-        nombre,
-        telefono,
-        foto,
-        activo,
-        estado
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING
-        id_usuario as id,
-        username,
-        correo as email,
-        nombre,
-        telefono,
-        foto,
-        activo,
-        estado
-    `, [username, email, password, nombre, telefono || null, foto || null, activo, estado]);
+            INSERT INTO Usuario (
+                id_empresa,
+                username,
+                correo,
+                contraseña,
+                nombre,
+                telefono,
+                foto,
+                activo,
+                conexion
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            RETURNING
+                id as id_usuario,
+                id_empresa,
+                username,
+                correo as email,
+                nombre,
+                telefono,
+                foto,
+                activo,
+                conexion
+        `, [id_empresa || null, username, email, password, nombre, telefono || null, foto || null, activo, conexion]);
 
         res.status(201).json(result.rows[0]);
     } catch (err) {
@@ -126,8 +128,7 @@ export const createUsuario = async (req, res) => {
         }
         if (err.code === '22001') {
             return res.status(400).json({
-                error: 'Uno de los campos excede el límite de caracteres permitidos',
-                detalles: 'Verifica que los campos no excedan sus límites: username(50), email(100), password(255), nombre(100), telefono(20), foto(255)'
+                error: 'Uno de los campos excede el límite de caracteres permitidos'
             });
         }
         res.status(500).json({ error: 'Error al crear usuario' });
@@ -138,6 +139,7 @@ export const updateUsuario = async (req, res) => {
     try {
         const { id } = req.params;
         const {
+            id_empresa,
             username,
             email,
             password,
@@ -145,7 +147,7 @@ export const updateUsuario = async (req, res) => {
             telefono,
             foto,
             activo,
-            estado
+            conexion
         } = req.body;
 
         // Validar campos requeridos
@@ -156,30 +158,9 @@ export const updateUsuario = async (req, res) => {
             });
         }
 
-        // Validar longitud de campos
-        const validaciones = [
-            { campo: 'username', valor: username, max: 50 },
-            { campo: 'email', valor: email, max: 100 },
-            { campo: 'password', valor: password, max: 255 },
-            { campo: 'nombre', valor: nombre, max: 100 },
-            { campo: 'telefono', valor: telefono, max: 20 },
-            { campo: 'foto', valor: foto, max: 255 }
-        ];
-
-        for (const { campo, valor, max } of validaciones) {
-            if (valor && valor.length > max) {
-                return res.status(400).json({
-                    error: `El campo '${campo}' excede el límite de ${max} caracteres`,
-                    campo: campo,
-                    longitudActual: valor.length,
-                    longitudMaxima: max
-                });
-            }
-        }
-
         // Validar valores ENUM si se proporcionan
-        const validActivo = ['ACTIVO', 'SUSPENDIDO', 'BAJA'];
-        const validEstado = ['CONECTADO', 'DESCONECTADO'];
+        const validActivo = ['Activo', 'Suspensión', 'Baja'];
+        const validConexion = ['Conectado', 'Desconectado'];
 
         if (activo && !validActivo.includes(activo)) {
             return res.status(400).json({
@@ -188,23 +169,24 @@ export const updateUsuario = async (req, res) => {
             });
         }
 
-        if (estado && !validEstado.includes(estado)) {
+        if (conexion && !validConexion.includes(conexion)) {
             return res.status(400).json({
-                error: 'Valor inválido para estado',
-                valid: validEstado
+                error: 'Valor inválido para conexion',
+                valid: validConexion
             });
         }
 
         let query = `
-      UPDATE usuarios
-      SET username = $1,
-          correo = $2,
-          nombre = $3,
-          telefono = $4,
-          foto = $5
-    `;
-        let params = [username, email, nombre, telefono || null, foto || null];
-        let paramIndex = 6;
+            UPDATE Usuario
+            SET username = $1,
+                correo = $2,
+                nombre = $3,
+                telefono = $4,
+                foto = $5,
+                id_empresa = $6
+        `;
+        let params = [username, email, nombre, telefono || null, foto || null, id_empresa || null];
+        let paramIndex = 7;
 
         // Solo actualizar activo si se proporciona
         if (activo) {
@@ -213,10 +195,10 @@ export const updateUsuario = async (req, res) => {
             paramIndex++;
         }
 
-        // Solo actualizar estado si se proporciona
-        if (estado) {
-            query += `, estado = $${paramIndex}`;
-            params.push(estado);
+        // Solo actualizar conexion si se proporciona
+        if (conexion) {
+            query += `, conexion = $${paramIndex}`;
+            params.push(conexion);
             paramIndex++;
         }
 
@@ -226,17 +208,18 @@ export const updateUsuario = async (req, res) => {
             paramIndex++;
         }
 
-        query += ` WHERE id_usuario = $${paramIndex}
-      RETURNING
-          id_usuario as id,
-          username,
-          correo as email,
-          nombre,
-          telefono,
-          foto,
-          activo,
-          estado
-    `;
+        query += ` WHERE id = $${paramIndex}
+            RETURNING
+                id as id_usuario,
+                id_empresa,
+                username,
+                correo as email,
+                nombre,
+                telefono,
+                foto,
+                activo,
+                conexion
+        `;
         params.push(id);
 
         const result = await pool.query(query, params);
@@ -247,17 +230,9 @@ export const updateUsuario = async (req, res) => {
         res.json(result.rows[0]);
     } catch (err) {
         console.error('Error actualizando usuario:', err);
-        console.error('Error details:', err.detail);
-        console.error('Error hint:', err.hint);
         if (err.code === '23505') {
             return res.status(409).json({
                 error: 'El username o email ya están registrados'
-            });
-        }
-        if (err.code === '22001') {
-            return res.status(400).json({
-                error: 'Uno de los campos excede el límite de caracteres permitidos',
-                detalles: 'Verifica que los campos no excedan sus límites: username(50), email(100), password(255), nombre(100), telefono(20), foto(255)'
             });
         }
         res.status(500).json({
@@ -271,7 +246,7 @@ export const deleteUsuario = async (req, res) => {
     try {
         const { id } = req.params;
         const result = await pool.query(
-            'DELETE FROM usuarios WHERE id_usuario = $1 RETURNING *',
+            'DELETE FROM Usuario WHERE id = $1 RETURNING *',
             [id]
         );
 
@@ -290,25 +265,25 @@ export const deleteUsuario = async (req, res) => {
 export const updateEstado = async (req, res) => {
     try {
         const { id } = req.params;
-        const { estado } = req.body;
+        const { conexion } = req.body;
 
-        if (!['CONECTADO', 'DESCONECTADO'].includes(estado)) {
+        if (!['Conectado', 'Desconectado'].includes(conexion)) {
             return res.status(400).json({
-                error: 'Estado inválido',
-                valid: ['CONECTADO', 'DESCONECTADO']
+                error: 'Estado de conexión inválido',
+                valid: ['Conectado', 'Desconectado']
             });
         }
 
         const result = await pool.query(`
-      UPDATE usuarios 
-      SET estado = $1
-      WHERE id_usuario = $2
-      RETURNING 
-        id_usuario as id,
-        username,
-        nombre,
-        estado
-    `, [estado, id]);
+            UPDATE Usuario
+            SET conexion = $1
+            WHERE id = $2
+            RETURNING
+                id as id_usuario,
+                username,
+                nombre,
+                conexion
+        `, [conexion, id]);
 
         if (result.rows.length === 0)
             return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -322,21 +297,22 @@ export const updateEstado = async (req, res) => {
 
 export const filterUsuarios = async (req, res) => {
     try {
-        const { activo, estado } = req.query;
+        const { activo, conexion } = req.query;
 
         let query = `
-      SELECT 
-          id_usuario as id,
-          username,
-          correo as email,
-          nombre,
-          telefono,
-          foto,
-          activo,
-          estado
-      FROM usuarios
-      WHERE 1=1
-    `;
+            SELECT
+                id as id_usuario,
+                id_empresa,
+                username,
+                correo as email,
+                nombre,
+                telefono,
+                foto,
+                activo,
+                conexion
+            FROM Usuario
+            WHERE 1=1
+        `;
 
         const params = [];
         let paramIndex = 1;
@@ -347,13 +323,13 @@ export const filterUsuarios = async (req, res) => {
             paramIndex++;
         }
 
-        if (estado) {
-            query += ` AND estado = $${paramIndex}`;
-            params.push(estado);
+        if (conexion) {
+            query += ` AND conexion = $${paramIndex}`;
+            params.push(conexion);
             paramIndex++;
         }
 
-        query += ' ORDER BY id_usuario';
+        query += ' ORDER BY id';
 
         const result = await pool.query(query, params);
         res.json(result.rows);
@@ -366,15 +342,15 @@ export const filterUsuarios = async (req, res) => {
 export const getStats = async (req, res) => {
     try {
         const result = await pool.query(`
-      SELECT
-          COUNT(*) as total,
-          COUNT(CASE WHEN activo = 'ACTIVO' THEN 1 END) as activos,
-          COUNT(CASE WHEN activo = 'SUSPENDIDO' THEN 1 END) as suspendidos,
-          COUNT(CASE WHEN activo = 'BAJA' THEN 1 END) as baja,
-          COUNT(CASE WHEN estado = 'CONECTADO' THEN 1 END) as conectados,
-          COUNT(CASE WHEN estado = 'DESCONECTADO' THEN 1 END) as desconectados
-      FROM usuarios
-    `);
+            SELECT
+                COUNT(*) as total,
+                COUNT(CASE WHEN activo = 'Activo' THEN 1 END) as activos,
+                COUNT(CASE WHEN activo = 'Suspensión' THEN 1 END) as suspendidos,
+                COUNT(CASE WHEN activo = 'Baja' THEN 1 END) as baja,
+                COUNT(CASE WHEN conexion = 'Conectado' THEN 1 END) as conectados,
+                COUNT(CASE WHEN conexion = 'Desconectado' THEN 1 END) as desconectados
+            FROM Usuario
+        `);
         res.json(result.rows[0]);
     } catch (err) {
         console.error('Error obteniendo estadísticas:', err);
@@ -392,15 +368,15 @@ export const ping = async (req, res) => {
             });
         }
 
-        // Actualizar estado a CONECTADO y registrar última actividad
+        // Actualizar estado a Conectado y registrar última actividad
         const result = await pool.query(`
-            UPDATE usuarios
-            SET estado = 'CONECTADO'
-            WHERE id_usuario = $1 AND activo = 'ACTIVO'
+            UPDATE Usuario
+            SET conexion = 'Conectado'
+            WHERE id = $1 AND activo = 'Activo'
             RETURNING
-                id_usuario as id,
+                id as id_usuario,
                 username,
-                estado
+                conexion
         `, [userId]);
 
         if (result.rows.length === 0) {

@@ -5,6 +5,10 @@ const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
     const [usuario, setUsuario] = useState(null);
+    const [empleado, setEmpleado] = useState(null);
+    const [rol, setRol] = useState(null);
+    const [permisos, setPermisos] = useState([]);
+    const [departamento, setDepartamento] = useState(null);
     const [loading, setLoading] = useState(true);
     const pingIntervalRef = useRef(null);
 
@@ -17,21 +21,41 @@ export const AuthProvider = ({ children }) => {
                     const usuarioData = JSON.parse(usuarioGuardado);
                     // Verificar con el backend que la sesión sigue válida
                     const response = await fetch(
-                        getApiEndpoint(`/api/session/check?userId=${usuarioData.id}`)
+                        getApiEndpoint(`/api/session/check?userId=${usuarioData.id_usuario || usuarioData.id}`)
                     );
 
                     if (response.ok) {
                         const data = await response.json();
                         setUsuario(data.usuario);
+                        setEmpleado(data.empleado);
+                        setRol(data.rol);
+                        setPermisos(data.permisos || []);
+                        setDepartamento(data.departamento);
                     } else {
                         // Sesión inválida, limpiar
                         localStorage.removeItem('usuario');
+                        localStorage.removeItem('empleado');
+                        localStorage.removeItem('rol');
+                        localStorage.removeItem('permisos');
+                        localStorage.removeItem('departamento');
                         setUsuario(null);
+                        setEmpleado(null);
+                        setRol(null);
+                        setPermisos([]);
+                        setDepartamento(null);
                     }
                 } catch (error) {
                     console.error('Error verificando sesión:', error);
                     localStorage.removeItem('usuario');
+                    localStorage.removeItem('empleado');
+                    localStorage.removeItem('rol');
+                    localStorage.removeItem('permisos');
+                    localStorage.removeItem('departamento');
                     setUsuario(null);
+                    setEmpleado(null);
+                    setRol(null);
+                    setPermisos([]);
+                    setDepartamento(null);
                 }
             }
             setLoading(false);
@@ -48,7 +72,7 @@ export const AuthProvider = ({ children }) => {
                 fetch(getApiEndpoint('/api/usuarios/ping'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: usuario.id })
+                    body: JSON.stringify({ userId: usuario.id_usuario || usuario.id })
                 }).catch(error => {
                     console.error('Error en ping:', error);
                 });
@@ -69,7 +93,7 @@ export const AuthProvider = ({ children }) => {
         const handleBeforeUnload = async (e) => {
             if (usuario) {
                 // Usar sendBeacon para asegurar que la petición se envíe antes de cerrar
-                const data = JSON.stringify({ userId: usuario.id });
+                const data = JSON.stringify({ userId: usuario.id_usuario || usuario.id });
                 const blob = new Blob([data], { type: 'application/json' });
                 navigator.sendBeacon(getApiEndpoint('/api/session/close'), blob);
             }
@@ -95,8 +119,20 @@ export const AuthProvider = ({ children }) => {
             const data = await response.json();
 
             if (response.ok && data.success) {
+                // Guardar toda la información del usuario
                 setUsuario(data.usuario);
+                setEmpleado(data.empleado);
+                setRol(data.rol);
+                setPermisos(data.permisos || []);
+                setDepartamento(data.departamento);
+
+                // Guardar en localStorage
                 localStorage.setItem('usuario', JSON.stringify(data.usuario));
+                localStorage.setItem('empleado', JSON.stringify(data.empleado));
+                localStorage.setItem('rol', JSON.stringify(data.rol));
+                localStorage.setItem('permisos', JSON.stringify(data.permisos || []));
+                localStorage.setItem('departamento', JSON.stringify(data.departamento));
+
                 return { success: true, mensaje: data.message };
             } else {
                 return { success: false, mensaje: data.error || 'Error al iniciar sesión' };
@@ -115,19 +151,31 @@ export const AuthProvider = ({ children }) => {
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ userId: usuario.id }),
+                    body: JSON.stringify({ userId: usuario.id_usuario || usuario.id }),
                 });
             }
         } catch (error) {
             console.error('Error en logout:', error);
         } finally {
             setUsuario(null);
+            setEmpleado(null);
+            setRol(null);
+            setPermisos([]);
+            setDepartamento(null);
             localStorage.removeItem('usuario');
+            localStorage.removeItem('empleado');
+            localStorage.removeItem('rol');
+            localStorage.removeItem('permisos');
+            localStorage.removeItem('departamento');
         }
     };
 
     const value = {
         usuario,
+        empleado,
+        rol,
+        permisos,
+        departamento,
         login,
         logout,
         loading,

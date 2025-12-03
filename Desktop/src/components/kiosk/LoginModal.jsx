@@ -25,7 +25,7 @@ export default function LoginModal({
     }
 
     if (!loginPassword.trim()) {
-      setError("Por favor ingrese su contraseña");
+      setError("Por favor ingrese su PIN");
       return;
     }
 
@@ -59,7 +59,7 @@ export default function LoginModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+      <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
         <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-4">
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -110,14 +110,14 @@ export default function LoginModal({
 
             <div>
               <label className="block text-sm font-semibold text-text-secondary mb-1">
-                Contraseña (Email)
+                PIN
               </label>
               <div className="relative">
                 <input
                   type={showLoginPassword ? "text" : "password"}
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="tu-email@empresa.com"
+                  placeholder="Ingrese su PIN"
                   className="w-full px-4 py-2.5 bg-bg-primary border-2 border-border-subtle rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-text-primary placeholder:text-text-disabled"
                   disabled={loading}
                 />
@@ -134,26 +134,6 @@ export default function LoginModal({
                   )}
                 </button>
               </div>
-            </div>
-
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="rounded border-border-subtle text-blue-600 focus:ring-blue-500"
-                  disabled={loading}
-                />
-                <span className="ml-2 text-text-secondary">Recordar sesión</span>
-              </label>
-              <button
-                type="button"
-                className="text-blue-600 hover:underline font-medium"
-                disabled={loading}
-              >
-                ¿Olvidó su contraseña?
-              </button>
             </div>
           </div>
 
@@ -198,11 +178,14 @@ export default function LoginModal({
             <p className="text-xs text-text-secondary">
               <strong className="text-text-primary">Ejemplo:</strong>
               <br />
-              Usuario: <code className="bg-bg-tertiary px-1 rounded text-text-primary">dansoto</code>
-              <br />
-              Contraseña:{" "}
+              Usuario:{" "}
               <code className="bg-bg-tertiary px-1 rounded text-text-primary">
-                dansoto804@gmail.com
+                dansoto
+              </code>
+              <br />
+              PIN:{" "}
+              <code className="bg-bg-tertiary px-1 rounded text-text-primary">
+                1234
               </code>
             </p>
           </div>

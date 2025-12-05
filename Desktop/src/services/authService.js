@@ -1,15 +1,19 @@
 // src/services/authService.js
 // Servicio de autenticación con API remota
 
-const API_URL = "https://9dm7dqf9-3001.usw3.devtunnels.ms/api";
+import { getApiEndpoint } from "../config/apiEndPoint";
+
+// Usar la configuración centralizada
+const API_URL = getApiEndpoint("/api");
+console.log("🔗 API URL:", API_URL); // Para debug
 
 /**
  * Autenticar usuario
  * @param {string} username - Nombre de usuario
- * @param {string} password - Contraseña (email del usuario)
+ * @param {string} pin - PIN del usuario
  * @returns {Promise<Object>} - Usuario autenticado o error
  */
-export const loginUsuario = async (username, password) => {
+export const loginUsuario = async (username, pin) => {
   try {
     console.log("🔐 Iniciando login para:", username);
 
@@ -23,21 +27,18 @@ export const loginUsuario = async (username, password) => {
     const usuarios = await response.json();
     console.log("👥 Usuarios obtenidos:", usuarios.length);
 
-    // Buscar usuario que coincida con username y email
+    // Buscar usuario que coincida con username y PIN
     const usuarioEncontrado = usuarios.find(
-      (user) => user.username === username && user.email === password
+      (user) => user.username === username && user.telefono === pin
     );
 
     if (!usuarioEncontrado) {
-      throw new Error("Usuario o contraseña incorrectos");
+      throw new Error("Usuario o PIN incorrectos");
     }
 
     console.log("✅ Usuario encontrado:", usuarioEncontrado);
 
     // Verificar que el usuario esté activo
-    if (usuarioEncontrado.activo !== "ACTIVO") {
-      throw new Error("Usuario inactivo. Contacte al administrador");
-    }
 
     // Actualizar estado a CONECTADO
     try {
@@ -139,11 +140,11 @@ export const actualizarEstadoUsuario = async (id, nuevoEstado) => {
 
     // 3. Usar PUT con el objeto completo
     const response = await fetch(`${API_URL}/usuarios/${id}`, {
-      method: "PUT", // ⚠️ Cambiar de PATCH a PUT
+      method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(usuarioActualizado), // ⚠️ Enviar el objeto completo
+      body: JSON.stringify(usuarioActualizado),
     });
 
     console.log("📡 Respuesta del servidor:", response.status);

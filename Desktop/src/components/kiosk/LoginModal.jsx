@@ -172,23 +172,6 @@ export default function LoginModal({
               Iniciar con Reconocimiento Facial
             </button>
           </div>
-
-          {/* Ayuda de ejemplo */}
-          <div className="mt-4 p-3 bg-bg-secondary border border-blue-200 rounded-lg">
-            <p className="text-xs text-text-secondary">
-              <strong className="text-text-primary">Ejemplo:</strong>
-              <br />
-              Usuario:{" "}
-              <code className="bg-bg-tertiary px-1 rounded text-text-primary">
-                dansoto
-              </code>
-              <br />
-              PIN:{" "}
-              <code className="bg-bg-tertiary px-1 rounded text-text-primary">
-                1234
-              </code>
-            </p>
-          </div>
         </form>
       </div>
     </div>

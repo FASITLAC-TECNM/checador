@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, HardDrive, Save, RefreshCw } from "lucide-react";
 import { getSystemInfo } from "../../utils/systemInfo";
 
-export default function GeneralNodoModal({ onClose, initialConfig = {} }) {
+export default function GeneralNodoModal({ onClose, onBack, initialConfig = {} }) {
   const [isDetecting, setIsDetecting] = useState(false);
   const [nodeConfig, setNodeConfig] = useState({
     nodeName: initialConfig.nodeName || "Entrada Principal",
@@ -163,10 +163,10 @@ export default function GeneralNodoModal({ onClose, initialConfig = {} }) {
           {/* Botones */}
           <div className="flex gap-4">
             <button
-              onClick={onClose}
+              onClick={onBack || onClose}
               className="flex-1 px-6 py-3 bg-bg-primary border-2 border-border-subtle text-text-secondary rounded-xl font-bold hover:bg-bg-secondary transition-colors"
             >
-              Cancelar
+              {onBack ? "Volver" : "Cancelar"}
             </button>
             <button
               onClick={handleSave}

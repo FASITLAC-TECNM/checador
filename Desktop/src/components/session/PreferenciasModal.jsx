@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, Sliders, Save, Bell, Moon, Globe, Volume2 } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
 
-export default function PreferenciasModal({ onClose }) {
+export default function PreferenciasModal({ onClose, onBack }) {
   const { isDarkMode, setDarkMode } = useTheme();
 
   // Valores por defecto
@@ -189,10 +189,10 @@ export default function PreferenciasModal({ onClose }) {
         <div className="bg-bg-secondary p-4 border-t border-border-subtle">
           <div className="flex gap-4">
             <button
-              onClick={onClose}
+              onClick={onBack || onClose}
               className="flex-1 px-6 py-3 bg-bg-primary border-2 border-border-subtle text-text-secondary rounded-xl font-bold hover:bg-bg-secondary transition-colors"
             >
-              Cancelar
+              {onBack ? "Volver" : "Cancelar"}
             </button>
             <button
               onClick={handleSave}

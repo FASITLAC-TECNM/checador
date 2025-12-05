@@ -1,4 +1,4 @@
-import { Camera, X } from "lucide-react";
+import { X, CheckCircle, XCircle } from "lucide-react";
 
 export default function CameraModal({
   cameraMode,
@@ -10,46 +10,36 @@ export default function CameraModal({
 }) {
   return (
     <div
-      className={`fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity duration-500 ${
+      className={`fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity duration-300 ${
         isClosing ? "opacity-0" : "opacity-100"
       }`}
     >
       <div
-        className={`bg-bg-primary rounded-2xl shadow-2xl max-w-xl w-full overflow-hidden transition-all duration-500 ${
+        className={`bg-bg-primary rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden transition-all duration-300 ${
           isClosing ? "opacity-0 scale-95" : "opacity-100 scale-100"
         }`}
       >
-        <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <h3 className="text-lg font-bold text-white mb-1">
-                {cameraMode === "asistencia"
-                  ? "Reconocimiento Facial"
-                  : "Inicio de Sesión"}
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-white">
+                {cameraMode === "asistencia" ? "Registro de Asistencia" : "Inicio de Sesión"}
               </h3>
-              <div className="flex items-center gap-2 text-white/90 text-sm">
-                <Camera className="w-4 h-4" />
-                <span>
-                  {cameraMode === "asistencia"
-                    ? "Registrar Asistencia"
-                    : "Acceso al Sistema"}
-                </span>
-              </div>
+              <p className="text-xs text-blue-100 mt-0.5">Reconocimiento Facial</p>
             </div>
             <button
               onClick={onClose}
-              className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+              className="w-8 h-8 flex items-center justify-center text-white hover:bg-white/20 rounded-lg transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        <div className="p-4">
-          <div
-            className="relative bg-bg-secondary rounded-xl overflow-hidden"
-            style={{ aspectRatio: "4/3" }}
-          >
+        {/* Video */}
+        <div className="p-6">
+          <div className="relative bg-black rounded-xl overflow-hidden" style={{ aspectRatio: "4/3" }}>
             <video
               id="cameraVideo"
               autoPlay
@@ -57,65 +47,77 @@ export default function CameraModal({
               className="w-full h-full object-cover"
               style={{ transform: "scaleX(-1)" }}
             />
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div
-                className="w-40 h-52 border-4 rounded-3xl transition-all duration-300"
-                style={{
-                  borderColor: captureFailed
-                    ? "rgba(239, 68, 68, 0.8)"
-                    : captureProgress === 0
-                    ? "rgba(59, 130, 246, 0.5)"
-                    : `rgb(${Math.max(
-                        59 - captureProgress * 0.37,
-                        34
-                      )}, ${Math.min(
-                        130 + captureProgress * 0.99,
-                        197
-                      )}, ${Math.max(246 - captureProgress * 1.63, 94)})`,
-                  boxShadow: captureFailed
-                    ? "0 0 30px rgba(239, 68, 68, 0.6)"
-                    : captureSuccess
-                    ? "0 0 30px rgba(34, 197, 94, 0.6)"
-                    : captureProgress > 0
-                    ? `0 0 ${captureProgress * 0.2}px rgba(59, 130, 246, ${
-                        captureProgress * 0.006
-                      })`
-                    : "none",
-                }}
-              ></div>
-            </div>
 
+            {/* Esquinas simples */}
+            {!captureSuccess && !captureFailed && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="relative w-56 h-72">
+                  <div
+                    className="absolute top-0 left-0 w-12 h-12 border-l-[3px] border-t-[3px] transition-all duration-300"
+                    style={{
+                      borderColor: captureProgress > 0 ? '#3b82f6' : 'rgba(255,255,255,0.5)',
+                      filter: captureProgress > 0 ? 'drop-shadow(0 0 8px rgba(59,130,246,0.8))' : 'none'
+                    }}
+                  />
+                  <div
+                    className="absolute top-0 right-0 w-12 h-12 border-r-[3px] border-t-[3px] transition-all duration-300"
+                    style={{
+                      borderColor: captureProgress > 0 ? '#3b82f6' : 'rgba(255,255,255,0.5)',
+                      filter: captureProgress > 0 ? 'drop-shadow(0 0 8px rgba(59,130,246,0.8))' : 'none'
+                    }}
+                  />
+                  <div
+                    className="absolute bottom-0 left-0 w-12 h-12 border-l-[3px] border-b-[3px] transition-all duration-300"
+                    style={{
+                      borderColor: captureProgress > 0 ? '#3b82f6' : 'rgba(255,255,255,0.5)',
+                      filter: captureProgress > 0 ? 'drop-shadow(0 0 8px rgba(59,130,246,0.8))' : 'none'
+                    }}
+                  />
+                  <div
+                    className="absolute bottom-0 right-0 w-12 h-12 border-r-[3px] border-b-[3px] transition-all duration-300"
+                    style={{
+                      borderColor: captureProgress > 0 ? '#3b82f6' : 'rgba(255,255,255,0.5)',
+                      filter: captureProgress > 0 ? 'drop-shadow(0 0 8px rgba(59,130,246,0.8))' : 'none'
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Éxito */}
             {captureSuccess && (
-              <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-6 py-3 rounded-full font-bold text-lg shadow-2xl whitespace-nowrap">
-                ✓{" "}
-                {cameraMode === "asistencia"
-                  ? "Registro exitoso"
-                  : "Acceso concedido"}
-                , Amaya Abarca
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-20 h-20 mx-auto mb-3 bg-green-500 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-12 h-12 text-white" strokeWidth={2.5} />
+                  </div>
+                  <h4 className="text-xl font-bold text-white mb-1">
+                    {cameraMode === "asistencia" ? "¡Registro Exitoso!" : "¡Acceso Concedido!"}
+                  </h4>
+                  <p className="text-white/90 text-sm">Bienvenida, <strong>Amaya Abarca</strong></p>
+                </div>
               </div>
             )}
 
+            {/* Error */}
             {captureFailed && (
-              <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-6 py-3 rounded-full font-bold text-lg shadow-2xl whitespace-nowrap">
-                ✕ Rostro no identificado
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                <div className="text-center">
+                  <div className="w-20 h-20 mx-auto mb-3 bg-red-500 rounded-full flex items-center justify-center">
+                    <XCircle className="w-12 h-12 text-white" strokeWidth={2.5} />
+                  </div>
+                  <h4 className="text-xl font-bold text-white mb-1">No Identificado</h4>
+                  <p className="text-white/90 text-sm">Intenta de nuevo</p>
+                </div>
               </div>
             )}
+
           </div>
-          <div className="mt-2 text-center">
-            <p className="text-text-secondary text-sm">
-              {captureFailed
-                ? "El rostro no pudo ser identificado. Por favor, intenta de nuevo."
-                : captureSuccess
-                ? cameraMode === "asistencia"
-                  ? "¡Asistencia registrada correctamente! Bienvenida, Amaya Abarca"
-                  : "¡Acceso concedido! Bienvenida, Amaya Abarca"
-                : captureProgress > 0
-                ? `Analizando rostro... ${captureProgress}%`
-                : cameraMode === "asistencia"
-                ? "Coloca tu rostro dentro del marco para registrar tu asistencia"
-                : "Coloca tu rostro dentro del marco para iniciar sesión"}
-            </p>
-          </div>
+
+          {/* Instrucción */}
+          <p className="text-center text-text-secondary text-sm mt-4">
+            Coloca tu rostro frente a la cámara
+          </p>
         </div>
       </div>
     </div>

@@ -1,9 +1,9 @@
 /**
  * Script de preload para Electron
- * Expone APIs seguras al renderer process usando ES modules
+ * Expone APIs seguras al renderer process
  */
 
-import { contextBridge, ipcRenderer } from 'electron';
+const { contextBridge, ipcRenderer } = require('electron');
 
 // Exponer APIs de forma segura al renderer
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -16,6 +16,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   maximizeWindow: () => ipcRenderer.send('maximize-window'),
   closeWindow: () => ipcRenderer.send('close-window'),
   isMaximized: () => ipcRenderer.invoke('is-maximized'),
+
+  // Gestión de configuración persistente
+  configGet: (key) => ipcRenderer.invoke('config-get', key),
+  configSet: (key, value) => ipcRenderer.invoke('config-set', key, value),
+  configRemove: (key) => ipcRenderer.invoke('config-remove', key),
 
   // Información del entorno
   isElectron: true,

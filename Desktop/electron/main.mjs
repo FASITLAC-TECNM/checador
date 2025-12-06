@@ -6,6 +6,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
 import os from 'os';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -23,7 +24,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.mjs')
+      preload: path.join(__dirname, 'preload.cjs')
     },
     frame: true,
     backgroundColor: '#ffffff',
@@ -38,13 +39,28 @@ function createWindow() {
     // Abrir DevTools solo si se necesita para debugging
     // mainWindow.webContents.openDevTools();
   } else {
-    // En producción, cargar el archivo index.html compilado
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    // En producción, cargar el archivo index.html compilado desde la app empaquetada
+    const indexPath = path.join(app.getAppPath(), 'dist', 'index.html');
+    console.log('📂 Cargando desde:', indexPath);
+    console.log('📂 App path:', app.getAppPath());
+
+    mainWindow.loadFile(indexPath).catch(err => {
+      console.error('❌ Error cargando index.html:', err);
+    });
+
+    // Abrir DevTools en producción para ver errores
+    mainWindow.webContents.openDevTools();
   }
 
   // Mostrar cuando esté listo para evitar flash
   mainWindow.once('ready-to-show', () => {
+    console.log('✅ Ventana lista para mostrar');
     mainWindow.show();
+  });
+
+  // Log de errores de carga
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('❌ Error de carga:', errorCode, errorDescription);
   });
 
   // Emitted when the window is closed.
@@ -195,4 +211,93 @@ ipcMain.on('close-window', () => {
  */
 ipcMain.handle('is-maximized', () => {
   return mainWindow ? mainWindow.isMaximized() : false;
+});
+
+/**
+ * Gestión de configuración persistente en archivo
+ * La configuración se guarda en la carpeta de datos de usuario de la aplicación
+ */
+const getConfigPath = () => {
+  return path.join(app.getPath('userData'), 'app-config.json');
+};
+
+/**
+ * Leer configuración desde archivo
+ */
+ipcMain.handle('config-get', async (event, key) => {
+  try {
+    const configPath = getConfigPath();
+
+    // Si el archivo no existe, retornar null
+    if (!fs.existsSync(configPath)) {
+      return null;
+    }
+
+    // Leer el archivo
+    const data = fs.readFileSync(configPath, 'utf8');
+    const config = JSON.parse(data);
+
+    return key ? config[key] : config;
+  } catch (error) {
+    console.error('Error leyendo configuración:', error);
+    return null;
+  }
+});
+
+/**
+ * Guardar configuración en archivo
+ */
+ipcMain.handle('config-set', async (event, key, value) => {
+  try {
+    const configPath = getConfigPath();
+    let config = {};
+
+    // Si el archivo existe, leer la configuración actual
+    if (fs.existsSync(configPath)) {
+      const data = fs.readFileSync(configPath, 'utf8');
+      config = JSON.parse(data);
+    }
+
+    // Actualizar el valor
+    config[key] = value;
+
+    // Asegurar que el directorio existe
+    const dir = path.dirname(configPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    // Guardar el archivo
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+
+    return true;
+  } catch (error) {
+    console.error('Error guardando configuración:', error);
+    return false;
+  }
+});
+
+/**
+ * Eliminar una clave de configuración
+ */
+ipcMain.handle('config-remove', async (event, key) => {
+  try {
+    const configPath = getConfigPath();
+
+    if (!fs.existsSync(configPath)) {
+      return true;
+    }
+
+    const data = fs.readFileSync(configPath, 'utf8');
+    const config = JSON.parse(data);
+
+    delete config[key];
+
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+
+    return true;
+  } catch (error) {
+    console.error('Error eliminando configuración:', error);
+    return false;
+  }
 });

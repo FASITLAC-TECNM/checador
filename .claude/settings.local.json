@@ -29,7 +29,9 @@
       "Bash(find:*)",
       "Bash(rd /s /q \"Administrator\\src\\modules\\permissions\")",
       "Bash(rm:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(timeout /t 5 /nobreak)",
+      "Bash(timeout /t 2 /nobreak)"
     ],
     "deny": [],
     "ask": []

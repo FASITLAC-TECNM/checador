@@ -56,7 +56,7 @@ export const getEmpleadoPorUsuario = async (idUsuario) => {
  * @param {number} empleado.id_usuario - ID del usuario asociado
  * @param {string} empleado.nss - Número de Seguridad Social (11 dígitos)
  * @param {string} empleado.rfc - RFC (13 caracteres)
- * @param {string} empleado.pin - PIN de seguridad (4 dígitos)
+ * @param {number} [empleado.horario_id] - ID del horario asignado (opcional)
  */
 export const crearEmpleado = async (empleado) => {
     try {
@@ -70,15 +70,12 @@ export const crearEmpleado = async (empleado) => {
         if (!empleado.rfc || empleado.rfc.length !== 13) {
             throw new Error('El RFC debe tener exactamente 13 caracteres');
         }
-        if (!empleado.pin || empleado.pin.length !== 4) {
-            throw new Error('El PIN debe tener exactamente 4 dígitos');
-        }
 
         const empleadoDB = {
             id_usuario: empleado.id_usuario,
             nss: empleado.nss,
             rfc: empleado.rfc.toUpperCase(),
-            pin: empleado.pin
+            horario_id: empleado.horario_id || null
         };
 
         const response = await fetch(`${API_URL}/empleados`, {
@@ -115,14 +112,12 @@ export const actualizarEmpleado = async (id, empleado) => {
         if (empleado.rfc && empleado.rfc.length !== 13) {
             throw new Error('El RFC debe tener exactamente 13 caracteres');
         }
-        if (empleado.pin && empleado.pin.length !== 4) {
-            throw new Error('El PIN debe tener exactamente 4 dígitos');
-        }
 
         const empleadoDB = {
             nss: empleado.nss,
             rfc: empleado.rfc?.toUpperCase(),
-            pin: empleado.pin
+            estado: empleado.estado,
+            horario_id: empleado.horario_id
         };
 
         const response = await fetch(`${API_URL}/empleados/${id}`, {
@@ -165,21 +160,23 @@ export const eliminarEmpleado = async (id) => {
 
 /**
  * Validar PIN de empleado
+ * @deprecated Usar credencialesService.validarPin() en su lugar
  * @param {number} idEmpleado - ID del empleado
  * @param {string} pin - PIN a validar
  */
 export const validarPinEmpleado = async (idEmpleado, pin) => {
+    console.warn('⚠️ validarPinEmpleado está deprecado. Usa credencialesService.validarPin() en su lugar');
     try {
         if (!pin || pin.length !== 4) {
             throw new Error('El PIN debe tener 4 dígitos');
         }
 
-        const response = await fetch(`${API_URL}/empleados/${idEmpleado}/validar-pin`, {
+        const response = await fetch(`${API_URL}/credenciales/validar-pin`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ pin }),
+            body: JSON.stringify({ id_empleado: idEmpleado, pin }),
         });
 
         if (!response.ok) {

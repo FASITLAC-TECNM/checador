@@ -56,7 +56,7 @@ export const getUsuarioById = async (req, res) => {
 
 export const createUsuario = async (req, res) => {
     try {
-        const {
+        let {
             id_empresa,
             username,
             email,
@@ -68,11 +68,16 @@ export const createUsuario = async (req, res) => {
             conexion = 'Desconectado'
         } = req.body;
 
-        if (!username || !email || !password || !nombre) {
+        if (!id_empresa || !username || !email || !password || !nombre) {
             return res.status(400).json({
                 error: 'Faltan campos requeridos',
-                required: ['username', 'email', 'password', 'nombre']
+                required: ['id_empresa', 'username', 'email', 'password', 'nombre']
             });
+        }
+
+        // Limpiar teléfono: eliminar guiones, espacios y paréntesis
+        if (telefono) {
+            telefono = telefono.replace(/[-\s()]/g, '');
         }
 
         // Validar longitud de campos
@@ -116,7 +121,7 @@ export const createUsuario = async (req, res) => {
                 foto,
                 activo,
                 conexion
-        `, [id_empresa || null, username, email, password, nombre, telefono || null, foto || null, activo, conexion]);
+        `, [id_empresa, username, email, password, nombre, telefono || null, foto || null, activo, conexion]);
 
         res.status(201).json(result.rows[0]);
     } catch (err) {
@@ -138,7 +143,7 @@ export const createUsuario = async (req, res) => {
 export const updateUsuario = async (req, res) => {
     try {
         const { id } = req.params;
-        const {
+        let {
             id_empresa,
             username,
             email,
@@ -156,6 +161,11 @@ export const updateUsuario = async (req, res) => {
                 error: 'Faltan campos requeridos',
                 required: ['username', 'email', 'nombre']
             });
+        }
+
+        // Limpiar teléfono: eliminar guiones, espacios y paréntesis
+        if (telefono) {
+            telefono = telefono.replace(/[-\s()]/g, '');
         }
 
         // Validar valores ENUM si se proporcionan
@@ -185,7 +195,7 @@ export const updateUsuario = async (req, res) => {
                 foto = $5,
                 id_empresa = $6
         `;
-        let params = [username, email, nombre, telefono || null, foto || null, id_empresa || null];
+        let params = [username, email, nombre, telefono || null, foto || null, id_empresa];
         let paramIndex = 7;
 
         // Solo actualizar activo si se proporciona

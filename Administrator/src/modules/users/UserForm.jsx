@@ -12,8 +12,8 @@ const UserFormEnhanced = ({ user, onSave, onCancel }) => {
         nombre: '',
         foto: '',
         telefono: '',
-        activo: 'ACTIVO',
-        estado: 'DESCONECTADO',
+        activo: 'Activo',         // Con mayúscula inicial
+        estado: 'Desconectado',   // Con mayúscula inicial
         esEmpleado: false,
         datosEmpleado: {
             nss: '',
@@ -367,9 +367,9 @@ const UserFormEnhanced = ({ user, onSave, onCancel }) => {
                                         onChange={handleChange}
                                         className="w-full px-4 py-3 bg-white border border-[#D2D2D7] text-[#1D1D1F] rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                                     >
-                                        <option value="ACTIVO">Activo (Con acceso)</option>
-                                        <option value="SUSPENDIDO">Suspendido (Acceso temporal bloqueado)</option>
-                                        <option value="BAJA">Baja (Sin acceso)</option>
+                                        <option value="Activo">Activo (Con acceso)</option>
+                                        <option value="Suspensión">Suspensión (Acceso temporal bloqueado)</option>
+                                        <option value="Baja">Baja (Sin acceso)</option>
                                     </select>
                                 </div>
                             </div>

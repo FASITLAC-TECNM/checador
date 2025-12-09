@@ -73,14 +73,15 @@ export const crearUsuario = async (usuario) => {
 
         // Mapear campos del frontend a la BD
         const usuarioDB = {
+            id_empresa: usuario.id_empresa || 4, // Valor por defecto: empresa 4
             username: usuario.username,
             email: usuario.email,
             password: usuario.password || '1234',
             nombre: usuario.nombre,
             telefono: usuario.telefono || '',
             foto: usuario.foto || null,
-            activo: usuario.activo || 'ACTIVO',
-            estado: usuario.estado || 'DESCONECTADO'
+            activo: usuario.activo || 'Activo',      // Con mayúscula inicial
+            estado: usuario.estado || 'Desconectado' // Con mayúscula inicial
         };
 
         const response = await fetch(`${API_URL}/usuarios`, {

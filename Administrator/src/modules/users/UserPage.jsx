@@ -10,6 +10,10 @@ import {
     actualizarEmpleado,
     getEmpleadoPorUsuario
 } from '../../services/empleadoService';
+import {
+    crearCredenciales,
+    actualizarCredenciales
+} from '../../services/credencialesService';
 
 const UserPage = () => {
     const [users, setUsers] = useState([]);
@@ -112,28 +116,54 @@ const UserPage = () => {
                 const empleadoData = {
                     id_usuario: usuarioGuardado.id || userData.id,
                     nss: userData.datosEmpleado.nss,
-                    rfc: userData.datosEmpleado.rfc,
-                    pin: userData.datosEmpleado.pin
+                    rfc: userData.datosEmpleado.rfc
                 };
+
+                const pin = userData.datosEmpleado.pin; // Guardar PIN por separado
 
                 try {
                     // Verificar si ya existe un empleado para este usuario
                     const empleadoExistente = await getEmpleadoPorUsuario(empleadoData.id_usuario);
 
                     if (empleadoExistente) {
-                        // Actualizar empleado existente
+                        // Actualizar empleado existente (sin PIN)
                         await actualizarEmpleado(empleadoExistente.id, {
                             nss: empleadoData.nss,
-                            rfc: empleadoData.rfc,
-                            pin: empleadoData.pin
+                            rfc: empleadoData.rfc
                         });
                         console.log('✅ Datos de empleado actualizados');
+
+                        // Actualizar PIN si se proporcionó
+                        if (pin && pin.trim()) {
+                            try {
+                                await actualizarCredenciales(empleadoExistente.id, { pin });
+                                console.log('✅ PIN actualizado');
+                            } catch (credError) {
+                                // Si no existen credenciales, crearlas
+                                if (credError.message.includes('404') || credError.message.includes('no encontrado')) {
+                                    await crearCredenciales({
+                                        id_empleado: empleadoExistente.id,
+                                        pin
+                                    });
+                                    console.log('✅ Credenciales creadas');
+                                }
+                            }
+                        }
                     }
                 } catch (error) {
                     // Si no existe, crear nuevo empleado
                     if (error.message.includes('404') || error.message.includes('no encontrado')) {
-                        await crearEmpleado(empleadoData);
+                        const nuevoEmpleado = await crearEmpleado(empleadoData);
                         console.log('✅ Empleado creado');
+
+                        // Crear credenciales si se proporcionó PIN
+                        if (pin && pin.trim()) {
+                            await crearCredenciales({
+                                id_empleado: nuevoEmpleado.id,
+                                pin
+                            });
+                            console.log('✅ Credenciales creadas');
+                        }
                     } else {
                         throw error;
                     }

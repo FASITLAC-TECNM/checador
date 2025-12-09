@@ -13,6 +13,8 @@ export const getEmpleados = async (req, res) => {
                 e.fecha_registro,
                 e.fecha_modificacion,
                 e.estado,
+                e.horario_id,
+                e.horario_id,
                 u.username,
                 u.correo as email,
                 u.nombre,
@@ -43,6 +45,7 @@ export const getEmpleadoById = async (req, res) => {
                 e.fecha_registro,
                 e.fecha_modificacion,
                 e.estado,
+                e.horario_id,
                 u.username,
                 u.correo as email,
                 u.nombre,
@@ -77,6 +80,7 @@ export const getEmpleadoByUsuarioId = async (req, res) => {
                 e.fecha_registro,
                 e.fecha_modificacion,
                 e.estado,
+                e.horario_id,
                 u.username,
                 u.correo as email,
                 u.nombre,
@@ -105,6 +109,7 @@ export const createEmpleado = async (req, res) => {
             id_usuario,
             nss,
             rfc,
+            horario_id = null,
             fecha_registro = new Date().toISOString().split('T')[0],
             estado = true
         } = req.body;
@@ -141,8 +146,8 @@ export const createEmpleado = async (req, res) => {
         }
 
         const result = await pool.query(`
-            INSERT INTO Empleado (id_usuario, rfc, nss, fecha_registro, estado)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO Empleado (id_usuario, rfc, nss, fecha_registro, estado, horario_id)
+            VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING
                 id,
                 id_usuario,
@@ -150,8 +155,9 @@ export const createEmpleado = async (req, res) => {
                 rfc,
                 fecha_registro,
                 fecha_modificacion,
-                estado
-        `, [id_usuario, rfc, nss, fecha_registro, estado]);
+                estado,
+                horario_id
+        `, [id_usuario, rfc, nss, fecha_registro, estado, horario_id]);
 
         res.status(201).json(result.rows[0]);
     } catch (err) {
@@ -171,7 +177,8 @@ export const updateEmpleado = async (req, res) => {
         const {
             nss,
             rfc,
-            estado
+            estado,
+            horario_id
         } = req.body;
 
         if (!nss || !rfc) {
@@ -186,8 +193,9 @@ export const updateEmpleado = async (req, res) => {
             SET nss = $1,
                 rfc = $2,
                 estado = COALESCE($3, estado),
+                horario_id = COALESCE($4, horario_id),
                 fecha_modificacion = CURRENT_DATE
-            WHERE id = $4
+            WHERE id = $5
             RETURNING
                 id,
                 id_usuario,
@@ -195,8 +203,9 @@ export const updateEmpleado = async (req, res) => {
                 rfc,
                 fecha_registro,
                 fecha_modificacion,
-                estado
-        `, [nss, rfc, estado, id]);
+                estado,
+                horario_id
+        `, [nss, rfc, estado, horario_id, id]);
 
         if (result.rows.length === 0)
             return res.status(404).json({ error: 'Empleado no encontrado' });
@@ -245,6 +254,7 @@ export const buscarPorNSS = async (req, res) => {
                 e.fecha_registro,
                 e.fecha_modificacion,
                 e.estado,
+                e.horario_id,
                 u.username,
                 u.correo as email,
                 u.nombre,
@@ -279,6 +289,7 @@ export const buscarPorRFC = async (req, res) => {
                 e.fecha_registro,
                 e.fecha_modificacion,
                 e.estado,
+                e.horario_id,
                 u.username,
                 u.correo as email,
                 u.nombre,
@@ -335,6 +346,7 @@ export const getEmpleadoConPermisos = async (req, res) => {
                 e.fecha_registro,
                 e.fecha_modificacion,
                 e.estado,
+                e.horario_id,
                 u.username,
                 u.correo as email,
                 u.nombre,
@@ -380,7 +392,7 @@ export const getEmpleadoConPermisos = async (req, res) => {
                     rhm.crear,
                     rhm.editar,
                     rhm.eliminar
-                FROM Rol_has_modulo rhm
+                FROM rolmodulo rhm
                 INNER JOIN Modulo m ON rhm.id_modulo = m.id
                 WHERE rhm.id_rol = $1 AND m.estado = true
             `, [rol.id_rol]);

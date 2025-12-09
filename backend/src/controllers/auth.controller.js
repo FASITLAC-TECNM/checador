@@ -97,7 +97,7 @@ export const login = async (req, res) => {
                     rhm.crear,
                     rhm.editar,
                     rhm.eliminar
-                FROM Rol_has_modulo rhm
+                FROM rolmodulo rhm
                 INNER JOIN Modulo m ON rhm.id_modulo = m.id
                 WHERE rhm.id_rol = $1 AND m.estado = true
             `, [rol.id_rol]);
@@ -259,7 +259,7 @@ export const verificarSesion = async (req, res) => {
                     rhm.crear,
                     rhm.editar,
                     rhm.eliminar
-                FROM Rol_has_modulo rhm
+                FROM rolmodulo rhm
                 INNER JOIN Modulo m ON rhm.id_modulo = m.id
                 WHERE rhm.id_rol = $1 AND m.estado = true
             `, [rol.id_rol]);

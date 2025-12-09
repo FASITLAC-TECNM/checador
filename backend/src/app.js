@@ -3,6 +3,7 @@ import cors from 'cors';
 import usuariosRoutes from './routes/usuarios.routes.js';
 import sessionRoutes from './routes/session.routes.js';
 import empleadosRoutes from './routes/empleados.routes.js';
+import credencialesRoutes from './routes/credenciales.routes.js';
 
 const app = express();
 
@@ -27,5 +28,6 @@ app.get('/', (req, res) => {
 app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/session', sessionRoutes);
 app.use('/api/empleados', empleadosRoutes);
+app.use('/api/credenciales', credencialesRoutes);
 
 export default app;

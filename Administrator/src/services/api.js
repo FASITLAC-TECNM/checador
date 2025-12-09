@@ -35,3 +35,4 @@ export {
 // Re-exportar servicios modulares como namespaces
 export { default as usuarioService } from './usuarioService';
 export { default as empleadoService } from './empleadoService';
+export { default as credencialesService } from './credencialesService';

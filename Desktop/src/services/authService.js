@@ -18,7 +18,7 @@ export const loginUsuario = async (username, pin) => {
     console.log("🔐 Iniciando login para:", username);
 
     // Obtener todos los usuarios
-    const response = await fetch(`${API_URL}/usuarios`);
+    const response = await fetch(`${API_URL}/empleados`);
 
     if (!response.ok) {
       throw new Error("Error al conectar con el servidor");
@@ -27,26 +27,50 @@ export const loginUsuario = async (username, pin) => {
     const usuarios = await response.json();
     console.log("👥 Usuarios obtenidos:", usuarios.length);
 
-    // Buscar usuario que coincida con username y PIN
+    // Buscar usuario por username
     const usuarioEncontrado = usuarios.find(
-      (user) => user.username === username && user.telefono === pin
+      (user) => user.username === username
     );
 
     if (!usuarioEncontrado) {
-      throw new Error("Usuario o PIN incorrectos");
+      throw new Error("Usuario no encontrado");
     }
 
-    console.log("✅ Usuario encontrado:", usuarioEncontrado);
+    console.log("👤 Usuario encontrado:", usuarioEncontrado);
+
+    // Verificar PIN desde la API de credenciales
+    try {
+      const credencialesResponse = await fetch(
+        `${API_URL}/credenciales/empleado/${usuarioEncontrado.id_usuario}`
+      );
+
+      if (!credencialesResponse.ok) {
+        throw new Error("No se pudieron obtener las credenciales");
+      }
+
+      const credenciales = await credencialesResponse.json();
+      console.log("🔑 Credenciales obtenidas");
+
+      // Verificar que el PIN coincida
+      if (credenciales.pin !== parseInt(pin)) {
+        throw new Error("PIN incorrecto");
+      }
+
+      console.log("✅ PIN verificado correctamente");
+    } catch (error) {
+      console.error("❌ Error al verificar PIN:", error);
+      throw new Error("Usuario o PIN incorrectos");
+    }
 
     // Verificar que el usuario esté activo
 
     // Actualizar estado a CONECTADO
     try {
       console.log(
-        `🔄 Intentando actualizar estado del usuario ${usuarioEncontrado.id} a CONECTADO...`
+        `🔄 Intentando actualizar estado del usuario ${usuarioEncontrado.id_usuario} a CONECTADO...`
       );
       const usuarioActualizado = await actualizarEstadoUsuario(
-        usuarioEncontrado.id,
+        usuarioEncontrado.id_usuario,
         "CONECTADO"
       );
       console.log("✅ Estado actualizado en API:", usuarioActualizado);

@@ -1,18 +1,24 @@
 import { useState } from "react";
-import { LogIn, User, Eye, EyeOff, X, Camera, Loader } from "lucide-react";
+import {
+  User,
+  Eye,
+  EyeOff,
+  X,
+  Camera,
+  Loader,
+  Fingerprint,
+} from "lucide-react";
 import { loginUsuario, guardarSesion } from "../../services/authService";
+import FingerprintManager from "./FingerprintManager"; // Importar el componente
 
-export default function LoginModal({
-  onClose,
-  onFacialLogin,
-  onLoginSuccess, // Callback cuando el login es exitoso
-}) {
+export default function LoginModal({ onClose, onFacialLogin, onLoginSuccess }) {
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [showFingerprintModal, setShowFingerprintModal] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -25,7 +31,7 @@ export default function LoginModal({
     }
 
     if (!loginPassword.trim()) {
-      setError("Por favor ingrese su contraseña");
+      setError("Por favor ingrese su PIN");
       return;
     }
 
@@ -57,157 +63,162 @@ export default function LoginModal({
     }
   };
 
+  const handleFingerprintLogin = () => {
+    setShowFingerprintModal(true);
+  };
+
+  const handleFingerprintSuccess = () => {
+    // Login automático después de verificar la huella
+    if (onLoginSuccess) {
+      onLoginSuccess({
+        username: "Usuario Huella",
+        loginMethod: "fingerprint",
+      });
+    }
+    setShowFingerprintModal(false);
+    onClose();
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <h3 className="text-lg font-bold text-white mb-1">
-                Inicio de Sesión
-              </h3>
-              <p className="text-blue-100 text-sm">
-                Ingrese sus credenciales de acceso
-              </p>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
-              disabled={loading}
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-
-        <form onSubmit={handleLogin} className="p-5">
-          {/* Mensaje de error */}
-          {error && (
-            <div className="mb-4 p-3 bg-bg-secondary border border-red-500 rounded-lg">
-              <p className="text-red-500 text-sm font-medium">{error}</p>
-            </div>
-          )}
-
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-semibold text-text-secondary mb-1">
-                Usuario
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-text-disabled" />
-                </div>
-                <input
-                  type="text"
-                  value={loginUsername}
-                  onChange={(e) => setLoginUsername(e.target.value)}
-                  placeholder="dansoto"
-                  className="w-full pl-10 pr-4 py-2.5 bg-bg-primary border-2 border-border-subtle rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-text-primary placeholder:text-text-disabled"
-                  disabled={loading}
-                />
+    <>
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-40 p-4">
+        <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-white mb-1">
+                  Inicio de Sesión
+                </h3>
+                <p className="text-blue-100 text-sm">
+                  Ingrese sus credenciales de acceso
+                </p>
               </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-text-secondary mb-1">
-                Contraseña (Email)
-              </label>
-              <div className="relative">
-                <input
-                  type={showLoginPassword ? "text" : "password"}
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="tu-email@empresa.com"
-                  className="w-full px-4 py-2.5 bg-bg-primary border-2 border-border-subtle rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-text-primary placeholder:text-text-disabled"
-                  disabled={loading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowLoginPassword(!showLoginPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-disabled hover:text-text-secondary"
-                  disabled={loading}
-                >
-                  {showLoginPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="rounded border-border-subtle text-blue-600 focus:ring-blue-500"
-                  disabled={loading}
-                />
-                <span className="ml-2 text-text-secondary">Recordar sesión</span>
-              </label>
               <button
-                type="button"
-                className="text-blue-600 hover:underline font-medium"
+                onClick={onClose}
+                className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
                 disabled={loading}
               >
-                ¿Olvidó su contraseña?
+                <X className="w-5 h-5" />
               </button>
             </div>
           </div>
 
-          <div className="mt-4 space-y-2">
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-xl font-bold text-base shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <Loader className="w-5 h-5 animate-spin" />
-                  Iniciando sesión...
-                </>
-              ) : (
-                "INICIAR SESIÓN"
-              )}
-            </button>
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border-subtle"></div>
+          <div className="p-5">
+            {/* Mensaje de error */}
+            {error && (
+              <div className="mb-4 p-3 bg-bg-secondary border border-red-500 rounded-lg">
+                <p className="text-red-500 text-sm font-medium">{error}</p>
               </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-bg-primary text-text-tertiary">o</span>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-semibold text-text-secondary mb-1">
+                  Usuario
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <User className="h-5 w-5 text-text-disabled" />
+                  </div>
+                  <input
+                    type="text"
+                    value={loginUsername}
+                    onChange={(e) => setLoginUsername(e.target.value)}
+                    placeholder="dansoto"
+                    className="w-full pl-10 pr-4 py-2.5 bg-bg-primary border-2 border-border-subtle rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-text-primary placeholder:text-text-disabled"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-text-secondary mb-1">
+                  PIN
+                </label>
+                <div className="relative">
+                  <input
+                    type={showLoginPassword ? "text" : "password"}
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder="Ingrese su PIN"
+                    className="w-full px-4 py-2.5 bg-bg-primary border-2 border-border-subtle rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm text-text-primary placeholder:text-text-disabled"
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-disabled hover:text-text-secondary"
+                    disabled={loading}
+                  >
+                    {showLoginPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={onFacialLogin}
-              disabled={loading}
-              className="w-full py-2.5 bg-bg-secondary hover:bg-bg-tertiary text-text-secondary rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              <Camera className="w-4 h-4" />
-              Iniciar con Reconocimiento Facial
-            </button>
-          </div>
+            <div className="mt-4 space-y-2">
+              <button
+                onClick={handleLogin}
+                disabled={loading}
+                className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-xl font-bold text-base shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <Loader className="w-5 h-5 animate-spin" />
+                    Iniciando sesión...
+                  </>
+                ) : (
+                  "INICIAR SESIÓN"
+                )}
+              </button>
 
-          {/* Ayuda de ejemplo */}
-          <div className="mt-4 p-3 bg-bg-secondary border border-blue-200 rounded-lg">
-            <p className="text-xs text-text-secondary">
-              <strong className="text-text-primary">Ejemplo:</strong>
-              <br />
-              Usuario: <code className="bg-bg-tertiary px-1 rounded text-text-primary">dansoto</code>
-              <br />
-              Contraseña:{" "}
-              <code className="bg-bg-tertiary px-1 rounded text-text-primary">
-                dansoto804@gmail.com
-              </code>
-            </p>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border-subtle"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-bg-primary text-text-tertiary">
+                    o
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onFacialLogin}
+                disabled={loading}
+                className="w-full py-2.5 bg-bg-secondary hover:bg-bg-tertiary text-text-secondary rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <Camera className="w-4 h-4" />
+                Iniciar con Reconocimiento Facial
+              </button>
+
+              <button
+                type="button"
+                onClick={handleFingerprintLogin}
+                disabled={loading}
+                className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-md"
+              >
+                <Fingerprint className="w-4 h-4" />
+                Iniciar con Huella Digital
+              </button>
+            </div>
           </div>
-        </form>
+        </div>
       </div>
-    </div>
+
+      {/* Modal de Huella Digital - Solo se renderiza cuando está abierto */}
+      {showFingerprintModal && (
+        <FingerprintManager
+          isOpen={showFingerprintModal}
+          onClose={() => setShowFingerprintModal(false)}
+          onVerificationSuccess={handleFingerprintSuccess}
+        />
+      )}
+    </>
   );
 }

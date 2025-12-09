@@ -5,7 +5,7 @@ import DevicesStep from "../components/affiliation/DevicesStep";
 import AffiliationStep from "../components/affiliation/AffiliationStep";
 import ApprovalStep from "../components/affiliation/ApprovalStep";
 
-export default function AffiliationRequest() {
+export default function AffiliationRequest({ onComplete }) {
   const [showWelcome, setShowWelcome] = useState(true);
   const [step, setStep] = useState(1);
   const [requestStatus, setRequestStatus] = useState("pending");
@@ -94,9 +94,14 @@ export default function AffiliationRequest() {
         onRetry={handleRetryRequest}
         onCancel={() => setStep(3)}
         onGoToLogin={() => {
-          setStep(1);
-          setRequestStatus("pending");
-          setCountdown(10);
+          // Si la solicitud fue aprobada y hay un callback, completar configuración
+          if (requestStatus === "approved" && onComplete) {
+            onComplete();
+          } else {
+            setStep(1);
+            setRequestStatus("pending");
+            setCountdown(10);
+          }
         }}
         onShowWelcome={() => setShowWelcome(true)}
       />

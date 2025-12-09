@@ -2,26 +2,26 @@ import { Monitor, HardDrive, Wifi, Building2, Lock } from "lucide-react";
 
 export default function WelcomeScreen({ onClose }) {
   return (
-    <div className="min-h-screen bg-bg-secondary flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-        <div className="bg-bg-primary rounded-2xl shadow-2xl w-full max-w-5xl mx-4 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6 text-white">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-bg-primary bg-opacity-20 rounded-full flex items-center justify-center backdrop-blur-sm">
-                <Monitor className="w-7 h-7" />
-              </div>
-              <div>
-                <h2 className="text-3xl font-bold">
-                  ¡Bienvenido al Sistema de Asistencia!
-                </h2>
-                <p className="text-blue-100 mt-1">
-                  Configuración inicial en 4 pasos
-                </p>
-              </div>
+    <div className="h-screen w-screen bg-bg-primary flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col">
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6 text-white">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-bg-primary bg-opacity-20 rounded-full flex items-center justify-center backdrop-blur-sm">
+              <Monitor className="w-7 h-7" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-bold">
+                ¡Bienvenido al Sistema de Asistencia!
+              </h2>
+              <p className="text-blue-100 mt-1">
+                Configuración inicial en 4 pasos
+              </p>
             </div>
           </div>
+        </div>
 
-          <div className="p-8">
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-8 max-w-6xl mx-auto">
             <div className="grid grid-cols-4 gap-6 mb-8">
               <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border-2 border-blue-200 hover:shadow-md transition-shadow">
                 <div className="flex flex-col items-center text-center">

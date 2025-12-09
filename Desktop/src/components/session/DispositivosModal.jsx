@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { X, Smartphone, Plus, Trash2, Save } from "lucide-react";
 
-export default function DispositivosModal({ onClose, initialDevices = [] }) {
+export default function DispositivosModal({ onClose, onBack, initialDevices = [] }) {
   const [devices, setDevices] = useState(
     initialDevices.length > 0
       ? initialDevices
@@ -180,10 +180,10 @@ export default function DispositivosModal({ onClose, initialDevices = [] }) {
         <div className="bg-bg-secondary p-4 border-t border-border-subtle flex-shrink-0">
           <div className="flex gap-4">
             <button
-              onClick={onClose}
+              onClick={onBack || onClose}
               className="flex-1 px-6 py-3 bg-bg-primary border-2 border-border-subtle text-text-secondary rounded-xl font-bold hover:bg-bg-secondary transition-colors"
             >
-              Cancelar
+              {onBack ? "Volver" : "Cancelar"}
             </button>
             <button
               onClick={handleSave}

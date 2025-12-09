@@ -317,7 +317,14 @@ export default function SessionScreen({ onLogout, usuario }) {
       {/* General del Nodo Modal */}
       {showGeneralNodoModal && (
         <GeneralNodoModal
-          onClose={() => setShowGeneralNodoModal(false)}
+          onClose={() => {
+            setShowGeneralNodoModal(false);
+            setShowConfigModal(false);
+          }}
+          onBack={() => {
+            setShowGeneralNodoModal(false);
+            setShowConfigModal(true);
+          }}
           initialConfig={{
             nodeName: nombreNodo,
             nodeDescription: descripcionNodo,
@@ -331,14 +338,30 @@ export default function SessionScreen({ onLogout, usuario }) {
       {/* Dispositivos Modal */}
       {showDispositivosModal && (
         <DispositivosModal
-          onClose={() => setShowDispositivosModal(false)}
+          onClose={() => {
+            setShowDispositivosModal(false);
+            setShowConfigModal(false);
+          }}
+          onBack={() => {
+            setShowDispositivosModal(false);
+            setShowConfigModal(true);
+          }}
           initialDevices={dispositivos}
         />
       )}
 
       {/* Preferencias Modal */}
       {showPreferenciasModal && (
-        <PreferenciasModal onClose={() => setShowPreferenciasModal(false)} />
+        <PreferenciasModal
+          onClose={() => {
+            setShowPreferenciasModal(false);
+            setShowConfigModal(false);
+          }}
+          onBack={() => {
+            setShowPreferenciasModal(false);
+            setShowConfigModal(true);
+          }}
+        />
       )}
 
       {/* Notice Detail Modal */}

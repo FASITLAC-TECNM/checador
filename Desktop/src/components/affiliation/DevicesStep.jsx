@@ -33,16 +33,22 @@ export default function DevicesStep({
   };
 
   return (
-    <div className="min-h-screen bg-bg-secondary flex items-center justify-center p-4">
-      <button
-        onClick={onShowWelcome}
-        className="fixed top-6 right-6 w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 flex items-center justify-center z-10"
-        title="Ver información de bienvenida"
-      >
-        <Info className="w-6 h-6" />
-      </button>
+    <div className="h-screen w-screen bg-bg-primary flex flex-col overflow-hidden">
+      {/* Barra de progreso fija */}
+      <div className="bg-bg-secondary border-b border-border-subtle py-4 px-8">
+        <StepIndicator currentStep={2} totalSteps={4} />
+      </div>
 
-      <div className="bg-bg-primary rounded-2xl shadow-xl p-6 w-full max-w-4xl">
+      {/* Contenido scrollable */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-5xl mx-auto p-8">
+          <button
+            onClick={onShowWelcome}
+            className="absolute top-20 right-6 w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 flex items-center justify-center z-10"
+            title="Ver información de bienvenida"
+          >
+            <Info className="w-6 h-6" />
+          </button>
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-text-primary mb-2">
             Paso 2: Configurar Dispositivos
@@ -183,48 +189,47 @@ export default function DevicesStep({
           </div>
         </div>
 
-        <div className="flex justify-between mt-6 mb-6">
-          <button
-            onClick={onPrevious}
-            className="px-6 py-2.5 text-text-secondary hover:text-text-primary font-medium transition-colors flex items-center gap-2"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div className="flex justify-between mt-6">
+            <button
+              onClick={onPrevious}
+              className="px-6 py-2.5 text-text-secondary hover:text-text-primary font-medium transition-colors flex items-center gap-2"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            Anterior
-          </button>
-          <button
-            onClick={onNext}
-            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium transition-all shadow-sm hover:shadow-md flex items-center gap-2"
-          >
-            Siguiente
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+              Anterior
+            </button>
+            <button
+              onClick={onNext}
+              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium transition-all shadow-sm hover:shadow-md flex items-center gap-2"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
-          </button>
+              Siguiente
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
-
-        <StepIndicator currentStep={2} />
       </div>
     </div>
   );

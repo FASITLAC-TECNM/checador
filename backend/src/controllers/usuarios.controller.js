@@ -6,6 +6,7 @@ export const getUsuarios = async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT
+                id,
                 id as id_usuario,
                 id_empresa,
                 username,
@@ -14,22 +15,49 @@ export const getUsuarios = async (req, res) => {
                 telefono,
                 foto,
                 activo,
-                conexion
+                conexion as estado
             FROM Usuario
             ORDER BY id
         `);
-        res.json(result.rows);
+
+        // Normalizar valores para el frontend
+        const usuarios = result.rows.map(u => ({
+            ...u,
+            activo: normalizarActivoParaFrontend(u.activo),
+            estado: normalizarEstadoParaFrontend(u.estado)
+        }));
+
+        res.json(usuarios);
     } catch (err) {
         console.error('Error obteniendo usuarios:', err);
         res.status(500).json({ error: 'Error al obtener usuarios' });
     }
 };
 
+// Funciones auxiliares para normalización
+function normalizarActivoParaFrontend(valor) {
+    const map = {
+        'Activo': 'ACTIVO',
+        'Suspensión': 'SUSPENDIDO',
+        'Baja': 'BAJA'
+    };
+    return map[valor] || valor;
+}
+
+function normalizarEstadoParaFrontend(valor) {
+    const map = {
+        'Conectado': 'CONECTADO',
+        'Desconectado': 'DESCONECTADO'
+    };
+    return map[valor] || valor;
+}
+
 export const getUsuarioById = async (req, res) => {
     try {
         const { id } = req.params;
         const result = await pool.query(`
             SELECT
+                id,
                 id as id_usuario,
                 id_empresa,
                 username,
@@ -39,7 +67,7 @@ export const getUsuarioById = async (req, res) => {
                 telefono,
                 foto,
                 activo,
-                conexion
+                conexion as estado
             FROM Usuario
             WHERE id = $1
         `, [id]);
@@ -47,7 +75,13 @@ export const getUsuarioById = async (req, res) => {
         if (result.rows.length === 0)
             return res.status(404).json({ error: 'Usuario no encontrado' });
 
-        res.json(result.rows[0]);
+        const usuario = {
+            ...result.rows[0],
+            activo: normalizarActivoParaFrontend(result.rows[0].activo),
+            estado: normalizarEstadoParaFrontend(result.rows[0].estado)
+        };
+
+        res.json(usuario);
     } catch (err) {
         console.error('Error obteniendo usuario:', err);
         res.status(500).json({ error: 'Error al obtener usuario' });
@@ -65,8 +99,29 @@ export const createUsuario = async (req, res) => {
             telefono,
             foto,
             activo = 'Activo',
-            conexion = 'Desconectado'
+            estado = 'Desconectado'
         } = req.body;
+
+        // Normalizar valores del frontend al formato de la BD
+        const normalizarActivo = (valor) => {
+            const map = {
+                'ACTIVO': 'Activo',
+                'SUSPENDIDO': 'Suspensión',
+                'BAJA': 'Baja'
+            };
+            return map[valor?.toUpperCase()] || valor || 'Activo';
+        };
+
+        const normalizarEstado = (valor) => {
+            const map = {
+                'CONECTADO': 'Conectado',
+                'DESCONECTADO': 'Desconectado'
+            };
+            return map[valor?.toUpperCase()] || valor || 'Desconectado';
+        };
+
+        activo = normalizarActivo(activo);
+        const conexion = normalizarEstado(estado);
 
         if (!id_empresa || !username || !email || !password || !nombre) {
             return res.status(400).json({
@@ -120,10 +175,15 @@ export const createUsuario = async (req, res) => {
                 telefono,
                 foto,
                 activo,
-                conexion
+                conexion as estado
         `, [id_empresa, username, email, password, nombre, telefono || null, foto || null, activo, conexion]);
 
-        res.status(201).json(result.rows[0]);
+        const usuario = {
+            ...result.rows[0],
+            activo: normalizarActivoParaFrontend(result.rows[0].activo),
+            estado: normalizarEstadoParaFrontend(result.rows[0].estado)
+        };
+        res.status(201).json(usuario);
     } catch (err) {
         console.error('Error creando usuario:', err);
         if (err.code === '23505') {
@@ -152,8 +212,32 @@ export const updateUsuario = async (req, res) => {
             telefono,
             foto,
             activo,
-            conexion
+            estado
         } = req.body;
+
+        // Normalizar valores del frontend al formato de la BD
+        const normalizarActivo = (valor) => {
+            if (!valor) return undefined;
+            const map = {
+                'ACTIVO': 'Activo',
+                'SUSPENDIDO': 'Suspensión',
+                'BAJA': 'Baja'
+            };
+            return map[valor?.toUpperCase()] || valor;
+        };
+
+        const normalizarEstado = (valor) => {
+            if (!valor) return undefined;
+            const map = {
+                'CONECTADO': 'Conectado',
+                'DESCONECTADO': 'Desconectado'
+            };
+            return map[valor?.toUpperCase()] || valor;
+        };
+
+        // Aplicar normalización si se proporcionan
+        if (activo) activo = normalizarActivo(activo);
+        const conexion = estado ? normalizarEstado(estado) : undefined;
 
         // Validar campos requeridos
         if (!username || !email || !nombre) {
@@ -228,7 +312,7 @@ export const updateUsuario = async (req, res) => {
                 telefono,
                 foto,
                 activo,
-                conexion
+                conexion as estado
         `;
         params.push(id);
 
@@ -237,7 +321,13 @@ export const updateUsuario = async (req, res) => {
         if (result.rows.length === 0)
             return res.status(404).json({ error: 'Usuario no encontrado' });
 
-        res.json(result.rows[0]);
+        const usuario = {
+            ...result.rows[0],
+            activo: normalizarActivoParaFrontend(result.rows[0].activo),
+            estado: normalizarEstadoParaFrontend(result.rows[0].estado)
+        };
+
+        res.json(usuario);
     } catch (err) {
         console.error('Error actualizando usuario:', err);
         if (err.code === '23505') {
@@ -275,9 +365,20 @@ export const deleteUsuario = async (req, res) => {
 export const updateEstado = async (req, res) => {
     try {
         const { id } = req.params;
-        const { conexion } = req.body;
+        let { estado } = req.body;
 
-        if (!['Conectado', 'Desconectado'].includes(conexion)) {
+        // Normalizar estado del frontend al formato de la BD
+        const normalizarEstado = (valor) => {
+            const map = {
+                'CONECTADO': 'Conectado',
+                'DESCONECTADO': 'Desconectado'
+            };
+            return map[valor?.toUpperCase()] || valor;
+        };
+
+        estado = normalizarEstado(estado);
+
+        if (!['Conectado', 'Desconectado'].includes(estado)) {
             return res.status(400).json({
                 error: 'Estado de conexión inválido',
                 valid: ['Conectado', 'Desconectado']
@@ -292,13 +393,18 @@ export const updateEstado = async (req, res) => {
                 id as id_usuario,
                 username,
                 nombre,
-                conexion
-        `, [conexion, id]);
+                conexion as estado
+        `, [estado, id]);
 
         if (result.rows.length === 0)
             return res.status(404).json({ error: 'Usuario no encontrado' });
 
-        res.json(result.rows[0]);
+        const usuario = {
+            ...result.rows[0],
+            estado: normalizarEstadoParaFrontend(result.rows[0].estado)
+        };
+
+        res.json(usuario);
     } catch (err) {
         console.error('Error actualizando estado:', err);
         res.status(500).json({ error: 'Error al actualizar estado' });
@@ -307,7 +413,28 @@ export const updateEstado = async (req, res) => {
 
 export const filterUsuarios = async (req, res) => {
     try {
-        const { activo, conexion } = req.query;
+        let { activo, estado } = req.query;
+
+        // Normalizar valores del frontend al formato de la BD
+        const normalizarActivo = (valor) => {
+            const map = {
+                'ACTIVO': 'Activo',
+                'SUSPENDIDO': 'Suspensión',
+                'BAJA': 'Baja'
+            };
+            return map[valor?.toUpperCase()] || valor;
+        };
+
+        const normalizarEstado = (valor) => {
+            const map = {
+                'CONECTADO': 'Conectado',
+                'DESCONECTADO': 'Desconectado'
+            };
+            return map[valor?.toUpperCase()] || valor;
+        };
+
+        if (activo) activo = normalizarActivo(activo);
+        if (estado) estado = normalizarEstado(estado);
 
         let query = `
             SELECT
@@ -319,7 +446,7 @@ export const filterUsuarios = async (req, res) => {
                 telefono,
                 foto,
                 activo,
-                conexion
+                conexion as estado
             FROM Usuario
             WHERE 1=1
         `;
@@ -333,16 +460,24 @@ export const filterUsuarios = async (req, res) => {
             paramIndex++;
         }
 
-        if (conexion) {
+        if (estado) {
             query += ` AND conexion = $${paramIndex}`;
-            params.push(conexion);
+            params.push(estado);
             paramIndex++;
         }
 
         query += ' ORDER BY id';
 
         const result = await pool.query(query, params);
-        res.json(result.rows);
+
+        // Normalizar valores para el frontend
+        const usuarios = result.rows.map(u => ({
+            ...u,
+            activo: normalizarActivoParaFrontend(u.activo),
+            estado: normalizarEstadoParaFrontend(u.estado)
+        }));
+
+        res.json(usuarios);
     } catch (err) {
         console.error('Error filtrando usuarios:', err);
         res.status(500).json({ error: 'Error al filtrar usuarios' });
@@ -386,7 +521,7 @@ export const ping = async (req, res) => {
             RETURNING
                 id as id_usuario,
                 username,
-                conexion
+                conexion as estado
         `, [userId]);
 
         if (result.rows.length === 0) {
@@ -395,9 +530,14 @@ export const ping = async (req, res) => {
             });
         }
 
+        const usuario = {
+            ...result.rows[0],
+            estado: normalizarEstadoParaFrontend(result.rows[0].estado)
+        };
+
         res.json({
             success: true,
-            usuario: result.rows[0]
+            usuario
         });
     } catch (err) {
         console.error('Error en ping:', err);

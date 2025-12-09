@@ -1,5 +1,23 @@
 import { pool } from '../config/db.js';
 
+// Funciones auxiliares para normalización (igual que en usuarios.controller.js)
+function normalizarActivoParaFrontend(valor) {
+    const map = {
+        'Activo': 'ACTIVO',
+        'Suspensión': 'SUSPENDIDO',
+        'Baja': 'BAJA'
+    };
+    return map[valor] || valor;
+}
+
+function normalizarEstadoParaFrontend(valor) {
+    const map = {
+        'Conectado': 'CONECTADO',
+        'Desconectado': 'DESCONECTADO'
+    };
+    return map[valor] || valor;
+}
+
 // ==================== CRUD DE EMPLEADOS ====================
 
 export const getEmpleados = async (req, res) => {
@@ -21,12 +39,20 @@ export const getEmpleados = async (req, res) => {
                 u.telefono,
                 u.foto,
                 u.activo,
-                u.conexion
+                u.conexion as estado
             FROM Empleado e
             INNER JOIN Usuario u ON e.id_usuario = u.id
             ORDER BY e.id
         `);
-        res.json(result.rows);
+
+        // Normalizar valores para el frontend
+        const empleados = result.rows.map(e => ({
+            ...e,
+            activo: normalizarActivoParaFrontend(e.activo),
+            estado: normalizarEstadoParaFrontend(e.estado)
+        }));
+
+        res.json(empleados);
     } catch (err) {
         console.error('Error obteniendo empleados:', err);
         res.status(500).json({ error: 'Error al obtener empleados' });
@@ -52,7 +78,7 @@ export const getEmpleadoById = async (req, res) => {
                 u.telefono,
                 u.foto,
                 u.activo,
-                u.conexion
+                u.conexion as estado
             FROM Empleado e
             INNER JOIN Usuario u ON e.id_usuario = u.id
             WHERE e.id = $1
@@ -61,7 +87,13 @@ export const getEmpleadoById = async (req, res) => {
         if (result.rows.length === 0)
             return res.status(404).json({ error: 'Empleado no encontrado' });
 
-        res.json(result.rows[0]);
+        const empleado = {
+            ...result.rows[0],
+            activo: normalizarActivoParaFrontend(result.rows[0].activo),
+            estado: normalizarEstadoParaFrontend(result.rows[0].estado)
+        };
+
+        res.json(empleado);
     } catch (err) {
         console.error('Error obteniendo empleado:', err);
         res.status(500).json({ error: 'Error al obtener empleado' });
@@ -87,7 +119,7 @@ export const getEmpleadoByUsuarioId = async (req, res) => {
                 u.telefono,
                 u.foto,
                 u.activo,
-                u.conexion
+                u.conexion as estado
             FROM Empleado e
             INNER JOIN Usuario u ON e.id_usuario = u.id
             WHERE e.id_usuario = $1
@@ -96,7 +128,13 @@ export const getEmpleadoByUsuarioId = async (req, res) => {
         if (result.rows.length === 0)
             return res.status(404).json({ error: 'Empleado no encontrado' });
 
-        res.json(result.rows[0]);
+        const empleado = {
+            ...result.rows[0],
+            activo: normalizarActivoParaFrontend(result.rows[0].activo),
+            estado: normalizarEstadoParaFrontend(result.rows[0].estado)
+        };
+
+        res.json(empleado);
     } catch (err) {
         console.error('Error obteniendo empleado por usuario:', err);
         res.status(500).json({ error: 'Error al obtener empleado' });

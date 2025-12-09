@@ -42,7 +42,13 @@ export const getEmpleado = async (id) => {
 export const getEmpleadoPorUsuario = async (idUsuario) => {
     try {
         const response = await fetch(`${API_URL}/empleados/usuario/${idUsuario}`);
-        if (!response.ok) throw new Error('Error al obtener empleado');
+        if (!response.ok) {
+            if (response.status === 404) {
+                // Empleado no encontrado - esto es un caso esperado
+                throw new Error('EMPLEADO_NO_ENCONTRADO');
+            }
+            throw new Error('Error al obtener empleado');
+        }
         return await response.json();
     } catch (error) {
         console.error('Error:', error);

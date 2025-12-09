@@ -1,82 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import RoleList from './RoleList';
 import RoleForm from './RoleForm';
 import RoleDetail from './RoleDetail';
 import SearchBar from '../../components/utils/SearchBar';
 import AdNote from '../../components/alerts/AdNote';
 import { Plus, Shield, Info } from 'lucide-react';
+import {
+    obtenerRoles,
+    obtenerRolPorId,
+    crearRol,
+    actualizarRol,
+    eliminarRol,
+    obtenerModulos,
+    transformarPermisosParaBackend,
+    transformarPermisosParaFrontend
+} from '../../services/rolesService';
 
 const RolesPage = () => {
-    const [roles, setRoles] = useState([
-        {
-            id: 1,
-            nombre: 'Administrador',
-            descripcion: 'Acceso completo al sistema',
-            color: '#ef4444',
-            usuariosAsignados: 3,
-            esDefault: false,
-            fechaCreacion: '2024-01-10',
-            permisos: {
-                usuarios: { ver: true, crear: true, editar: true, eliminar: true },
-                roles: { ver: true, crear: true, editar: true, eliminar: true },
-                dispositivos: { ver: true, crear: true, editar: true, eliminar: true },
-                asistencias: { ver: true, crear: true, editar: true, eliminar: true },
-                reportes: { ver: true, crear: true, editar: true, eliminar: true },
-                configuracion: { ver: true, crear: true, editar: true, eliminar: true }
-            }
-        },
-        {
-            id: 2,
-            nombre: 'Supervisor',
-            descripcion: 'Gestión de equipos y reportes',
-            color: '#3b82f6',
-            usuariosAsignados: 8,
-            esDefault: false,
-            fechaCreacion: '2024-01-10',
-            permisos: {
-                usuarios: { ver: true, crear: false, editar: true, eliminar: false },
-                roles: { ver: true, crear: false, editar: false, eliminar: false },
-                dispositivos: { ver: true, crear: false, editar: false, eliminar: false },
-                asistencias: { ver: true, crear: true, editar: true, eliminar: false },
-                reportes: { ver: true, crear: true, editar: false, eliminar: false },
-                configuracion: { ver: false, crear: false, editar: false, eliminar: false }
-            }
-        },
-        {
-            id: 3,
-            nombre: 'Empleado',
-            descripcion: 'Acceso básico para registro de asistencia',
-            color: '#10b981',
-            usuariosAsignados: 45,
-            esDefault: true,
-            fechaCreacion: '2024-01-10',
-            permisos: {
-                usuarios: { ver: false, crear: false, editar: false, eliminar: false },
-                roles: { ver: false, crear: false, editar: false, eliminar: false },
-                dispositivos: { ver: false, crear: false, editar: false, eliminar: false },
-                asistencias: { ver: true, crear: true, editar: false, eliminar: false },
-                reportes: { ver: true, crear: false, editar: false, eliminar: false },
-                configuracion: { ver: false, crear: false, editar: false, eliminar: false }
-            }
-        },
-        {
-            id: 4,
-            nombre: 'Recursos Humanos',
-            descripcion: 'Gestión de personal y asistencias',
-            color: '#8b5cf6',
-            usuariosAsignados: 5,
-            esDefault: false,
-            fechaCreacion: '2024-02-15',
-            permisos: {
-                usuarios: { ver: true, crear: true, editar: true, eliminar: false },
-                roles: { ver: true, crear: false, editar: false, eliminar: false },
-                dispositivos: { ver: true, crear: true, editar: true, eliminar: false },
-                asistencias: { ver: true, crear: true, editar: true, eliminar: true },
-                reportes: { ver: true, crear: true, editar: true, eliminar: false },
-                configuracion: { ver: true, crear: false, editar: true, eliminar: false }
-            }
-        }
-    ]);
+    const [roles, setRoles] = useState([]);
+    const [modulos, setModulos] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     const [showForm, setShowForm] = useState(false);
     const [editingRole, setEditingRole] = useState(null);
@@ -86,6 +30,7 @@ const RolesPage = () => {
         nombre: '',
         descripcion: '',
         color: '#3b82f6',
+        jerarquia: 10,
         permisos: {
             usuarios: { ver: false, crear: false, editar: false, eliminar: false },
             roles: { ver: false, crear: false, editar: false, eliminar: false },
@@ -95,6 +40,43 @@ const RolesPage = () => {
             configuracion: { ver: false, crear: false, editar: false, eliminar: false }
         }
     });
+
+    // Cargar roles y módulos al montar el componente
+    useEffect(() => {
+        cargarDatos();
+    }, []);
+
+    const cargarDatos = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const [rolesData, modulosData] = await Promise.all([
+                obtenerRoles(),
+                obtenerModulos()
+            ]);
+
+            // Transformar roles del backend al formato del frontend
+            const rolesTransformados = rolesData.map(rol => ({
+                id: rol.id,
+                nombre: rol.nombre,
+                descripcion: rol.descripcion,
+                color: '#3b82f6', // Color por defecto (podemos guardar esto en BD después)
+                usuariosAsignados: parseInt(rol.usuarios_asignados) || 0,
+                esDefault: false, // Podemos añadir este campo a la BD después
+                fechaCreacion: rol.fecha_creacion,
+                jerarquia: rol.jerarquia,
+                permisos: {} // Se cargará bajo demanda al ver/editar
+            }));
+
+            setRoles(rolesTransformados);
+            setModulos(modulosData);
+        } catch (err) {
+            console.error('Error cargando datos:', err);
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -123,6 +105,7 @@ const RolesPage = () => {
             nombre: '',
             descripcion: '',
             color: '#3b82f6',
+            jerarquia: 10,
             permisos: {
                 usuarios: { ver: false, crear: false, editar: false, eliminar: false },
                 roles: { ver: false, crear: false, editar: false, eliminar: false },
@@ -135,46 +118,86 @@ const RolesPage = () => {
         setShowForm(true);
     };
 
-    const handleEdit = (role) => {
-        setEditingRole(role);
-        setFormData({
-            nombre: role.nombre,
-            descripcion: role.descripcion,
-            color: role.color,
-            permisos: role.permisos
-        });
-        setShowForm(true);
+    const handleEdit = async (role) => {
+        try {
+            setLoading(true);
+            // Cargar el rol completo con sus permisos desde el backend
+            const rolCompleto = await obtenerRolPorId(role.id);
+
+            // Transformar permisos del backend al formato del frontend
+            const permisosTransformados = rolCompleto.permisos && rolCompleto.permisos.length > 0
+                ? transformarPermisosParaFrontend(rolCompleto.permisos)
+                : {
+                    usuarios: { ver: false, crear: false, editar: false, eliminar: false },
+                    roles: { ver: false, crear: false, editar: false, eliminar: false },
+                    dispositivos: { ver: false, crear: false, editar: false, eliminar: false },
+                    asistencias: { ver: false, crear: false, editar: false, eliminar: false },
+                    reportes: { ver: false, crear: false, editar: false, eliminar: false },
+                    configuracion: { ver: false, crear: false, editar: false, eliminar: false }
+                };
+
+            setEditingRole(rolCompleto);
+            setFormData({
+                nombre: rolCompleto.nombre,
+                descripcion: rolCompleto.descripcion,
+                color: role.color || '#3b82f6',
+                jerarquia: rolCompleto.jerarquia,
+                permisos: permisosTransformados
+            });
+            setShowForm(true);
+        } catch (err) {
+            console.error('Error cargando rol:', err);
+            alert('Error al cargar el rol: ' + err.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleView = (role) => {
         setViewingRole(role);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!formData.nombre.trim()) {
             alert('El nombre del rol es requerido');
             return;
         }
 
-        if (editingRole) {
-            setRoles(roles.map(r =>
-                r.id === editingRole.id
-                    ? { ...editingRole, ...formData }
-                    : r
-            ));
-        } else {
-            setRoles([...roles, {
-                ...formData,
-                id: Date.now(),
-                usuariosAsignados: 0,
-                esDefault: false,
-                fechaCreacion: new Date().toISOString().split('T')[0]
-            }]);
+        try {
+            setLoading(true);
+
+            // Transformar permisos del frontend al formato del backend
+            const permisosBackend = transformarPermisosParaBackend(formData.permisos, modulos);
+
+            const rolData = {
+                nombre: formData.nombre.trim(),
+                descripcion: formData.descripcion || null,
+                jerarquia: formData.jerarquia || 10,
+                permisos: permisosBackend
+            };
+
+            if (editingRole) {
+                // Actualizar rol existente
+                await actualizarRol(editingRole.id, rolData);
+                alert('Rol actualizado exitosamente');
+            } else {
+                // Crear nuevo rol
+                await crearRol(rolData);
+                alert('Rol creado exitosamente');
+            }
+
+            // Recargar la lista de roles
+            await cargarDatos();
+            setShowForm(false);
+        } catch (err) {
+            console.error('Error guardando rol:', err);
+            alert('Error al guardar el rol: ' + err.message);
+        } finally {
+            setLoading(false);
         }
-        setShowForm(false);
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         const role = roles.find(r => r.id === id);
         if (role?.esDefault) {
             alert('No se puede eliminar el rol por defecto');
@@ -184,8 +207,19 @@ const RolesPage = () => {
             alert(`No se puede eliminar este rol porque tiene ${role.usuariosAsignados} usuarios asignados`);
             return;
         }
+
         if (confirm('¿Está seguro de eliminar este rol?')) {
-            setRoles(roles.filter(r => r.id !== id));
+            try {
+                setLoading(true);
+                await eliminarRol(id);
+                alert('Rol eliminado exitosamente');
+                await cargarDatos();
+            } catch (err) {
+                console.error('Error eliminando rol:', err);
+                alert('Error al eliminar el rol: ' + err.message);
+            } finally {
+                setLoading(false);
+            }
         }
     };
 
@@ -226,10 +260,42 @@ const RolesPage = () => {
         );
     }
 
+    // Mostrar loading
+    if (loading && roles.length === 0) {
+        return (
+            <div className="min-h-screen bg-[#FBFBFD] p-6 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-[#6E6E73]">Cargando roles...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Mostrar error
+    if (error) {
+        return (
+            <div className="min-h-screen bg-[#FBFBFD] p-6">
+                <div className="max-w-7xl mx-auto">
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+                        <p className="text-red-600 font-semibold mb-2">Error al cargar roles</p>
+                        <p className="text-red-500 mb-4">{error}</p>
+                        <button
+                            onClick={cargarDatos}
+                            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+                        >
+                            Reintentar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     // Filtrar roles
     const filteredRoles = roles.filter(role =>
         role.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        role.descripcion.toLowerCase().includes(searchTerm.toLowerCase())
+        (role.descripcion && role.descripcion.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     // Mostrar lista de roles

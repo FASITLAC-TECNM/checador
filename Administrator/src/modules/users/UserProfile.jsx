@@ -1,59 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Mail, Phone, User, Shield, Edit, IdCard, Key, Briefcase, Calendar, Info, Save, X, Upload, Camera, AlertCircle, CheckCircle } from 'lucide-react';
-import { getEmpleadoPorUsuario, cambiarEstadoEmpleado, actualizarEmpleado } from '../../services/empleadoService';
+import { ArrowLeft, Mail, Phone, User, Shield, Edit, IdCard, Briefcase, Save, X, Upload, Camera, AlertCircle, CheckCircle } from 'lucide-react';
+import { getEmpleadoPorUsuario, actualizarEmpleado } from '../../services/empleadoService';
 import { actualizarUsuario } from '../../services/api';
-
-const ESTADOS_EMPLEADO = {
-    ACTIVO: {
-        label: 'Activo',
-        bgColor: 'bg-green-50',
-        textColor: 'text-green-700',
-        borderColor: 'border-green-200',
-        icon: '✓',
-        description: 'Trabajando normalmente'
-    },
-    LICENCIA: {
-        label: 'Licencia',
-        bgColor: 'bg-blue-50',
-        textColor: 'text-blue-700',
-        borderColor: 'border-blue-200',
-        icon: '🏥',
-        description: 'Licencia médica o personal'
-    },
-    VACACIONES: {
-        label: 'Vacaciones',
-        bgColor: 'bg-purple-50',
-        textColor: 'text-purple-700',
-        borderColor: 'border-purple-200',
-        icon: '🏖️',
-        description: 'Periodo vacacional'
-    },
-    BAJA_TEMPORAL: {
-        label: 'Baja Temporal',
-        bgColor: 'bg-yellow-50',
-        textColor: 'text-yellow-700',
-        borderColor: 'border-yellow-200',
-        icon: '⏸️',
-        description: 'Suspensión temporal'
-    },
-    BAJA_DEFINITIVA: {
-        label: 'Baja Definitiva',
-        bgColor: 'bg-red-50',
-        textColor: 'text-red-700',
-        borderColor: 'border-red-200',
-        icon: '✕',
-        description: 'Ya no trabaja en la empresa'
-    }
-};
 
 const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate }) => {
     const [empleadoData, setEmpleadoData] = useState(null);
-    const [loadingEmpleado, setLoadingEmpleado] = useState(true);
+    const [loadingEmpleado, setLoadingEmpleado] = useState(false);
     const [editingUser, setEditingUser] = useState(false);
     const [editingEmpleado, setEditingEmpleado] = useState(false);
-    const [showEstadoSelector, setShowEstadoSelector] = useState(false);
-    const [motivo, setMotivo] = useState('');
-    const [changingEstado, setChangingEstado] = useState(false);
     const [previewImage, setPreviewImage] = useState(user?.foto || '');
     const fileInputRef = useRef(null);
 
@@ -70,14 +24,12 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate }) => {
 
     const [empleadoForm, setEmpleadoForm] = useState({
         nss: '',
-        rfc: '',
-        pin: ''
+        rfc: ''
     });
 
     const [validation, setValidation] = useState({
         nss: { valid: true, message: '' },
-        rfc: { valid: true, message: '' },
-        pin: { valid: true, message: '' }
+        rfc: { valid: true, message: '' }
     });
 
     useEffect(() => {
@@ -86,7 +38,10 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate }) => {
     }, [user]);
 
     const cargarDatosEmpleado = async () => {
-        if (!user?.id) return;
+        if (!user?.id) {
+            setLoadingEmpleado(false);
+            return;
+        }
 
         try {
             setLoadingEmpleado(true);
@@ -94,10 +49,10 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate }) => {
             setEmpleadoData(data);
             setEmpleadoForm({
                 nss: data.nss || '',
-                rfc: data.rfc || '',
-                pin: data.pin || ''
+                rfc: data.rfc || ''
             });
         } catch (error) {
+            console.error('Error cargando datos de empleado:', error);
             setEmpleadoData(null);
         } finally {
             setLoadingEmpleado(false);
@@ -121,12 +76,6 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate }) => {
         return { valid: true, message: '✓ RFC válido' };
     };
 
-    const validatePIN = (pin) => {
-        const clean = pin.replace(/\D/g, '');
-        if (!clean) return { valid: true, message: '' };
-        if (clean.length !== 4) return { valid: false, message: 'El PIN debe tener 4 dígitos' };
-        return { valid: true, message: '✓ PIN válido' };
-    };
 
     // Formateo
     const formatNSS = (value) => {
@@ -187,23 +136,6 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate }) => {
         }
     };
 
-    const handleCambiarEstado = async (nuevoEstado) => {
-        if (!empleadoData) return;
-
-        setChangingEstado(true);
-        try {
-            await cambiarEstadoEmpleado(empleadoData.id, nuevoEstado, motivo);
-            await cargarDatosEmpleado();
-            setShowEstadoSelector(false);
-            setMotivo('');
-            if (onUpdate) onUpdate();
-        } catch (error) {
-            console.error('Error cambiando estado:', error);
-            alert('Error al cambiar el estado del empleado');
-        } finally {
-            setChangingEstado(false);
-        }
-    };
 
     const handleSaveUser = async () => {
         try {
@@ -223,15 +155,17 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate }) => {
         // Validar antes de guardar
         const nssValid = validateNSS(empleadoForm.nss);
         const rfcValid = validateRFC(empleadoForm.rfc);
-        const pinValid = validatePIN(empleadoForm.pin);
 
-        if (!nssValid.valid || !rfcValid.valid || !pinValid.valid) {
+        if (!nssValid.valid || !rfcValid.valid) {
             alert('Por favor corrige los errores antes de guardar');
             return;
         }
 
         try {
-            await actualizarEmpleado(empleadoData.id, empleadoForm);
+            await actualizarEmpleado(empleadoData.id, {
+                nss: empleadoForm.nss,
+                rfc: empleadoForm.rfc
+            });
             await cargarDatosEmpleado();
             setEditingEmpleado(false);
             if (onUpdate) onUpdate();
@@ -266,8 +200,6 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate }) => {
             </div>
         );
     }
-
-    const estadoActual = empleadoData ? ESTADOS_EMPLEADO[empleadoData.estado_empleado] || ESTADOS_EMPLEADO.ACTIVO : null;
 
     return (
         <div className="max-h-screen bg-[#FBFBFD]">
@@ -366,11 +298,6 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate }) => {
                                             <Shield size={16} />
                                             {user.activo}
                                         </span>
-                                        {empleadoData && (
-                                            <span className={`px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 ${estadoActual.bgColor} ${estadoActual.borderColor} border-2`}>
-                                                {estadoActual.icon} {estadoActual.label}
-                                            </span>
-                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -516,15 +443,6 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate }) => {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-start gap-3">
-                                        <div className="p-2 bg-gray-50 rounded-lg">
-                                            <Shield size={20} className="text-gray-600" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <p className="text-xs text-[#6E6E73] mb-1">ID</p>
-                                            <p className="text-sm font-medium text-[#1D1D1F] font-mono">{user.id}</p>
-                                        </div>
-                                    </div>
                                 </div>
                             )}
                         </div>
@@ -573,70 +491,6 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate }) => {
                                         </div>
                                     )}
                                 </div>
-
-                                {/* Estado del empleado */}
-                                {empleadoData.fecha_cambio_estado && (
-                                    <div className="mb-4 p-4 bg-[#F5F5F7] rounded-lg">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-xs text-[#6E6E73] mb-1 flex items-center gap-1">
-                                                    <Calendar size={12} />
-                                                    Último cambio de estado
-                                                </p>
-                                                <p className="text-sm font-medium text-[#1D1D1F]">
-                                                    {formatFecha(empleadoData.fecha_cambio_estado)}
-                                                </p>
-                                                {empleadoData.motivo_cambio_estado && (
-                                                    <p className="text-xs text-[#6E6E73] mt-2 flex items-center gap-1">
-                                                        <Info size={12} />
-                                                        {empleadoData.motivo_cambio_estado}
-                                                    </p>
-                                                )}
-                                            </div>
-                                            <button
-                                                onClick={() => setShowEstadoSelector(!showEstadoSelector)}
-                                                className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors text-sm font-medium"
-                                            >
-                                                {showEstadoSelector ? 'Cancelar' : 'Cambiar Estado'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Selector de estado */}
-                                {showEstadoSelector && (
-                                    <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                                        <h4 className="text-sm font-semibold text-[#1D1D1F] mb-3">Cambiar Estado Laboral</h4>
-                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
-                                            {Object.entries(ESTADOS_EMPLEADO).map(([key, config]) => (
-                                                <button
-                                                    key={key}
-                                                    onClick={() => handleCambiarEstado(key)}
-                                                    disabled={changingEstado || key === empleadoData.estado_empleado}
-                                                    className={`p-3 rounded-lg border-2 transition-all text-left ${key === empleadoData.estado_empleado
-                                                        ? `${config.bgColor} ${config.borderColor} opacity-50 cursor-not-allowed`
-                                                        : `${config.bgColor} ${config.borderColor} hover:shadow-md hover:scale-105`
-                                                        }`}
-                                                >
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className="text-base">{config.icon}</span>
-                                                        <span className={`text-sm font-semibold ${config.textColor}`}>
-                                                            {config.label}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-xs text-[#6E6E73]">{config.description}</p>
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <textarea
-                                            value={motivo}
-                                            onChange={(e) => setMotivo(e.target.value)}
-                                            placeholder="Motivo del cambio (opcional)..."
-                                            className="w-full px-3 py-2 border border-[#D2D2D7] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                            rows="2"
-                                        />
-                                    </div>
-                                )}
 
                                 {editingEmpleado ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -697,34 +551,6 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate }) => {
                                             )}
                                         </div>
 
-                                        {/* PIN */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-[#1D1D1F] mb-2">
-                                                <Key size={16} className="inline mr-1" />
-                                                PIN
-                                            </label>
-                                            <input
-                                                type="text"
-                                                inputMode="numeric"
-                                                value={empleadoForm.pin}
-                                                onChange={(e) => {
-                                                    const numbers = e.target.value.replace(/\D/g, '').slice(0, 4);
-                                                    setEmpleadoForm({ ...empleadoForm, pin: numbers });
-                                                    setValidation(prev => ({ ...prev, pin: validatePIN(numbers) }));
-                                                }}
-                                                placeholder="1234"
-                                                maxLength={4}
-                                                className={`w-full px-4 py-3 border ${validation.pin.valid ? 'border-[#D2D2D7]' : 'border-red-500'
-                                                    } rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-2xl tracking-widest text-center`}
-                                            />
-                                            {validation.pin.message && (
-                                                <div className={`flex items-center gap-1 mt-1 text-xs ${validation.pin.valid ? 'text-green-600' : 'text-red-600'
-                                                    }`}>
-                                                    {validation.pin.valid ? <CheckCircle size={12} /> : <AlertCircle size={12} />}
-                                                    <span>{validation.pin.message}</span>
-                                                </div>
-                                            )}
-                                        </div>
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -752,15 +578,6 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate }) => {
                                             </div>
                                         </div>
 
-                                        <div className="flex items-start gap-3">
-                                            <div className="p-2 bg-purple-50 rounded-lg">
-                                                <Key size={20} className="text-purple-600" />
-                                            </div>
-                                            <div className="flex-1">
-                                                <p className="text-xs text-[#6E6E73] mb-1">PIN</p>
-                                                <p className="text-sm font-medium text-[#1D1D1F] font-mono">••••</p>
-                                            </div>
-                                        </div>
                                     </div>
                                 )}
                             </div>

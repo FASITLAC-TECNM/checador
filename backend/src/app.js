@@ -4,6 +4,7 @@ import usuariosRoutes from './routes/usuarios.routes.js';
 import sessionRoutes from './routes/session.routes.js';
 import empleadosRoutes from './routes/empleados.routes.js';
 import credencialesRoutes from './routes/credenciales.routes.js';
+import rolesRoutes from './routes/roles.routes.js';
 
 const app = express();
 
@@ -29,5 +30,6 @@ app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/session', sessionRoutes);
 app.use('/api/empleados', empleadosRoutes);
 app.use('/api/credenciales', credencialesRoutes);
+app.use('/api', rolesRoutes);
 
 export default app;

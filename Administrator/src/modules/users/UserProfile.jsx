@@ -79,6 +79,7 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate }) => {
 
     // Formateo
     const formatNSS = (value) => {
+        if (!value) return '';
         const numbers = value.replace(/\D/g, '').slice(0, 11);
         if (numbers.length <= 2) return numbers;
         if (numbers.length <= 4) return `${numbers.slice(0, 2)}-${numbers.slice(2)}`;
@@ -561,7 +562,7 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate }) => {
                                             <div className="flex-1">
                                                 <p className="text-xs text-[#6E6E73] mb-1">NSS</p>
                                                 <p className="text-sm font-medium text-[#1D1D1F] font-mono">
-                                                    {formatNSS(empleadoData.nss)}
+                                                    {empleadoData.nss ? formatNSS(empleadoData.nss) : 'No registrado'}
                                                 </p>
                                             </div>
                                         </div>
@@ -573,7 +574,7 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate }) => {
                                             <div className="flex-1">
                                                 <p className="text-xs text-[#6E6E73] mb-1">RFC</p>
                                                 <p className="text-sm font-medium text-[#1D1D1F] font-mono">
-                                                    {empleadoData.rfc?.toUpperCase()}
+                                                    {empleadoData.rfc ? empleadoData.rfc.toUpperCase() : 'No registrado'}
                                                 </p>
                                             </div>
                                         </div>

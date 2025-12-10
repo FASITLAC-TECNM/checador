@@ -5,71 +5,45 @@ import DepartmentForm from './DepartmentForm';
 import DepartmentDetail from './DepartmentDetail';
 import SearchBar from '../../components/utils/SearchBar';
 import { getUsuarios } from '../../services/api';
+import {
+    getDepartamentos,
+    crearDepartamento,
+    actualizarDepartamento,
+    eliminarDepartamento
+} from '../../services/departamentosService';
 
 const DepartmentsPage = () => {
-    const [departments, setDepartments] = useState([
-        {
-            id: 1,
-            nombre: 'Recursos Humanos',
-            descripcion: 'Gestión de personal y contrataciones',
-            jefe: 'Paola Baldovinos',
-            empleados: 8,
-            color: '#8b5cf6',
-            activo: true,
-            fechaCreacion: '2024-01-15'
-        },
-        {
-            id: 2,
-            nombre: 'Tecnología',
-            descripcion: 'Desarrollo y mantenimiento de sistemas',
-            jefe: 'Daniel Soto',
-            empleados: 15,
-            color: '#3b82f6',
-            activo: true,
-            fechaCreacion: '2024-01-15'
-        },
-        {
-            id: 3,
-            nombre: 'Ventas',
-            descripcion: 'Gestión comercial y atención al cliente',
-            jefe: 'Daniel Amaya',
-            empleados: 12,
-            color: '#10b981',
-            activo: true,
-            fechaCreacion: '2024-01-15'
-        },
-        {
-            id: 4,
-            nombre: 'Producción',
-            descripcion: 'Fabricación y control de calidad',
-            jefe: 'Edgar Yahir',
-            empleados: 25,
-            color: '#f59e0b',
-            activo: true,
-            fechaCreacion: '2024-02-01'
-        },
-        {
-            id: 5,
-            nombre: 'Finanzas',
-            descripcion: 'Contabilidad y control financiero',
-            jefe: 'Paul Torres',
-            empleados: 6,
-            color: '#ef4444',
-            activo: true,
-            fechaCreacion: '2024-01-15'
-        }
-    ]);
-
+    const [departments, setDepartments] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [showForm, setShowForm] = useState(false);
     const [editingDepartment, setEditingDepartment] = useState(null);
     const [selectedDepartment, setSelectedDepartment] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [usuarios, setUsuarios] = useState([]);
 
-    // Cargar usuarios desde la BD
+    // Cargar datos desde la BD
     useEffect(() => {
-        cargarUsuarios();
+        cargarDatos();
     }, []);
+
+    const cargarDatos = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const [deptosData, usuariosData] = await Promise.all([
+                getDepartamentos(),
+                getUsuarios()
+            ]);
+            setDepartments(deptosData);
+            setUsuarios(usuariosData);
+        } catch (err) {
+            console.error('Error al cargar datos:', err);
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const cargarUsuarios = async () => {
         try {
@@ -82,8 +56,8 @@ const DepartmentsPage = () => {
 
     const filteredDepartments = departments.filter(dept =>
         dept.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        dept.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        dept.jefe.toLowerCase().includes(searchTerm.toLowerCase())
+        (dept.descripcion && dept.descripcion.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (dept.jefes && dept.jefes.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 
     const handleAdd = () => {
@@ -96,25 +70,31 @@ const DepartmentsPage = () => {
         setShowForm(true);
     };
 
-    const handleSave = (departmentData) => {
-        if (editingDepartment) {
-            setDepartments(departments.map(d =>
-                d.id === editingDepartment.id ? { ...departmentData, id: d.id } : d
-            ));
-        } else {
-            setDepartments([...departments, {
-                ...departmentData,
-                id: Date.now(),
-                empleados: 0,
-                fechaCreacion: new Date().toISOString().split('T')[0]
-            }]);
+    const handleSave = async (departmentData) => {
+        try {
+            if (editingDepartment) {
+                await actualizarDepartamento(editingDepartment.id, departmentData);
+            } else {
+                await crearDepartamento(departmentData);
+            }
+            await cargarDatos();
+            setShowForm(false);
+            setEditingDepartment(null);
+        } catch (err) {
+            console.error('Error al guardar departamento:', err);
+            alert('Error al guardar el departamento: ' + err.message);
         }
-        setShowForm(false);
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (confirm('¿Está seguro de eliminar este departamento?')) {
-            setDepartments(departments.filter(d => d.id !== id));
+            try {
+                await eliminarDepartamento(id);
+                await cargarDatos();
+            } catch (err) {
+                console.error('Error al eliminar departamento:', err);
+                alert('Error al eliminar el departamento: ' + err.message);
+            }
         }
     };
 
@@ -131,13 +111,45 @@ const DepartmentsPage = () => {
         setSelectedDepartment(null);
     };
 
-    const totalEmpleados = departments.reduce((sum, dept) => sum + dept.empleados, 0);
+    const totalEmpleados = departments.reduce((sum, dept) => sum + (dept.empleados || 0), 0);
     const activos = departments.filter(d => d.activo).length;
 
     // Filtrar empleados del departamento seleccionado
     const empleadosDelDepartamento = selectedDepartment
         ? usuarios.filter(u => u.departamento === selectedDepartment.nombre)
         : [];
+
+    // Mostrar loading
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-[#FBFBFD] p-6 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-[#6E6E73]">Cargando departamentos...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Mostrar error
+    if (error) {
+        return (
+            <div className="min-h-screen bg-[#FBFBFD] p-6">
+                <div className="max-w-7xl mx-auto">
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+                        <p className="text-red-600 font-semibold mb-2">Error al cargar departamentos</p>
+                        <p className="text-red-500 mb-4">{error}</p>
+                        <button
+                            onClick={cargarDatos}
+                            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+                        >
+                            Reintentar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     if (showForm) {
         return (

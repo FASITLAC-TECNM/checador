@@ -147,7 +147,6 @@ export const createEmpleado = async (req, res) => {
             id_usuario,
             nss,
             rfc,
-            horario_id = null,
             fecha_registro = new Date().toISOString().split('T')[0],
             estado = true
         } = req.body;
@@ -182,6 +181,28 @@ export const createEmpleado = async (req, res) => {
                 error: 'Este usuario ya está registrado como empleado'
             });
         }
+
+        // Crear horario por defecto para el empleado (vacío, sin horas configuradas)
+        const horarioDefault = {
+            configuracion_semanal: {
+                lunes: [],
+                martes: [],
+                miercoles: [],
+                jueves: [],
+                viernes: [],
+                sabado: [],
+                domingo: []
+            },
+            excepciones: {}
+        };
+
+        const horarioResult = await pool.query(`
+            INSERT INTO horario (date_ini, date_fin, estado, config_horario, config_excep)
+            VALUES (CURRENT_DATE, NULL, 'Activo', 'Semanal', $1)
+            RETURNING id
+        `, [JSON.stringify(horarioDefault)]);
+
+        const horario_id = horarioResult.rows[0].id;
 
         const result = await pool.query(`
             INSERT INTO Empleado (id_usuario, rfc, nss, fecha_registro, estado, horario_id)

@@ -26,6 +26,7 @@ const UserPage = () => {
     const [activoFilter, setActivoFilter] = useState('');
     const [estadoFilter, setEstadoFilter] = useState('');
 
+
     // Cargar usuarios desde la BD al montar el componente
     useEffect(() => {
         cargarUsuarios();

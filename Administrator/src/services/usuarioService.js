@@ -250,6 +250,74 @@ export const getEstadisticas = async () => {
     }
 };
 
+/**
+ * Obtener roles de un usuario
+ * @param {number} idUsuario - ID del usuario
+ * @returns {Promise<Array>} Lista de roles asignados al usuario
+ */
+export const obtenerRolesDeUsuario = async (idUsuario) => {
+    try {
+        const response = await fetch(`${API_URL}/usuarios/${idUsuario}/roles`);
+        if (!response.ok) throw new Error('Error al obtener roles del usuario');
+        return await response.json();
+    } catch (error) {
+        console.error('Error:', error);
+        throw error;
+    }
+};
+
+/**
+ * Asignar un rol a un usuario
+ * @param {number} idUsuario - ID del usuario
+ * @param {number} idRol - ID del rol a asignar
+ * @returns {Promise<Object>} Resultado de la asignación
+ */
+export const asignarRolAUsuario = async (idUsuario, idRol) => {
+    try {
+        const response = await fetch(`${API_URL}/usuarios/${idUsuario}/roles`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ id_rol: idRol }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Error al asignar rol');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error:', error);
+        throw error;
+    }
+};
+
+/**
+ * Remover un rol de un usuario
+ * @param {number} idUsuario - ID del usuario
+ * @param {number} idRol - ID del rol a remover
+ * @returns {Promise<Object>} Resultado de la operación
+ */
+export const removerRolDeUsuario = async (idUsuario, idRol) => {
+    try {
+        const response = await fetch(`${API_URL}/usuarios/${idUsuario}/roles/${idRol}`, {
+            method: 'DELETE',
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Error al remover rol');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error:', error);
+        throw error;
+    }
+};
+
 // Exportar todo el servicio como default
 export default {
     getUsuarios,
@@ -259,5 +327,8 @@ export default {
     eliminarUsuario,
     actualizarEstadoConexion,
     filtrarUsuarios,
-    getEstadisticas
+    getEstadisticas,
+    obtenerRolesDeUsuario,
+    asignarRolAUsuario,
+    removerRolDeUsuario
 };

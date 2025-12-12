@@ -8,7 +8,7 @@ import DevicesPage from './modules/devices/DevicesPage';
 import DeviceRequestPage from './modules/devices/DeviceRequestPage';
 import DepartmentsPage from './modules/departments/DepartmentsPage';
 import HistoryPage from './modules/history/HistoryPage';
-import SchedulesPage from './modules/schedules/SchedulesPage';
+import SchedulesPage from './modules/schedules/CalendarioGlobalV2';
 
 const DashboardPage = () => {
     const [activeView, setActiveView] = useState('home');

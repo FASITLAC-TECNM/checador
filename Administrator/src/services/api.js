@@ -11,7 +11,10 @@ export {
     eliminarUsuario,
     actualizarEstadoConexion,
     filtrarUsuarios,
-    getEstadisticas
+    getEstadisticas,
+    obtenerRolesDeUsuario,
+    asignarRolAUsuario,
+    removerRolDeUsuario
 } from './usuarioService';
 
 // Re-exportar servicios de empleados

@@ -8,6 +8,7 @@ export const getRoles = async (req, res) => {
                 r.id,
                 r.nombre,
                 r.descripcion,
+                r.color,
                 r.contador_retardos,
                 r.fecha_creacion,
                 r.fecha_edicion,
@@ -41,6 +42,7 @@ export const getRolById = async (req, res) => {
                 r.id,
                 r.nombre,
                 r.descripcion,
+                r.color,
                 r.contador_retardos,
                 r.fecha_creacion,
                 r.fecha_edicion,
@@ -93,6 +95,7 @@ export const createRol = async (req, res) => {
         const {
             nombre,
             descripcion,
+            color,
             jerarquia,
             id_tolerancia,
             permisos // Array de objetos: [{id_modulo, can_create, can_read, can_update, can_delete}]
@@ -107,10 +110,10 @@ export const createRol = async (req, res) => {
 
         // Insertar rol
         const rolResult = await client.query(`
-            INSERT INTO rol (nombre, descripcion, jerarquia, id_tolerancia, fecha_creacion)
-            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+            INSERT INTO rol (nombre, descripcion, color, jerarquia, id_tolerancia, fecha_creacion)
+            VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
             RETURNING *
-        `, [nombre.trim(), descripcion || null, jerarquia || 10, id_tolerancia || null]);
+        `, [nombre.trim(), descripcion || null, color || '#3b82f6', jerarquia || 10, id_tolerancia || null]);
 
         const nuevoRol = rolResult.rows[0];
 
@@ -157,6 +160,7 @@ export const updateRol = async (req, res) => {
         const {
             nombre,
             descripcion,
+            color,
             jerarquia,
             id_tolerancia,
             permisos // Array de objetos: [{id_modulo, can_create, can_read, can_update, can_delete}]
@@ -175,11 +179,12 @@ export const updateRol = async (req, res) => {
             UPDATE rol
             SET nombre = $1,
                 descripcion = $2,
-                jerarquia = $3,
-                id_tolerancia = $4,
+                color = $3,
+                jerarquia = $4,
+                id_tolerancia = $5,
                 fecha_edicion = CURRENT_TIMESTAMP
-            WHERE id = $5
-        `, [nombre, descripcion, jerarquia, id_tolerancia, id]);
+            WHERE id = $6
+        `, [nombre, descripcion, color, jerarquia, id_tolerancia, id]);
 
         // Actualizar permisos si se proporcionaron
         if (permisos && Array.isArray(permisos)) {
@@ -298,6 +303,7 @@ async function getRolWithPermissions(rolId) {
             r.id,
             r.nombre,
             r.descripcion,
+            r.color,
             r.contador_retardos,
             r.fecha_creacion,
             r.fecha_edicion,

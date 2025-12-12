@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Camera, Wifi, Database, User, Activity, Bell } from "lucide-react";
+import { Camera, User, Activity, Bell } from "lucide-react";
 import { formatTime, formatDate, formatDay } from "../utils/dateHelpers";
 import { notices } from "../constants/notices";
 import CameraModal from "../components/kiosk/CameraModal";
@@ -10,6 +10,8 @@ import NoticeDetailModal from "../components/kiosk/NoticeDetailModal";
 import SessionScreen from "./SessionScreen";
 import { cerrarSesion } from "../services/authService";
 import { agregarEvento } from "../services/bitacoraService";
+import { useConnectivity } from "../hooks/useConnectivity";
+import { ConnectionStatusPanel } from "../components/common/ConnectionStatus";
 
 export default function KioskScreen() {
   const methodsEnabled = {
@@ -17,6 +19,9 @@ export default function KioskScreen() {
     fingerprint: false,
     pin: false,
   };
+
+  // Hook de conectividad
+  const { isInternetConnected, isDatabaseConnected } = useConnectivity();
 
   const [time, setTime] = useState(new Date());
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -210,15 +215,10 @@ export default function KioskScreen() {
 
         <div className="flex-1"></div>
 
-        <div className="flex flex-col items-center gap-1 text-green-600 p-2">
-          <Wifi className="w-5 h-5" />
-          <span className="text-xs font-semibold">WiFi</span>
-        </div>
-
-        <div className="flex flex-col items-center gap-1 text-green-600 p-2">
-          <Database className="w-5 h-5" />
-          <span className="text-xs font-semibold">BD</span>
-        </div>
+        <ConnectionStatusPanel
+          isInternetConnected={isInternetConnected}
+          isDatabaseConnected={isDatabaseConnected}
+        />
       </div>
 
       {/* Contenido principal */}

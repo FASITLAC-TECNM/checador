@@ -44,6 +44,28 @@ export const asignarHorarioAEmpleado = async (idHorario, idEmpleado) => {
     return response.data;
 };
 
+// Obtener todos los horarios con información de empleados para vista de calendario
+export const obtenerHorariosConEmpleados = async () => {
+    try {
+        const response = await axios.get(`${API_URL}/vista/calendario`);
+        return response.data;
+    } catch (error) {
+        console.error('Error obteniendo horarios con empleados:', error);
+        throw error;
+    }
+};
+
+// Obtener horario de un empleado específico
+export const obtenerHorarioPorEmpleado = async (empleadoId) => {
+    try {
+        const response = await axios.get(`${API_URL}/empleado/${empleadoId}`);
+        return response.data;
+    } catch (error) {
+        console.error('Error obteniendo horario del empleado:', error);
+        throw error;
+    }
+};
+
 export default {
     obtenerHorarios,
     obtenerHorarioPorId,
@@ -51,5 +73,7 @@ export default {
     actualizarHorario,
     eliminarHorario,
     obtenerEmpleadosPorHorario,
-    asignarHorarioAEmpleado
+    asignarHorarioAEmpleado,
+    obtenerHorariosConEmpleados,
+    obtenerHorarioPorEmpleado
 };

@@ -8,7 +8,7 @@ import DevicesPage from './modules/devices/DevicesPage';
 import DeviceRequestPage from './modules/devices/DeviceRequestPage';
 import DepartmentsPage from './modules/departments/DepartmentsPage';
 import HistoryPage from './modules/history/HistoryPage';
-import SchedulesPage from './modules/schedules/CalendarioGlobalV2';
+import SchedulesPage from './modules/schedules/CalendarioGlobal';
 
 const DashboardPage = () => {
     const [activeView, setActiveView] = useState('home');
@@ -44,12 +44,7 @@ const DashboardPage = () => {
             case 'departments':
                 return <DepartmentsPage />;
             case 'devices':
-                return (
-                    <DevicesPage
-                        peticionesPendientes={peticionesPendientes}
-                        onNavigateToPeticiones={handleNavigateToPeticiones}
-                    />
-                );
+                return <DevicesPage />;
             case 'device-requests':
                 return (
                     <DeviceRequestPage

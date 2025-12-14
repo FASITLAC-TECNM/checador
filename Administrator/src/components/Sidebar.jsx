@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, ShieldUser, TabletSmartphone, Settings, LogOut, Server, Building2, History, Clock, Home } from 'lucide-react';
+import { Users, ShieldUser, TabletSmartphone, Settings, LogOut, Database, Building2, History, Calendar, Home } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getApiEndpoint } from '../config/api';
 
@@ -12,9 +12,9 @@ const Sidebar = ({ activeView, setActiveView }) => {
         { id: 'home', label: 'Inicio', icon: Home },
         { id: 'users', label: 'Usuarios', icon: Users },
         { id: 'roles', label: 'Roles', icon: ShieldUser },
-        { id: 'departments', label: 'Departamentos', icon: Building2 },
+        { id: 'schedules', label: 'Horarios', icon: Calendar },
         { id: 'devices', label: 'Dispositivos', icon: TabletSmartphone },
-        { id: 'schedules', label: 'Horarios', icon: Clock },
+        { id: 'departments', label: 'Departamentos', icon: Building2 },
         { id: 'history', label: 'Historial', icon: History },
         { id: 'settings', label: 'Configuración', icon: Settings },
     ];
@@ -64,7 +64,7 @@ const Sidebar = ({ activeView, setActiveView }) => {
                                 className="w-10 h-10 rounded-full object-cover shadow-sm"
                             />
                         ) : (
-                            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center font-bold text-white text-sm shadow-sm">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-sm">
                                 {usuario?.nombre?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
                             </div>
                         )}
@@ -113,7 +113,7 @@ const Sidebar = ({ activeView, setActiveView }) => {
                                     ? 'animate-pulse'
                                     : ''
                                     }`}>
-                                    <Server
+                                    <Database
                                         size={16}
                                         className={
                                             checking

@@ -1,68 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DeviceList from './DeviceList';
 import DeviceForm from './DeviceForm';
 import BiometricForm from './BiometricForm';
 import DeviceDetail from './DeviceDetail';
-import { Plus, Info, Bell, AlertCircle, Smartphone } from 'lucide-react';
+import SolicitudCard from './SolicitudCard';
+import { Plus, Clock, Smartphone, ChevronDown, ChevronUp, Bell } from 'lucide-react';
+import { getDevices, createDevice, updateDevice, deleteDevice, getDeviceStats } from '../../services/devicesService';
+import { getSolicitudesPendientes, aceptarSolicitud, rechazarSolicitud } from '../../services/solicitudesService';
 
-const DevicePage = ({ onNavigateToPeticiones, peticionesPendientes = 0 }) => {
-    const [devices, setDevices] = useState([
-        {
-            id: 1,
-            tipo: 'Registro Físico',
-            nombre: 'Terminal Principal',
-            modelo: 'ZKTeco F18',
-            serie: 'ZK2023001',
-            macAddress: '00:1B:63:84:45:E6',
-            ipAddress: '192.168.1.100',
-            ubicacion: 'Entrada Principal',
-            estado: 'Activo',
-            fechaAdquisicion: '2024-01-15',
-            ultimaSincronizacion: '2024-11-02T08:30',
-            observaciones: 'Funciona correctamente'
-        },
-        {
-            id: 2,
-            tipo: 'Móvil',
-            nombre: 'App Móvil - Juan Pérez',
-            modelo: 'Android 13',
-            usuarioAsignado: 'Juan Pérez',
-            imei: '356938035643809',
-            numeroTelefono: '+52 753 123 4567',
-            estado: 'Activo',
-            fechaActivacion: '2024-06-20',
-            ultimaSincronizacion: '2024-11-02T09:15',
-            observaciones: 'Samsung Galaxy S21'
-        },
-        {
-            id: 3,
-            tipo: 'Móvil',
-            nombre: 'App Móvil - María García',
-            modelo: 'iOS 17',
-            usuarioAsignado: 'María García',
-            imei: '356938035643810',
-            numeroTelefono: '+52 753 123 4568',
-            estado: 'Activo',
-            fechaActivacion: '2024-07-15',
-            ultimaSincronizacion: '2024-11-02T09:20',
-            observaciones: 'iPhone 14'
-        },
-        {
-            id: 4,
-            tipo: 'Biométrico',
-            nombre: 'Lector de Huella Digital',
-            modelo: 'Suprema BioMini Plus 2',
-            serie: 'BMP2-2024-045',
-            ipAddress: '192.168.1.105',
-            ubicacion: 'Área de Recursos Humanos',
-            estado: 'Activo',
-            fechaAdquisicion: '2024-03-10',
-            capacidadHuellas: '10000',
-            tipoSensor: 'Óptico',
-            observaciones: 'Alta precisión'
-        }
-    ]);
+const DevicePage = () => {
+    const [devices, setDevices] = useState([]);
+    const [solicitudesPendientes, setSolicitudesPendientes] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState({
+        total: 0,
+        activos: 0,
+        inactivos: 0,
+        fisicos: 0,
+        moviles: 0,
+        biometricos: 0
+    });
 
+    const [showSolicitudes, setShowSolicitudes] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [showBiometricForm, setShowBiometricForm] = useState(false);
     const [editingDevice, setEditingDevice] = useState(null);
@@ -70,23 +29,86 @@ const DevicePage = ({ onNavigateToPeticiones, peticionesPendientes = 0 }) => {
     const [formData, setFormData] = useState({
         tipo: 'Registro Físico',
         nombre: '',
-        modelo: '',
-        serie: '',
-        macAddress: '',
-        ipAddress: '',
-        puerto: '',
+        device_id: '',
         ubicacion: '',
         estado: 'Activo',
-        fechaAdquisicion: '',
-        ultimaSincronizacion: '',
-        usuarioAsignado: '',
-        imei: '',
-        numeroTelefono: '',
-        fechaActivacion: '',
-        capacidadHuellas: '',
-        tipoSensor: '',
-        observaciones: ''
+        ip_address: '',
+        version_firmware: '',
+        configuracion: {}
     });
+
+    // Cargar dispositivos y solicitudes al montar
+    useEffect(() => {
+        cargarDatos();
+
+        // Actualizar solicitudes cada 30 segundos
+        const interval = setInterval(cargarSolicitudes, 30000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const cargarDatos = async () => {
+        await Promise.all([cargarDispositivos(), cargarEstadisticas(), cargarSolicitudes()]);
+    };
+
+    const cargarDispositivos = async () => {
+        try {
+            setLoading(true);
+            const data = await getDevices();
+            setDevices(data);
+        } catch (error) {
+            console.error('Error cargando dispositivos:', error);
+            // No mostrar alert, simplemente continuar con lista vacía
+            setDevices([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const cargarEstadisticas = async () => {
+        try {
+            const data = await getDeviceStats();
+            setStats(data);
+        } catch (error) {
+            console.error('Error cargando estadísticas:', error);
+        }
+    };
+
+    const cargarSolicitudes = async () => {
+        try {
+            const data = await getSolicitudesPendientes();
+            setSolicitudesPendientes(data);
+            // Auto-expandir si hay solicitudes
+            if (data.length > 0) {
+                setShowSolicitudes(true);
+            }
+        } catch (error) {
+            console.error('Error cargando solicitudes:', error);
+        }
+    };
+
+    const handleAceptarSolicitud = async (solicitud) => {
+        if (!confirm(`¿Aceptar la solicitud de "${solicitud.nombre}"?\n\nEsto creará un nuevo dispositivo en el sistema.`)) return;
+
+        try {
+            const idUsuarioAprobador = 1; // TODO: Obtener de la sesión
+            await aceptarSolicitud(solicitud.id, idUsuarioAprobador);
+            await cargarDatos();
+        } catch (error) {
+            console.error('Error aceptando solicitud:', error);
+            alert('Error al aceptar la solicitud. Por favor, intenta de nuevo.');
+        }
+    };
+
+    const handleRechazarSolicitud = async (solicitud, motivo) => {
+        try {
+            const idUsuarioAprobador = 1; // TODO: Obtener de la sesión
+            await rechazarSolicitud(solicitud.id, idUsuarioAprobador, motivo);
+            await cargarSolicitudes();
+        } catch (error) {
+            console.error('Error rechazando solicitud:', error);
+            alert('Error al rechazar la solicitud. Por favor, intenta de nuevo.');
+        }
+    };
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -101,36 +123,32 @@ const DevicePage = ({ onNavigateToPeticiones, peticionesPendientes = 0 }) => {
         setFormData({
             tipo: 'Registro Físico',
             nombre: '',
-            modelo: '',
-            serie: '',
-            macAddress: '',
-            ipAddress: '',
-            puerto: '',
+            device_id: '',
             ubicacion: '',
             estado: 'Activo',
-            fechaAdquisicion: '',
-            ultimaSincronizacion: '',
-            usuarioAsignado: '',
-            imei: '',
-            numeroTelefono: '',
-            fechaActivacion: '',
-            capacidadHuellas: '',
-            tipoSensor: '',
-            observaciones: ''
+            ip_address: '',
+            version_firmware: '',
+            configuracion: {}
         });
         setShowForm(true);
         setShowBiometricForm(false);
     };
 
     const handleEdit = (device) => {
-        // No permitir editar móviles
-        if (device.tipo === 'Móvil') {
-            return;
-        }
-        setEditingDevice(device);
-        setFormData(device);
+        if (device.tipo === 'Móvil') return;
 
-        // Determinar qué formulario mostrar según el tipo
+        setEditingDevice(device);
+        setFormData({
+            tipo: device.tipo,
+            nombre: device.nombre,
+            device_id: device.device_id,
+            ubicacion: device.ubicacion,
+            estado: device.estado,
+            ip_address: device.ip_address || '',
+            version_firmware: device.version_firmware || '',
+            configuracion: device.configuracion || {}
+        });
+
         if (device.tipo === 'Biométrico') {
             setShowBiometricForm(true);
             setShowForm(false);
@@ -140,26 +158,46 @@ const DevicePage = ({ onNavigateToPeticiones, peticionesPendientes = 0 }) => {
         }
     };
 
-    const handleSave = () => {
-        if (editingDevice) {
-            setDevices(devices.map(d => d.id === editingDevice.id ? { ...formData, id: d.id } : d));
-        } else {
-            setDevices([...devices, { ...formData, id: Date.now() }]);
+    const handleSave = async () => {
+        try {
+            const deviceData = {
+                device_id: formData.device_id,
+                nombre: formData.nombre,
+                ubicacion: formData.ubicacion,
+                tipo: formData.tipo,
+                estado: formData.estado,
+                ip_address: formData.ip_address,
+                version_firmware: formData.version_firmware,
+                configuracion: formData.configuracion
+            };
+
+            if (editingDevice) {
+                await updateDevice(editingDevice.id, deviceData);
+            } else {
+                await createDevice(deviceData);
+            }
+
+            setShowForm(false);
+            setShowBiometricForm(false);
+            await cargarDatos();
+        } catch (error) {
+            console.error('Error guardando dispositivo:', error);
+            alert('Error al guardar dispositivo. Por favor, intenta de nuevo.');
         }
-        setShowForm(false);
-        setShowBiometricForm(false);
-        // Si se agregó un biométrico desde el detalle, volver al detalle
-        // (selectedDevice se mantiene, así que volverá a la vista de detalle)
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         const device = devices.find(d => d.id === id);
-        // No permitir eliminar móviles
-        if (device?.tipo === 'Móvil') {
-            return;
-        }
-        if (confirm('¿Está seguro de eliminar este dispositivo?')) {
-            setDevices(devices.filter(d => d.id !== id));
+        if (device?.tipo === 'Móvil') return;
+
+        if (confirm('¿Está seguro de eliminar este dispositivo?\n\nEsta acción no se puede deshacer.')) {
+            try {
+                await deleteDevice(id);
+                await cargarDatos();
+            } catch (error) {
+                console.error('Error eliminando dispositivo:', error);
+                alert('Error al eliminar dispositivo. Por favor, intenta de nuevo.');
+            }
         }
     };
 
@@ -167,11 +205,9 @@ const DevicePage = ({ onNavigateToPeticiones, peticionesPendientes = 0 }) => {
         setShowForm(false);
         setShowBiometricForm(false);
         setEditingDevice(null);
-        // No limpiar selectedDevice para que vuelva a la página de detalle si estaba ahí
     };
 
     const handleDeviceClick = (device) => {
-        // Solo permitir ver detalles de dispositivos de escritorio
         if (device.tipo === 'Registro Físico') {
             setSelectedDevice(device);
         }
@@ -182,33 +218,22 @@ const DevicePage = ({ onNavigateToPeticiones, peticionesPendientes = 0 }) => {
     };
 
     const handleAddBiometric = () => {
-        // Agregar un dispositivo biométrico asociado al dispositivo de escritorio
         setFormData({
             tipo: 'Biométrico',
             nombre: '',
-            modelo: '',
-            serie: '',
-            macAddress: '',
-            ipAddress: '',
-            puerto: '',
+            device_id: '',
             ubicacion: selectedDevice?.ubicacion || '',
             estado: 'Activo',
-            fechaAdquisicion: '',
-            ultimaSincronizacion: '',
-            usuarioAsignado: '',
-            imei: '',
-            numeroTelefono: '',
-            fechaActivacion: '',
-            capacidadHuellas: '',
-            tipoSensor: '',
-            observaciones: ''
+            ip_address: '',
+            version_firmware: '',
+            configuracion: {}
         });
         setEditingDevice(null);
         setShowForm(false);
         setShowBiometricForm(true);
     };
 
-    // Si está mostrando el formulario de dispositivo de escritorio
+    // Si está mostrando el formulario
     if (showForm) {
         return (
             <DeviceForm
@@ -221,7 +246,6 @@ const DevicePage = ({ onNavigateToPeticiones, peticionesPendientes = 0 }) => {
         );
     }
 
-    // Si está mostrando el formulario de biométrico
     if (showBiometricForm) {
         return (
             <BiometricForm
@@ -235,9 +259,8 @@ const DevicePage = ({ onNavigateToPeticiones, peticionesPendientes = 0 }) => {
         );
     }
 
-    // Si hay un dispositivo seleccionado, mostrar el detalle
+    // Si hay un dispositivo seleccionado
     if (selectedDevice) {
-        // Filtrar los dispositivos biométricos asociados
         const biometricDevices = devices.filter(d =>
             d.tipo === 'Biométrico' &&
             d.ubicacion &&
@@ -257,12 +280,21 @@ const DevicePage = ({ onNavigateToPeticiones, peticionesPendientes = 0 }) => {
         );
     }
 
-    // Si no, muestra la lista
-    const registrosFisicos = devices.filter(d => d.tipo === 'Registro Físico').length;
-    const moviles = devices.filter(d => d.tipo === 'Móvil').length;
-    const biometricos = devices.filter(d => d.tipo === 'Biométrico').length;
-    const activos = devices.filter(d => d.estado === 'Activo').length;
-    const suspendidos = devices.filter(d => d.estado === 'Inactivo' || d.estado === 'Fuera de Servicio').length;
+    // Vista principal
+    const activos = parseInt(stats.activos) || 0;
+    const suspendidos = parseInt(stats.inactivos) || 0;
+    const moviles = parseInt(stats.moviles) || 0;
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-white flex items-center justify-center">
+                <div className="text-center">
+                    <Clock className="w-16 h-16 text-blue-600 mx-auto mb-4 animate-spin" />
+                    <p className="text-[#6E6E73] text-lg">Cargando dispositivos...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-white">
@@ -305,31 +337,50 @@ const DevicePage = ({ onNavigateToPeticiones, peticionesPendientes = 0 }) => {
             </div>
 
             <div className="max-w-7xl mx-auto px-6 py-8">
-                {/* Alerta de peticiones pendientes */}
-                {peticionesPendientes > 0 && onNavigateToPeticiones && (
-                    <div className="mb-6 p-5 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl shadow-sm animate-pulse">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-start gap-4">
+                {/* Sección de Solicitudes Pendientes - Colapsable */}
+                {solicitudesPendientes.length > 0 && (
+                    <div className="mb-8">
+                        <button
+                            onClick={() => setShowSolicitudes(!showSolicitudes)}
+                            className="w-full flex items-center justify-between p-5 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl shadow-sm hover:shadow-md transition-all mb-4"
+                        >
+                            <div className="flex items-center gap-4">
                                 <div className="p-2 bg-amber-500 rounded-lg">
-                                    <AlertCircle className="w-6 h-6 text-white flex-shrink-0" />
+                                    <Bell className="w-6 h-6 text-white" />
                                 </div>
-                                <div>
+                                <div className="text-left">
                                     <p className="text-amber-800 font-bold text-lg">
-                                        {peticionesPendientes} {peticionesPendientes === 1 ? 'solicitud pendiente' : 'solicitudes pendientes'}
+                                        {solicitudesPendientes.length} {solicitudesPendientes.length === 1 ? 'solicitud pendiente' : 'solicitudes pendientes'}
                                     </p>
-                                    <p className="text-[#6E6E73] text-sm mt-1">
-                                        Hay empleados esperando la aprobación de dispositivos móviles. Revisa las peticiones para aprobar o rechazar.
+                                    <p className="text-[#6E6E73] text-sm">
+                                        Dispositivos esperando aprobación
                                     </p>
                                 </div>
                             </div>
-                            <button
-                                onClick={onNavigateToPeticiones}
-                                className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 rounded-xl transition-all font-semibold whitespace-nowrap ml-4 shadow-md hover:shadow-lg"
-                            >
-                                <Bell className="w-5 h-5" />
-                                Ver Peticiones
-                            </button>
-                        </div>
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm text-amber-700 font-medium">
+                                    {showSolicitudes ? 'Ocultar' : 'Mostrar'}
+                                </span>
+                                {showSolicitudes ? (
+                                    <ChevronUp className="w-5 h-5 text-amber-700" />
+                                ) : (
+                                    <ChevronDown className="w-5 h-5 text-amber-700" />
+                                )}
+                            </div>
+                        </button>
+
+                        {showSolicitudes && (
+                            <div className="space-y-3 animate-fadeIn">
+                                {solicitudesPendientes.map((solicitud) => (
+                                    <SolicitudCard
+                                        key={solicitud.id}
+                                        solicitud={solicitud}
+                                        onAceptar={handleAceptarSolicitud}
+                                        onRechazar={handleRechazarSolicitud}
+                                    />
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
 

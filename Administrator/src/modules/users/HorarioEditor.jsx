@@ -1,23 +1,32 @@
 import { useState, useEffect } from 'react';
-import { Clock, Plus, Trash2, Save, X, Calendar, AlertCircle } from 'lucide-react';
+import { Clock, Plus, Trash2, Save, X, Calendar, AlertCircle, CalendarDays } from 'lucide-react';
 
-const HorarioEditor = ({ empleado, horario, onSave, onCancel }) => {
+const HorarioEditorV2 = ({ empleado, horario, onSave, onCancel }) => {
     const [config, setConfig] = useState({
-        tipo: 'continuo',
-        dias: [],
-        turnos: [],
-        total_horas: 0
+        configuracion_semanal: {
+            lunes: [],
+            martes: [],
+            miercoles: [],
+            jueves: [],
+            viernes: [],
+            sabado: [],
+            domingo: []
+        },
+        excepciones: {}
     });
+
+    const [diaSeleccionado, setDiaSeleccionado] = useState('lunes');
+    const [mostrarExcepciones, setMostrarExcepciones] = useState(false);
 
     const diasSemana = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
     const diasLabel = {
-        lunes: 'Lun',
-        martes: 'Mar',
-        miercoles: 'Mié',
-        jueves: 'Jue',
-        viernes: 'Vie',
-        sabado: 'Sáb',
-        domingo: 'Dom'
+        lunes: 'Lunes',
+        martes: 'Martes',
+        miercoles: 'Miércoles',
+        jueves: 'Jueves',
+        viernes: 'Viernes',
+        sabado: 'Sábado',
+        domingo: 'Domingo'
     };
 
     useEffect(() => {
@@ -29,74 +38,88 @@ const HorarioEditor = ({ empleado, horario, onSave, onCancel }) => {
         }
     }, [horario]);
 
-    const toggleDia = (dia) => {
+    const agregarIntervalo = (dia) => {
         setConfig(prev => ({
             ...prev,
-            dias: prev.dias.includes(dia)
-                ? prev.dias.filter(d => d !== dia)
-                : [...prev.dias, dia]
+            configuracion_semanal: {
+                ...prev.configuracion_semanal,
+                [dia]: [...prev.configuracion_semanal[dia], { inicio: '09:00', fin: '18:00' }]
+            }
         }));
     };
 
-    const agregarTurno = () => {
+    const eliminarIntervalo = (dia, index) => {
         setConfig(prev => ({
             ...prev,
-            turnos: [...prev.turnos, { entrada: '09:00', salida: '18:00' }]
+            configuracion_semanal: {
+                ...prev.configuracion_semanal,
+                [dia]: prev.configuracion_semanal[dia].filter((_, i) => i !== index)
+            }
         }));
     };
 
-    const eliminarTurno = (index) => {
+    const actualizarIntervalo = (dia, index, field, value) => {
         setConfig(prev => ({
             ...prev,
-            turnos: prev.turnos.filter((_, i) => i !== index)
+            configuracion_semanal: {
+                ...prev.configuracion_semanal,
+                [dia]: prev.configuracion_semanal[dia].map((intervalo, i) =>
+                    i === index ? { ...intervalo, [field]: value } : intervalo
+                )
+            }
         }));
     };
 
-    const actualizarTurno = (index, field, value) => {
+    const copiarHorario = (diaOrigen) => {
+        const intervalosACopiar = config.configuracion_semanal[diaOrigen];
         setConfig(prev => ({
             ...prev,
-            turnos: prev.turnos.map((t, i) =>
-                i === index ? { ...t, [field]: value } : t
-            )
+            configuracion_semanal: {
+                ...prev.configuracion_semanal,
+                [diaSeleccionado]: [...intervalosACopiar]
+            }
         }));
     };
 
-    const calcularHorasTotales = () => {
-        return config.turnos.reduce((total, turno) => {
-            const [hI, mI] = turno.entrada.split(':').map(Number);
-            const [hF, mF] = turno.salida.split(':').map(Number);
+    const limpiarDia = (dia) => {
+        setConfig(prev => ({
+            ...prev,
+            configuracion_semanal: {
+                ...prev.configuracion_semanal,
+                [dia]: []
+            }
+        }));
+    };
+
+    const calcularHorasDelDia = (dia) => {
+        return config.configuracion_semanal[dia].reduce((total, intervalo) => {
+            const [hI, mI] = intervalo.inicio.split(':').map(Number);
+            const [hF, mF] = intervalo.fin.split(':').map(Number);
             const duracion = (hF * 60 + mF - (hI * 60 + mI)) / 60;
             return total + duracion;
         }, 0);
     };
 
-    const handleGuardar = () => {
-        const totalHoras = calcularHorasTotales();
-
-        const configFinal = {
-            ...config,
-            total_horas: Math.round(totalHoras * 100) / 100
-        };
-
-        // Agregar campo descanso si es quebrado
-        if (config.tipo === 'quebrado' && config.turnos.length >= 2) {
-            const [t1, t2] = config.turnos;
-            configFinal.descanso = `${t1.salida}-${t2.entrada}`;
-        }
-
-        onSave(configFinal);
+    const calcularHorasSemanales = () => {
+        return diasSemana.reduce((total, dia) => total + calcularHorasDelDia(dia), 0);
     };
 
-    const horasTotales = calcularHorasTotales();
+    const handleGuardar = () => {
+        onSave(config);
+    };
+
+    const intervalosDelDia = config.configuracion_semanal[diaSeleccionado];
+    const horasDelDia = calcularHorasDelDia(diaSeleccionado);
+    const horasSemanales = calcularHorasSemanales();
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
                 {/* Header */}
-                <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl">
+                <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-t-xl z-10">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h2 className="text-2xl font-bold mb-1">Editar Horario</h2>
+                            <h2 className="text-2xl font-bold mb-1">Configurar Horario Semanal</h2>
                             <p className="text-blue-100 text-sm">{empleado?.nombre}</p>
                         </div>
                         <button
@@ -109,141 +132,197 @@ const HorarioEditor = ({ empleado, horario, onSave, onCancel }) => {
                 </div>
 
                 <div className="p-6 space-y-6">
-                    {/* Tipo de horario */}
-                    <div>
-                        <label className="block text-sm font-medium text-[#1D1D1F] mb-3">
-                            Tipo de Horario
-                        </label>
-                        <div className="grid grid-cols-2 gap-3">
-                            <button
-                                onClick={() => setConfig(prev => ({ ...prev, tipo: 'continuo' }))}
-                                className={`p-4 rounded-lg border-2 transition-all ${
-                                    config.tipo === 'continuo'
-                                        ? 'border-blue-600 bg-blue-50 text-blue-700'
-                                        : 'border-[#D2D2D7] hover:border-blue-400'
-                                }`}
-                            >
-                                <div className="font-semibold">Continuo</div>
-                                <div className="text-xs mt-1 opacity-75">Un turno sin descanso extendido</div>
-                            </button>
-                            <button
-                                onClick={() => setConfig(prev => ({ ...prev, tipo: 'quebrado' }))}
-                                className={`p-4 rounded-lg border-2 transition-all ${
-                                    config.tipo === 'quebrado'
-                                        ? 'border-purple-600 bg-purple-50 text-purple-700'
-                                        : 'border-[#D2D2D7] hover:border-purple-400'
-                                }`}
-                            >
-                                <div className="font-semibold">Quebrado</div>
-                                <div className="text-xs mt-1 opacity-75">Múltiples turnos con descanso</div>
-                            </button>
+                    {/* Stats */}
+                    <div className="grid grid-cols-3 gap-4">
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div className="text-sm text-blue-600 mb-1">Día Actual</div>
+                            <div className="text-2xl font-bold text-blue-900">{horasDelDia.toFixed(1)}h</div>
+                        </div>
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                            <div className="text-sm text-green-600 mb-1">Total Semanal</div>
+                            <div className="text-2xl font-bold text-green-900">{horasSemanales.toFixed(1)}h</div>
+                        </div>
+                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                            <div className="text-sm text-purple-600 mb-1">Intervalos Hoy</div>
+                            <div className="text-2xl font-bold text-purple-900">{intervalosDelDia.length}</div>
                         </div>
                     </div>
 
-                    {/* Días laborales */}
+                    {/* Selector de día */}
                     <div>
                         <label className="block text-sm font-medium text-[#1D1D1F] mb-3">
                             <Calendar size={16} className="inline mr-1" />
-                            Días Laborales
+                            Seleccionar Día
                         </label>
                         <div className="grid grid-cols-7 gap-2">
-                            {diasSemana.map(dia => (
-                                <button
-                                    key={dia}
-                                    onClick={() => toggleDia(dia)}
-                                    className={`p-3 rounded-lg border-2 transition-all font-medium text-sm ${
-                                        config.dias.includes(dia)
-                                            ? 'bg-blue-600 border-blue-600 text-white'
-                                            : 'bg-white border-[#D2D2D7] text-[#6E6E73] hover:border-blue-400'
-                                    }`}
-                                >
-                                    {diasLabel[dia]}
-                                </button>
-                            ))}
+                            {diasSemana.map(dia => {
+                                const horas = calcularHorasDelDia(dia);
+                                const numIntervalos = config.configuracion_semanal[dia].length;
+
+                                return (
+                                    <button
+                                        key={dia}
+                                        onClick={() => setDiaSeleccionado(dia)}
+                                        className={`p-3 rounded-lg border-2 transition-all ${
+                                            diaSeleccionado === dia
+                                                ? 'bg-blue-600 border-blue-600 text-white'
+                                                : numIntervalos > 0
+                                                ? 'bg-green-50 border-green-300 text-green-700 hover:border-green-500'
+                                                : 'bg-white border-[#D2D2D7] text-[#6E6E73] hover:border-blue-400'
+                                        }`}
+                                    >
+                                        <div className="font-semibold text-sm">{diasLabel[dia].slice(0, 3)}</div>
+                                        {numIntervalos > 0 && (
+                                            <div className="text-xs mt-1">
+                                                {horas.toFixed(1)}h
+                                            </div>
+                                        )}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 
-                    {/* Turnos */}
+                    {/* Herramientas rápidas */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <select
+                            onChange={(e) => {
+                                if (e.target.value) {
+                                    copiarHorario(e.target.value);
+                                    e.target.value = '';
+                                }
+                            }}
+                            className="px-3 py-2 bg-white border border-[#D2D2D7] text-[#1D1D1F] rounded-lg text-sm"
+                        >
+                            <option value="">Copiar desde...</option>
+                            {diasSemana.filter(d => d !== diaSeleccionado && config.configuracion_semanal[d].length > 0).map(dia => (
+                                <option key={dia} value={dia}>{diasLabel[dia]}</option>
+                            ))}
+                        </select>
+
+                        {intervalosDelDia.length > 0 && (
+                            <button
+                                onClick={() => limpiarDia(diaSeleccionado)}
+                                className="px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors text-sm"
+                            >
+                                Limpiar {diasLabel[diaSeleccionado]}
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Intervalos del día */}
                     <div>
                         <div className="flex items-center justify-between mb-3">
                             <label className="block text-sm font-medium text-[#1D1D1F]">
                                 <Clock size={16} className="inline mr-1" />
-                                Turnos / Jornadas
+                                Intervalos de {diasLabel[diaSeleccionado]}
                             </label>
                             <button
-                                onClick={agregarTurno}
+                                onClick={() => agregarIntervalo(diaSeleccionado)}
                                 className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                             >
                                 <Plus size={16} />
-                                Agregar Turno
+                                Agregar Intervalo
                             </button>
                         </div>
 
                         <div className="space-y-3">
-                            {config.turnos.map((turno, index) => (
-                                <div key={index} className="flex items-center gap-3 p-4 bg-[#F5F5F7] rounded-lg">
-                                    <div className="flex-1 grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="block text-xs font-medium text-[#6E6E73] mb-1">
-                                                Entrada {index + 1}
-                                            </label>
-                                            <input
-                                                type="time"
-                                                value={turno.entrada}
-                                                onChange={(e) => actualizarTurno(index, 'entrada', e.target.value)}
-                                                className="w-full px-3 py-2 bg-white border border-[#D2D2D7] text-[#1D1D1F] rounded-lg"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-medium text-[#6E6E73] mb-1">
-                                                Salida {index + 1}
-                                            </label>
-                                            <input
-                                                type="time"
-                                                value={turno.salida}
-                                                onChange={(e) => actualizarTurno(index, 'salida', e.target.value)}
-                                                className="w-full px-3 py-2 bg-white border border-[#D2D2D7] text-[#1D1D1F] rounded-lg"
-                                            />
-                                        </div>
-                                    </div>
-                                    {config.turnos.length > 1 && (
-                                        <button
-                                            onClick={() => eliminarTurno(index)}
-                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                        >
-                                            <Trash2 size={18} />
-                                        </button>
-                                    )}
+                            {intervalosDelDia.length === 0 ? (
+                                <div className="p-8 bg-gray-50 border border-dashed border-gray-300 rounded-lg text-center">
+                                    <CalendarDays className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                                    <p className="text-gray-500 text-sm mb-3">No hay intervalos configurados para este día</p>
+                                    <button
+                                        onClick={() => agregarIntervalo(diaSeleccionado)}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm inline-flex items-center gap-2"
+                                    >
+                                        <Plus size={16} />
+                                        Agregar Primer Intervalo
+                                    </button>
                                 </div>
-                            ))}
-                        </div>
+                            ) : (
+                                intervalosDelDia.map((intervalo, index) => {
+                                    const [hI, mI] = intervalo.inicio.split(':').map(Number);
+                                    const [hF, mF] = intervalo.fin.split(':').map(Number);
+                                    const duracion = ((hF * 60 + mF) - (hI * 60 + mI)) / 60;
 
-                        {config.turnos.length === 0 && (
-                            <div className="p-6 bg-gray-50 border border-dashed border-gray-300 rounded-lg text-center">
-                                <Clock className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                                <p className="text-gray-500 text-sm">No hay turnos configurados</p>
-                                <button
-                                    onClick={agregarTurno}
-                                    className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-                                >
-                                    Agregar Primer Turno
-                                </button>
-                            </div>
-                        )}
+                                    return (
+                                        <div key={index} className="flex items-center gap-3 p-4 bg-[#F5F5F7] rounded-lg">
+                                            <div className="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-lg font-bold text-sm">
+                                                {index + 1}
+                                            </div>
+
+                                            <div className="flex-1 grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="block text-xs font-medium text-[#6E6E73] mb-1">
+                                                        Inicio
+                                                    </label>
+                                                    <input
+                                                        type="time"
+                                                        value={intervalo.inicio}
+                                                        onChange={(e) => actualizarIntervalo(diaSeleccionado, index, 'inicio', e.target.value)}
+                                                        className="w-full px-3 py-2 bg-white border border-[#D2D2D7] text-[#1D1D1F] rounded-lg"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-medium text-[#6E6E73] mb-1">
+                                                        Fin
+                                                    </label>
+                                                    <input
+                                                        type="time"
+                                                        value={intervalo.fin}
+                                                        onChange={(e) => actualizarIntervalo(diaSeleccionado, index, 'fin', e.target.value)}
+                                                        className="w-full px-3 py-2 bg-white border border-[#D2D2D7] text-[#1D1D1F] rounded-lg"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="text-right min-w-[60px]">
+                                                <div className="text-xs text-[#6E6E73]">Duración</div>
+                                                <div className="text-sm font-bold text-[#1D1D1F]">{duracion.toFixed(1)}h</div>
+                                            </div>
+
+                                            <button
+                                                onClick={() => eliminarIntervalo(diaSeleccionado, index)}
+                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
                     </div>
 
-                    {/* Resumen */}
+                    {/* Resumen visual */}
                     <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                         <div className="flex items-start gap-3">
                             <AlertCircle size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
                             <div className="flex-1">
-                                <div className="font-semibold text-blue-900 mb-1">Resumen del Horario</div>
-                                <div className="text-sm text-blue-800 space-y-1">
-                                    <div>• Tipo: <strong>{config.tipo === 'continuo' ? 'Continuo' : 'Quebrado'}</strong></div>
-                                    <div>• Días laborales: <strong>{config.dias.length}</strong></div>
-                                    <div>• Turnos: <strong>{config.turnos.length}</strong></div>
-                                    <div>• Horas por día: <strong>{Math.round(horasTotales * 100) / 100}h</strong></div>
-                                    <div>• Horas por semana: <strong>{Math.round(horasTotales * config.dias.length * 100) / 100}h</strong></div>
+                                <div className="font-semibold text-blue-900 mb-2">Resumen Semanal</div>
+                                <div className="grid grid-cols-7 gap-1">
+                                    {diasSemana.map(dia => {
+                                        const horas = calcularHorasDelDia(dia);
+                                        const intervalos = config.configuracion_semanal[dia].length;
+
+                                        return (
+                                            <div key={dia} className={`p-2 rounded text-center ${
+                                                horas > 0 ? 'bg-white border border-blue-200' : 'bg-blue-100/50'
+                                            }`}>
+                                                <div className="text-xs font-medium text-blue-900">
+                                                    {diasLabel[dia].slice(0, 3)}
+                                                </div>
+                                                {horas > 0 ? (
+                                                    <>
+                                                        <div className="text-sm font-bold text-blue-700">{horas.toFixed(1)}h</div>
+                                                        <div className="text-[10px] text-blue-600">{intervalos} int.</div>
+                                                    </>
+                                                ) : (
+                                                    <div className="text-xs text-blue-400">--</div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>
@@ -271,4 +350,4 @@ const HorarioEditor = ({ empleado, horario, onSave, onCancel }) => {
     );
 };
 
-export default HorarioEditor;
+export default HorarioEditorV2;

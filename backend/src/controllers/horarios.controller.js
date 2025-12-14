@@ -206,3 +206,56 @@ export const asignarHorarioAEmpleado = async (req, res) => {
         res.status(500).json({ error: 'Error al asignar horario' });
     }
 };
+
+// ==================== ENDPOINTS PARA VISTA CALENDARIO ====================
+
+// Obtener todos los horarios con información de empleados para vista de calendario
+export const getHorariosVistaCalendario = async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT
+                h.id,
+                h.config_excep,
+                e.id as empleado_id,
+                u.nombre as empleado_nombre
+            FROM horario h
+            INNER JOIN empleado e ON e.horario_id = h.id
+            INNER JOIN usuario u ON e.id_usuario = u.id
+            WHERE h.estado = 'Activo'
+            ORDER BY u.nombre
+        `);
+
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Error obteniendo horarios para calendario:', err);
+        res.status(500).json({ error: 'Error al obtener horarios para calendario' });
+    }
+};
+
+// Obtener horario de un empleado específico para vista de calendario
+export const getHorarioPorEmpleado = async (req, res) => {
+    try {
+        const { empleadoId } = req.params;
+
+        const result = await pool.query(`
+            SELECT
+                h.id,
+                h.config_excep,
+                e.id as empleado_id,
+                u.nombre as empleado_nombre
+            FROM empleado e
+            INNER JOIN horario h ON e.horario_id = h.id
+            INNER JOIN usuario u ON e.id_usuario = u.id
+            WHERE e.id = $1
+        `, [empleadoId]);
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'No se encontró horario para este empleado' });
+        }
+
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error('Error obteniendo horario del empleado:', err);
+        res.status(500).json({ error: 'Error al obtener horario del empleado' });
+    }
+};

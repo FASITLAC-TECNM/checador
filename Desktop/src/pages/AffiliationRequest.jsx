@@ -99,12 +99,29 @@ export default function AffiliationRequest({ onComplete }) {
     }
   };
 
-  const handleRetryRequest = () => {
-    setStep(3);
-    setRequestStatus("pending");
-    setError(null);
-    limpiarSolicitudGuardada();
-    setSolicitudId(null);
+  const handleRetryRequest = async () => {
+    try {
+      // Si hay una solicitud pendiente, eliminarla primero
+      if (solicitudId) {
+        console.log('🗑️ Eliminando solicitud anterior antes de reenviar...');
+        await cancelarSolicitud(solicitudId);
+      }
+
+      // Resetear estados
+      setError(null);
+      setSolicitudId(null);
+      setRequestStatus("pending");
+
+      // Volver al paso de afiliación para reenviar
+      setStep(3);
+    } catch (error) {
+      console.error("Error al eliminar solicitud anterior:", error);
+      // Continuar de todos modos
+      setError(null);
+      setSolicitudId(null);
+      setRequestStatus("pending");
+      setStep(3);
+    }
   };
 
   const handleCancelRequest = async () => {

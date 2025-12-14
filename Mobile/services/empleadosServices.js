@@ -195,12 +195,41 @@ export const validarPinEmpleado = async (idEmpleado, pin) => {
 };
 
 /**
+ * Obtener empleado con sus permisos
+ * @param {number} id - ID del empleado
+ */
+export const getEmpleadoConPermisos = async (id) => {
+    try {
+        const response = await fetch(`${API_URL}/empleados/${id}/permisos`);
+        if (!response.ok) throw new Error('Error al obtener empleado con permisos');
+        return await response.json();
+    } catch (error) {
+        console.error('Error:', error);
+        throw error;
+    }
+};
+
+/**
+ * Obtener estadísticas de empleados
+ */
+export const getStats = async () => {
+    try {
+        const response = await fetch(`${API_URL}/empleados/stats`);
+        if (!response.ok) throw new Error('Error al obtener estadísticas');
+        return await response.json();
+    } catch (error) {
+        console.error('Error:', error);
+        throw error;
+    }
+};
+
+/**
  * Buscar empleado por NSS
  * @param {string} nss - NSS a buscar
  */
 export const buscarPorNSS = async (nss) => {
     try {
-        const response = await fetch(`${API_URL}/empleados/buscar/nss/${nss}`);
+        const response = await fetch(`${API_URL}/empleados/nss/${nss}`);
         if (!response.ok) throw new Error('Error al buscar empleado por NSS');
         return await response.json();
     } catch (error) {
@@ -215,7 +244,7 @@ export const buscarPorNSS = async (nss) => {
  */
 export const buscarPorRFC = async (rfc) => {
     try {
-        const response = await fetch(`${API_URL}/empleados/buscar/rfc/${rfc.toUpperCase()}`);
+        const response = await fetch(`${API_URL}/empleados/rfc/${rfc.toUpperCase()}`);
         if (!response.ok) throw new Error('Error al buscar empleado por RFC');
         return await response.json();
     } catch (error) {
@@ -328,6 +357,8 @@ export default {
     getEmpleados,
     getEmpleado,
     getEmpleadoPorUsuario,
+    getEmpleadoConPermisos,
+    getStats,
     crearEmpleado,
     actualizarEmpleado,
     eliminarEmpleado,

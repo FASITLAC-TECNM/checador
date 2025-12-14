@@ -1,7 +1,7 @@
 // services/authService.js
 // Servicio de autenticación para login de usuarios
 
-import { getApiEndpoint } from '../config/api.js'; 
+import { getApiEndpoint } from '../config/api.js';
 
 const API_URL = getApiEndpoint('/api');
 
@@ -9,22 +9,27 @@ console.log('🔐 Auth API URL:', API_URL);
 
 /**
  * Iniciar sesión con username y contraseña
+ * @param {string} username - Nombre de usuario
+ * @param {string} password - Contraseña del usuario
+ * @returns {Promise<Object>} Objeto con información del usuario autenticado
  */
-export const login = async (username, password) => {  // ✅ Cambié email por username
+export const login = async (username, password) => {
     try {
+        // Validar que se proporcionen ambos campos
         if (!username || !password) {
             throw new Error('Usuario y contraseña son obligatorios');
         }
 
-        console.log('📡 Enviando login a:', `${API_URL}/auth/login`);
-        
-        const response = await fetch(`${API_URL}/auth/login`, {
+        console.log('📡 Enviando login a:', `${API_URL}/session/validate`);
+        console.log('📝 Username:', username);
+
+        const response = await fetch(`${API_URL}/session/validate`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                username: username.trim(),  // ✅ Cambié de email a username
+                username: username.trim(),
                 password: password
             }),
         });
@@ -33,7 +38,7 @@ export const login = async (username, password) => {  // ✅ Cambié email por u
 
         // Obtener el texto de la respuesta primero
         const responseText = await response.text();
-        console.log('📄 Texto de respuesta:', responseText);
+        console.log('📄 Texto de respuesta:', responseText.substring(0, 200));
 
         // Intentar parsear como JSON
         let data;
@@ -55,18 +60,24 @@ export const login = async (username, password) => {  // ✅ Cambié email por u
 
         console.log('✅ Login exitoso:', data.usuario.username);
 
+        // Retornar los datos en el formato esperado
         return {
             success: true,
             usuario: {
                 id: data.usuario.id_usuario || data.usuario.id,
+                id_empresa: data.usuario.id_empresa,
                 email: data.usuario.email,
                 nombre: data.usuario.nombre,
                 username: data.usuario.username,
                 telefono: data.usuario.telefono,
                 foto: data.usuario.foto,
                 activo: data.usuario.activo,
-                estado: data.usuario.estado
+                conexion: data.usuario.conexion || 'Conectado'
             },
+            empleado: data.empleado || null,
+            rol: data.rol || null,
+            permisos: data.permisos || [],
+            departamento: data.departamento || null,
             token: data.token || null,
             message: data.message || 'Inicio de sesión exitoso'
         };
@@ -77,14 +88,21 @@ export const login = async (username, password) => {  // ✅ Cambié email por u
     }
 };
 
+/**
+ * Cerrar sesión del usuario
+ * @param {number} idUsuario - ID del usuario
+ * @returns {Promise<Object>}
+ */
 export const logout = async (idUsuario) => {
     try {
-        const response = await fetch(`${API_URL}/auth/logout`, {
+        console.log('📡 Cerrando sesión para usuario:', idUsuario);
+
+        const response = await fetch(`${API_URL}/session/close`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ id_usuario: idUsuario }),
+            body: JSON.stringify({ userId: idUsuario }),
         });
 
         const responseText = await response.text();
@@ -94,6 +112,7 @@ export const logout = async (idUsuario) => {
             throw new Error(data.error || 'Error al cerrar sesión');
         }
 
+        console.log('✅ Sesión cerrada correctamente');
         return data;
     } catch (error) {
         console.error('❌ Error en logout:', error);

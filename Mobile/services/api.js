@@ -1,15 +1,16 @@
 // services/api.js
-// Servicios de API para gestión de usuarios - VERSIÓN SIMPLIFICADA
+// Servicios de API para gestión de usuarios - VERSIÓN ACTUALIZADA
 
-import { getApiEndpoint } from '../config/api.js';  // ✅ Agregar .js
+import { getApiEndpoint } from '../config/api.js';
 
-// Importar servicios modulares
-export * as empleadoService from './empleadoService';
+// Importar y re-exportar servicios modulares
+export * as empleadoService from './empleadosServices.js';
+export * as authService from './authService.js';
 
 // Usar la configuración centralizada
 const API_URL = getApiEndpoint('/api');
 
-console.log('🔗 API URL:', API_URL); // Para debug
+console.log('🔗 API URL:', API_URL);
 
 /**
  * Obtener todos los usuarios

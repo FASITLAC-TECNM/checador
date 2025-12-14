@@ -9,72 +9,136 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   StatusBar
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { login } from './services/authService';
 
 export const LoginScreen = ({ onLoginSuccess }) => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [generalError, setGeneralError] = useState('');
+
+  // Validar formato de correo electrónico
+  const validateEmail = (text) => {
+    setEmail(text);
+    setEmailError(''); // Limpiar error cuando escribe
+    setGeneralError(''); // Limpiar error general
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (text && !emailRegex.test(text)) {
+      setEmailError('Formato de correo inválido');
+    }
+  };
+
+  const handlePasswordChange = (text) => {
+    setPassword(text);
+    setPasswordError(''); // Limpiar error cuando escribe
+    setGeneralError(''); // Limpiar error general
+  };
 
   const handleLogin = async () => {
-    if (!username || !password) {
-      Alert.alert('Error', 'Por favor completa todos los campos');
+    // Limpiar errores anteriores
+    setEmailError('');
+    setPasswordError('');
+    setGeneralError('');
+
+    // Validar campos vacíos
+    if (!email || !password) {
+      if (!email) setEmailError('El correo es requerido');
+      if (!password) setPasswordError('La contraseña es requerida');
+      return;
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError('Por favor ingresa un correo electrónico válido');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      const response = await login(username, password);
+      const response = await login(email, password);
 
       if (response && response.success && response.usuario) {
-        Alert.alert(
-          '¡Bienvenido!',
-          `Hola ${response.usuario.nombre}`,
-          [
-            {
-              text: 'Continuar',
-              onPress: () => {
-                console.log('📤 Enviando al App:', response.usuario);
-                onLoginSuccess({
-                  id: response.usuario.id,
-                  username: response.usuario.username,
-                  email: response.usuario.email,
-                  nombre: response.usuario.nombre,
-                  telefono: response.usuario.telefono,
-                  foto: response.usuario.foto,
-                  activo: response.usuario.activo,
-                  estado: response.usuario.estado,
-                  role: 'Administrador'
-                });
-              }
-            }
-          ]
-        );
+        // Construir objeto completo del usuario con toda la información
+        const datosCompletos = {
+          // Información del usuario
+          id: response.usuario.id,
+          id_empresa: response.usuario.id_empresa,
+          username: response.usuario.username,
+          email: response.usuario.email,
+          nombre: response.usuario.nombre,
+          telefono: response.usuario.telefono,
+          foto: response.usuario.foto,
+          activo: response.usuario.activo,
+          conexion: response.usuario.conexion,
+
+          // Información del empleado (si existe)
+          empleado: response.empleado || null,
+
+          // Información del rol
+          rol: response.rol || null,
+
+          // Permisos del usuario
+          permisos: response.permisos || [],
+
+          // Departamento del empleado
+          departamento: response.departamento || null,
+
+          // Token (si existe)
+          token: response.token || null,
+
+          // Bandera para saber si es empleado
+          esEmpleado: response.empleado !== null
+        };
+
+        console.log('📤 Datos completos del usuario:', datosCompletos);
+        console.log('👔 ¿Es empleado?', datosCompletos.esEmpleado);
+
+        // Entrar directamente sin mostrar Alert
+        onLoginSuccess(datosCompletos);
       }
     } catch (error) {
-      console.error('Error en login:', error);
-      const errorMessage = error?.message || 'Ocurrió un error al iniciar sesión';
-      Alert.alert('Error de Autenticación', errorMessage);
+      console.error('❌ Error en login:', error);
+
+      // Mensajes de error más específicos SIN ALERTS
+      const errorMessage = error?.message || '';
+
+      if (errorMessage.includes('Credenciales inválidas')) {
+        // Error genérico - mostrar en ambos campos
+        setGeneralError('El correo o la contraseña son incorrectos');
+      } else if (errorMessage.includes('Email no encontrado') || errorMessage.includes('usuario no encontrado')) {
+        setEmailError('No existe una cuenta con este correo');
+      } else if (errorMessage.includes('Contraseña incorrecta')) {
+        setPasswordError('La contraseña es incorrecta');
+      } else if (errorMessage.includes('respuesta no válida') || errorMessage.includes('servidor')) {
+        setGeneralError('No se pudo conectar con el servidor. Verifica tu conexión.');
+      } else {
+        setGeneralError(errorMessage || 'Ocurrió un error al iniciar sesión');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={loginStyles.container}
     >
       <StatusBar barStyle="light-content" />
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={loginStyles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={loginStyles.header}>
           <View style={loginStyles.logoContainer}>
@@ -85,55 +149,85 @@ export const LoginScreen = ({ onLoginSuccess }) => {
         </View>
 
         <View style={loginStyles.formContainer}>
-          <Text style={loginStyles.label}>Usuario</Text>
-          <View style={loginStyles.inputContainer}>
-            <Ionicons name="person-outline" size={18} color="#9ca3af" style={loginStyles.inputIcon} />
+          <Text style={loginStyles.label}>Correo Electrónico</Text>
+          <View style={[
+            loginStyles.inputContainer,
+            emailError ? loginStyles.inputError : null
+          ]}>
+            <Ionicons name="mail-outline" size={18} color="#9ca3af" style={loginStyles.inputIcon} />
             <TextInput
               style={loginStyles.input}
-              placeholder="usuario123"
+              placeholder="correo@ejemplo.com"
               placeholderTextColor="#9ca3af"
-              value={username}
-              onChangeText={setUsername}
+              value={email}
+              onChangeText={validateEmail}
               autoCapitalize="none"
               autoCorrect={false}
+              keyboardType="email-address"
               editable={!isLoading}
             />
           </View>
+          {emailError ? (
+            <View style={loginStyles.errorContainer}>
+              <Ionicons name="information-circle" size={14} color="#dc2626" />
+              <Text style={loginStyles.errorText}>{emailError}</Text>
+            </View>
+          ) : null}
 
           <Text style={loginStyles.label}>Contraseña</Text>
-          <View style={loginStyles.inputContainer}>
+          <View style={[
+            loginStyles.inputContainer,
+            passwordError ? loginStyles.inputError : null
+          ]}>
             <Ionicons name="lock-closed-outline" size={18} color="#9ca3af" style={loginStyles.inputIcon} />
             <TextInput
               style={loginStyles.input}
               placeholder="••••••••"
               placeholderTextColor="#9ca3af"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={handlePasswordChange}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               editable={!isLoading}
             />
-            <TouchableOpacity 
-              onPress={() => setShowPassword(!showPassword)} 
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
               style={loginStyles.eyeIcon}
               disabled={isLoading}
             >
-              <Ionicons 
-                name={showPassword ? "eye-off-outline" : "eye-outline"} 
-                size={18} 
-                color="#9ca3af" 
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={18}
+                color="#9ca3af"
               />
             </TouchableOpacity>
           </View>
+          {passwordError ? (
+            <View style={loginStyles.errorContainer}>
+              <Ionicons name="information-circle" size={14} color="#dc2626" />
+              <Text style={loginStyles.errorText}>{passwordError}</Text>
+            </View>
+          ) : null}
+
+          {/* Error general debajo de contraseña */}
+          {generalError ? (
+            <View style={loginStyles.generalErrorContainer}>
+              <Ionicons name="alert-circle" size={18} color="#dc2626" />
+              <Text style={loginStyles.generalErrorText}>{generalError}</Text>
+            </View>
+          ) : null}
 
           <TouchableOpacity disabled={isLoading}>
-            <Text style={loginStyles.forgotPassword}>¿Olvidaste tus credenciales?</Text>
+            <Text style={loginStyles.forgotPassword}>¿Olvidaste tu contraseña?</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[loginStyles.loginButton, isLoading && loginStyles.loginButtonDisabled]}
+          <TouchableOpacity
+            style={[
+              loginStyles.loginButton,
+              (isLoading || emailError) && loginStyles.loginButtonDisabled
+            ]}
             onPress={handleLogin}
-            disabled={isLoading}
+            disabled={isLoading || !!emailError}
             activeOpacity={0.8}
           >
             {isLoading ? (
@@ -148,7 +242,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
 
           <View style={loginStyles.footer}>
             <Text style={loginStyles.footerText}>
-              ¿No tienes cuenta? 
+              ¿No tienes cuenta?
               <TouchableOpacity disabled={isLoading} style={loginStyles.linkWrapper}>
                 <Text style={loginStyles.footerLink}> Contacta al administrador</Text>
               </TouchableOpacity>
@@ -213,6 +307,23 @@ const loginStyles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
   },
+  generalErrorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fee2e2',
+    borderLeftWidth: 4,
+    borderLeftColor: '#dc2626',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  generalErrorText: {
+    color: '#991b1b',
+    fontSize: 12,
+    marginLeft: 8,
+    flex: 1,
+    fontWeight: '500',
+  },
   label: {
     fontSize: 13,
     fontWeight: '600',
@@ -230,6 +341,11 @@ const loginStyles = StyleSheet.create({
     paddingHorizontal: 12,
     height: 48,
   },
+  inputError: {
+    borderColor: '#dc2626',
+    borderWidth: 2,
+    backgroundColor: '#fef2f2',
+  },
   inputIcon: {
     marginRight: 8,
   },
@@ -240,6 +356,18 @@ const loginStyles = StyleSheet.create({
   },
   eyeIcon: {
     padding: 8,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    marginLeft: 4,
+  },
+  errorText: {
+    color: '#dc2626',
+    fontSize: 12,
+    marginLeft: 4,
+    fontWeight: '500',
   },
   forgotPassword: {
     color: '#2563eb',
@@ -262,7 +390,7 @@ const loginStyles = StyleSheet.create({
     shadowRadius: 4,
   },
   loginButtonDisabled: {
-    opacity: 0.7,
+    opacity: 0.5,
   },
   loginButtonText: {
     color: '#fff',

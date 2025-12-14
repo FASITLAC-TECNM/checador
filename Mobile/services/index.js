@@ -30,12 +30,14 @@ export {
 // ============================================
 // SERVICIO MODULAR DE EMPLEADOS
 // ============================================
-export { default as empleadoService } from './empleadoService';
+export { default as empleadoService } from './empleadosServices.js';
 
 export {
     getEmpleados,
     getEmpleado,
     getEmpleadoPorUsuario,
+    getEmpleadoConPermisos,
+    getStats,
     crearEmpleado,
     actualizarEmpleado,
     eliminarEmpleado,
@@ -47,4 +49,4 @@ export {
     validarRFCUnico,
     cambiarEstadoEmpleado,
     getHistorialEstadoEmpleado
-} from './empleadoService';
+} from './empleadosServices.js';

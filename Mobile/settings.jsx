@@ -40,9 +40,12 @@ export const SettingsScreen = ({
 }) => {
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
   const styles = darkMode ? settingsStylesDark : settingsStyles;
-  
+
   // Obtener la URL completa de la foto si existe
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
+
+  // Si es empleado, priorizar rol "Empleado"
+  const rolMostrar = userData.empleado ? 'Empleado' : (userData.rol?.nombre_rol || 'Usuario');
   // Si se está mostrando información personal, renderizar ese componente
   if (showPersonalInfo) {
     return (
@@ -85,13 +88,21 @@ export const SettingsScreen = ({
             {/* Indicador de estado al lado de la foto */}
             <View style={[
               styles.statusIndicator,
-              { backgroundColor: userData.estado === 'CONECTADO' ? '#10b981' : '#6b7280' }
+              { backgroundColor: userData.conexion === 'Conectado' ? '#10b981' : '#6b7280' }
             ]} />
           </View>
           <Text style={styles.profileName}>{userData.nombre}</Text>
           <Text style={styles.profileEmail}>{userData.email || 'usuario@correo.com'}</Text>
-          <View style={styles.roleBadge}>
-            <Text style={styles.roleText}>{userData.role || 'Empleado'}</Text>
+          <View style={[
+            styles.roleBadge,
+            userData.empleado && { backgroundColor: '#dcfce7' } // Verde claro para empleados
+          ]}>
+            <Text style={[
+              styles.roleText,
+              userData.empleado && { color: '#166534' } // Verde oscuro para empleados
+            ]}>
+              {rolMostrar}
+            </Text>
           </View>
         </View>
 
@@ -101,12 +112,13 @@ export const SettingsScreen = ({
           
           <View style={styles.settingItem}>
             <View style={styles.settingLeft}>
-              <Ionicons 
-                name={darkMode ? "moon" : "sunny"} 
-                size={20} 
-                color={darkMode ? '#d1d5db' : '#6b7280'} 
+              <Ionicons
+                name={darkMode ? "moon" : "sunny"}
+                size={20}
+                color={darkMode ? '#d1d5db' : '#6b7280'}
+                style={styles.settingIcon}
               />
-              <View style={styles.settingTextContainer}>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.settingTitle}>Tema de la aplicación</Text>
                 <Text style={styles.settingSubtitle}>
                   {darkMode ? 'Modo Oscuro' : 'Modo Claro'}
@@ -126,12 +138,12 @@ export const SettingsScreen = ({
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>CUENTA</Text>
           
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.settingItem}
             onPress={() => setShowPersonalInfo(true)}
           >
             <View style={styles.settingLeft}>
-              <Ionicons name="person-outline" size={20} color={darkMode ? '#d1d5db' : '#6b7280'} />
+              <Ionicons name="person-outline" size={20} color={darkMode ? '#d1d5db' : '#6b7280'} style={styles.settingIcon} />
               <Text style={styles.settingTitle}>Información Personal</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
@@ -139,7 +151,7 @@ export const SettingsScreen = ({
 
           <TouchableOpacity style={styles.settingItem}>
             <View style={styles.settingLeft}>
-              <Ionicons name="notifications-outline" size={20} color={darkMode ? '#d1d5db' : '#6b7280'} />
+              <Ionicons name="notifications-outline" size={20} color={darkMode ? '#d1d5db' : '#6b7280'} style={styles.settingIcon} />
               <Text style={styles.settingTitle}>Notificaciones</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
@@ -152,7 +164,7 @@ export const SettingsScreen = ({
           
           <TouchableOpacity style={styles.settingItem}>
             <View style={styles.settingLeft}>
-              <Ionicons name="location-outline" size={20} color={darkMode ? '#d1d5db' : '#6b7280'} />
+              <Ionicons name="location-outline" size={20} color={darkMode ? '#d1d5db' : '#6b7280'} style={styles.settingIcon} />
               <Text style={styles.settingTitle}>Áreas Permitidas</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
@@ -160,7 +172,7 @@ export const SettingsScreen = ({
 
           <TouchableOpacity style={styles.settingItem}>
             <View style={styles.settingLeft}>
-              <Ionicons name="shield-checkmark-outline" size={20} color={darkMode ? '#d1d5db' : '#6b7280'} />
+              <Ionicons name="shield-checkmark-outline" size={20} color={darkMode ? '#d1d5db' : '#6b7280'} style={styles.settingIcon} />
               <Text style={styles.settingTitle}>Privacidad y Seguridad</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
@@ -168,7 +180,7 @@ export const SettingsScreen = ({
 
           <TouchableOpacity style={styles.settingItem}>
             <View style={styles.settingLeft}>
-              <Ionicons name="help-circle-outline" size={20} color={darkMode ? '#d1d5db' : '#6b7280'} />
+              <Ionicons name="help-circle-outline" size={20} color={darkMode ? '#d1d5db' : '#6b7280'} style={styles.settingIcon} />
               <Text style={styles.settingTitle}>Ayuda y Soporte</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
@@ -319,12 +331,15 @@ const settingsStyles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
+  settingIcon: {
+    marginRight: 12,
+  },
   settingTextContainer: {
-    marginLeft: 12,
+    marginLeft: 10,
     flex: 1,
   },
   settingTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '500',
     color: '#1f2937',
   },

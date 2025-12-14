@@ -96,7 +96,16 @@ const navStylesDark = StyleSheet.create({
   },
   navItem: navStyles.navItem,
   iconContainer: navStyles.iconContainer,
-  iconContainerActive: navStyles.iconContainerActive,
-  label: navStyles.label,
-  labelActive: navStyles.labelActive,
+  iconContainerActive: {
+    ...navStyles.iconContainerActive,
+    backgroundColor: '#374151',
+  },
+  label: {
+    ...navStyles.label,
+    color: '#9ca3af',
+  },
+  labelActive: {
+    ...navStyles.labelActive,
+    color: '#60a5fa',
+  },
 });

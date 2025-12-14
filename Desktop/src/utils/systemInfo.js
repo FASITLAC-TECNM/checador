@@ -201,7 +201,22 @@ export const getOperatingSystem = () => {
  * @returns {Promise<Object>} Objeto con IP, MAC y SO
  */
 export const getSystemInfo = async () => {
-  // getLocalIP es asíncrona, getMACAddress es síncrona
+  // Si estamos en Electron, usar las APIs nativas
+  if (window.electronAPI && window.electronAPI.getSystemInfo) {
+    try {
+      const systemInfo = await window.electronAPI.getSystemInfo();
+
+      return {
+        ipAddress: systemInfo.ipAddress || await getLocalIP(),
+        macAddress: systemInfo.macAddress || getMACAddress(),
+        operatingSystem: systemInfo.operatingSystem || getOperatingSystem()
+      };
+    } catch (error) {
+      console.error('Error al obtener info de Electron:', error);
+    }
+  }
+
+  // Fallback para navegador web
   const ip = await getLocalIP();
   const mac = getMACAddress();
   const os = getOperatingSystem();

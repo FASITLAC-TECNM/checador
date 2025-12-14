@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Camera, User, Activity, Bell } from "lucide-react";
+import { Camera, User, Activity, Bell, UserPlus } from "lucide-react";
 import { formatTime, formatDate, formatDay } from "../utils/dateHelpers";
 import { notices } from "../constants/notices";
 import CameraModal from "../components/kiosk/CameraModal";
@@ -7,6 +7,7 @@ import PinModal from "../components/kiosk/PinModal";
 import LoginModal from "../components/kiosk/LoginModal";
 import BitacoraModal from "../components/kiosk/BitacoraModal";
 import NoticeDetailModal from "../components/kiosk/NoticeDetailModal";
+import RegisterFaceModal from "../components/kiosk/RegisterFaceModal";
 import SessionScreen from "./SessionScreen";
 import { cerrarSesion } from "../services/authService";
 import { agregarEvento } from "../services/bitacoraService";
@@ -34,6 +35,7 @@ export default function KioskScreen() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showBitacora, setShowBitacora] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
+  const [showRegisterFace, setShowRegisterFace] = useState(false);
   const [cameraMode, setCameraMode] = useState("asistencia");
   const [stream, setStream] = useState(null);
   const [captureProgress, setCaptureProgress] = useState(0);
@@ -49,13 +51,126 @@ export default function KioskScreen() {
     return () => clearInterval(timer);
   }, []);
 
+  // Atajo para resetear configuración: Ctrl+Shift+R
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+        e.preventDefault();
+        const confirmReset = confirm('¿Está seguro que desea resetear la configuración de la aplicación? Esto eliminará todos los datos guardados y deberá volver a afiliar el equipo.');
+        if (confirmReset) {
+          localStorage.clear();
+          if (window.electronAPI && window.electronAPI.configRemove) {
+            window.electronAPI.configRemove('appConfigured');
+          }
+          alert('Configuración reseteada. La aplicación se recargará.');
+          window.location.reload();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
+
+  // Manejar detección de rostro exitosa
+  const handleFaceDetected = async (descriptor) => {
+    if (hasProcessedCapture.current) return;
+    hasProcessedCapture.current = true;
+
+    setCaptureProgress(100);
+
+    try {
+      console.log("🔍 Verificando rostro con el servidor...");
+
+      // Verificar si estamos en Electron
+      if (!window.electronAPI) {
+        throw new Error("Esta funcionalidad requiere Electron");
+      }
+
+      // Verificar usuario mediante Electron (que se comunica con el backend)
+      const result = await window.electronAPI.verificarUsuario(descriptor);
+
+      if (result.success) {
+        // ✅ Rostro identificado correctamente
+        setCaptureSuccess(true);
+
+        const nombreUsuario = result.empleado.nombre || "Usuario";
+
+        agregarEvento({
+          user: nombreUsuario,
+          action: `${cameraMode === "asistencia" ? "Registro de asistencia" : "Inicio de sesión"} exitoso - Reconocimiento facial`,
+          type: "success",
+        });
+
+        const successMessage =
+          cameraMode === "asistencia"
+            ? `Registro exitoso, ${nombreUsuario}`
+            : `Acceso concedido, ${nombreUsuario}`;
+
+        const utterance = new SpeechSynthesisUtterance(successMessage);
+        utterance.lang = "es-MX";
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+
+        setTimeout(() => {
+          setIsClosing(true);
+          setTimeout(() => {
+            setShowCamera(false);
+            if (cameraMode === "login") {
+              setUsuarioActual(result.empleado);
+              setIsLoggedIn(true);
+            }
+          }, 500);
+        }, 3000);
+      } else {
+        // ❌ Rostro no identificado
+        setCaptureFailed(true);
+
+        agregarEvento({
+          user: "Sistema",
+          action: `Intento de ${cameraMode === "asistencia" ? "registro de asistencia" : "acceso"} - Rostro no identificado`,
+          type: "error",
+        });
+
+        const errorMessage = "Rostro no identificado. Intenta de nuevo.";
+        const utterance = new SpeechSynthesisUtterance(errorMessage);
+        utterance.lang = "es-MX";
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+
+        setTimeout(() => {
+          setIsClosing(true);
+          setTimeout(() => {
+            setShowCamera(false);
+          }, 500);
+        }, 2000);
+      }
+    } catch (error) {
+      console.error("❌ Error verificando rostro:", error);
+      setCaptureFailed(true);
+
+      agregarEvento({
+        user: "Sistema",
+        action: `Error en reconocimiento facial: ${error.message}`,
+        type: "error",
+      });
+
+      setTimeout(() => {
+        setIsClosing(true);
+        setTimeout(() => {
+          setShowCamera(false);
+        }, 500);
+      }, 2000);
+    }
+  };
+
   useEffect(() => {
     if (showCamera) {
       setCaptureProgress(0);
       setCaptureSuccess(false);
       setCaptureFailed(false);
       setIsClosing(false);
-      hasProcessedCapture.current = false; // Resetear el flag
+      hasProcessedCapture.current = false;
 
       navigator.mediaDevices
         .getUserMedia({ video: true })
@@ -65,88 +180,10 @@ export default function KioskScreen() {
           if (video) {
             video.srcObject = mediaStream;
           }
-
-          setTimeout(() => {
-            const interval = setInterval(() => {
-              setCaptureProgress((prev) => {
-                if (prev >= 100 && !hasProcessedCapture.current) {
-                  clearInterval(interval);
-                  hasProcessedCapture.current = true; // Marcar como procesado
-
-                  // Simular reconocimiento fallido aleatoriamente (20% de probabilidad)
-                  const reconocimientoFallido = Math.random() < 0.2;
-
-                  if (reconocimientoFallido) {
-                    // Reconocimiento fallido
-                    setCaptureFailed(true);
-                    const nombreUsuarioDesconocido = "Usuario no identificado";
-
-                    agregarEvento({
-                      user: nombreUsuarioDesconocido,
-                      action: `Intento de ${cameraMode === "asistencia" ? "registro de asistencia" : "acceso"} - Rostro no identificado`,
-                      type: "error",
-                    });
-
-                    const errorMessage = "Rostro no identificado. Intenta de nuevo.";
-                    const utterance = new SpeechSynthesisUtterance(errorMessage);
-                    utterance.lang = "es-MX";
-                    utterance.rate = 0.9;
-                    window.speechSynthesis.speak(utterance);
-
-                    // Cerrar modal después de mostrar error
-                    setTimeout(() => {
-                      setIsClosing(true);
-                      setTimeout(() => {
-                        setShowCamera(false);
-                      }, 500);
-                    }, 2000);
-                  } else {
-                    // Reconocimiento exitoso
-                    setCaptureSuccess(true);
-
-                    // Registrar evento en la bitácora
-                    const nombreUsuario = usuarioActual?.nombre || "Amaya Abarca";
-                    const metodoReconocimiento = "Reconocimiento facial";
-
-                    agregarEvento({
-                      user: nombreUsuario,
-                      action: `Registro de ${cameraMode === "asistencia" ? "asistencia" : "entrada"} exitoso - ${metodoReconocimiento}`,
-                      type: "success",
-                    });
-
-                    const successMessage =
-                      cameraMode === "asistencia"
-                        ? `Registro exitoso, ${nombreUsuario}`
-                        : `Acceso concedido, ${nombreUsuario}`;
-                    const utterance = new SpeechSynthesisUtterance(
-                      successMessage
-                    );
-                    utterance.lang = "es-MX";
-                    utterance.rate = 0.9;
-                    window.speechSynthesis.speak(utterance);
-
-                    setTimeout(() => {
-                      setIsClosing(true);
-                      setTimeout(() => {
-                        setShowCamera(false);
-                        if (cameraMode === "login") {
-                          setIsLoggedIn(true);
-                        }
-                      }, 500);
-                    }, 3000);
-                  }
-
-                  return 100;
-                }
-                return prev >= 100 ? 100 : prev + 4;
-              });
-            }, 80);
-          }, 1500);
         })
         .catch((err) => {
           console.error("Error al acceder a la cámara:", err);
 
-          // Registrar evento de error en la bitácora
           agregarEvento({
             user: "Sistema",
             action: "Error al acceder a la cámara - Permisos denegados",
@@ -211,6 +248,15 @@ export default function KioskScreen() {
         >
           <Activity className="w-5 h-5" />
           <span className="text-xs font-semibold">Bitácora</span>
+        </button>
+
+        <button
+          onClick={() => setShowRegisterFace(true)}
+          className="flex flex-col items-center gap-1 text-purple-600 hover:bg-bg-secondary p-2 rounded-lg transition-all w-16"
+          title="Registrar rostro (Pruebas)"
+        >
+          <UserPlus className="w-5 h-5" />
+          <span className="text-xs font-semibold">Registrar</span>
         </button>
 
         <div className="flex-1"></div>
@@ -327,6 +373,7 @@ export default function KioskScreen() {
           captureSuccess={captureSuccess}
           captureFailed={captureFailed}
           isClosing={isClosing}
+          onFaceDetected={handleFaceDetected}
           onClose={() => {
             setIsClosing(true);
             setTimeout(() => {
@@ -337,6 +384,10 @@ export default function KioskScreen() {
       )}
 
       {showBitacora && <BitacoraModal onClose={() => setShowBitacora(false)} />}
+
+      {showRegisterFace && (
+        <RegisterFaceModal onClose={() => setShowRegisterFace(false)} />
+      )}
     </div>
   );
 }

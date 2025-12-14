@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import DeviceList from './DeviceList';
 import DeviceForm from './DeviceForm';
 import BiometricForm from './BiometricForm';
@@ -7,8 +7,13 @@ import SolicitudCard from './SolicitudCard';
 import { Plus, Clock, Smartphone, ChevronDown, ChevronUp, Bell } from 'lucide-react';
 import { getDevices, createDevice, updateDevice, deleteDevice, getDeviceStats } from '../../services/devicesService';
 import { getSolicitudesPendientes, aceptarSolicitud, rechazarSolicitud } from '../../services/solicitudesService';
+import { useNotification } from '../../contexts/NotificationContext';
 
 const DevicePage = () => {
+    const notification = useNotification();
+    const previousSolicitudesCount = useRef(0);
+    const isInitialLoad = useRef(true);
+
     const [devices, setDevices] = useState([]);
     const [solicitudesPendientes, setSolicitudesPendientes] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -37,30 +42,42 @@ const DevicePage = () => {
         configuracion: {}
     });
 
-    // Cargar dispositivos y solicitudes al montar
+    // Cargar dispositivos y solicitudes al montar y cada 30 segundos
     useEffect(() => {
-        cargarDatos();
+        cargarDatos(true); // Carga inicial
 
-        // Actualizar solicitudes cada 30 segundos
-        const interval = setInterval(cargarSolicitudes, 30000);
+        // Actualizar TODOS los datos cada 1 segundos (sin mostrar loading)
+        const interval = setInterval(() => {
+            cargarDatos(false); // Actualización automática silenciosa
+        }, 1000);
+
         return () => clearInterval(interval);
     }, []);
 
-    const cargarDatos = async () => {
-        await Promise.all([cargarDispositivos(), cargarEstadisticas(), cargarSolicitudes()]);
+    const cargarDatos = async (showLoadingScreen = false) => {
+        await Promise.all([
+            cargarDispositivos(showLoadingScreen),
+            cargarEstadisticas(),
+            cargarSolicitudes()
+        ]);
     };
 
-    const cargarDispositivos = async () => {
+    const cargarDispositivos = async (showLoadingScreen = false) => {
         try {
-            setLoading(true);
+            // Solo mostrar loading en la carga inicial, no en polling
+            if (showLoadingScreen) {
+                setLoading(true);
+            }
             const data = await getDevices();
             setDevices(data);
         } catch (error) {
             console.error('Error cargando dispositivos:', error);
-            // No mostrar alert, simplemente continuar con lista vacía
             setDevices([]);
         } finally {
-            setLoading(false);
+            if (showLoadingScreen) {
+                setLoading(false);
+                isInitialLoad.current = false;
+            }
         }
     };
 
@@ -76,7 +93,20 @@ const DevicePage = () => {
     const cargarSolicitudes = async () => {
         try {
             const data = await getSolicitudesPendientes();
+
+            // Detectar nuevas solicitudes y mostrar notificación
+            if (previousSolicitudesCount.current > 0 && data.length > previousSolicitudesCount.current) {
+                const nuevasSolicitudes = data.length - previousSolicitudesCount.current;
+                notification.info(
+                    'Nueva solicitud recibida',
+                    `Tienes ${nuevasSolicitudes} ${nuevasSolicitudes === 1 ? 'nueva solicitud' : 'nuevas solicitudes'} de dispositivo${nuevasSolicitudes === 1 ? '' : 's'}`,
+                    8000
+                );
+            }
+
+            previousSolicitudesCount.current = data.length;
             setSolicitudesPendientes(data);
+
             // Auto-expandir si hay solicitudes
             if (data.length > 0) {
                 setShowSolicitudes(true);
@@ -87,15 +117,27 @@ const DevicePage = () => {
     };
 
     const handleAceptarSolicitud = async (solicitud) => {
-        if (!confirm(`¿Aceptar la solicitud de "${solicitud.nombre}"?\n\nEsto creará un nuevo dispositivo en el sistema.`)) return;
+        const confirmed = await notification.confirm(
+            `¿Aceptar solicitud de "${solicitud.nombre}"?`,
+            'Esto creará un nuevo dispositivo en el sistema'
+        );
+
+        if (!confirmed) return;
 
         try {
             const idUsuarioAprobador = 1; // TODO: Obtener de la sesión
             await aceptarSolicitud(solicitud.id, idUsuarioAprobador);
             await cargarDatos();
+            notification.success(
+                'Solicitud aceptada',
+                `El dispositivo "${solicitud.nombre}" ha sido agregado correctamente`
+            );
         } catch (error) {
             console.error('Error aceptando solicitud:', error);
-            alert('Error al aceptar la solicitud. Por favor, intenta de nuevo.');
+            notification.error(
+                'Error al aceptar solicitud',
+                'No se pudo aceptar la solicitud. Por favor, intenta de nuevo.'
+            );
         }
     };
 
@@ -104,9 +146,16 @@ const DevicePage = () => {
             const idUsuarioAprobador = 1; // TODO: Obtener de la sesión
             await rechazarSolicitud(solicitud.id, idUsuarioAprobador, motivo);
             await cargarSolicitudes();
+            notification.warning(
+                'Solicitud rechazada',
+                `La solicitud de "${solicitud.nombre}" ha sido rechazada`
+            );
         } catch (error) {
             console.error('Error rechazando solicitud:', error);
-            alert('Error al rechazar la solicitud. Por favor, intenta de nuevo.');
+            notification.error(
+                'Error al rechazar solicitud',
+                'No se pudo rechazar la solicitud. Por favor, intenta de nuevo.'
+            );
         }
     };
 
@@ -173,8 +222,16 @@ const DevicePage = () => {
 
             if (editingDevice) {
                 await updateDevice(editingDevice.id, deviceData);
+                notification.success(
+                    'Dispositivo actualizado',
+                    `"${formData.nombre}" ha sido actualizado correctamente`
+                );
             } else {
                 await createDevice(deviceData);
+                notification.success(
+                    'Dispositivo creado',
+                    `"${formData.nombre}" ha sido agregado correctamente`
+                );
             }
 
             setShowForm(false);
@@ -182,7 +239,10 @@ const DevicePage = () => {
             await cargarDatos();
         } catch (error) {
             console.error('Error guardando dispositivo:', error);
-            alert('Error al guardar dispositivo. Por favor, intenta de nuevo.');
+            notification.error(
+                'Error al guardar',
+                'No se pudo guardar el dispositivo. Por favor, intenta de nuevo.'
+            );
         }
     };
 
@@ -280,10 +340,12 @@ const DevicePage = () => {
         );
     }
 
-    // Vista principal
-    const activos = parseInt(stats.activos) || 0;
-    const suspendidos = parseInt(stats.inactivos) || 0;
-    const moviles = parseInt(stats.moviles) || 0;
+    // Vista principal - Memorizar cálculos para evitar re-renders innecesarios
+    const statsCalculados = useMemo(() => ({
+        activos: parseInt(stats.activos) || 0,
+        suspendidos: parseInt(stats.inactivos) || 0,
+        moviles: parseInt(stats.moviles) || 0
+    }), [stats]);
 
     if (loading) {
         return (
@@ -311,16 +373,16 @@ const DevicePage = () => {
                                 </div>
                                 <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-full border border-green-200">
                                     <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                                    <span className="font-semibold">{activos}</span>
+                                    <span className="font-semibold">{statsCalculados.activos}</span>
                                     <span className="text-sm">activos</span>
                                 </div>
                                 <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-50 text-yellow-700 rounded-full border border-yellow-200">
-                                    <span className="font-semibold">{suspendidos}</span>
+                                    <span className="font-semibold">{statsCalculados.suspendidos}</span>
                                     <span className="text-sm">suspendidos</span>
                                 </div>
                                 <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 text-purple-700 rounded-full border border-purple-200">
                                     <Smartphone className="w-4 h-4" />
-                                    <span className="font-semibold">{moviles}</span>
+                                    <span className="font-semibold">{statsCalculados.moviles}</span>
                                     <span className="text-sm">móviles</span>
                                 </div>
                             </div>

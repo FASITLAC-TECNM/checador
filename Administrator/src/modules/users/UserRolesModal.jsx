@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { X, Shield, Check, Save } from 'lucide-react';
 import { obtenerRoles } from '../../services/rolesService';
 import { asignarRolAUsuario, obtenerRolesDeUsuario, removerRolDeUsuario } from '../../services/api';
+import { useNotification } from '../../contexts/NotificationContext';
 
 const UserRolesModal = ({ user, onClose, onUpdate }) => {
+    const notification = useNotification();
     const [roles, setRoles] = useState([]);
     const [rolesAsignados, setRolesAsignados] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -25,7 +27,7 @@ const UserRolesModal = ({ user, onClose, onUpdate }) => {
             setRolesAsignados(rolesDelUsuario.map(r => r.id_rol));
         } catch (error) {
             console.error('Error cargando roles:', error);
-            alert('Error al cargar roles: ' + error.message);
+            notification.error('Error de carga', 'Error al cargar roles: ' + error.message);
         } finally {
             setLoading(false);
         }
@@ -65,12 +67,12 @@ const UserRolesModal = ({ user, onClose, onUpdate }) => {
                 await removerRolDeUsuario(user.id, roleId);
             }
 
-            alert('Roles actualizados correctamente');
+            notification.success('Roles actualizados', 'Los roles se actualizaron correctamente');
             if (onUpdate) await onUpdate();
             onClose();
         } catch (error) {
             console.error('Error guardando roles:', error);
-            alert('Error al guardar roles: ' + error.message);
+            notification.error('Error', 'Error al guardar roles: ' + error.message);
         } finally {
             setSaving(false);
         }

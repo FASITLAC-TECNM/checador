@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle, XCircle, AlertCircle, Monitor, Trash2, RefreshCw } from 'lucide-react';
 import { getSolicitudes, aceptarSolicitud, rechazarSolicitud, deleteSolicitud } from '../../services/solicitudesService';
+import { useNotification } from '../../contexts/NotificationContext';
 
 const SolicitudesPage = () => {
+    const notification = useNotification();
     const [solicitudes, setSolicitudes] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedSolicitud, setSelectedSolicitud] = useState(null);
@@ -21,24 +23,25 @@ const SolicitudesPage = () => {
             setSolicitudes(data);
         } catch (error) {
             console.error('Error cargando solicitudes:', error);
-            alert('Error al cargar las solicitudes');
+            notification.error('Error de carga', 'Error al cargar las solicitudes');
         } finally {
             setLoading(false);
         }
     };
 
     const handleAceptar = async (solicitud) => {
-        if (!confirm(`¿Aceptar la solicitud de "${solicitud.nombre}"?`)) return;
+        const confirmed = await notification.confirm('Aceptar solicitud', `¿Aceptar la solicitud de "${solicitud.nombre}"?`);
+        if (!confirmed) return;
 
         try {
             // TODO: Obtener el ID del usuario actual de la sesión
             const idUsuarioAprobador = 1; // Por ahora usar 1, luego integrar con la sesión
             await aceptarSolicitud(solicitud.id, idUsuarioAprobador);
-            alert('Solicitud aceptada correctamente. El dispositivo ha sido creado.');
+            notification.success('Solicitud aceptada', 'El dispositivo ha sido creado correctamente');
             cargarSolicitudes();
         } catch (error) {
             console.error('Error aceptando solicitud:', error);
-            alert('Error al aceptar la solicitud');
+            notification.error('Error', 'Error al aceptar la solicitud');
         }
     };
 
@@ -50,7 +53,7 @@ const SolicitudesPage = () => {
 
     const confirmarRechazo = async () => {
         if (!motivoRechazo.trim()) {
-            alert('Por favor ingresa un motivo de rechazo');
+            notification.warning('Motivo requerido', 'Por favor ingresa un motivo de rechazo');
             return;
         }
 
@@ -58,27 +61,28 @@ const SolicitudesPage = () => {
             // TODO: Obtener el ID del usuario actual de la sesión
             const idUsuarioAprobador = 1;
             await rechazarSolicitud(selectedSolicitud.id, idUsuarioAprobador, motivoRechazo);
-            alert('Solicitud rechazada correctamente');
+            notification.success('Solicitud rechazada', 'La solicitud ha sido rechazada correctamente');
             setShowRejectModal(false);
             setSelectedSolicitud(null);
             setMotivoRechazo('');
             cargarSolicitudes();
         } catch (error) {
             console.error('Error rechazando solicitud:', error);
-            alert('Error al rechazar la solicitud');
+            notification.error('Error', 'Error al rechazar la solicitud');
         }
     };
 
     const handleEliminar = async (solicitud) => {
-        if (!confirm(`¿Eliminar la solicitud de "${solicitud.nombre}"? Esta acción no se puede deshacer.`)) return;
+        const confirmed = await notification.confirm('Eliminar solicitud', `¿Eliminar la solicitud de "${solicitud.nombre}"? Esta acción no se puede deshacer.`);
+        if (!confirmed) return;
 
         try {
             await deleteSolicitud(solicitud.id);
-            alert('Solicitud eliminada correctamente');
+            notification.success('Solicitud eliminada', 'La solicitud ha sido eliminada correctamente');
             cargarSolicitudes();
         } catch (error) {
             console.error('Error eliminando solicitud:', error);
-            alert(error.message || 'Error al eliminar la solicitud');
+            notification.error('Error', error.message || 'Error al eliminar la solicitud');
         }
     };
 
@@ -178,41 +182,37 @@ const SolicitudesPage = () => {
                 <div className="mb-6 flex gap-2">
                     <button
                         onClick={() => setFilter('all')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                            filter === 'all'
+                        className={`px-4 py-2 rounded-lg font-medium transition-all ${filter === 'all'
                                 ? 'bg-blue-600 text-white'
                                 : 'bg-white text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7]'
-                        }`}
+                            }`}
                     >
                         Todas ({solicitudes.length})
                     </button>
                     <button
                         onClick={() => setFilter('pendientes')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                            filter === 'pendientes'
+                        className={`px-4 py-2 rounded-lg font-medium transition-all ${filter === 'pendientes'
                                 ? 'bg-yellow-600 text-white'
                                 : 'bg-white text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7]'
-                        }`}
+                            }`}
                     >
                         Pendientes ({pendientes})
                     </button>
                     <button
                         onClick={() => setFilter('aceptadas')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                            filter === 'aceptadas'
+                        className={`px-4 py-2 rounded-lg font-medium transition-all ${filter === 'aceptadas'
                                 ? 'bg-green-600 text-white'
                                 : 'bg-white text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7]'
-                        }`}
+                            }`}
                     >
                         Aceptadas ({aceptadas})
                     </button>
                     <button
                         onClick={() => setFilter('rechazadas')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                            filter === 'rechazadas'
+                        className={`px-4 py-2 rounded-lg font-medium transition-all ${filter === 'rechazadas'
                                 ? 'bg-red-600 text-white'
                                 : 'bg-white text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7]'
-                        }`}
+                            }`}
                     >
                         Rechazadas ({rechazadas})
                     </button>

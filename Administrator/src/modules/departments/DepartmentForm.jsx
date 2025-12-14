@@ -3,8 +3,10 @@ import { ArrowLeft, Save, X, Building2 } from 'lucide-react';
 import { getUsuarios } from '../../services/api';
 import DepartmentMap from './DepartamentMap';
 import JefesSelector from './JefesSelector';
+import { useNotification } from '../../contexts/NotificationContext';
 
 const DepartmentForm = ({ department, onSave, onCancel }) => {
+    const notification = useNotification();
     const [formData, setFormData] = useState({
         nombre: '',
         descripcion: '',
@@ -142,7 +144,7 @@ const DepartmentForm = ({ department, onSave, onCancel }) => {
 
     const handleSubmit = () => {
         if (!formData.nombre || !formData.descripcion || formData.jefes.length === 0) {
-            alert('Por favor complete todos los campos obligatorios (*)\nAsegúrate de seleccionar al menos un jefe de departamento.');
+            notification.warning('Campos requeridos', 'Por favor complete todos los campos obligatorios (*)\nAsegúrate de seleccionar al menos un jefe de departamento.');
             return;
         }
 

@@ -34,7 +34,7 @@ const DashboardPage = () => {
     const renderContent = () => {
         switch (activeView) {
             case 'home':
-                return <HomePage />;
+                return <HomePage setActiveView={setActiveView} />;
             case 'users':
                 return <UserPage />;
             case 'settings':
@@ -57,7 +57,7 @@ const DashboardPage = () => {
             case 'history':
                 return <HistoryPage />;
             default:
-                return <HomePage />;
+                return <HomePage setActiveView={setActiveView} />;
         }
     };
 

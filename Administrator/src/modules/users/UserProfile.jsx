@@ -7,8 +7,10 @@ import { obtenerHorarioPorId, actualizarHorario, obtenerHorarioPorEmpleado } fro
 import UserRolesModal from './UserRolesModal';
 import HorarioEditor from './HorarioEditor';
 import HorarioSemanal from '../../components/HorarioSemanal';
+import { useNotification } from '../../contexts/NotificationContext';
 
 const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, onEditRoles }) => {
+    const notification = useNotification();
     const [empleadoData, setEmpleadoData] = useState(null);
     const [loadingEmpleado, setLoadingEmpleado] = useState(false);
     const [editingUser, setEditingUser] = useState(false);
@@ -162,11 +164,11 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
         const file = e.target.files[0];
         if (file) {
             if (file.size > 5 * 1024 * 1024) {
-                alert('La imagen no debe superar 5MB');
+                notification.warning('Archivo muy grande', 'La imagen no debe superar 5MB');
                 return;
             }
             if (!file.type.startsWith('image/')) {
-                alert('Solo se permiten imágenes');
+                notification.warning('Formato no válido', 'Solo se permiten imágenes');
                 return;
             }
 
@@ -184,20 +186,20 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
             await actualizarUsuario(user.id, userForm);
             setEditingUser(false);
             if (onUpdate) onUpdate();
-            alert('Usuario actualizado correctamente');
+            notification.success('Usuario actualizado', 'Los datos se actualizaron correctamente');
         } catch (error) {
             console.error('Error:', error);
-            alert('Error al actualizar usuario');
+            notification.error('Error', 'Error al actualizar usuario');
         }
     };
 
     const handleSaveEmpleado = async () => {
         if (!empleadoForm.nss || !empleadoForm.nss.trim()) {
-            alert('El NSS es obligatorio');
+            notification.warning('Campo requerido', 'El NSS es obligatorio');
             return;
         }
         if (!empleadoForm.rfc || !empleadoForm.rfc.trim()) {
-            alert('El RFC es obligatorio');
+            notification.warning('Campo requerido', 'El RFC es obligatorio');
             return;
         }
 
@@ -212,7 +214,7 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
         }
 
         if (!nssValid.valid || !rfcValid.valid || !pinValid.valid) {
-            alert('Por favor corrige los errores antes de guardar');
+            notification.warning('Errores de validación', 'Por favor corrige los errores antes de guardar');
             return;
         }
 
@@ -247,7 +249,7 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
                 }
             } else {
                 if (!user?.id) {
-                    alert('Error: No se puede crear empleado sin un usuario asociado');
+                    notification.error('Error', 'No se puede crear empleado sin un usuario asociado');
                     return;
                 }
 
@@ -271,16 +273,22 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
             await cargarDatosEmpleado();
             setEditingEmpleado(false);
             if (onUpdate) onUpdate();
-            alert(empleadoData ? 'Datos de empleado actualizados correctamente' : 'Empleado creado correctamente');
+            notification.success(
+                empleadoData ? 'Empleado actualizado' : 'Empleado creado',
+                empleadoData ? 'Los datos del empleado se actualizaron correctamente' : 'El empleado se creó correctamente'
+            );
         } catch (error) {
             console.error('Error:', error);
-            alert(empleadoData ? 'Error al actualizar empleado: ' + error.message : 'Error al crear empleado: ' + error.message);
+            notification.error(
+                empleadoData ? 'Error al actualizar' : 'Error al crear',
+                empleadoData ? 'Error al actualizar empleado: ' + error.message : 'Error al crear empleado: ' + error.message
+            );
         }
     };
 
     const handleEditarHorario = async () => {
         if (!empleadoData?.horario_id) {
-            alert('Este empleado no tiene un horario asignado');
+            notification.info('Sin horario', 'Este empleado no tiene un horario asignado');
             return;
         }
 
@@ -290,7 +298,7 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
             setShowHorarioEditor(true);
         } catch (error) {
             console.error('Error cargando horario:', error);
-            alert('Error al cargar el horario');
+            notification.error('Error', 'Error al cargar el horario');
         }
     };
 
@@ -300,12 +308,12 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
                 config_excep: configActualizada
             });
 
-            alert('Horario actualizado correctamente');
+            notification.success('Horario actualizado', 'El horario se actualizó correctamente');
             setShowHorarioEditor(false);
             await cargarDatosEmpleado();
         } catch (error) {
             console.error('Error guardando horario:', error);
-            alert('Error al guardar el horario');
+            notification.error('Error', 'Error al guardar el horario');
         }
     };
 

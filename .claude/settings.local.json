@@ -31,7 +31,10 @@
       "Bash(rm:*)",
       "Bash(cat:*)",
       "Bash(timeout /t 5 /nobreak)",
-      "Bash(timeout /t 2 /nobreak)"
+      "Bash(timeout /t 2 /nobreak)",
+      "Bash(for file in users/UserForm.jsx users/UserProfile.jsx roles/RolesPage.jsx devices/DevicesPage.jsx devices/DeviceRequestPage.jsx devices/SolicitudCard.jsx devices/SolicitudesPage.jsx)",
+      "Bash(do echo \"Procesando $file\")",
+      "Bash(done)"
     ],
     "deny": [],
     "ask": []

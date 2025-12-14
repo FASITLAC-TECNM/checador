@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Save, Mail, Phone, User, Lock, Shield, Briefcase, Upload, Camera, X } from 'lucide-react';
 import EmployeeFormEnhanced from './EmployeeForm';
 import { getEmpleadoPorUsuario } from '../../services/empleadoService';
+import { useNotification } from '../../contexts/NotificationContext';
 
 const UserFormEnhanced = ({ user, onSave, onCancel }) => {
+    const notification = useNotification();
     const [formData, setFormData] = useState(user || {
         id: Date.now(),
         username: '',
@@ -114,12 +116,12 @@ const UserFormEnhanced = ({ user, onSave, onCancel }) => {
         const file = e.target.files[0];
         if (file) {
             if (file.size > 5 * 1024 * 1024) {
-                alert('La imagen no debe superar 5MB');
+                notification.warning('Archivo muy grande', 'La imagen no debe superar 5MB');
                 return;
             }
 
             if (!file.type.startsWith('image/')) {
-                alert('Solo se permiten imágenes');
+                notification.warning('Formato no válido', 'Solo se permiten imágenes');
                 return;
             }
 

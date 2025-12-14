@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Plus, Calendar, Clock, Users, Edit2, Trash2, ArrowLeft, Save, X, AlertCircle } from 'lucide-react';
 import { obtenerHorarios, crearHorario, actualizarHorario, eliminarHorario, obtenerEmpleadosPorHorario } from '../../services/horariosService';
+import { useNotification } from '../../contexts/NotificationContext';
 
 const SchedulesPage = () => {
+    const notification = useNotification();
     const [horarios, setHorarios] = useState([]);
     const [loading, setLoading] = useState(true);
     const [view, setView] = useState('list'); // 'list', 'create', 'edit'
@@ -34,7 +36,7 @@ const SchedulesPage = () => {
             setHorarios(horariosData);
         } catch (error) {
             console.error('Error cargando datos:', error);
-            alert('Error al cargar los datos');
+            notification.error('Error de carga', 'Error al cargar los datos');
         } finally {
             setLoading(false);
         }
@@ -78,15 +80,16 @@ const SchedulesPage = () => {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm('¿Estás seguro de eliminar este horario?')) return;
+        const confirmed = await notification.confirm('Eliminar horario', '¿Estás seguro de eliminar este horario?');
+        if (!confirmed) return;
 
         try {
             await eliminarHorario(id);
-            alert('Horario eliminado correctamente');
+            notification.success('Horario eliminado', 'El horario se eliminó correctamente');
             cargarDatos();
         } catch (error) {
             console.error('Error eliminando horario:', error);
-            alert(error.response?.data?.error || 'Error al eliminar horario');
+            notification.error('Error', error.response?.data?.error || 'Error al eliminar horario');
         }
     };
 
@@ -123,17 +126,17 @@ const SchedulesPage = () => {
 
             if (view === 'edit') {
                 await actualizarHorario(selectedHorario.id, horarioData);
-                alert('Horario actualizado correctamente');
+                notification.success('Horario actualizado', 'El horario se actualizó correctamente');
             } else {
                 await crearHorario(horarioData);
-                alert('Horario creado correctamente');
+                notification.success('Horario creado', 'El horario se creó correctamente');
             }
 
             setView('list');
             cargarDatos();
         } catch (error) {
             console.error('Error guardando horario:', error);
-            alert('Error al guardar horario');
+            notification.error('Error', 'Error al guardar horario');
         }
     };
 

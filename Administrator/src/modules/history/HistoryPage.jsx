@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { History, Filter, Download } from 'lucide-react';
 import HistoryList from './HistoryList';
+import { useNotification } from '../../contexts/NotificationContext';
 
 const HistoryPage = () => {
+    const notification = useNotification();
     const [filterType, setFilterType] = useState('todos');
     const [filterDate, setFilterDate] = useState('todos');
     const [searchTerm, setSearchTerm] = useState('');
@@ -108,7 +110,7 @@ const HistoryPage = () => {
     });
 
     const handleExport = () => {
-        alert('Exportando historial...\nEsta funcionalidad estará disponible próximamente.');
+        notification.info('Próximamente', 'Esta funcionalidad estará disponible próximamente.');
     };
 
     const getTipoStats = () => {

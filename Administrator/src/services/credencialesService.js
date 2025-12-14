@@ -28,7 +28,13 @@ export const getCredencialesByEmpleado = async (idEmpleado) => {
     }
 };
 
-/**
+export const getCredencialesPorEmpleado = async (idEmpleado) => {
+    const response = await fetch(`${API_URL}/credenciales/empleado/${idEmpleado}`);
+    if (!response.ok) throw new Error('Error al obtener credenciales');
+    return response.json();
+};
+
+/**es
  * Obtener métodos de autenticación configurados para un empleado
  * @param {number} idEmpleado - ID del empleado
  */

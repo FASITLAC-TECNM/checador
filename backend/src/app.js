@@ -6,6 +6,9 @@ import empleadosRoutes from './routes/empleados.routes.js';
 import credencialesRoutes from './routes/credenciales.routes.js';
 import rolesRoutes from './routes/roles.routes.js';
 import departamentosRoutes from './routes/departamentos.routes.js';
+import horariosRoutes from './routes/horarios.routes.js';
+import escritorioRoutes from './routes/escritorio.routes.js';
+import solicitudEscritorioRoutes from './routes/solicitudEscritorio.routes.js';
 
 const app = express();
 
@@ -33,5 +36,8 @@ app.use('/api/empleados', empleadosRoutes);
 app.use('/api/credenciales', credencialesRoutes);
 app.use('/api', rolesRoutes);
 app.use('/api/departamentos', departamentosRoutes);
+app.use('/api/horarios', horariosRoutes);
+app.use('/api/escritorios', escritorioRoutes);
+app.use('/api/solicitudes-escritorio', solicitudEscritorioRoutes);
 
 export default app;

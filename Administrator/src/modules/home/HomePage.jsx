@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react';
 import logo from './logo.png';
 import { getEstadisticas } from '../../services';
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Calendar } from "lucide-react";
+import HorarioSemanal from '../../components/HorarioSemanal';
+import { obtenerHorariosConEmpleados } from '../../services/horariosService';
 
 function HomePage() {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [lastUpdate, setLastUpdate] = useState(new Date());
+    const [horarios, setHorarios] = useState([]);
+    const [loadingHorarios, setLoadingHorarios] = useState(true);
+    const [showHorarioModal, setShowHorarioModal] = useState(false);
 
     useEffect(() => {
         const cargar = async () => {
@@ -25,6 +30,23 @@ function HomePage() {
         cargar();
         const interval = setInterval(cargar, 30000);
         return () => clearInterval(interval);
+    }, []);
+
+    useEffect(() => {
+        const cargarHorarios = async () => {
+            try {
+                setLoadingHorarios(true);
+                const data = await obtenerHorariosConEmpleados();
+                setHorarios(data || []);
+            } catch (error) {
+                console.error("Error cargando horarios:", error);
+                setHorarios([]);
+            } finally {
+                setLoadingHorarios(false);
+            }
+        };
+
+        cargarHorarios();
     }, []);
 
     const getTimeAgo = () => {
@@ -129,6 +151,38 @@ function HomePage() {
                         </div>
                     </div>
                 </section>
+
+                {/* Botón para abrir el horario semanal */}
+                <section>
+                    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-8">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 className="text-2xl font-semibold text-slate-900 tracking-tight flex items-center gap-3">
+                                    <Calendar size={28} className="text-indigo-600" />
+                                    Horarios de Trabajo
+                                </h2>
+                                <p className="text-sm text-slate-500 mt-2">
+                                    Visualiza los horarios semanales de todos los empleados
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => setShowHorarioModal(true)}
+                                className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-colors shadow-sm flex items-center gap-2"
+                            >
+                                <Calendar size={20} />
+                                Ver Horario Semanal
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Modal de Horario Semanal */}
+                <HorarioSemanal
+                    horarios={horarios}
+                    showEmployeeInfo={true}
+                    isOpen={showHorarioModal}
+                    onClose={() => setShowHorarioModal(false)}
+                />
 
             </div>
         </div>

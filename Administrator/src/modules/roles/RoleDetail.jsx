@@ -2,14 +2,16 @@ import React, { useState, useEffect } from 'react';
 import {
     ArrowLeft, Edit2, Shield, Users, Calendar,
     Check, X, Search, Mail, Phone, Building2,
-    User, Clock, MapPin
+    User, Clock, MapPin, UserPlus
 } from 'lucide-react';
-import { getUsuarios } from '../../services/api';
+import { getUsuarios, obtenerRolesDeUsuario } from '../../services/api';
+import AssignUsersModal from './AssignUsersModal';
 
 const RoleDetail = ({ role, onClose, onEdit }) => {
     const [usuarios, setUsuarios] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [showAssignModal, setShowAssignModal] = useState(false);
 
     // Cargar usuarios con este rol desde la BD
     useEffect(() => {
@@ -21,12 +23,22 @@ const RoleDetail = ({ role, onClose, onEdit }) => {
             setLoading(true);
             const todosLosUsuarios = await getUsuarios();
 
-            // Filtrar solo los usuarios que tienen este rol
-            const usuariosConEsteRol = todosLosUsuarios.filter(
-                usuario => usuario.rol_id === role.id
-            );
+            // Verificar qué usuarios tienen este rol asignado
+            const usuariosConRol = [];
+            for (const usuario of todosLosUsuarios) {
+                try {
+                    const roles = await obtenerRolesDeUsuario(usuario.id);
+                    const tieneEsteRol = roles.some(r => r.id_rol === role.id);
+                    if (tieneEsteRol) {
+                        usuariosConRol.push(usuario);
+                    }
+                } catch (error) {
+                    // Si hay error al obtener roles de un usuario, continuar con el siguiente
+                    console.error(`Error obteniendo roles del usuario ${usuario.id}:`, error);
+                }
+            }
 
-            setUsuarios(usuariosConEsteRol);
+            setUsuarios(usuariosConRol);
         } catch (error) {
             console.error('Error al cargar usuarios del rol:', error);
         } finally {
@@ -89,8 +101,16 @@ const RoleDetail = ({ role, onClose, onEdit }) => {
     };
 
     return (
-        <div className="min-h-screen bg-[#FBFBFD] p-6">
-            <div className="max-w-7xl mx-auto">
+        <>
+            {showAssignModal && (
+                <AssignUsersModal
+                    role={role}
+                    onClose={() => setShowAssignModal(false)}
+                    onUpdate={cargarUsuariosDelRol}
+                />
+            )}
+            <div className="min-h-screen bg-[#FBFBFD] p-6">
+                <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="mb-6">
                     <button
@@ -197,6 +217,14 @@ const RoleDetail = ({ role, onClose, onEdit }) => {
                                     <Users className="w-5 h-5" />
                                     Usuarios con este Rol ({filteredUsuarios.length})
                                 </h2>
+                                <button
+                                    onClick={() => setShowAssignModal(true)}
+                                    className="flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:opacity-90 transition-all font-medium shadow-sm"
+                                    style={{ backgroundColor: role.color }}
+                                >
+                                    <UserPlus className="w-4 h-4" />
+                                    Asignar Usuarios
+                                </button>
                             </div>
 
                             {/* Buscador */}
@@ -312,6 +340,7 @@ const RoleDetail = ({ role, onClose, onEdit }) => {
                 </div>
             </div>
         </div>
+        </>
     );
 };
 

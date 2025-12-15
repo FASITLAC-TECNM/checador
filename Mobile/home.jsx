@@ -33,13 +33,26 @@ const obtenerUrlFotoPerfil = (foto) => {
 
 export const HomeScreen = ({ userData, darkMode }) => {
   const styles = darkMode ? homeStylesDark : homeStyles;
-  
+
   // Obtener la URL completa de la foto si existe
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
-  
+
+  // Extraer información del empleado, rol y departamento
+  const empleado = userData.empleado || null;
+  const rol = userData.rol || null;
+  const departamento = userData.departamento || null;
+  const permisos = userData.permisos || [];
+
+  // Si es empleado, priorizar rol "Empleado"
+  const rolMostrar = empleado ? 'Empleado' : (rol?.nombre_rol || 'Usuario');
+
   // Debug para ver qué datos tenemos
   console.log('👤 UserData:', userData);
   console.log('📸 Foto URL:', fotoUrl);
+  console.log('👔 Empleado:', empleado);
+  console.log('🔐 Rol:', rol);
+  console.log('🏢 Departamento:', departamento);
+  console.log('🔑 Permisos:', permisos);
 
   return (
     <View style={styles.container}>
@@ -88,22 +101,38 @@ export const HomeScreen = ({ userData, darkMode }) => {
               {/* Indicador de estado al lado de la foto */}
               <View style={[
                 styles.statusIndicator,
-                { backgroundColor: userData.estado === 'CONECTADO' ? '#10b981' : '#6b7280' }
+                { backgroundColor: userData.conexion === 'Conectado' ? '#10b981' : '#6b7280' }
               ]} />
             </View>
             <View style={styles.userDetails}>
-              <Text style={styles.greeting}>
-                Buenos dias, {userData.username}
+              <Text style={styles.greeting} numberOfLines={1}>
+                Buenos días, {userData.username}
               </Text>
-              <Text style={styles.userName}>{userData.nombre}</Text>
-              <View style={styles.roleBadge}>
-                <Text style={styles.roleText}>{userData.role || 'Empleado'}</Text>
+              <Text style={styles.userName} numberOfLines={2} ellipsizeMode="tail">
+                {userData.nombre}
+              </Text>
+              {/* Mostrar departamento si existe */}
+              {departamento && (
+                <Text style={styles.departmentText} numberOfLines={1}>
+                  {departamento.nombre_departamento}
+                </Text>
+              )}
+              {/* Mostrar rol - Prioriza "Empleado" si es empleado */}
+              <View style={[
+                styles.roleBadge,
+                empleado && { backgroundColor: '#10b98120' }, // Verde para empleados
+                !empleado && departamento && departamento.color && { backgroundColor: `${departamento.color}20` }
+              ]}>
+                <Text style={[
+                  styles.roleText,
+                  empleado && { color: '#10b981' }, // Verde para empleados
+                  !empleado && departamento && departamento.color && { color: departamento.color }
+                ]} numberOfLines={1}>
+                  {rolMostrar}
+                </Text>
               </View>
             </View>
           </View>
-          <TouchableOpacity>
-            <Ionicons name="chevron-forward" size={24} color="#9ca3af" />
-          </TouchableOpacity>
         </View>
 
         {/* Register Card */}
@@ -243,6 +272,11 @@ const homeStyles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#1f2937',
+    marginTop: 2,
+  },
+  departmentText: {
+    fontSize: 13,
+    color: '#6b7280',
     marginTop: 2,
   },
   roleBadge: {

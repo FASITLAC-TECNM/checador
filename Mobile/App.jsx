@@ -1,34 +1,66 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LoginScreen } from './login';
 import { HomeScreen } from './home';
 import { HistoryScreen } from './history';
 import { ScheduleScreen } from './schedule';
 import { SettingsScreen } from './settings';
 import { BottomNavigation } from './nav';
+import { OnboardingNavigator } from './onBoardNavigator';
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentScreen, setCurrentScreen] = useState('home');
   const [darkMode, setDarkMode] = useState(false);
   const [userData, setUserData] = useState(null);
+  const [onboardingCompleted, setOnboardingCompleted] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // TODO: Cuando la base de datos esté lista, descomentar esto
+    // checkOnboardingStatus();
+
+    // Por ahora siempre mostramos el onboarding (sin guardar estado)
+    setOnboardingCompleted(false);
+    setIsLoading(false);
+  }, []);
+
+  const checkOnboardingStatus = async () => {
+    try {
+      const completed = await AsyncStorage.getItem('onboardingCompleted');
+      setOnboardingCompleted(completed === 'true');
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error checking onboarding status:', error);
+      setOnboardingCompleted(false);
+      setIsLoading(false);
+    }
+  };
+
+  const handleOnboardingComplete = async (onboardingData) => {
+    try {
+      console.log('Onboarding completado con datos:', onboardingData);
+
+      // TODO: Aquí conectaremos con la base de datos real
+      // Por ahora solo logueamos los datos y marcamos como completado en memoria
+      // await AsyncStorage.setItem('onboardingCompleted', 'true');
+      // await AsyncStorage.setItem('onboardingData', JSON.stringify(onboardingData));
+
+      // Marcamos como completado solo en esta sesión (se resetea al reiniciar)
+      setOnboardingCompleted(true);
+    } catch (error) {
+      console.error('Error saving onboarding data:', error);
+    }
+  };
 
   const handleLoginSuccess = (data) => {
     console.log('🎯 Datos recibidos en App:', data);
-    
+
     // Guardar TODOS los datos del usuario que vienen del backend
-    setUserData({
-      id: data.id,
-      username: data.username,
-      email: data.email,
-      nombre: data.nombre,
-      telefono: data.telefono || '',
-      foto: data.foto || null,
-      activo: data.activo,
-      estado: data.estado,
-      role: data.role || 'Administrador' // Por si no viene en el backend
-    });
+    // Incluye: usuario, empleado, rol, permisos, departamento
+    setUserData(data);
     setIsLoggedIn(true);
   };
 
@@ -38,6 +70,21 @@ export default function App() {
     setUserData(null);
   };
 
+  // Mostrar pantalla de carga mientras se verifica el estado del onboarding
+  if (isLoading) {
+    return null; // O un componente de loading si lo tienes
+  }
+
+  // Si no ha completado el onboarding, mostrar el flujo de onboarding
+  if (!onboardingCompleted) {
+    return (
+      <SafeAreaProvider>
+        <OnboardingNavigator onComplete={handleOnboardingComplete} />
+      </SafeAreaProvider>
+    );
+  }
+
+  // Si no está logueado, mostrar pantalla de login
   if (!isLoggedIn || !userData) {
     return (
       <SafeAreaProvider>
@@ -48,24 +95,24 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView 
+      <SafeAreaView
         style={[appStyles.container, darkMode && appStyles.containerDark]}
-        edges={['bottom']}
+        edges={['top']}
       >
         {currentScreen === 'home' && <HomeScreen userData={userData} darkMode={darkMode} />}
         {currentScreen === 'history' && <HistoryScreen darkMode={darkMode} />}
         {currentScreen === 'schedule' && <ScheduleScreen darkMode={darkMode} />}
         {currentScreen === 'settings' && (
-          <SettingsScreen 
-            userData={userData} 
+          <SettingsScreen
+            userData={userData}
             email={userData.email}
-            darkMode={darkMode} 
+            darkMode={darkMode}
             onToggleDarkMode={() => setDarkMode(!darkMode)}
             onLogout={handleLogout}
           />
         )}
 
-        <BottomNavigation 
+        <BottomNavigation
           currentScreen={currentScreen}
           onScreenChange={setCurrentScreen}
           darkMode={darkMode}

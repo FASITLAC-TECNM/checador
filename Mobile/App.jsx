@@ -43,6 +43,13 @@ export default function App() {
     try {
       console.log('Onboarding completado con datos:', onboardingData);
 
+      // Si se saltó el onboarding, simplemente marcarlo como completado
+      if (onboardingData.skipped) {
+        console.log('⏭️ Onboarding saltado, ir directo a login');
+        setOnboardingCompleted(true);
+        return;
+      }
+
       // TODO: Aquí conectaremos con la base de datos real
       // Por ahora solo logueamos los datos y marcamos como completado en memoria
       // await AsyncStorage.setItem('onboardingCompleted', 'true');
@@ -101,7 +108,7 @@ export default function App() {
       >
         {currentScreen === 'home' && <HomeScreen userData={userData} darkMode={darkMode} />}
         {currentScreen === 'history' && <HistoryScreen darkMode={darkMode} />}
-        {currentScreen === 'schedule' && <ScheduleScreen darkMode={darkMode} />}
+        {currentScreen === 'schedule' && <ScheduleScreen userData={userData} darkMode={darkMode} />}
         {currentScreen === 'settings' && (
           <SettingsScreen
             userData={userData}

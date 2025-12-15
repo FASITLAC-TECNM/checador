@@ -9,7 +9,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import config from './config/onboardingConfig.json';
 
-export const ApprovedScreen = ({ email, companyCode, onComplete }) => {
+export const ApprovedScreen = ({ email, deviceInfo, onComplete }) => {
   const { approved } = config;
 
   return (
@@ -37,19 +37,53 @@ export const ApprovedScreen = ({ email, companyCode, onComplete }) => {
 
           {/* Checklist */}
           <View style={styles.checklist}>
-            {approved.checklist.map((item, index) => (
-              <View key={index} style={styles.checkItem}>
-                <Ionicons name={item.icon} size={18} color="#10b981" />
+            <View style={styles.checkItem}>
+              <Ionicons name="mail" size={18} color="#10b981" />
+              <View style={styles.checkContent}>
+                <Text style={styles.checkTitle}>Correo Verificado</Text>
+                <Text style={styles.checkDescription}>{email}</Text>
+              </View>
+            </View>
+
+            <View style={styles.checkItem}>
+              <Ionicons name="phone-portrait" size={18} color="#10b981" />
+              <View style={styles.checkContent}>
+                <Text style={styles.checkTitle}>Dispositivo Registrado</Text>
+                <Text style={styles.checkDescription}>
+                  {deviceInfo?.model || 'Dispositivo móvil'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.checkItem}>
+              <Ionicons name="shield-checkmark" size={18} color="#10b981" />
+              <View style={styles.checkContent}>
+                <Text style={styles.checkTitle}>Acceso Aprobado</Text>
+                <Text style={styles.checkDescription}>
+                  Puedes comenzar a usar la aplicación
+                </Text>
+              </View>
+            </View>
+
+            {deviceInfo?.ip && (
+              <View style={styles.checkItem}>
+                <Ionicons name="analytics" size={18} color="#10b981" />
                 <View style={styles.checkContent}>
-                  <Text style={styles.checkTitle}>{item.title}</Text>
+                  <Text style={styles.checkTitle}>Información de Red</Text>
                   <Text style={styles.checkDescription}>
-                    {item.field === 'email' && email}
-                    {item.field === 'companyCode' && companyCode}
-                    {item.description && item.description}
+                    IP: {deviceInfo.ip}
                   </Text>
                 </View>
               </View>
-            ))}
+            )}
+          </View>
+
+          {/* Additional Info */}
+          <View style={styles.infoBox}>
+            <Ionicons name="information-circle" size={16} color="#065f46" />
+            <Text style={styles.infoText}>
+              Tu dispositivo ha sido vinculado exitosamente. Ahora puedes acceder a todas las funciones de la aplicación.
+            </Text>
           </View>
         </View>
       </View>
@@ -75,7 +109,7 @@ export const ApprovedScreen = ({ email, companyCode, onComplete }) => {
           onPress={onComplete}
           activeOpacity={0.8}
         >
-          <Text style={styles.completeButtonText}>{approved.buttonText}</Text>
+          <Text style={styles.completeButtonText}>Comenzar a Usar</Text>
           <Ionicons name="arrow-forward" size={18} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -143,10 +177,14 @@ const styles = StyleSheet.create({
   checklist: {
     width: '100%',
     gap: 10,
+    marginBottom: 12,
   },
   checkItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    backgroundColor: '#a7f3d0',
+    borderRadius: 8,
+    padding: 10,
   },
   checkContent: {
     flex: 1,
@@ -161,6 +199,21 @@ const styles = StyleSheet.create({
   checkDescription: {
     fontSize: 11,
     color: '#047857',
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#6ee7b7',
+    borderRadius: 8,
+    padding: 10,
+    width: '100%',
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 10,
+    color: '#065f46',
+    marginLeft: 8,
+    lineHeight: 14,
   },
   footer: {
     backgroundColor: '#fff',

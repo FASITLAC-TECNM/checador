@@ -9,6 +9,7 @@ import departamentosRoutes from './routes/departamentos.routes.js';
 import horariosRoutes from './routes/horarios.routes.js';
 import escritorioRoutes from './routes/escritorio.routes.js';
 import solicitudEscritorioRoutes from './routes/solicitudEscritorio.routes.js';
+import solicitudMovilRoutes from './routes/solicitudMovil.routes.js';
 
 const app = express();
 
@@ -39,5 +40,6 @@ app.use('/api/departamentos', departamentosRoutes);
 app.use('/api/horarios', horariosRoutes);
 app.use('/api/escritorios', escritorioRoutes);
 app.use('/api/solicitudes-escritorio', solicitudEscritorioRoutes);
+app.use('/api/solicitudes-movil', solicitudMovilRoutes);
 
 export default app;

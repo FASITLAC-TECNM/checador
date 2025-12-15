@@ -1,88 +1,73 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { History, Filter, Download } from 'lucide-react';
 import HistoryList from './HistoryList';
 import { useNotification } from '../../contexts/NotificationContext';
+import { obtenerEventosRecientes, exportarEventosCSV } from '../../services/eventosService';
 
 const HistoryPage = () => {
     const notification = useNotification();
     const [filterType, setFilterType] = useState('todos');
     const [filterDate, setFilterDate] = useState('todos');
     const [searchTerm, setSearchTerm] = useState('');
+    const [eventos, setEventos] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const historyRecords = [
-        {
-            id: 1,
-            tipo: 'usuario',
-            accion: 'Creación',
-            descripcion: 'Se creó el usuario "Carlos Ramírez"',
-            usuario: 'Admin',
-            fecha: '2024-11-02T10:30:00',
-            detalles: { nombre: 'Carlos Ramírez', rol: 'Supervisor' }
-        },
-        {
-            id: 2,
-            tipo: 'rol',
-            accion: 'Edición',
-            descripcion: 'Se modificaron los permisos del rol "Gerente"',
-            usuario: 'Admin',
-            fecha: '2024-11-02T09:15:00',
-            detalles: { rol: 'Gerente', cambios: 'Permisos de usuarios' }
-        },
-        {
-            id: 3,
-            tipo: 'dispositivo',
-            accion: 'Registro',
-            descripcion: 'Se registró un nuevo dispositivo "Terminal Principal"',
-            usuario: 'Admin',
-            fecha: '2024-11-01T16:45:00',
-            detalles: { dispositivo: 'Terminal Principal', tipo: 'Biométrico' }
-        },
-        {
-            id: 4,
-            tipo: 'usuario',
-            accion: 'Eliminación',
-            descripcion: 'Se eliminó el usuario "Juan Pérez"',
-            usuario: 'Admin',
-            fecha: '2024-11-01T14:20:00',
-            detalles: { nombre: 'Juan Pérez', motivo: 'Baja de la empresa' }
-        },
-        {
-            id: 5,
-            tipo: 'departamento',
-            accion: 'Creación',
-            descripcion: 'Se creó el departamento "Marketing"',
-            usuario: 'Admin',
-            fecha: '2024-11-01T11:00:00',
-            detalles: { departamento: 'Marketing', jefe: 'Ana López' }
-        },
-        {
-            id: 6,
-            tipo: 'asistencia',
-            accion: 'Registro',
-            descripcion: 'Entrada registrada para "María García"',
-            usuario: 'Sistema',
-            fecha: '2024-11-02T08:00:00',
-            detalles: { empleado: 'María García', tipo: 'Entrada' }
-        },
-        {
-            id: 7,
-            tipo: 'rol',
-            accion: 'Creación',
-            descripcion: 'Se creó el rol "Técnico"',
-            usuario: 'Admin',
-            fecha: '2024-10-31T15:30:00',
-            detalles: { rol: 'Técnico', permisos: 'Limitados' }
-        },
-        {
-            id: 8,
-            tipo: 'dispositivo',
-            accion: 'Edición',
-            descripcion: 'Se actualizó la configuración del dispositivo "Entrada RH"',
-            usuario: 'Admin',
-            fecha: '2024-10-31T12:00:00',
-            detalles: { dispositivo: 'Entrada RH', cambios: 'IP y ubicación' }
+    // Función para mapear tipo_evento a categoría del historial
+    const mapearTipoEvento = (tipoEvento) => {
+        const mapeo = {
+            'notificacion': 'asistencia',
+            'anuncio': 'asistencia',
+            'alerta': 'asistencia',
+            'recordatorio': 'asistencia'
+        };
+        return mapeo[tipoEvento] || 'asistencia';
+    };
+
+    // Función para mapear estado a acción
+    const mapearAccion = (estado) => {
+        if (typeof estado === 'boolean') {
+            return estado ? 'Activo' : 'Inactivo';
         }
-    ];
+        const mapeo = {
+            'Entrada': 'Registro de Entrada',
+            'Salida': 'Registro de Salida',
+            'Ambos': 'Registro'
+        };
+        return mapeo[estado] || 'Evento';
+    };
+
+    // Cargar eventos desde la BD
+    useEffect(() => {
+        cargarEventos();
+    }, []);
+
+    const cargarEventos = async () => {
+        try {
+            setLoading(true);
+            const data = await obtenerEventosRecientes(100);
+            setEventos(data);
+        } catch (error) {
+            console.error('Error al cargar eventos:', error);
+            notification.error('Error', 'No se pudieron cargar los eventos del historial');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Mapear eventos de BD a formato del historial
+    const historyRecords = eventos.map(evento => ({
+        id: evento.id,
+        tipo: mapearTipoEvento(evento.tipo_evento),
+        accion: mapearAccion(evento.estado),
+        descripcion: evento.descripcion || evento.titulo,
+        usuario: 'Sistema',
+        fecha: evento.created_at || new Date().toISOString(),
+        detalles: {
+            titulo: evento.titulo,
+            estado: evento.estado,
+            tipo_evento: evento.tipo_evento
+        }
+    }));
 
     const filteredRecords = historyRecords.filter(record => {
         const matchesType = filterType === 'todos' || record.tipo === filterType;
@@ -110,7 +95,27 @@ const HistoryPage = () => {
     });
 
     const handleExport = () => {
-        notification.info('Próximamente', 'Esta funcionalidad estará disponible próximamente.');
+        if (filteredRecords.length === 0) {
+            notification.warning('Sin datos', 'No hay eventos para exportar');
+            return;
+        }
+
+        try {
+            const eventosParaExportar = filteredRecords.map(record => ({
+                id: record.id,
+                titulo: record.detalles?.titulo || record.descripcion,
+                descripcion: record.descripcion,
+                estado: record.detalles?.estado || '',
+                tipo_evento: record.detalles?.tipo_evento || '',
+                created_at: record.fecha
+            }));
+
+            exportarEventosCSV(eventosParaExportar);
+            notification.success('Exportado', 'El historial se exportó correctamente a CSV');
+        } catch (error) {
+            console.error('Error al exportar:', error);
+            notification.error('Error', 'No se pudo exportar el historial');
+        }
     };
 
     const getTipoStats = () => {
@@ -125,6 +130,17 @@ const HistoryPage = () => {
     };
 
     const stats = getTipoStats();
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-[#FBFBFD] p-6 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p className="text-[#6E6E73]">Cargando historial...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-[#FBFBFD] p-6">
@@ -191,11 +207,11 @@ const HistoryPage = () => {
                             className="px-4 py-2 bg-[#F5F5F7] border border-[#D2D2D7] text-[#1D1D1F] rounded-lg focus:outline-none focus:border-blue-600"
                         >
                             <option value="todos">Todos los tipos</option>
+                            <option value="asistencia">Asistencias</option>
                             <option value="usuario">Usuarios</option>
                             <option value="rol">Roles</option>
                             <option value="dispositivo">Dispositivos</option>
                             <option value="departamento">Departamentos</option>
-                            <option value="asistencia">Asistencias</option>
                         </select>
                         <select
                             value={filterDate}
@@ -210,7 +226,21 @@ const HistoryPage = () => {
                     </div>
                 </div>
 
-                <HistoryList records={filteredRecords} />
+                {filteredRecords.length === 0 ? (
+                    <div className="bg-white rounded-xl shadow-sm p-12 text-center border border-[#D2D2D7]">
+                        <History className="w-16 h-16 text-[#86868B] mx-auto mb-4" />
+                        <h3 className="text-xl font-semibold text-[#1D1D1F] mb-2">
+                            No hay eventos en el historial
+                        </h3>
+                        <p className="text-[#86868B]">
+                            {searchTerm || filterType !== 'todos' || filterDate !== 'todos'
+                                ? 'No se encontraron eventos con los filtros aplicados'
+                                : 'Los eventos aparecerán aquí cuando se registren'}
+                        </p>
+                    </div>
+                ) : (
+                    <HistoryList records={filteredRecords} />
+                )}
             </div>
         </div>
     );

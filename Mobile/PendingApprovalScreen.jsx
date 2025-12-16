@@ -3,44 +3,122 @@ import {
   View,
   Text,
   StyleSheet,
-  StatusBar
+  StatusBar,
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import config from './config/onboardingConfig.json';
+import { getSolicitudPorToken } from './services/solicitudMovilService';
 
-export const PendingApprovalScreen = ({ companyCode, onApproved }) => {
+export const PendingApprovalScreen = ({ tokenSolicitud, idSolicitud, onApproved, onRejected }) => {
   const { pending } = config;
-  const [timer, setTimer] = useState(pending.autoApproveSeconds);
+  const [solicitudStatus, setSolicitudStatus] = useState('Pendiente');
+  const [isChecking, setIsChecking] = useState(false);
+  const [checkCount, setCheckCount] = useState(0);
   const intervalRef = useRef(null);
   const onApprovedRef = useRef(onApproved);
+  const onRejectedRef = useRef(onRejected);
 
   useEffect(() => {
     onApprovedRef.current = onApproved;
-  }, [onApproved]);
+    onRejectedRef.current = onRejected;
+  }, [onApproved, onRejected]);
 
+  // Verificar estado cada 5 segundos
   useEffect(() => {
-    intervalRef.current = setInterval(() => {
-      setTimer(prev => {
-        if (prev <= 1) {
+    const checkStatus = async () => {
+      if (isChecking) return;
+
+      try {
+        setIsChecking(true);
+        console.log(`🔍 Verificando estado de solicitud (intento ${checkCount + 1})...`);
+
+        const response = await getSolicitudPorToken(tokenSolicitud);
+        
+        console.log('📥 Estado actual:', response.estado);
+        setSolicitudStatus(response.estado);
+
+        // Si fue aceptada, navegar a pantalla de aprobación
+        if (response.estado === 'Aceptado') {
+          console.log('✅ Solicitud ACEPTADA');
           if (intervalRef.current) {
             clearInterval(intervalRef.current);
           }
-          // Llamar después de un pequeño delay para evitar el warning
           setTimeout(() => {
-            onApprovedRef.current();
-          }, 100);
-          return 0;
+            onApprovedRef.current({
+              idDispositivo: response.id_escritorio,
+              fechaAprobacion: response.fecha_respuesta
+            });
+          }, 500);
         }
-        return prev - 1;
-      });
-    }, 1000);
 
+        // Si fue rechazada, mostrar alerta
+        if (response.estado === 'Rechazado') {
+          console.log('❌ Solicitud RECHAZADA');
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+          }
+          Alert.alert(
+            'Solicitud Rechazada',
+            response.motivo_rechazo || 'Tu solicitud ha sido rechazada por el administrador.',
+            [
+              {
+                text: 'Entendido',
+                onPress: () => {
+                  if (onRejectedRef.current) {
+                    onRejectedRef.current(response);
+                  }
+                }
+              }
+            ]
+          );
+        }
+
+        setCheckCount(prev => prev + 1);
+      } catch (error) {
+        console.error('❌ Error verificando estado:', error);
+        // No mostrar alerta aquí para no interrumpir el flujo
+      } finally {
+        setIsChecking(false);
+      }
+    };
+
+    // Primera verificación inmediata
+    checkStatus();
+
+    // Verificar cada 5 segundos
+    intervalRef.current = setInterval(checkStatus, 5000);
+
+    // Limpiar intervalo al desmontar
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
     };
-  }, []);
+  }, [tokenSolicitud, checkCount]);
+
+  const getStatusColor = () => {
+    switch (solicitudStatus) {
+      case 'Aceptado':
+        return '#10b981';
+      case 'Rechazado':
+        return '#ef4444';
+      default:
+        return '#2563eb';
+    }
+  };
+
+  const getStatusText = () => {
+    switch (solicitudStatus) {
+      case 'Aceptado':
+        return 'Aprobada ✓';
+      case 'Rechazado':
+        return 'Rechazada ✗';
+      default:
+        return 'En Revisión';
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -55,35 +133,51 @@ export const PendingApprovalScreen = ({ companyCode, onApproved }) => {
       {/* Content */}
       <View style={styles.content}>
         <View style={styles.pendingCard}>
-          {/* Icon with Timer */}
+          {/* Icon with Status */}
           <View style={styles.iconWrapper}>
-            <View style={styles.iconContainer}>
-              <Ionicons name={pending.icon} size={50} color="#2563eb" />
+            <View style={[styles.iconContainer, { backgroundColor: `${getStatusColor()}20` }]}>
+              <Ionicons 
+                name={solicitudStatus === 'Aceptado' ? 'checkmark-circle' : pending.icon} 
+                size={50} 
+                color={getStatusColor()} 
+              />
             </View>
-            <View style={styles.timerBadge}>
-              <Text style={styles.timerText}>{timer}</Text>
-            </View>
+            {isChecking && (
+              <View style={styles.checkingBadge}>
+                <ActivityIndicator size="small" color="#fff" />
+              </View>
+            )}
           </View>
 
           {/* Status Card */}
-          <View style={styles.statusCard}>
-            <View style={styles.statusRow}>
-              <Text style={styles.statusLabel}>Empresa:</Text>
-              <Text style={styles.statusValue}>{companyCode}</Text>
-            </View>
+          <View style={[styles.statusCard, { backgroundColor: `${getStatusColor()}15` }]}>
             <View style={styles.statusRow}>
               <Text style={styles.statusLabel}>Estado:</Text>
-              <Text style={styles.statusValue}>En Revisión</Text>
+              <Text style={[styles.statusValue, { color: getStatusColor() }]}>
+                {getStatusText()}
+              </Text>
+            </View>
+            <View style={styles.statusRow}>
+              <Text style={styles.statusLabel}>Verificaciones:</Text>
+              <Text style={styles.statusValue}>{checkCount}</Text>
             </View>
             <View style={styles.timerRow}>
-              <Text style={styles.timerLabel}>
-                Aprobación en: <Text style={styles.timerHighlight}>{timer}s</Text>
+              <Text style={[styles.timerLabel, { color: getStatusColor() }]}>
+                {isChecking ? '🔄 Verificando...' : '⏱️ Próxima verificación en 5s'}
               </Text>
             </View>
           </View>
 
           {/* Message */}
           <Text style={styles.message}>{pending.message}</Text>
+
+          {/* Info adicional */}
+          <View style={styles.infoBox}>
+            <Ionicons name="information-circle-outline" size={16} color="#6b7280" />
+            <Text style={styles.infoText}>
+              La verificación se realiza automáticamente cada 5 segundos. No cierres esta pantalla.
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -98,7 +192,7 @@ export const PendingApprovalScreen = ({ companyCode, onApproved }) => {
             <Ionicons name="checkmark" size={16} color="#fff" />
           </View>
           <View style={styles.stepLine} />
-          <View style={styles.stepActive}>
+          <View style={[styles.stepActive, { backgroundColor: getStatusColor() }]}>
             <Text style={styles.stepActiveText}>3</Text>
           </View>
         </View>
@@ -149,12 +243,11 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 90,
     height: 90,
-    backgroundColor: '#dbeafe',
     borderRadius: 45,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  timerBadge: {
+  checkingBadge: {
     position: 'absolute',
     bottom: -8,
     right: -8,
@@ -167,13 +260,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#eff6ff',
   },
-  timerText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
   statusCard: {
-    backgroundColor: '#dbeafe',
     borderRadius: 12,
     padding: 14,
     width: '100%',
@@ -198,19 +285,31 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   timerLabel: {
-    fontSize: 12,
-    color: '#1e40af',
+    fontSize: 11,
     textAlign: 'center',
-  },
-  timerHighlight: {
-    fontWeight: 'bold',
-    color: '#1e3a8a',
+    fontWeight: '600',
   },
   message: {
     fontSize: 12,
     color: '#1e40af',
     textAlign: 'center',
     lineHeight: 18,
+    marginBottom: 12,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    padding: 10,
+    width: '100%',
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 10,
+    color: '#6b7280',
+    marginLeft: 8,
+    lineHeight: 14,
   },
   footer: {
     backgroundColor: '#fff',
@@ -234,7 +333,6 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#2563eb',
     justifyContent: 'center',
     alignItems: 'center',
   },

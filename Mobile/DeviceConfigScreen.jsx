@@ -8,10 +8,14 @@ import {
   ScrollView,
   StatusBar,
   ActivityIndicator,
-  Platform
+  Platform,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Device from 'expo-device';
+import NetInfo from '@react-native-community/netinfo';
 import config from './config/onboardingConfig.json';
+import { crearSolicitudMovil } from './services/solicitudMovilService';
 
 export const DeviceConfigScreen = ({ onNext, onPrevious }) => {
   const { deviceConfig } = config;
@@ -24,23 +28,52 @@ export const DeviceConfigScreen = ({ onNext, onPrevious }) => {
     os: '',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(true);
 
   useEffect(() => {
     detectDeviceInfo();
   }, []);
 
-  const detectDeviceInfo = () => {
-    const today = new Date();
-    const formattedDate = today.toISOString().split('T')[0];
-    
-    setFormData(prev => ({
-      ...prev,
-      registrationDate: formattedDate,
-      macAddress: generateMacAddress(),
-      ipAddress: `192.168.1.${Math.floor(Math.random() * 255)}`,
-      deviceModel: Platform.OS === 'ios' ? 'iPhone' : 'Android Device',
-      os: Platform.OS === 'ios' ? `iOS ${Platform.Version}` : `Android ${Platform.Version}`,
-    }));
+  const detectDeviceInfo = async () => {
+    try {
+      setIsDetecting(true);
+
+      // Obtener información del dispositivo
+      const deviceModel = Device.modelName || (Platform.OS === 'ios' ? 'iPhone' : 'Android Device');
+      const osVersion = Device.osVersion || Platform.Version;
+      const os = Platform.OS === 'ios' ? `iOS ${osVersion}` : `Android ${osVersion}`;
+
+      // Obtener información de red
+      let ipAddress = '192.168.1.0';
+      try {
+        const netInfo = await NetInfo.fetch();
+        ipAddress = netInfo.details?.ipAddress || `192.168.1.${Math.floor(Math.random() * 255)}`;
+      } catch (error) {
+        console.log('No se pudo obtener IP real, usando simulada');
+      }
+
+      // Generar MAC simulada
+      const macAddress = generateMacAddress();
+
+      // Fecha actual
+      const today = new Date();
+      const registrationDate = today.toISOString().split('T')[0];
+
+      setFormData(prev => ({
+        ...prev,
+        registrationDate,
+        macAddress,
+        ipAddress,
+        deviceModel,
+        os,
+      }));
+
+      setIsDetecting(false);
+    } catch (error) {
+      console.error('Error detectando información del dispositivo:', error);
+      Alert.alert('Error', 'No se pudo detectar la información del dispositivo');
+      setIsDetecting(false);
+    }
   };
 
   const generateMacAddress = () => {
@@ -54,20 +87,84 @@ export const DeviceConfigScreen = ({ onNext, onPrevious }) => {
     return mac;
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
+    // Validaciones
     if (!formData.email) {
-      alert('Por favor ingresa tu correo electrónico');
+      Alert.alert('Error', 'Por favor ingresa tu correo electrónico');
       return;
     }
     if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      alert('Por favor ingresa un correo válido');
+      Alert.alert('Error', 'Por favor ingresa un correo válido');
       return;
     }
+
     setIsLoading(true);
-    setTimeout(() => {
+
+    try {
+      console.log('📱 Enviando solicitud de dispositivo móvil...');
+
+      // Preparar datos para el servidor
+      const solicitudData = {
+        nombre: formData.deviceModel,
+        correo: formData.email,
+        descripcion: `Dispositivo ${Platform.OS === 'ios' ? 'iOS' : 'Android'} - ${formData.deviceModel}`,
+        ip: formData.ipAddress,
+        mac: formData.macAddress,
+        sistema_operativo: Platform.OS === 'ios' ? 'iOS' : 'Android',
+        observaciones: `Registro desde app móvil el ${formData.registrationDate}. SO: ${formData.os}`
+      };
+
+      console.log('📤 Datos a enviar:', solicitudData);
+
+      // Enviar solicitud al servidor
+      const response = await crearSolicitudMovil(solicitudData);
+
+      console.log('✅ Respuesta del servidor:', response);
+
+      // Verificar que se recibió un token
+      if (!response.token_solicitud) {
+        throw new Error('No se recibió token de solicitud del servidor');
+      }
+
+      Alert.alert(
+        '¡Solicitud Enviada!',
+        'Tu solicitud ha sido enviada correctamente. Recibirás una notificación cuando sea aprobada.',
+        [{ text: 'Continuar', onPress: () => {
+          // Pasar los datos completos incluyendo el token
+          onNext({
+            email: formData.email,
+            deviceInfo: {
+              model: formData.deviceModel,
+              os: formData.os,
+              ip: formData.ipAddress,
+              mac: formData.macAddress,
+              registrationDate: formData.registrationDate
+            },
+            tokenSolicitud: response.token_solicitud,
+            idSolicitud: response.id
+          });
+        }}]
+      );
+
+    } catch (error) {
+      console.error('❌ Error al enviar solicitud:', error);
+      Alert.alert(
+        'Error al Enviar',
+        error.message || 'No se pudo enviar la solicitud. Por favor intenta nuevamente.',
+        [
+          {
+            text: 'Reintentar',
+            onPress: handleNext
+          },
+          {
+            text: 'Cancelar',
+            style: 'cancel'
+          }
+        ]
+      );
+    } finally {
       setIsLoading(false);
-      onNext(formData);
-    }, 1000);
+    }
   };
 
   const renderField = (field) => {
@@ -106,6 +203,16 @@ export const DeviceConfigScreen = ({ onNext, onPrevious }) => {
     );
   };
 
+  if (isDetecting) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <StatusBar barStyle="dark-content" />
+        <ActivityIndicator size="large" color="#2563eb" />
+        <Text style={styles.loadingText}>Detectando información del dispositivo...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
@@ -137,6 +244,18 @@ export const DeviceConfigScreen = ({ onNext, onPrevious }) => {
             <Text style={styles.infoLabel}>SO:</Text>
             <Text style={styles.infoValue}>{formData.os}</Text>
           </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Plataforma:</Text>
+            <Text style={styles.infoValue}>{Platform.OS === 'ios' ? 'iOS' : 'Android'}</Text>
+          </View>
+        </View>
+
+        {/* Warning Card */}
+        <View style={styles.warningCard}>
+          <Ionicons name="information-circle" size={20} color="#f59e0b" />
+          <Text style={styles.warningText}>
+            Esta información será enviada a tu administrador para aprobar el acceso de tu dispositivo.
+          </Text>
         </View>
       </ScrollView>
 
@@ -163,11 +282,14 @@ export const DeviceConfigScreen = ({ onNext, onPrevious }) => {
           activeOpacity={0.8}
         >
           {isLoading ? (
-            <ActivityIndicator color="#fff" />
+            <>
+              <ActivityIndicator color="#fff" size="small" />
+              <Text style={[styles.nextButtonText, { marginLeft: 8 }]}>Enviando...</Text>
+            </>
           ) : (
             <>
-              <Text style={styles.nextButtonText}>Continuar</Text>
-              <Ionicons name="arrow-forward" size={16} color="#fff" />
+              <Text style={styles.nextButtonText}>Enviar Solicitud</Text>
+              <Ionicons name="send" size={16} color="#fff" />
             </>
           )}
         </TouchableOpacity>
@@ -180,6 +302,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f9fafb',
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 14,
+    color: '#6b7280',
   },
   header: {
     backgroundColor: '#fff',
@@ -279,6 +410,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#1f2937',
+  },
+  warningCard: {
+    backgroundColor: '#fef3c7',
+    borderRadius: 10,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#92400e',
+    marginLeft: 8,
+    lineHeight: 16,
   },
   footer: {
     position: 'absolute',

@@ -15,8 +15,10 @@ import {
     transformarPermisosParaBackend,
     transformarPermisosParaFrontend
 } from '../../services/rolesService';
+import { useNotification } from '../../contexts/NotificationContext';
 
 const RolesPage = () => {
+    const notification = useNotification();
     const [roles, setRoles] = useState([]);
     const [modulos, setModulos] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -153,7 +155,7 @@ const RolesPage = () => {
             setShowForm(true);
         } catch (err) {
             console.error('Error cargando rol:', err);
-            alert('Error al cargar el rol: ' + err.message);
+            notification.error('Error', 'Error al cargar el rol: ' + err.message);
         } finally {
             setLoading(false);
         }
@@ -190,7 +192,7 @@ const RolesPage = () => {
             setViewingRole(rolParaVista);
         } catch (err) {
             console.error('Error cargando rol:', err);
-            alert('Error al cargar el rol: ' + err.message);
+            notification.error('Error', 'Error al cargar el rol: ' + err.message);
         } finally {
             setLoading(false);
         }
@@ -198,7 +200,7 @@ const RolesPage = () => {
 
     const handleSave = async () => {
         if (!formData.nombre.trim()) {
-            alert('El nombre del rol es requerido');
+            notification.warning('Campo requerido', 'El nombre del rol es requerido');
             return;
         }
 
@@ -219,11 +221,11 @@ const RolesPage = () => {
             if (editingRole) {
                 // Actualizar rol existente
                 await actualizarRol(editingRole.id, rolData);
-                alert('Rol actualizado exitosamente');
+                notification.success('Rol actualizado', 'El rol se actualizó exitosamente');
             } else {
                 // Crear nuevo rol
                 await crearRol(rolData);
-                alert('Rol creado exitosamente');
+                notification.success('Rol creado', 'El rol se creó exitosamente');
             }
 
             // Recargar la lista de roles
@@ -231,7 +233,7 @@ const RolesPage = () => {
             setShowForm(false);
         } catch (err) {
             console.error('Error guardando rol:', err);
-            alert('Error al guardar el rol: ' + err.message);
+            notification.error('Error', 'Error al guardar el rol: ' + err.message);
         } finally {
             setLoading(false);
         }
@@ -240,23 +242,24 @@ const RolesPage = () => {
     const handleDelete = async (id) => {
         const role = roles.find(r => r.id === id);
         if (role?.esDefault) {
-            alert('No se puede eliminar el rol por defecto');
+            notification.warning('No permitido', 'No se puede eliminar el rol por defecto');
             return;
         }
         if (role?.usuariosAsignados > 0) {
-            alert(`No se puede eliminar este rol porque tiene ${role.usuariosAsignados} usuarios asignados`);
+            notification.warning('No permitido', `No se puede eliminar este rol porque tiene ${role.usuariosAsignados} usuarios asignados`);
             return;
         }
 
-        if (confirm('¿Está seguro de eliminar este rol?')) {
+        const confirmed = await notification.confirm('Eliminar rol', '¿Está seguro de eliminar este rol?');
+        if (confirmed) {
             try {
                 setLoading(true);
                 await eliminarRol(id);
-                alert('Rol eliminado exitosamente');
+                notification.success('Rol eliminado', 'El rol se eliminó exitosamente');
                 await cargarDatos();
             } catch (err) {
                 console.error('Error eliminando rol:', err);
-                alert('Error al eliminar el rol: ' + err.message);
+                notification.error('Error', 'Error al eliminar el rol: ' + err.message);
             } finally {
                 setLoading(false);
             }
@@ -304,13 +307,13 @@ const RolesPage = () => {
                 }
             }
 
-            alert('Jerarquía actualizada exitosamente');
+            notification.success('Jerarquía actualizada', 'El orden de jerarquía se actualizó exitosamente');
             await cargarDatos();
             setIsReordering(false);
             setReorderedRoles([]);
         } catch (err) {
             console.error('Error guardando orden:', err);
-            alert('Error al guardar el orden: ' + err.message);
+            notification.error('Error', 'Error al guardar el orden: ' + err.message);
         } finally {
             setSavingOrder(false);
         }

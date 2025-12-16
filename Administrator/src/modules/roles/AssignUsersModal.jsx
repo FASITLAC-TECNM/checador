@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { X, User, Check, Save, Search } from 'lucide-react';
 import { getUsuarios, obtenerRolesDeUsuario, asignarRolAUsuario, removerRolDeUsuario } from '../../services/api';
+import { useNotification } from '../../contexts/NotificationContext';
 
 const AssignUsersModal = ({ role, onClose, onUpdate }) => {
+    const notification = useNotification();
     const [usuarios, setUsuarios] = useState([]);
     const [usuariosAsignados, setUsuariosAsignados] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -36,7 +38,7 @@ const AssignUsersModal = ({ role, onClose, onUpdate }) => {
             setUsuariosAsignados(idsUsuariosConRol);
         } catch (error) {
             console.error('Error cargando usuarios:', error);
-            alert('Error al cargar usuarios: ' + error.message);
+            notification.error('Error de carga', 'Error al cargar usuarios: ' + error.message);
         } finally {
             setLoading(false);
         }
@@ -86,12 +88,12 @@ const AssignUsersModal = ({ role, onClose, onUpdate }) => {
                 await removerRolDeUsuario(userId, role.id);
             }
 
-            alert('Usuarios actualizados correctamente');
+            notification.success('Usuarios actualizados', 'Los usuarios se actualizaron correctamente');
             if (onUpdate) await onUpdate();
             onClose();
         } catch (error) {
             console.error('Error guardando usuarios:', error);
-            alert('Error al guardar usuarios: ' + error.message);
+            notification.error('Error', 'Error al guardar usuarios: ' + error.message);
         } finally {
             setSaving(false);
         }

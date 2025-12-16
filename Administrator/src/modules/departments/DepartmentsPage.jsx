@@ -11,8 +11,10 @@ import {
     actualizarDepartamento,
     eliminarDepartamento
 } from '../../services/departamentosService';
+import { useNotification } from '../../contexts/NotificationContext';
 
 const DepartmentsPage = () => {
+    const notification = useNotification();
     const [departments, setDepartments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -82,18 +84,20 @@ const DepartmentsPage = () => {
             setEditingDepartment(null);
         } catch (err) {
             console.error('Error al guardar departamento:', err);
-            alert('Error al guardar el departamento: ' + err.message);
+            notification.error('Error', 'Error al guardar el departamento: ' + err.message);
         }
     };
 
     const handleDelete = async (id) => {
-        if (confirm('¿Está seguro de eliminar este departamento?')) {
+        const confirmed = await notification.confirm('Eliminar departamento', '¿Está seguro de eliminar este departamento?');
+        if (confirmed) {
             try {
                 await eliminarDepartamento(id);
+                notification.success('Departamento eliminado', 'El departamento se eliminó correctamente');
                 await cargarDatos();
             } catch (err) {
                 console.error('Error al eliminar departamento:', err);
-                alert('Error al eliminar el departamento: ' + err.message);
+                notification.error('Error', 'Error al eliminar el departamento: ' + err.message);
             }
         }
     };

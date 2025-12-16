@@ -16,12 +16,12 @@ const obtenerUrlFotoPerfil = (foto) => {
   if (!foto) {
     return null;
   }
-  
+
   // Si ya es una URL completa, devolverla directamente
   if (foto.startsWith('http://') || foto.startsWith('https://')) {
     return foto;
   }
-  
+
   // Si es una ruta relativa, construir la URL completa
   const BASE_URL = 'https://9dm7dqf9-3001.usw3.devtunnels.ms';
   const url = `${BASE_URL}${foto.startsWith('/') ? '' : '/'}${foto}`;
@@ -30,24 +30,35 @@ const obtenerUrlFotoPerfil = (foto) => {
 
 export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
   const styles = darkMode ? personalInfoStylesDark : personalInfoStyles;
-  
+
   // Obtener la URL completa de la foto si existe
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
 
-  const InfoRow = ({ icon, label, value }) => (
+  // Extraer datos adicionales
+  const empleado = userData.empleado || null;
+  const rol = userData.rol || null;
+  const departamento = userData.departamento || null;
+  const permisos = userData.permisos || [];
+
+  // Si es empleado, priorizar rol "Empleado"
+  const rolMostrar = empleado ? 'Empleado' : (rol?.nombre_rol || 'Usuario');
+
+  const InfoRow = ({ icon, label, value, valueColor }) => (
     <View style={styles.infoRow}>
       <View style={styles.infoLeft}>
         <Ionicons name={icon} size={20} color={darkMode ? '#93c5fd' : '#2563eb'} />
         <Text style={styles.infoLabel}>{label}</Text>
       </View>
-      <Text style={styles.infoValue}>{value || 'No disponible'}</Text>
+      <Text style={[styles.infoValue, valueColor && { color: valueColor }]}>
+        {value || 'No disponible'}
+      </Text>
     </View>
   );
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
@@ -62,7 +73,7 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
         <View style={styles.profileSection}>
           <View style={styles.avatarLarge}>
             {fotoUrl ? (
-              <Image 
+              <Image
                 source={{ uri: fotoUrl }}
                 style={styles.avatarImage}
                 onError={(error) => {
@@ -76,13 +87,15 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
           </View>
           <Text style={styles.profileName}>{userData.nombre}</Text>
           <Text style={styles.profileUsername}>@{userData.username}</Text>
+
+          {/* Estado de conexión */}
           <View style={styles.statusBadge}>
             <View style={[
               styles.statusDot,
-              { backgroundColor: userData.estado === 'CONECTADO' ? '#10b981' : '#6b7280' }
+              { backgroundColor: userData.conexion === 'Conectado' ? '#10b981' : '#6b7280' }
             ]} />
             <Text style={styles.statusText}>
-              {userData.estado === 'CONECTADO' ? 'En línea' : 'Desconectado'}
+              {userData.conexion === 'Conectado' ? 'En línea' : 'Desconectado'}
             </Text>
           </View>
         </View>
@@ -90,46 +103,107 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
         {/* Account Information */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>INFORMACIÓN DE CUENTA</Text>
-          
-          <InfoRow 
-            icon="person-outline" 
-            label="Nombre de usuario" 
-            value={userData.username} 
+
+          <InfoRow
+            icon="person-outline"
+            label="Nombre de usuario"
+            value={userData.username}
           />
-          
-          <InfoRow 
-            icon="mail-outline" 
-            label="Correo electrónico" 
-            value={userData.email} 
+
+          <InfoRow
+            icon="mail-outline"
+            label="Correo electrónico"
+            value={userData.email}
           />
-          
-          <InfoRow 
-            icon="call-outline" 
-            label="Teléfono" 
-            value={userData.telefono || 'No registrado'} 
+
+          <InfoRow
+            icon="call-outline"
+            label="Teléfono"
+            value={userData.telefono || 'No registrado'}
           />
-          
-          <InfoRow 
-            icon="id-card-outline" 
-            label="ID de usuario" 
-            value={`#${userData.id}`} 
+
+          <InfoRow
+            icon="id-card-outline"
+            label="ID de usuario"
+            value={`#${userData.id}`}
           />
         </View>
 
-        {/* Status Information */}
+        {/* Employee Information - Solo si es empleado */}
+        {empleado && (
+          <View style={styles.section}>
+            <Text style={styles.sectionHeader}>INFORMACIÓN DE EMPLEADO</Text>
+
+            <InfoRow
+              icon="briefcase-outline"
+              label="ID de empleado"
+              value={`#${empleado.id_empleado}`}
+            />
+
+            <InfoRow
+              icon="document-text-outline"
+              label="RFC"
+              value={empleado.rfc || 'No registrado'}
+            />
+
+            <InfoRow
+              icon="card-outline"
+              label="NSS"
+              value={empleado.nss || 'No registrado'}
+            />
+
+            {departamento && (
+              <View style={styles.infoRow}>
+                <View style={styles.infoLeft}>
+                  <Ionicons name="business-outline" size={20} color={darkMode ? '#93c5fd' : '#2563eb'} />
+                  <Text style={styles.infoLabel}>Departamento</Text>
+                </View>
+                <View style={[
+                  styles.departmentBadge,
+                  departamento.color && { backgroundColor: `${departamento.color}20` }
+                ]}>
+                  <Text style={[
+                    styles.departmentText,
+                    departamento.color && { color: departamento.color }
+                  ]}>
+                    {departamento.nombre_departamento}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {departamento?.ubicacion && (
+              <InfoRow
+                icon="location-outline"
+                label="Ubicación"
+                value={departamento.ubicacion}
+              />
+            )}
+          </View>
+        )}
+
+        {/* Status and Permissions */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>ESTADO Y PERMISOS</Text>
-          
+
           <View style={styles.infoRow}>
             <View style={styles.infoLeft}>
               <Ionicons name="shield-checkmark-outline" size={20} color={darkMode ? '#93c5fd' : '#2563eb'} />
               <Text style={styles.infoLabel}>Rol</Text>
             </View>
-            <View style={styles.roleBadge}>
-              <Text style={styles.roleText}>{userData.role || 'Empleado'}</Text>
+            <View style={[
+              styles.roleBadge,
+              empleado && { backgroundColor: '#dcfce7' } // Verde para empleados
+            ]}>
+              <Text style={[
+                styles.roleText,
+                empleado && { color: '#166534' } // Verde oscuro para empleados
+              ]}>
+                {rolMostrar}
+              </Text>
             </View>
           </View>
-          
+
           <View style={styles.infoRow}>
             <View style={styles.infoLeft}>
               <Ionicons name="checkmark-circle-outline" size={20} color={darkMode ? '#93c5fd' : '#2563eb'} />
@@ -137,22 +211,43 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
             </View>
             <View style={[
               styles.statusChip,
-              { backgroundColor: userData.activo ? '#dcfce7' : '#fee2e2' }
+              { backgroundColor: userData.activo === 'Activo' ? '#dcfce7' : '#fee2e2' }
             ]}>
               <Text style={[
                 styles.statusChipText,
-                { color: userData.activo ? '#166534' : '#991b1b' }
+                { color: userData.activo === 'Activo' ? '#166534' : '#991b1b' }
               ]}>
-                {userData.activo ? 'Activa' : 'Inactiva'}
+                {userData.activo || 'Inactivo'}
               </Text>
             </View>
           </View>
+
+          {/* Permisos del usuario */}
+          {permisos && permisos.length > 0 && (
+            <View style={styles.permissionsContainer}>
+              <Text style={styles.permissionsTitle}>Módulos Permitidos</Text>
+              {permisos.map((permiso, index) => (
+                <View key={index} style={styles.permissionItem}>
+                  <View style={styles.permissionLeft}>
+                    <Ionicons name="grid-outline" size={16} color="#6b7280" />
+                    <Text style={styles.permissionModule}>{permiso.nombre_modulo}</Text>
+                  </View>
+                  <View style={styles.permissionActions}>
+                    {permiso.ver && <Text style={styles.permissionBadge}>Ver</Text>}
+                    {permiso.crear && <Text style={styles.permissionBadge}>Crear</Text>}
+                    {permiso.editar && <Text style={styles.permissionBadge}>Editar</Text>}
+                    {permiso.eliminar && <Text style={styles.permissionBadge}>Eliminar</Text>}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionHeader}>ACCIONES</Text>
-          
+
           <TouchableOpacity style={styles.actionButton}>
             <View style={styles.actionLeft}>
               <Ionicons name="create-outline" size={20} color={darkMode ? '#d1d5db' : '#6b7280'} />
@@ -294,7 +389,7 @@ const personalInfoStyles = StyleSheet.create({
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingVertical: 15,
     paddingHorizontal: 10,
     borderBottomWidth: 1,
@@ -303,21 +398,21 @@ const personalInfoStyles = StyleSheet.create({
   infoLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    maxWidth: '45%',
+    flex: 1,
   },
   infoLabel: {
     fontSize: 14,
     color: '#6b7280',
-    marginLeft: 12,
+    marginLeft: 10,
     fontWeight: '500',
+    flex: 1,
   },
   infoValue: {
     fontSize: 14,
     fontWeight: '600',
     color: '#1f2937',
     textAlign: 'right',
-    flex: 1,
-    flexWrap: 'wrap',
+    maxWidth: '50%',
   },
   roleBadge: {
     backgroundColor: '#dbeafe',
@@ -330,6 +425,17 @@ const personalInfoStyles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+  departmentBadge: {
+    backgroundColor: '#f3f4f6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  departmentText: {
+    color: '#1f2937',
+    fontSize: 13,
+    fontWeight: '600',
+  },
   statusChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -337,6 +443,49 @@ const personalInfoStyles = StyleSheet.create({
   },
   statusChipText: {
     fontSize: 13,
+    fontWeight: '600',
+  },
+  permissionsContainer: {
+    marginTop: 15,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+  },
+  permissionsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+  },
+  permissionItem: {
+    backgroundColor: '#f9fafb',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  permissionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  permissionModule: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginLeft: 8,
+  },
+  permissionActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  permissionBadge: {
+    backgroundColor: '#dcfce7',
+    color: '#166534',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    fontSize: 11,
     fontWeight: '600',
   },
   actionButton: {
@@ -398,6 +547,18 @@ const personalInfoStylesDark = StyleSheet.create({
   infoLabel: {
     ...personalInfoStyles.infoLabel,
     color: '#d1d5db',
+  },
+  permissionModule: {
+    ...personalInfoStyles.permissionModule,
+    color: '#fff',
+  },
+  permissionsTitle: {
+    ...personalInfoStyles.permissionsTitle,
+    color: '#fff',
+  },
+  permissionItem: {
+    ...personalInfoStyles.permissionItem,
+    backgroundColor: '#374151',
   },
   actionButton: {
     ...personalInfoStyles.actionButton,

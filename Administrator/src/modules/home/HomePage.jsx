@@ -49,15 +49,6 @@ function HomePage() {
         cargarHorarios();
     }, []);
 
-    const getTimeAgo = () => {
-        const seconds = Math.floor((new Date() - lastUpdate) / 1000);
-        if (seconds < 60) return 'Hace unos segundos';
-        const minutes = Math.floor(seconds / 60);
-        if (minutes < 60) return `Hace ${minutes} min`;
-        const hours = Math.floor(minutes / 60);
-        return `Hace ${hours} hora${hours > 1 ? 's' : ''}`;
-    };
-
     // Datos listos para renderizar
     const valores = stats ? [
         { label: "Total", value: Number(stats.total) },
@@ -91,66 +82,8 @@ function HomePage() {
                             </div>
                         </div>
 
-                        <div className="text-right">
-                            <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">
-                                Última actualización
-                            </p>
-
-                            <p className="text-lg font-medium text-slate-700 mb-2">
-                                {loading ? "Cargando..." : getTimeAgo()}
-                            </p>
-
-                            <div className="inline-flex items-center gap-2 bg-green-100 
-                                            text-green-700 px-3 py-1 rounded-full text-sm 
-                                            border border-green-300">
-                                <span className="w-2 h-2 bg-green-600 rounded-full"></span>
-                                Servidor activo
-                            </div>
-                        </div>
-
                     </div>
                 </header>
-
-                {/* ESTADÍSTICAS / GRÁFICO */}
-                <section>
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-semibold text-slate-800">
-                            Estado general de usuarios
-                        </h2>
-                        <BarChart3 className="text-slate-700" />
-                    </div>
-
-                    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
-
-                        {/* GRAFICO DE BARRAS SIMPLE */}
-                        <div className="grid grid-cols-6 gap-4 mt-6 p-4 border rounded-2xl bg-slate-50">
-                            {valores.map((item) => (
-                                <div key={item.label} className="flex flex-col items-center">
-
-                                    {/* Barra */}
-                                    <div className="w-6 h-32 bg-slate-200 rounded-xl relative flex items-end">
-                                        <div
-                                            className="bg-blue-600 rounded-xl transition-all"
-                                            style={{
-                                                height: `${(item.value / maxValue) * 100}%`,
-                                                width: "100%"
-                                            }}
-                                        ></div>
-                                    </div>
-
-                                    {/* Valor y etiqueta */}
-                                    <p className="text-sm font-bold text-slate-800 mt-2">
-                                        {loading ? "…" : item.value}
-                                    </p>
-                                    <p className="text-xs text-slate-600 text-center mt-1">
-                                        {item.label}
-                                    </p>
-
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </section>
 
                 {/* Botón para abrir el horario semanal */}
                 <section>

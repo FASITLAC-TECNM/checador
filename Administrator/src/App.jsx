@@ -1,9 +1,11 @@
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificationProvider, useNotification } from './contexts/NotificationContext';
 import DashboardPage from './DashboardPage';
 import LoginPage from './LoginPage';
 
 function AppContent() {
   const { usuario, login, loading } = useAuth();
+  const notification = useNotification();
 
   if (loading) {
     return (
@@ -16,7 +18,7 @@ function AppContent() {
   const handleLogin = async (credentials) => {
     const resultado = await login(credentials.email, credentials.password);
     if (!resultado.success) {
-      alert(resultado.mensaje);
+      notification.error('Error de inicio de sesión', resultado.mensaje);
     }
   };
 
@@ -30,7 +32,9 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <NotificationProvider>
+        <AppContent />
+      </NotificationProvider>
     </AuthProvider>
   );
 }

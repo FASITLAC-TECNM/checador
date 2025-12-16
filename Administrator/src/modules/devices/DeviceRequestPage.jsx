@@ -2,56 +2,12 @@ import React, { useState, useEffect } from 'react';
 import DeviceRequestList from './DeviceRequestList';
 import DeviceRequestDetail from './DeviceRequestDetail';
 import { Bell, ArrowLeft } from 'lucide-react';
+import { useNotification } from '../../contexts/NotificationContext';
 
 const DeviceRequestPage = ({ onNavigateToDevices, onUpdatePeticiones }) => {
-    const [requests, setRequests] = useState([
-        {
-            id: 1,
-            nombreEmpleado: 'Carlos Ramírez',
-            emailEmpleado: 'carlos.ramirez@empresa.com',
-            rolEmpleado: 'Supervisor de Producción',
-            telefonoEmpleado: '+52 753 456 7890',
-            modeloDispositivo: 'Samsung Galaxy S23',
-            sistemaOperativo: 'Android 14',
-            imei: '356938035643811',
-            numeroTelefono: '+52 753 456 7890',
-            fechaSolicitud: '2024-11-02T10:30:00',
-            estado: 'Pendiente',
-            observaciones: 'Necesito el dispositivo para gestionar el equipo de producción en campo'
-        },
-        {
-            id: 2,
-            nombreEmpleado: 'Ana López',
-            emailEmpleado: 'ana.lopez@empresa.com',
-            rolEmpleado: 'Gerente de Ventas',
-            telefonoEmpleado: '+52 753 456 7891',
-            modeloDispositivo: 'iPhone 15 Pro',
-            sistemaOperativo: 'iOS 17.1',
-            imei: '356938035643812',
-            numeroTelefono: '+52 753 456 7891',
-            fechaSolicitud: '2024-11-02T09:15:00',
-            estado: 'Pendiente',
-            observaciones: 'Requiero acceso móvil para gestionar clientes y visitas comerciales'
-        },
-        {
-            id: 3,
-            nombreEmpleado: 'Roberto Fernández',
-            emailEmpleado: 'roberto.fernandez@empresa.com',
-            rolEmpleado: 'Técnico de Mantenimiento',
-            telefonoEmpleado: '+52 753 456 7892',
-            modeloDispositivo: 'Motorola Edge 40',
-            sistemaOperativo: 'Android 13',
-            imei: '356938035643813',
-            numeroTelefono: '+52 753 456 7892',
-            fechaSolicitud: '2024-11-01T16:45:00',
-            estado: 'Pendiente',
-            observaciones: 'Para reportar incidencias y registrar mantenimientos en tiempo real'
-        }
-    ]);
-
+    const notification = useNotification();
     const [selectedRequest, setSelectedRequest] = useState(null);
 
-    // Actualizar el contador de peticiones cuando cambie el estado
     useEffect(() => {
         if (onUpdatePeticiones) {
             onUpdatePeticiones(requests.length);
@@ -66,22 +22,23 @@ const DeviceRequestPage = ({ onNavigateToDevices, onUpdatePeticiones }) => {
         setSelectedRequest(null);
     };
 
-    const handleApprove = (request) => {
-        if (confirm(`¿Está seguro de aprobar la solicitud de ${request.nombreEmpleado}?`)) {
+    const handleApprove = async (request) => {
+        const confirmed = await notification.confirm('Aprobar solicitud', `¿Está seguro de aprobar la solicitud de ${request.nombreEmpleado}?`);
+        if (confirmed) {
             // Aquí iría la lógica para aprobar y registrar el dispositivo
             setRequests(requests.filter(r => r.id !== request.id));
             setSelectedRequest(null);
-            alert('Solicitud aprobada. El dispositivo ha sido registrado.');
+            notification.success('Solicitud aprobada', 'El dispositivo ha sido registrado correctamente');
         }
     };
 
-    const handleReject = (request) => {
-        const motivo = prompt(`¿Por qué desea rechazar la solicitud de ${request.nombreEmpleado}?`);
+    const handleReject = async (request) => {
+        const motivo = await notification.confirm('Rechazar solicitud', `¿Por qué desea rechazar la solicitud de ${request.nombreEmpleado}?`);
         if (motivo) {
             // Aquí iría la lógica para rechazar y notificar al usuario
             setRequests(requests.filter(r => r.id !== request.id));
             setSelectedRequest(null);
-            alert('Solicitud rechazada. Se ha notificado al empleado.');
+            notification.success('Solicitud rechazada', 'Se ha notificado al empleado');
         }
     };
 

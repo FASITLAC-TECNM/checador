@@ -1,0 +1,133 @@
+{
+  "welcome": {
+    "title": "Bienvenido al Sistema de Checador",
+    "subtitle": "Configura tu dispositivo en 3 simples pasos",
+    "steps": [
+      {
+        "number": 1,
+        "icon": "phone-portrait-outline",
+        "title": "Registra tu Dispositivo",
+        "description": "Configura la información de tu dispositivo",
+        "color": "#2563eb"
+      },
+      {
+        "number": 2,
+        "icon": "hardware-chip-outline",
+        "title": "Haz tu solicitud",
+        "description": "Preparate para crear tu solicitud",
+        "color": "#2563eb"
+      },
+      {
+        "number": 3,
+        "icon": "checkmark-circle-outline",
+        "title": "Obtén Aprobación",
+        "description": "Espera la autorización del administrador",
+        "color": "#2563eb"
+      }
+    ],
+    "note": "Este proceso es necesario solo la primera vez que uses la aplicación. Asegúrate de tener el código de tu empresa a la mano."
+  },
+  "deviceConfig": {
+    "title": "Configuración del Dispositivo",
+    "subtitle": "Paso 1 de 3",
+    "fields": [
+      {
+        "id": "email",
+        "label": "Correo Electrónico",
+        "placeholder": "tu@email.com",
+        "icon": "mail-outline",
+        "type": "email",
+        "required": true,
+        "readonly": false,
+        "helpText": "Usa tu correo institucional"
+      },
+      {
+        "id": "registrationDate",
+        "label": "Fecha de Registro",
+        "placeholder": "YYYY-MM-DD",
+        "icon": "calendar-outline",
+        "type": "text",
+        "required": true,
+        "readonly": true,
+        "helpText": "Fecha automática del sistema"
+      },
+      {
+        "id": "macAddress",
+        "label": "Dirección MAC",
+        "placeholder": "00:00:00:00:00:00",
+        "icon": "hardware-chip-outline",
+        "type": "text",
+        "required": true,
+        "readonly": true,
+        "helpText": "Identificador único del dispositivo"
+      },
+      {
+        "id": "ipAddress",
+        "label": "Dirección IP",
+        "placeholder": "192.168.1.1",
+        "icon": "globe-outline",
+        "type": "text",
+        "required": true,
+        "readonly": true,
+        "helpText": "IP de la red actual"
+      }
+    ],
+    "deviceInfo": {
+      "title": "Información del Dispositivo Detectada"
+    }
+  },
+  "verification": {
+    "title": "Verificación de Correo",
+    "subtitle": "Paso 2 de 4",
+    "icon": "mail-unread-outline",
+    "message": "Hemos enviado un código de 6 dígitos a:",
+    "codeLength": 6,
+    "resendText": "¿No recibiste el código?",
+    "resendButton": "Reenviar",
+    "helpText": "Revisa tu bandeja de entrada",
+    "helpDescription": "El código puede tardar hasta 2 minutos en llegar. Revisa también tu carpeta de spam."
+  },
+  "affiliation": {
+    "title": "Afiliación a la Empresa",
+    "subtitle": "Paso 2 de 3",
+    "icon": "business",
+    "placeholder": "EMPRESA-2024",
+    "helpText": "¿No tienes el código?",
+    "supportText": "Contacta a tu administrador"
+  },
+  "pending": {
+    "title": "Solicitud Enviada",
+    "subtitle": "Paso 3 de 3",
+    "icon": "hourglass-outline",
+    "message": "Tu solicitud de afiliación ha sido enviada al administrador de la empresa. Recibirás una notificación cuando sea aprobada.",
+    "autoApproveSeconds": 15,
+    "buttons": {
+      "resend": "Reenviar Solicitud",
+      "cancel": "Cancelar"
+    }
+  },
+  "approved": {
+    "title": "¡Aprobado!",
+    "subtitle": "Configuración Completada",
+    "icon": "checkmark-circle",
+    "message": "Tu dispositivo ha sido aprobado exitosamente. Ya puedes comenzar a usar la aplicación.",
+    "checklist": [
+      {
+        "icon": "mail",
+        "title": "Correo Verificado",
+        "field": "email"
+      },
+      {
+        "icon": "business",
+        "title": "Empresa Afiliada",
+        "field": "companyCode"
+      },
+      {
+        "icon": "shield-checkmark",
+        "title": "Dispositivo Autorizado",
+        "description": "Tu dispositivo está listo para usar"
+      }
+    ],
+    "buttonText": "Iniciar Sesión"
+  }
+}

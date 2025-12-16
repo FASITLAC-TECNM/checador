@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { Monitor, CheckCircle, XCircle, Calendar } from 'lucide-react';
+import { useNotification } from '../../contexts/NotificationContext';
 
 const SolicitudCard = ({ solicitud, onAceptar, onRechazar }) => {
+    const notification = useNotification();
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [motivoRechazo, setMotivoRechazo] = useState('');
 
     const handleRechazar = () => {
         if (!motivoRechazo.trim()) {
-            alert('Por favor ingresa un motivo de rechazo');
+            notification.warning('Motivo requerido', 'Por favor ingresa un motivo de rechazo');
             return;
         }
         onRechazar(solicitud, motivoRechazo);

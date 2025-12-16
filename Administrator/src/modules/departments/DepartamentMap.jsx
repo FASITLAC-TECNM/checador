@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { MapPin, Download, Upload, Trash2 } from 'lucide-react';
+import { useNotification } from '../../contexts/NotificationContext';
 
 const DepartmentMap = ({ zonas, color, onZonasChange, departmentName }) => {
+    const notification = useNotification();
     const [mapReady, setMapReady] = useState(false);
     const [showCoordinates, setShowCoordinates] = useState(false);
     const mapRef = useRef(null);
@@ -219,7 +221,7 @@ const DepartmentMap = ({ zonas, color, onZonasChange, departmentName }) => {
                     onZonasChange(zonasImportadas);
                 }
             } catch (error) {
-                alert('Error al importar el archivo. Asegúrate de que sea un archivo JSON válido.');
+                notification.error('Error de importación', 'Error al importar el archivo. Asegúrate de que sea un archivo JSON válido.');
             }
         };
         reader.readAsText(file);

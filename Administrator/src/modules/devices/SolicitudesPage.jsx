@@ -1,122 +1,177 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, CheckCircle, XCircle, AlertCircle, Monitor, Trash2, RefreshCw } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, AlertCircle, Monitor, Trash2, RefreshCw, Smartphone, ChevronDown, ChevronUp } from 'lucide-react';
 import { getSolicitudes, aceptarSolicitud, rechazarSolicitud, deleteSolicitud } from '../../services/solicitudesService';
+import { getSolicitudesMoviles, aceptarSolicitudMovil, rechazarSolicitudMovil, deleteSolicitudMovil } from '../../services/solicitudesMovilService';
+import SolicitudCard from './SolicitudCard';
+import SolicitudMovilCard from './SolicitudMovilCard';
+import { useNotification } from '../../contexts/NotificationContext';
 
 const SolicitudesPage = () => {
-    const [solicitudes, setSolicitudes] = useState([]);
+    const notification = useNotification();
+
+    // Estados para Solicitudes de Escritorio
+    const [solicitudesEscritorio, setSolicitudesEscritorio] = useState([]);
+    const [showEscritorioSection, setShowEscritorioSection] = useState(true);
+
+    // Estados para Solicitudes Móviles
+    const [solicitudesMoviles, setSolicitudesMoviles] = useState([]);
+    const [showMovilesSection, setShowMovilesSection] = useState(true);
+
     const [loading, setLoading] = useState(true);
-    const [selectedSolicitud, setSelectedSolicitud] = useState(null);
-    const [showRejectModal, setShowRejectModal] = useState(false);
-    const [motivoRechazo, setMotivoRechazo] = useState('');
     const [filter, setFilter] = useState('all'); // all, pendientes, aceptadas, rechazadas
 
     useEffect(() => {
-        cargarSolicitudes();
+        console.log('🚀 Componente montado, cargando solicitudes...');
+
+        cargarTodasLasSolicitudes();
+
+        // Actualizar cada 30 segundos
+        const interval = setInterval(cargarTodasLasSolicitudes, 30000);
+        return () => clearInterval(interval);
     }, []);
 
-    const cargarSolicitudes = async () => {
+    const cargarTodasLasSolicitudes = async () => {
         try {
             setLoading(true);
-            const data = await getSolicitudes();
-            setSolicitudes(data);
-        } catch (error) {
-            console.error('Error cargando solicitudes:', error);
-            alert('Error al cargar las solicitudes');
+            await Promise.all([
+                cargarSolicitudesEscritorio(),
+                cargarSolicitudesMoviles()
+            ]);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleAceptar = async (solicitud) => {
-        if (!confirm(`¿Aceptar la solicitud de "${solicitud.nombre}"?`)) return;
-
+    const cargarSolicitudesEscritorio = async () => {
         try {
-            // TODO: Obtener el ID del usuario actual de la sesión
-            const idUsuarioAprobador = 1; // Por ahora usar 1, luego integrar con la sesión
-            await aceptarSolicitud(solicitud.id, idUsuarioAprobador);
-            alert('Solicitud aceptada correctamente. El dispositivo ha sido creado.');
-            cargarSolicitudes();
+            const data = await getSolicitudes();
+            setSolicitudesEscritorio(data);
         } catch (error) {
-            console.error('Error aceptando solicitud:', error);
-            alert('Error al aceptar la solicitud');
+            console.error('Error cargando solicitudes de escritorio:', error);
+            setSolicitudesEscritorio([]);
         }
     };
 
-    const handleRechazar = (solicitud) => {
-        setSelectedSolicitud(solicitud);
-        setMotivoRechazo('');
-        setShowRejectModal(true);
+    const cargarSolicitudesMoviles = async () => {
+        try {
+            console.log('🔍 Cargando solicitudes móviles...');
+            const data = await getSolicitudesMoviles();
+            console.log('✅ Datos recibidos:', data);
+            console.log('✅ Cantidad de solicitudes:', data.length);
+            setSolicitudesMoviles(data);
+        } catch (error) {
+            console.error('❌ ERROR completo:', error);
+            console.error('❌ Mensaje:', error.message);
+            setSolicitudesMoviles([]);
+        }
     };
 
-    const confirmarRechazo = async () => {
-        if (!motivoRechazo.trim()) {
-            alert('Por favor ingresa un motivo de rechazo');
-            return;
-        }
+    // Handlers para Escritorio
+    const handleAceptarEscritorio = async (solicitud) => {
+        const confirmed = await notification.confirm('Aceptar solicitud', `¿Aceptar la solicitud de escritorio "${solicitud.nombre}"?`);
+        if (!confirmed) return;
 
         try {
-            // TODO: Obtener el ID del usuario actual de la sesión
             const idUsuarioAprobador = 1;
-            await rechazarSolicitud(selectedSolicitud.id, idUsuarioAprobador, motivoRechazo);
-            alert('Solicitud rechazada correctamente');
-            setShowRejectModal(false);
-            setSelectedSolicitud(null);
-            setMotivoRechazo('');
-            cargarSolicitudes();
+            await aceptarSolicitud(solicitud.id, idUsuarioAprobador);
+            notification.success('Solicitud aceptada', 'El dispositivo de escritorio ha sido creado');
+            cargarSolicitudesEscritorio();
         } catch (error) {
-            console.error('Error rechazando solicitud:', error);
-            alert('Error al rechazar la solicitud');
+            console.error('Error:', error);
+            notification.error('Error', 'Error al aceptar la solicitud de escritorio');
         }
     };
 
-    const handleEliminar = async (solicitud) => {
-        if (!confirm(`¿Eliminar la solicitud de "${solicitud.nombre}"? Esta acción no se puede deshacer.`)) return;
+    const handleRechazarEscritorio = async (solicitud, motivo) => {
+        try {
+            const idUsuarioAprobador = 1;
+            await rechazarSolicitud(solicitud.id, idUsuarioAprobador, motivo);
+            notification.warning('Solicitud rechazada', 'La solicitud de escritorio ha sido rechazada');
+            cargarSolicitudesEscritorio();
+        } catch (error) {
+            console.error('Error:', error);
+            notification.error('Error', 'Error al rechazar la solicitud');
+        }
+    };
+
+    const handleEliminarEscritorio = async (solicitud) => {
+        const confirmed = await notification.confirm('Eliminar solicitud', `¿Eliminar la solicitud de "${solicitud.nombre}"?`);
+        if (!confirmed) return;
 
         try {
             await deleteSolicitud(solicitud.id);
-            alert('Solicitud eliminada correctamente');
-            cargarSolicitudes();
+            notification.success('Solicitud eliminada', 'La solicitud ha sido eliminada');
+            cargarSolicitudesEscritorio();
         } catch (error) {
-            console.error('Error eliminando solicitud:', error);
-            alert(error.message || 'Error al eliminar la solicitud');
+            console.error('Error:', error);
+            notification.error('Error', error.message || 'Error al eliminar la solicitud');
         }
     };
 
-    const solicitudesFiltradas = solicitudes.filter(s => {
-        if (filter === 'all') return true;
-        if (filter === 'pendientes') return s.estado === 'Pendiente';
-        if (filter === 'aceptadas') return s.estado === 'Aceptado';
-        if (filter === 'rechazadas') return s.estado === 'Rechazado';
-        return true;
-    });
+    // Handlers para Móviles
+    const handleAceptarMovil = async (solicitud) => {
+        const confirmed = await notification.confirm(
+            'Aceptar solicitud móvil',
+            `¿Aprobar el acceso móvil para ${solicitud.nombre}?`
+        );
+        if (!confirmed) return;
 
-    const pendientes = solicitudes.filter(s => s.estado === 'Pendiente').length;
-    const aceptadas = solicitudes.filter(s => s.estado === 'Aceptado').length;
-    const rechazadas = solicitudes.filter(s => s.estado === 'Rechazado').length;
-
-    const getEstadoBadge = (estado) => {
-        const badges = {
-            'Pendiente': {
-                bg: 'bg-yellow-100',
-                text: 'text-yellow-800',
-                border: 'border-yellow-300',
-                icon: <Clock size={16} />
-            },
-            'Aceptado': {
-                bg: 'bg-green-100',
-                text: 'text-green-800',
-                border: 'border-green-300',
-                icon: <CheckCircle size={16} />
-            },
-            'Rechazado': {
-                bg: 'bg-red-100',
-                text: 'text-red-800',
-                border: 'border-red-300',
-                icon: <XCircle size={16} />
-            }
-        };
-        return badges[estado] || badges['Pendiente'];
+        try {
+            const idUsuarioAprobador = 1;
+            await aceptarSolicitudMovil(solicitud.id, idUsuarioAprobador);
+            notification.success('Solicitud aceptada', `Acceso móvil aprobado para ${solicitud.nombre}`);
+            cargarSolicitudesMoviles();
+        } catch (error) {
+            console.error('Error:', error);
+            notification.error('Error', 'Error al aceptar la solicitud móvil');
+        }
     };
+
+    const handleRechazarMovil = async (solicitud, motivo) => {
+        try {
+            const idUsuarioAprobador = 1;
+            await rechazarSolicitudMovil(solicitud.id, idUsuarioAprobador, motivo);
+            notification.warning('Solicitud rechazada', `Acceso denegado para ${solicitud.nombre}`);
+            cargarSolicitudesMoviles();
+        } catch (error) {
+            console.error('Error:', error);
+            notification.error('Error', 'Error al rechazar la solicitud móvil');
+        }
+    };
+
+    const handleEliminarMovil = async (solicitud) => {
+        const confirmed = await notification.confirm('Eliminar solicitud', `¿Eliminar la solicitud de "${solicitud.nombre}"?`);
+        if (!confirmed) return;
+
+        try {
+            await deleteSolicitudMovil(solicitud.id);
+            notification.success('Solicitud eliminada', 'La solicitud móvil ha sido eliminada');
+            cargarSolicitudesMoviles();
+        } catch (error) {
+            console.error('Error:', error);
+            notification.error('Error', error.message || 'Error al eliminar la solicitud');
+        }
+    };
+
+    // Filtrar solicitudes
+    const filtrarSolicitudes = (solicitudes) => {
+        return solicitudes.filter(s => {
+            if (filter === 'all') return true;
+            if (filter === 'pendientes') return s.estado === 'Pendiente';
+            if (filter === 'aceptadas') return s.estado === 'Aceptado';
+            if (filter === 'rechazadas') return s.estado === 'Rechazado';
+            return true;
+        });
+    };
+
+    const escritorioFiltradas = filtrarSolicitudes(solicitudesEscritorio);
+    const movilesFiltradas = filtrarSolicitudes(solicitudesMoviles);
+
+    // Estadísticas globales
+    const totalSolicitudes = solicitudesEscritorio.length + solicitudesMoviles.length;
+    const totalPendientes = [...solicitudesEscritorio, ...solicitudesMoviles].filter(s => s.estado === 'Pendiente').length;
+    const totalAceptadas = [...solicitudesEscritorio, ...solicitudesMoviles].filter(s => s.estado === 'Aceptado').length;
+    const totalRechazadas = [...solicitudesEscritorio, ...solicitudesMoviles].filter(s => s.estado === 'Rechazado').length;
 
     if (loading) {
         return (
@@ -136,11 +191,11 @@ const SolicitudesPage = () => {
                 <div className="max-w-7xl mx-auto px-6 py-6">
                     <div className="flex justify-between items-start mb-4">
                         <div>
-                            <h1 className="text-3xl font-bold text-[#1D1D1F] mb-2">Solicitudes de Escritorio</h1>
-                            <p className="text-[#6E6E73]">Gestiona las solicitudes de nuevos dispositivos</p>
+                            <h1 className="text-3xl font-bold text-[#1D1D1F] mb-2">Gestión de Solicitudes</h1>
+                            <p className="text-[#6E6E73]">Administra las solicitudes de dispositivos de escritorio y móviles</p>
                         </div>
                         <button
-                            onClick={cargarSolicitudes}
+                            onClick={cargarTodasLasSolicitudes}
                             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                         >
                             <RefreshCw size={18} />
@@ -148,25 +203,25 @@ const SolicitudesPage = () => {
                         </button>
                     </div>
 
-                    {/* Stats */}
+                    {/* Stats Globales */}
                     <div className="flex items-center gap-3 flex-wrap">
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full border border-blue-200">
-                            <span className="font-semibold">{solicitudes.length}</span>
+                            <span className="font-semibold">{totalSolicitudes}</span>
                             <span className="text-sm">total</span>
                         </div>
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-50 text-yellow-700 rounded-full border border-yellow-200">
                             <Clock size={16} />
-                            <span className="font-semibold">{pendientes}</span>
+                            <span className="font-semibold">{totalPendientes}</span>
                             <span className="text-sm">pendientes</span>
                         </div>
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-full border border-green-200">
                             <CheckCircle size={16} />
-                            <span className="font-semibold">{aceptadas}</span>
+                            <span className="font-semibold">{totalAceptadas}</span>
                             <span className="text-sm">aceptadas</span>
                         </div>
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-700 rounded-full border border-red-200">
                             <XCircle size={16} />
-                            <span className="font-semibold">{rechazadas}</span>
+                            <span className="font-semibold">{totalRechazadas}</span>
                             <span className="text-sm">rechazadas</span>
                         </div>
                     </div>
@@ -178,202 +233,169 @@ const SolicitudesPage = () => {
                 <div className="mb-6 flex gap-2">
                     <button
                         onClick={() => setFilter('all')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                            filter === 'all'
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-white text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7]'
-                        }`}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all ${filter === 'all'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-white text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7]'
+                            }`}
                     >
-                        Todas ({solicitudes.length})
+                        Todas
                     </button>
                     <button
                         onClick={() => setFilter('pendientes')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                            filter === 'pendientes'
-                                ? 'bg-yellow-600 text-white'
-                                : 'bg-white text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7]'
-                        }`}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all ${filter === 'pendientes'
+                            ? 'bg-yellow-600 text-white'
+                            : 'bg-white text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7]'
+                            }`}
                     >
-                        Pendientes ({pendientes})
+                        Pendientes
                     </button>
                     <button
                         onClick={() => setFilter('aceptadas')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                            filter === 'aceptadas'
-                                ? 'bg-green-600 text-white'
-                                : 'bg-white text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7]'
-                        }`}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all ${filter === 'aceptadas'
+                            ? 'bg-green-600 text-white'
+                            : 'bg-white text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7]'
+                            }`}
                     >
-                        Aceptadas ({aceptadas})
+                        Aceptadas
                     </button>
                     <button
                         onClick={() => setFilter('rechazadas')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                            filter === 'rechazadas'
-                                ? 'bg-red-600 text-white'
-                                : 'bg-white text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7]'
-                        }`}
+                        className={`px-4 py-2 rounded-lg font-medium transition-all ${filter === 'rechazadas'
+                            ? 'bg-red-600 text-white'
+                            : 'bg-white text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7]'
+                            }`}
                     >
-                        Rechazadas ({rechazadas})
+                        Rechazadas
                     </button>
                 </div>
 
-                {/* Lista de solicitudes */}
-                {solicitudesFiltradas.length === 0 ? (
+                {/* SECCIÓN: SOLICITUDES DE ESCRITORIO */}
+                <div className="mb-8">
+                    <button
+                        onClick={() => setShowEscritorioSection(!showEscritorioSection)}
+                        className="w-full flex items-center justify-between p-5 bg-gradient-to-r from-blue-50 to-cyan-50 border-2 border-blue-300 rounded-2xl shadow-sm hover:shadow-md transition-all mb-4"
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className="p-2 bg-blue-600 rounded-lg">
+                                <Monitor className="w-6 h-6 text-white" />
+                            </div>
+                            <div className="text-left">
+                                <p className="text-blue-800 font-bold text-lg">
+                                    Solicitudes de Escritorio
+                                </p>
+                                <p className="text-[#6E6E73] text-sm">
+                                    {escritorioFiltradas.length} solicitud{escritorioFiltradas.length !== 1 ? 'es' : ''}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="text-sm text-blue-700 font-medium">
+                                {showEscritorioSection ? 'Ocultar' : 'Mostrar'}
+                            </span>
+                            {showEscritorioSection ? (
+                                <ChevronUp className="w-5 h-5 text-blue-700" />
+                            ) : (
+                                <ChevronDown className="w-5 h-5 text-blue-700" />
+                            )}
+                        </div>
+                    </button>
+
+                    {showEscritorioSection && (
+                        <div className="space-y-4">
+                            {escritorioFiltradas.length === 0 ? (
+                                <div className="bg-white rounded-xl border border-[#D2D2D7] p-12 text-center">
+                                    <Monitor className="w-16 h-16 text-[#6E6E73] mx-auto mb-4 opacity-50" />
+                                    <h3 className="text-lg font-semibold text-[#1D1D1F] mb-2">
+                                        No hay solicitudes de escritorio {filter !== 'all' && filter}
+                                    </h3>
+                                    <p className="text-[#6E6E73]">
+                                        Las solicitudes de dispositivos de escritorio aparecerán aquí
+                                    </p>
+                                </div>
+                            ) : (
+                                escritorioFiltradas.map((solicitud) => (
+                                    <SolicitudCard
+                                        key={solicitud.id}
+                                        solicitud={solicitud}
+                                        onAceptar={handleAceptarEscritorio}
+                                        onRechazar={handleRechazarEscritorio}
+                                    />
+                                ))
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* SECCIÓN: SOLICITUDES MÓVILES */}
+                <div className="mb-8">
+                    <button
+                        onClick={() => setShowMovilesSection(!showMovilesSection)}
+                        className="w-full flex items-center justify-between p-5 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-2xl shadow-sm hover:shadow-md transition-all mb-4"
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className="p-2 bg-purple-600 rounded-lg">
+                                <Smartphone className="w-6 h-6 text-white" />
+                            </div>
+                            <div className="text-left">
+                                <p className="text-purple-800 font-bold text-lg">
+                                    Solicitudes Móviles
+                                </p>
+                                <p className="text-[#6E6E73] text-sm">
+                                    {movilesFiltradas.length} solicitud{movilesFiltradas.length !== 1 ? 'es' : ''}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <span className="text-sm text-purple-700 font-medium">
+                                {showMovilesSection ? 'Ocultar' : 'Mostrar'}
+                            </span>
+                            {showMovilesSection ? (
+                                <ChevronUp className="w-5 h-5 text-purple-700" />
+                            ) : (
+                                <ChevronDown className="w-5 h-5 text-purple-700" />
+                            )}
+                        </div>
+                    </button>
+
+                    {showMovilesSection && (
+                        <div className="space-y-4">
+                            {movilesFiltradas.length === 0 ? (
+                                <div className="bg-white rounded-xl border border-[#D2D2D7] p-12 text-center">
+                                    <Smartphone className="w-16 h-16 text-[#6E6E73] mx-auto mb-4 opacity-50" />
+                                    <h3 className="text-lg font-semibold text-[#1D1D1F] mb-2">
+                                        No hay solicitudes móviles {filter !== 'all' && filter}
+                                    </h3>
+                                    <p className="text-[#6E6E73]">
+                                        Las solicitudes de acceso móvil aparecerán aquí
+                                    </p>
+                                </div>
+                            ) : (
+                                movilesFiltradas.map((solicitud) => (
+                                    <SolicitudMovilCard
+                                        key={solicitud.id}
+                                        solicitud={solicitud}
+                                        onAceptar={handleAceptarMovil}
+                                        onRechazar={handleRechazarMovil}
+                                    />
+                                ))
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Mensaje cuando no hay solicitudes en absoluto */}
+                {totalSolicitudes === 0 && (
                     <div className="bg-white rounded-xl border border-[#D2D2D7] p-12 text-center">
                         <AlertCircle className="w-16 h-16 text-[#6E6E73] mx-auto mb-4 opacity-50" />
-                        <h3 className="text-lg font-semibold text-[#1D1D1F] mb-2">
-                            No hay solicitudes {filter !== 'all' && filter}
+                        <h3 className="text-xl font-semibold text-[#1D1D1F] mb-2">
+                            No hay solicitudes
                         </h3>
                         <p className="text-[#6E6E73]">
-                            {filter === 'all' ? 'Las solicitudes aparecerán aquí cuando los dispositivos las envíen' : 'Cambia el filtro para ver otras solicitudes'}
+                            Las nuevas solicitudes de dispositivos aparecerán aquí
                         </p>
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        {solicitudesFiltradas.map((solicitud) => {
-                            const badge = getEstadoBadge(solicitud.estado);
-                            return (
-                                <div
-                                    key={solicitud.id}
-                                    className="bg-white rounded-xl border border-[#D2D2D7] p-6 hover:shadow-lg transition-shadow"
-                                >
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex items-start gap-4 flex-1">
-                                            <div className="p-3 bg-blue-100 rounded-xl">
-                                                <Monitor className="w-6 h-6 text-blue-600" />
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-3 mb-2">
-                                                    <h3 className="text-lg font-semibold text-[#1D1D1F]">
-                                                        {solicitud.nombre}
-                                                    </h3>
-                                                    <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-sm font-medium ${badge.bg} ${badge.text} ${badge.border}`}>
-                                                        {badge.icon}
-                                                        {solicitud.estado}
-                                                    </span>
-                                                </div>
-
-                                                {solicitud.descripcion && (
-                                                    <p className="text-[#6E6E73] mb-3">{solicitud.descripcion}</p>
-                                                )}
-
-                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                                    <div>
-                                                        <span className="text-[#6E6E73]">IP:</span>
-                                                        <span className="ml-2 font-medium text-[#1D1D1F]">{solicitud.ip}</span>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-[#6E6E73]">MAC:</span>
-                                                        <span className="ml-2 font-mono text-xs font-medium text-[#1D1D1F]">{solicitud.mac}</span>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-[#6E6E73]">SO:</span>
-                                                        <span className="ml-2 font-medium text-[#1D1D1F]">{solicitud.sistema_operativo || 'N/A'}</span>
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-[#6E6E73]">Fecha:</span>
-                                                        <span className="ml-2 font-medium text-[#1D1D1F]">
-                                                            {new Date(solicitud.fecha_solicitud).toLocaleDateString()}
-                                                        </span>
-                                                    </div>
-                                                </div>
-
-                                                {solicitud.estado === 'Rechazado' && solicitud.motivo_rechazo && (
-                                                    <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                                                        <p className="text-sm text-red-800">
-                                                            <strong>Motivo de rechazo:</strong> {solicitud.motivo_rechazo}
-                                                        </p>
-                                                    </div>
-                                                )}
-
-                                                {solicitud.observaciones && (
-                                                    <div className="mt-3 p-3 bg-[#F5F5F7] rounded-lg">
-                                                        <p className="text-sm text-[#6E6E73]">
-                                                            <strong>Observaciones:</strong> {solicitud.observaciones}
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Acciones */}
-                                        <div className="flex items-center gap-2 ml-4">
-                                            {solicitud.estado === 'Pendiente' && (
-                                                <>
-                                                    <button
-                                                        onClick={() => handleAceptar(solicitud)}
-                                                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                                                    >
-                                                        <CheckCircle size={18} />
-                                                        Aceptar
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleRechazar(solicitud)}
-                                                        className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                                                    >
-                                                        <XCircle size={18} />
-                                                        Rechazar
-                                                    </button>
-                                                </>
-                                            )}
-                                            {solicitud.estado !== 'Aceptado' && (
-                                                <button
-                                                    onClick={() => handleEliminar(solicitud)}
-                                                    className="p-2 text-[#6E6E73] hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors"
-                                                    title="Eliminar solicitud"
-                                                >
-                                                    <Trash2 size={18} />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
                     </div>
                 )}
             </div>
-
-            {/* Modal de rechazo */}
-            {showRejectModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-                        <h3 className="text-xl font-bold text-[#1D1D1F] mb-4">
-                            Rechazar Solicitud
-                        </h3>
-                        <p className="text-[#6E6E73] mb-4">
-                            Estás a punto de rechazar la solicitud de <strong>{selectedSolicitud?.nombre}</strong>.
-                            Por favor, proporciona un motivo:
-                        </p>
-                        <textarea
-                            value={motivoRechazo}
-                            onChange={(e) => setMotivoRechazo(e.target.value)}
-                            placeholder="Motivo del rechazo..."
-                            className="w-full px-4 py-3 bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg text-[#1D1D1F] placeholder-[#86868B] focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-                            rows="4"
-                        />
-                        <div className="flex gap-3 mt-4">
-                            <button
-                                onClick={confirmarRechazo}
-                                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-                            >
-                                Confirmar Rechazo
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setShowRejectModal(false);
-                                    setSelectedSolicitud(null);
-                                    setMotivoRechazo('');
-                                }}
-                                className="flex-1 px-4 py-2 bg-[#F5F5F7] text-[#1D1D1F] rounded-lg hover:bg-[#E5E5E7] transition-colors font-medium"
-                            >
-                                Cancelar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };

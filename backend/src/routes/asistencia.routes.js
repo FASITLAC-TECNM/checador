@@ -8,10 +8,17 @@ import {
     obtenerEstadisticas,
     registrarAsistenciaManual,
     eliminarRegistro,
-    obtenerReporte
+    obtenerReporte,
+    obtenerTodosRegistros,
+    healthCheck
 } from '../controllers/asistencia.controller.js';
 
 const router = Router();
+
+// ==================== HEALTH CHECK ====================
+
+// Verificar disponibilidad del sistema
+router.get('/health', healthCheck);
 
 // ==================== REGISTRO DE ASISTENCIA ====================
 
@@ -26,6 +33,7 @@ router.post('/registrar-manual', registrarAsistenciaManual);
 // IMPORTANTE: Rutas específicas primero (antes de parámetros dinámicos)
 router.get('/estadisticas', obtenerEstadisticas);
 router.get('/reporte', obtenerReporte);
+router.get('/todos', obtenerTodosRegistros);
 
 // Obtener último registro de un empleado (para saber si toca Entrada o Salida)
 router.get('/empleado/:id_empleado/ultimo', obtenerUltimoRegistro);

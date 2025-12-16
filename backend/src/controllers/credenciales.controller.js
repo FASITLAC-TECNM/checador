@@ -346,7 +346,7 @@ export const getAllDescriptores = async (req, res) => {
         e.nombre,
         e.apellido
        FROM credenciales c
-       INNER JOIN empleados e ON c.id_empleado = e.id
+       INNER JOIN empleado e ON c.id_empleado = e.id
        WHERE c.facial IS NOT NULL`
     );
 
@@ -412,7 +412,7 @@ export const updateDescriptorFacial = async (req, res) => {
 
     // Verificar que el empleado existe
     const empleadoCheck = await pool.query(
-      'SELECT id FROM empleados WHERE id = $1',
+      'SELECT id FROM empleado WHERE id = $1',
       [id_empleado]
     );
 

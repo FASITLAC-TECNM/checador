@@ -500,7 +500,7 @@ export const getDescriptorByEmpleado = async (req, res) => {
         e.nombre,
         e.apellido
        FROM credenciales c
-       INNER JOIN empleados e ON c.id_empleado = e.id
+       INNER JOIN empleado e ON c.id_empleado = e.id
        WHERE c.id_empleado = $1 AND c.facial IS NOT NULL`,
       [id_empleado]
     );

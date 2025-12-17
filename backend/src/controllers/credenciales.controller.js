@@ -339,14 +339,15 @@ export const getAllDescriptores = async (req, res) => {
     console.log('📊 Obteniendo descriptores faciales...');
 
     const result = await pool.query(
-      `SELECT 
-        c.id, 
-        c.id_empleado, 
+      `SELECT
+        c.id,
+        c.id_empleado,
         c.facial,
-        e.nombre,
-        e.apellido
+        u.nombre,
+        u.telefono
        FROM credenciales c
        INNER JOIN empleado e ON c.id_empleado = e.id
+       INNER JOIN usuario u ON e.id_usuario = u.id
        WHERE c.facial IS NOT NULL`
     );
 
@@ -355,17 +356,17 @@ export const getAllDescriptores = async (req, res) => {
       // El campo facial viene como Buffer, necesitamos convertirlo a array
       const buffer = row.facial;
       const float32Array = new Float32Array(
-        buffer.buffer, 
-        buffer.byteOffset, 
+        buffer.buffer,
+        buffer.byteOffset,
         buffer.length / Float32Array.BYTES_PER_ELEMENT
       );
-      
+
       return {
         id: row.id,
         empleado_id: row.id_empleado,
         descriptor_facial: Array.from(float32Array), // Convertir a array normal
         nombre: row.nombre,
-        apellido: row.apellido
+        telefono: row.telefono
       };
     });
 
@@ -375,9 +376,9 @@ export const getAllDescriptores = async (req, res) => {
 
   } catch (error) {
     console.error('❌ Error obteniendo descriptores:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Error interno del servidor',
-      message: error.message 
+      message: error.message
     });
   }
 };
@@ -493,14 +494,15 @@ export const getDescriptorByEmpleado = async (req, res) => {
     console.log(`🔍 Buscando descriptor facial del empleado ${id_empleado}...`);
 
     const result = await pool.query(
-      `SELECT 
-        c.id, 
-        c.id_empleado, 
+      `SELECT
+        c.id,
+        c.id_empleado,
         c.facial,
-        e.nombre,
-        e.apellido
+        u.nombre,
+        u.telefono
        FROM credenciales c
        INNER JOIN empleado e ON c.id_empleado = e.id
+       INNER JOIN usuario u ON e.id_usuario = u.id
        WHERE c.id_empleado = $1 AND c.facial IS NOT NULL`,
       [id_empleado]
     );
@@ -516,8 +518,8 @@ export const getDescriptorByEmpleado = async (req, res) => {
     const row = result.rows[0];
     const buffer = row.facial;
     const float32Array = new Float32Array(
-      buffer.buffer, 
-      buffer.byteOffset, 
+      buffer.buffer,
+      buffer.byteOffset,
       buffer.length / Float32Array.BYTES_PER_ELEMENT
     );
 
@@ -526,7 +528,7 @@ export const getDescriptorByEmpleado = async (req, res) => {
       empleado_id: row.id_empleado,
       descriptor_facial: Array.from(float32Array),
       nombre: row.nombre,
-      apellido: row.apellido
+      telefono: row.telefono
     };
 
     console.log(`✅ Descriptor encontrado para empleado ${id_empleado}`);
@@ -535,9 +537,9 @@ export const getDescriptorByEmpleado = async (req, res) => {
 
   } catch (error) {
     console.error('❌ Error obteniendo descriptor:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Error interno del servidor',
-      message: error.message 
+      message: error.message
     });
   }
 };

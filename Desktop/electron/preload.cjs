@@ -22,6 +22,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   configSet: (key, value) => ipcRenderer.invoke('config-set', key, value),
   configRemove: (key) => ipcRenderer.invoke('config-remove', key),
 
+  // Reconocimiento Facial
+  verificarUsuario: (descriptor) => ipcRenderer.invoke('verificar-usuario', descriptor),
+  registrarDescriptorFacial: (empleadoId, descriptor) => ipcRenderer.invoke('registrar-descriptor-facial', empleadoId, descriptor),
+  registrarAsistenciaFacial: (empleadoId) => ipcRenderer.invoke('registrar-asistencia-facial', empleadoId),
+
   // Información del entorno
   isElectron: true,
   platform: process.platform,

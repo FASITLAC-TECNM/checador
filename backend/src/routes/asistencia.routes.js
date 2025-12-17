@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import {
     registrarAsistencia,
+    registrarAsistenciaFacial,
     obtenerAsistenciasEmpleado,
     obtenerAsistenciasPorFecha,
     obtenerUltimoRegistro,
@@ -24,6 +25,9 @@ router.get('/health', healthCheck);
 
 // Registrar entrada/salida con huella dactilar
 router.post('/registrar', registrarAsistencia);
+
+// Registrar asistencia con reconocimiento facial
+router.post('/registrar-facial', registrarAsistenciaFacial);
 
 // Registrar asistencia manual (solo admin)
 router.post('/registrar-manual', registrarAsistenciaManual);

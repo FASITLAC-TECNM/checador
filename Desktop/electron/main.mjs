@@ -14,6 +14,11 @@ const __dirname = path.dirname(__filename);
 
 let mainWindow;
 
+// Desactivar aceleración de hardware GPU para evitar errores en Windows
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-gpu-compositing');
+app.commandLine.appendSwitch('disable-software-rasterizer');
+
 // Función para crear la ventana principal
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -24,7 +29,11 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.cjs')
+      preload: path.join(__dirname, 'preload.cjs'),
+      enableWebSQL: false,
+      v8CacheOptions: 'code',
+      // Mejorar rendimiento de video
+      backgroundThrottling: false,
     },
     frame: true,
     backgroundColor: '#ffffff',
@@ -299,5 +308,244 @@ ipcMain.handle('config-remove', async (event, key) => {
   } catch (error) {
     console.error('Error eliminando configuración:', error);
     return false;
+  }
+});
+
+// ===== Reconocimiento Facial =====
+
+/**
+ * Calcular distancia euclidiana entre dos descriptores faciales
+ * @param {Array} descriptor1 - Primer descriptor (128 dimensiones)
+ * @param {Array} descriptor2 - Segundo descriptor (128 dimensiones)
+ * @returns {number} - Distancia euclidiana
+ */
+function calculateEuclideanDistance(descriptor1, descriptor2) {
+  if (descriptor1.length !== descriptor2.length) {
+    throw new Error('Los descriptores deben tener la misma longitud');
+  }
+
+  let sum = 0;
+  for (let i = 0; i < descriptor1.length; i++) {
+    const diff = descriptor1[i] - descriptor2[i];
+    sum += diff * diff;
+  }
+
+  return Math.sqrt(sum);
+}
+
+/**
+ * Función auxiliar para obtener la URL del backend
+ */
+function getBackendUrl() {
+  const configPath = getConfigPath();
+  // URL por defecto - Dev Tunnel
+  let backendUrl = 'https://9dm7dqf9-3001.usw3.devtunnels.ms';
+
+  try {
+    if (fs.existsSync(configPath)) {
+      const data = fs.readFileSync(configPath, 'utf8');
+      const config = JSON.parse(data);
+      backendUrl = config.backendUrl || backendUrl;
+    }
+  } catch (error) {
+    console.error('⚠️ Error leyendo configuración, usando URL por defecto:', error);
+  }
+
+  // Eliminar barra final si existe
+  return backendUrl.replace(/\/$/, '');
+}
+
+/**
+ * Verificar usuario por reconocimiento facial
+ * Recibe un descriptor facial y lo compara con todos los registrados en la DB
+ */
+ipcMain.handle('verificar-usuario', async (event, descriptor) => {
+  try {
+    console.log('🔍 Verificando usuario por reconocimiento facial...');
+
+    const backendUrl = getBackendUrl();
+    console.log(`📡 Conectando a: ${backendUrl}`);
+
+    // Obtener todos los descriptores faciales de la base de datos
+    const response = await fetch(`${backendUrl}/api/credenciales/descriptores`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
+    }
+
+    const credenciales = await response.json();
+    console.log(`📊 Comparando con ${credenciales.length} descriptores en la BD...`);
+
+    if (credenciales.length === 0) {
+      return {
+        success: false,
+        message: 'No hay descriptores faciales registrados en la base de datos',
+      };
+    }
+
+    // Comparar el descriptor recibido con cada uno de la base de datos
+    const THRESHOLD = 0.6; // Umbral de similitud (< 0.6 es una buena coincidencia)
+    let bestMatch = null;
+    let bestDistance = Infinity;
+
+    for (const credencial of credenciales) {
+      if (!credencial.descriptor_facial) continue;
+
+      // El descriptor viene como array de números desde la BD
+      const storedDescriptor = credencial.descriptor_facial;
+      const distance = calculateEuclideanDistance(descriptor, storedDescriptor);
+
+      console.log(`Comparando con empleado ${credencial.empleado_id}: distancia = ${distance.toFixed(4)}`);
+
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestMatch = credencial;
+      }
+    }
+
+    if (bestMatch && bestDistance < THRESHOLD) {
+      console.log(`✅ Usuario identificado: ${bestMatch.empleado_id} (distancia: ${bestDistance.toFixed(4)})`);
+
+      // Obtener información del empleado
+      const empleadoResponse = await fetch(`${backendUrl}/api/empleados/${bestMatch.empleado_id}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!empleadoResponse.ok) {
+        throw new Error(`Error obteniendo datos del empleado: ${empleadoResponse.status}`);
+      }
+
+      const empleado = await empleadoResponse.json();
+
+      return {
+        success: true,
+        empleado: empleado,
+        distancia: bestDistance,
+        message: 'Usuario identificado correctamente',
+      };
+    } else {
+      console.log(`❌ No se encontró coincidencia (mejor distancia: ${bestDistance.toFixed(4)})`);
+      return {
+        success: false,
+        message: 'Rostro no identificado',
+        distancia: bestDistance,
+      };
+    }
+  } catch (error) {
+    console.error('❌ Error verificando usuario:', error);
+    return {
+      success: false,
+      message: `Error de conexión: ${error.message}`,
+      error: error.toString(),
+    };
+  }
+});
+
+/**
+ * Registrar asistencia con reconocimiento facial
+ * Verifica el usuario y registra su asistencia
+ */
+ipcMain.handle('registrar-asistencia-facial', async (event, empleadoId) => {
+  try {
+    console.log(`📝 Registrando asistencia para empleado ${empleadoId}...`);
+
+    const backendUrl = getBackendUrl();
+    console.log(`📡 Conectando a: ${backendUrl}`);
+
+    // Registrar la asistencia
+    const response = await fetch(`${backendUrl}/api/asistencia/registrar-facial`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        id_empleado: empleadoId,
+        tipo: 'Entrada', // Por defecto registramos entrada
+        metodo_registro: 'Facial',
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Respuesta del servidor:', errorText);
+      throw new Error(`Error HTTP ${response.status}: ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log('✅ Asistencia registrada exitosamente');
+
+    return {
+      success: true,
+      message: 'Asistencia registrada correctamente',
+      data: result,
+    };
+  } catch (error) {
+    console.error('❌ Error registrando asistencia:', error);
+    return {
+      success: false,
+      message: `Error de conexión: ${error.message}`,
+      error: error.toString(),
+    };
+  }
+});
+
+/**
+ * Registrar descriptor facial para un empleado
+ * Convierte el Float32Array a Buffer y lo guarda en la DB como BYTEA
+ */
+ipcMain.handle('registrar-descriptor-facial', async (event, empleadoId, descriptor) => {
+  try {
+    console.log(`💾 Registrando descriptor facial para empleado ${empleadoId}...`);
+
+    const backendUrl = getBackendUrl();
+    console.log(`📡 Conectando a: ${backendUrl}`);
+
+    // Verificar que el descriptor sea válido
+    if (!descriptor || !Array.isArray(descriptor) || descriptor.length === 0) {
+      throw new Error('Descriptor facial inválido');
+    }
+
+    console.log(`📊 Descriptor: ${descriptor.length} dimensiones`);
+
+    // Enviar el descriptor al backend para guardarlo
+    const response = await fetch(`${backendUrl}/api/credenciales/descriptor-facial/${empleadoId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ descriptor }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Respuesta del servidor:', errorText);
+      throw new Error(`Error HTTP ${response.status}: ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log('✅ Descriptor facial guardado exitosamente');
+
+    return {
+      success: true,
+      message: 'Descriptor facial registrado correctamente',
+      data: result,
+    };
+  } catch (error) {
+    console.error('❌ Error registrando descriptor facial:', error);
+    return {
+      success: false,
+      message: `Error de conexión: ${error.message}`,
+      error: error.toString(),
+    };
   }
 });

@@ -92,9 +92,22 @@ export default function KioskScreen() {
 
       if (result.success) {
         // ✅ Rostro identificado correctamente
-        setCaptureSuccess(true);
-
         const nombreUsuario = result.empleado.nombre || "Usuario";
+        const empleadoId = result.empleado.id;
+
+        // Si es modo asistencia, registrar la asistencia
+        if (cameraMode === "asistencia") {
+          console.log("📝 Registrando asistencia para empleado:", empleadoId);
+          const asistenciaResult = await window.electronAPI.registrarAsistenciaFacial(empleadoId);
+
+          if (!asistenciaResult.success) {
+            throw new Error(`Error registrando asistencia: ${asistenciaResult.message}`);
+          }
+
+          console.log("✅ Asistencia registrada:", asistenciaResult.data);
+        }
+
+        setCaptureSuccess(true);
 
         agregarEvento({
           user: nombreUsuario,

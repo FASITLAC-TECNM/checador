@@ -10,21 +10,16 @@ import {
   Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
-// Función helper para obtener URL de foto
+import { RegisterButton } from './RegisterButton'; 
 const obtenerUrlFotoPerfil = (foto) => {
   if (!foto) {
     console.log('❌ No hay foto');
     return null;
   }
-  
-  // Si ya es una URL completa, devolverla directamente
   if (foto.startsWith('http://') || foto.startsWith('https://')) {
     console.log('✅ Foto es URL completa:', foto);
     return foto;
   }
-  
-  // Si es una ruta relativa, construir la URL completa
   const BASE_URL = 'https://9dm7dqf9-3001.usw3.devtunnels.ms';
   const url = `${BASE_URL}${foto.startsWith('/') ? '' : '/'}${foto}`;
   console.log('✅ URL construida:', url);
@@ -33,26 +28,15 @@ const obtenerUrlFotoPerfil = (foto) => {
 
 export const HomeScreen = ({ userData, darkMode }) => {
   const styles = darkMode ? homeStylesDark : homeStyles;
-
-  // Obtener la URL completa de la foto si existe
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
-
-  // Extraer información del empleado, rol y departamento
   const empleado = userData.empleado || null;
   const rol = userData.rol || null;
   const departamento = userData.departamento || null;
   const permisos = userData.permisos || [];
-
-  // Si es empleado, priorizar rol "Empleado"
   const rolMostrar = empleado ? 'Empleado' : (rol?.nombre_rol || 'Usuario');
-
-  // Debug para ver qué datos tenemos
-  console.log('👤 UserData:', userData);
-  console.log('📸 Foto URL:', fotoUrl);
-  console.log('👔 Empleado:', empleado);
-  console.log('🔐 Rol:', rol);
-  console.log('🏢 Departamento:', departamento);
-  console.log('🔑 Permisos:', permisos);
+  const handleRegistroExitoso = (data) => {
+    console.log('✅ Registro exitoso:', data);
+  };
 
   return (
     <View style={styles.container}>
@@ -135,27 +119,12 @@ export const HomeScreen = ({ userData, darkMode }) => {
           </View>
         </View>
 
-        {/* Register Card */}
-        <View style={styles.registerCard}>
-          <View style={styles.iconCircle}>
-            <Ionicons name="location" size={48} color="#fff" />
-            <View style={styles.iconDot}>
-              <View style={styles.iconDotInner} />
-            </View>
-          </View>
-          <Text style={styles.registerTitle}>Registro No Disponible</Text>
-          <Text style={styles.registerTime}>
-            {new Date().toLocaleTimeString('es-MX', { 
-              hour: '2-digit', 
-              minute: '2-digit', 
-              second: '2-digit',
-              hour12: true 
-            })}
-          </Text>
-          <Text style={styles.registerMessage}>
-            El botón se activará cuando estés en el área permitida
-          </Text>
-        </View>
+        {/* Register Button Component - REEMPLAZA la RegisterCard anterior */}
+        <RegisterButton 
+          userData={userData} 
+          darkMode={darkMode}
+          onRegistroExitoso={handleRegistroExitoso}
+        />
       </ScrollView>
     </View>
   );
@@ -291,63 +260,6 @@ const homeStyles = StyleSheet.create({
     color: '#2563eb',
     fontSize: 12,
     fontWeight: '600',
-  },
-  registerCard: {
-    backgroundColor: '#2563eb',
-    marginHorizontal: 20,
-    marginTop: 20,
-    borderRadius: 25,
-    padding: 30,
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-  },
-  iconCircle: {
-    width: 96,
-    height: 96,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 48,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-    position: 'relative',
-  },
-  iconDot: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    width: 24,
-    height: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  iconDotInner: {
-    width: 12,
-    height: 12,
-    backgroundColor: '#fff',
-    borderRadius: 6,
-  },
-  registerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 10,
-  },
-  registerTime: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 15,
-  },
-  registerMessage: {
-    fontSize: 14,
-    color: '#93c5fd',
-    textAlign: 'center',
   },
 });
 

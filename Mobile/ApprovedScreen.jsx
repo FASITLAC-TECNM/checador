@@ -24,67 +24,49 @@ export const ApprovedScreen = ({ email, deviceInfo, onComplete }) => {
 
       {/* Content */}
       <View style={styles.content}>
-        <View style={styles.successCard}>
-          {/* Icon */}
-          <View style={styles.iconContainer}>
-            <Ionicons name={approved.icon} size={60} color="#10b981" />
-          </View>
+        {/* Icon de éxito */}
+        <View style={styles.successIcon}>
+          <Ionicons name={approved.icon} size={64} color="#10b981" />
+        </View>
 
-          {/* Message */}
-          <View style={styles.messageCard}>
-            <Text style={styles.message}>{approved.message}</Text>
-          </View>
+        {/* Mensaje */}
+        <Text style={styles.message}>{approved.message}</Text>
 
-          {/* Checklist */}
-          <View style={styles.checklist}>
-            <View style={styles.checkItem}>
-              <Ionicons name="mail" size={18} color="#10b981" />
-              <View style={styles.checkContent}>
-                <Text style={styles.checkTitle}>Correo Verificado</Text>
-                <Text style={styles.checkDescription}>{email}</Text>
-              </View>
+        {/* Checklist compacto */}
+        <View style={styles.checklist}>
+          <View style={styles.checkItem}>
+            <Ionicons name="mail" size={16} color="#10b981" />
+            <View style={styles.checkContent}>
+              <Text style={styles.checkTitle}>Correo Verificado</Text>
+              <Text style={styles.checkValue}>{email}</Text>
             </View>
-
-            <View style={styles.checkItem}>
-              <Ionicons name="phone-portrait" size={18} color="#10b981" />
-              <View style={styles.checkContent}>
-                <Text style={styles.checkTitle}>Dispositivo Registrado</Text>
-                <Text style={styles.checkDescription}>
-                  {deviceInfo?.model || 'Dispositivo móvil'}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.checkItem}>
-              <Ionicons name="shield-checkmark" size={18} color="#10b981" />
-              <View style={styles.checkContent}>
-                <Text style={styles.checkTitle}>Acceso Aprobado</Text>
-                <Text style={styles.checkDescription}>
-                  Puedes comenzar a usar la aplicación
-                </Text>
-              </View>
-            </View>
-
-            {deviceInfo?.ip && (
-              <View style={styles.checkItem}>
-                <Ionicons name="analytics" size={18} color="#10b981" />
-                <View style={styles.checkContent}>
-                  <Text style={styles.checkTitle}>Información de Red</Text>
-                  <Text style={styles.checkDescription}>
-                    IP: {deviceInfo.ip}
-                  </Text>
-                </View>
-              </View>
-            )}
           </View>
 
-          {/* Additional Info */}
-          <View style={styles.infoBox}>
-            <Ionicons name="information-circle" size={16} color="#065f46" />
-            <Text style={styles.infoText}>
-              Tu dispositivo ha sido vinculado exitosamente. Ahora puedes acceder a todas las funciones de la aplicación.
-            </Text>
+          <View style={styles.checkItem}>
+            <Ionicons name="phone-portrait" size={16} color="#10b981" />
+            <View style={styles.checkContent}>
+              <Text style={styles.checkTitle}>Dispositivo Registrado</Text>
+              <Text style={styles.checkValue}>
+                {deviceInfo?.model || 'Dispositivo móvil'}
+              </Text>
+            </View>
           </View>
+
+          <View style={styles.checkItem}>
+            <Ionicons name="shield-checkmark" size={16} color="#10b981" />
+            <View style={styles.checkContent}>
+              <Text style={styles.checkTitle}>Acceso Aprobado</Text>
+              <Text style={styles.checkValue}>Listo para usar</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Info adicional */}
+        <View style={styles.infoBox}>
+          <Ionicons name="information-circle" size={14} color="#065f46" />
+          <Text style={styles.infoText}>
+            Tu dispositivo ha sido vinculado exitosamente. Ahora puedes acceder a todas las funciones.
+          </Text>
         </View>
       </View>
 
@@ -92,15 +74,11 @@ export const ApprovedScreen = ({ email, deviceInfo, onComplete }) => {
       <View style={styles.footer}>
         <View style={styles.stepper}>
           <View style={styles.stepComplete}>
-            <Ionicons name="checkmark" size={16} color="#fff" />
+            <Ionicons name="checkmark" size={14} color="#fff" />
           </View>
           <View style={styles.stepLine} />
           <View style={styles.stepComplete}>
-            <Ionicons name="checkmark" size={16} color="#fff" />
-          </View>
-          <View style={styles.stepLine} />
-          <View style={styles.stepComplete}>
-            <Ionicons name="checkmark" size={16} color="#fff" />
+            <Ionicons name="checkmark" size={14} color="#fff" />
           </View>
         </View>
 
@@ -110,7 +88,7 @@ export const ApprovedScreen = ({ email, deviceInfo, onComplete }) => {
           activeOpacity={0.8}
         >
           <Text style={styles.completeButtonText}>Comenzar a Usar</Text>
-          <Ionicons name="arrow-forward" size={18} color="#fff" />
+          <Ionicons name="arrow-forward" size={16} color="#fff" />
         </TouchableOpacity>
       </View>
     </View>
@@ -133,7 +111,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#1f2937',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   headerSubtitle: {
     fontSize: 12,
@@ -141,50 +119,38 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 16,
-    justifyContent: 'center',
-  },
-  successCard: {
-    backgroundColor: '#d1fae5',
-    borderRadius: 16,
     padding: 20,
-    borderWidth: 1.5,
-    borderColor: '#6ee7b7',
-    alignItems: 'center',
-  },
-  iconContainer: {
-    width: 90,
-    height: 90,
-    backgroundColor: '#a7f3d0',
-    borderRadius: 45,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 18,
   },
-  messageCard: {
-    backgroundColor: '#a7f3d0',
-    borderRadius: 12,
-    padding: 14,
-    width: '100%',
-    marginBottom: 18,
+  successIcon: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#d1fae5',
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   message: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#065f46',
     textAlign: 'center',
-    fontWeight: '600',
+    marginBottom: 20,
+    lineHeight: 18,
+    paddingHorizontal: 10,
   },
   checklist: {
     width: '100%',
-    gap: 10,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   checkItem: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#a7f3d0',
-    borderRadius: 8,
-    padding: 10,
+    alignItems: 'center',
+    backgroundColor: '#d1fae5',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
   },
   checkContent: {
     flex: 1,
@@ -196,7 +162,7 @@ const styles = StyleSheet.create({
     color: '#065f46',
     marginBottom: 2,
   },
-  checkDescription: {
+  checkValue: {
     fontSize: 11,
     color: '#047857',
   },
@@ -212,18 +178,19 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 10,
     color: '#065f46',
-    marginLeft: 8,
+    marginLeft: 6,
     lineHeight: 14,
   },
   footer: {
     backgroundColor: '#fff',
-    padding: 14,
+    padding: 16,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
   },
   stepper: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 12,
   },
   stepComplete: {
@@ -235,14 +202,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   stepLine: {
-    flex: 1,
+    width: 50,
     height: 2,
     backgroundColor: '#10b981',
-    marginHorizontal: 6,
+    marginHorizontal: 8,
   },
   completeButton: {
     backgroundColor: '#10b981',
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',

@@ -22,48 +22,48 @@ export const WelcomeScreen = ({ onNext }) => {
         style={styles.gradient}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Header Card */}
-          <View style={styles.headerCard}>
+          {/* Logo y Título */}
+          <View style={styles.header}>
             <View style={styles.logoContainer}>
-              <Ionicons name="shield-checkmark" size={40} color="#2563eb" />
+              <Ionicons name="shield-checkmark" size={36} color="#2563eb" />
             </View>
             <Text style={styles.title}>{welcome.title}</Text>
             <Text style={styles.subtitle}>{welcome.subtitle}</Text>
           </View>
 
-          {/* Steps Grid */}
-          <View style={styles.stepsGrid}>
+          {/* Pasos */}
+          <View style={styles.stepsContainer}>
             {welcome.steps.map((step) => (
-              <View key={step.number} style={styles.stepCard}>
+              <View key={step.number} style={styles.stepRow}>
                 <View style={styles.stepNumber}>
                   <Text style={styles.stepNumberText}>{step.number}</Text>
                 </View>
-                <Ionicons name={step.icon} size={24} color="#fff" style={styles.stepIcon} />
-                <Text style={styles.stepTitle}>{step.title}</Text>
+                <View style={styles.stepContent}>
+                  <View style={styles.stepHeader}>
+                    <Ionicons name={step.icon} size={18} color="#fff" />
+                    <Text style={styles.stepTitle}>{step.title}</Text>
+                  </View>
+                  <Text style={styles.stepDescription}>{step.description}</Text>
+                </View>
               </View>
             ))}
           </View>
 
-          {/* Note */}
+          {/* Nota */}
           <View style={styles.noteCard}>
-            <Ionicons name="information-circle" size={18} color="#60a5fa" />
+            <Ionicons name="information-circle" size={16} color="#60a5fa" />
             <Text style={styles.noteText}>{welcome.note}</Text>
           </View>
         </ScrollView>
 
-        {/* Start Button */}
+        {/* Botón */}
         <TouchableOpacity
           style={styles.startButton}
           onPress={onNext}
           activeOpacity={0.9}
         >
-          <LinearGradient
-            colors={['#fff', '#f3f4f6']}
-            style={styles.startButtonGradient}
-          >
-            <Text style={styles.startButtonText}>Comenzar</Text>
-            <Ionicons name="arrow-forward" size={20} color="#2563eb" />
-          </LinearGradient>
+          <Text style={styles.startButtonText}>Comenzar</Text>
+          <Ionicons name="arrow-forward" size={18} color="#fff" />
         </TouchableOpacity>
       </LinearGradient>
     </View>
@@ -78,29 +78,29 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 80,
+    padding: 20,
+    paddingBottom: 100,
   },
-  headerCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 16,
-    padding: 16,
+  header: {
     alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    marginBottom: 24,
   },
   logoContainer: {
-    width: 60,
-    height: 60,
+    width: 64,
+    height: 64,
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   title: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#fff',
     textAlign: 'center',
@@ -111,48 +111,54 @@ const styles = StyleSheet.create({
     color: '#93c5fd',
     textAlign: 'center',
   },
-  stepsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 16,
+  stepsContainer: {
+    marginBottom: 20,
   },
-  stepCard: {
-    width: '48%',
+  stepRow: {
+    flexDirection: 'row',
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 12,
     padding: 12,
-    marginBottom: 12,
-    alignItems: 'center',
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   stepNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginRight: 12,
   },
   stepNumberText: {
     color: '#2563eb',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
   },
-  stepIcon: {
-    marginBottom: 6,
+  stepContent: {
+    flex: 1,
+  },
+  stepHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   stepTitle: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
     color: '#fff',
-    textAlign: 'center',
+    marginLeft: 6,
+  },
+  stepDescription: {
+    fontSize: 11,
+    color: '#93c5fd',
+    lineHeight: 16,
   },
   noteCard: {
     backgroundColor: 'rgba(96, 165, 250, 0.2)',
-    borderRadius: 12,
+    borderRadius: 10,
     padding: 12,
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -168,27 +174,25 @@ const styles = StyleSheet.create({
   },
   startButton: {
     position: 'absolute',
-    bottom: 16,
-    left: 16,
-    right: 16,
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: '#1e3a8a',
     borderRadius: 12,
-    overflow: 'hidden',
-    elevation: 8,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-  },
-  startButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 14,
+    elevation: 8,
   },
   startButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#2563eb',
+    color: '#fff',
     marginRight: 8,
   },
 });

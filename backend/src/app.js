@@ -42,6 +42,6 @@ app.use('/api/horarios', horariosRoutes);
 app.use('/api/escritorios', escritorioRoutes);
 app.use('/api/solicitudes-escritorio', solicitudEscritorioRoutes);
 app.use('/api/solicitudes-movil', solicitudMovilRoutes);
-app.use('/api/asistencia', asistenciaRoutes); // NUEVO
+app.use('/api/asistencia', asistenciaRoutes);
 
 export default app;

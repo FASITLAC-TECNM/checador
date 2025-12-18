@@ -14,6 +14,7 @@ import dispositivoMovilRoutes from './routes/dispositivoMovil.routes.js';
 import asistenciaRoutes from './routes/asistencia.routes.js';
 import biometricRoutes from './routes/biometric.routes.js'; // NUEVO
 import configuracionRoutes from './routes/configuracion.routes.js';
+import empleadoDepartamentoRoutes from './routes/empleadoDepartamento.routes.js';
 
 const app = express();
 
@@ -50,5 +51,6 @@ app.use('/api/dispositivos-moviles', dispositivoMovilRoutes);
 app.use('/api/asistencia', asistenciaRoutes);
 app.use('/api/biometric', biometricRoutes); // NUEVO - Rutas biométricas
 app.use('/api/configuracion', configuracionRoutes);
+app.use('/api/empleado-departamento', empleadoDepartamentoRoutes);
 
 export default app;

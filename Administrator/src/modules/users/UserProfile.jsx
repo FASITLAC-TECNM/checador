@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Mail, Phone, User, Shield, Edit, CreditCard, Briefcase, Save, Camera, Users, Key, Calendar, Smartphone } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, User, Shield, Edit, CreditCard, Briefcase, Save, Camera, Users, Key, Calendar, Smartphone, Building2 } from 'lucide-react';
 import { getEmpleadoPorUsuario, actualizarEmpleado, crearEmpleado } from '../../services/empleadoService';
 import { actualizarUsuario } from '../../services/api';
 import { crearCredenciales, actualizarCredenciales, getCredencialesPorEmpleado } from '../../services/credencialesService';
 import { obtenerHorarioPorId, actualizarHorario, obtenerHorarioPorEmpleado } from '../../services/horariosService';
 import { getDispositivosMovilesPorEmpleado } from '../../services/dispositivosMovilesService';
 import UserRolesModal from './UserRolesModal';
+import UserDepartmentsModal from './UserDepartmentsModal';
 import HorarioEditor from './HorarioEditor';
 import HorarioSemanal from '../../components/HorarioSemanal';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -18,6 +19,7 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
     const [editingEmpleado, setEditingEmpleado] = useState(false);
     const [previewImage, setPreviewImage] = useState(user?.foto || '');
     const [showRolesModal, setShowRolesModal] = useState(false);
+    const [showDepartmentsModal, setShowDepartmentsModal] = useState(false);
     const [showHorarioEditor, setShowHorarioEditor] = useState(false);
     const [horarioData, setHorarioData] = useState(null);
     const [horarioSemanal, setHorarioSemanal] = useState([]);
@@ -387,6 +389,12 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
                     onUpdate={onUpdate}
                 />
             )}
+            {showDepartmentsModal && empleadoData && (
+                <UserDepartmentsModal
+                    empleadoId={empleadoData.id}
+                    onClose={() => setShowDepartmentsModal(false)}
+                />
+            )}
             {showHorarioEditor && horarioData && (
                 <HorarioEditor
                     empleado={empleadoData}
@@ -456,6 +464,15 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
                                                         <Users size={18} className="text-indigo-500" />
                                                         Roles
                                                     </button>
+                                                    {empleadoData && (
+                                                        <button
+                                                            onClick={() => setShowDepartmentsModal(true)}
+                                                            className="px-4 py-2 bg-white border border-gray-200 text-gray-700 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 rounded-xl text-sm font-semibold transition-all shadow-sm flex items-center gap-2"
+                                                        >
+                                                            <Building2 size={18} className="text-blue-500" />
+                                                            Departamentos
+                                                        </button>
+                                                    )}
                                                 </>
                                             )}
                                             <div className="h-8 w-px bg-gray-200 mx-1 hidden sm:block"></div>

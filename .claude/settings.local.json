@@ -35,7 +35,8 @@
       "Bash(for file in users/UserForm.jsx users/UserProfile.jsx roles/RolesPage.jsx devices/DevicesPage.jsx devices/DeviceRequestPage.jsx devices/SolicitudCard.jsx devices/SolicitudesPage.jsx)",
       "Bash(do echo \"Procesando $file\")",
       "Bash(done)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(ping:*)"
     ],
     "deny": [],
     "ask": []

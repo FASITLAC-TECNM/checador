@@ -11,6 +11,7 @@ export const getDepartamentosEmpleado = async (req, res) => {
                 ed.id_empleado,
                 ed.id_departamento,
                 ed.fecha_asignacion,
+                ed.estado,
                 d.nombre as departamento_nombre,
                 d.descripcion as departamento_descripcion
             FROM empleado_departamento ed
@@ -42,8 +43,8 @@ export const asignarDepartamento = async (req, res) => {
         }
 
         const result = await pool.query(`
-            INSERT INTO empleado_departamento (id_empleado, id_departamento, fecha_asignacion)
-            VALUES ($1, $2, NOW())
+            INSERT INTO empleado_departamento (id_empleado, id_departamento, fecha_asignacion, estado)
+            VALUES ($1, $2, NOW(), true)
             RETURNING *
         `, [id_empleado, id_departamento]);
 
@@ -54,6 +55,7 @@ export const asignarDepartamento = async (req, res) => {
                 ed.id_empleado,
                 ed.id_departamento,
                 ed.fecha_asignacion,
+                ed.estado,
                 d.nombre as departamento_nombre,
                 d.descripcion as departamento_descripcion
             FROM empleado_departamento ed

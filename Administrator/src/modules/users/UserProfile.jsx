@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Mail, Phone, User, Shield, Edit, CreditCard, Briefcase, Save, Camera, Users, Key, Calendar } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, User, Shield, Edit, CreditCard, Briefcase, Save, Camera, Users, Key, Calendar, Smartphone } from 'lucide-react';
 import { getEmpleadoPorUsuario, actualizarEmpleado, crearEmpleado } from '../../services/empleadoService';
 import { actualizarUsuario } from '../../services/api';
 import { crearCredenciales, actualizarCredenciales, getCredencialesPorEmpleado } from '../../services/credencialesService';
 import { obtenerHorarioPorId, actualizarHorario, obtenerHorarioPorEmpleado } from '../../services/horariosService';
+import { getDispositivosMovilesPorEmpleado } from '../../services/dispositivosMovilesService';
 import UserRolesModal from './UserRolesModal';
 import HorarioEditor from './HorarioEditor';
 import HorarioSemanal from '../../components/HorarioSemanal';
@@ -22,6 +23,8 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
     const [horarioSemanal, setHorarioSemanal] = useState([]);
     const [loadingHorarioSemanal, setLoadingHorarioSemanal] = useState(true);
     const [showHorarioModal, setShowHorarioModal] = useState(false);
+    const [dispositivosMoviles, setDispositivosMoviles] = useState([]);
+    const [loadingDispositivos, setLoadingDispositivos] = useState(true);
     const fileInputRef = useRef(null);
 
     const [userForm, setUserForm] = useState({
@@ -50,6 +53,12 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
         cargarDatosEmpleado();
         setPreviewImage(user?.foto || '');
     }, [user]);
+
+    useEffect(() => {
+        if (empleadoData?.id) {
+            cargarDispositivosMoviles();
+        }
+    }, [empleadoData?.id]);
 
     useEffect(() => {
         const cargarHorarioSemanal = async () => {
@@ -317,6 +326,24 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
         }
     };
 
+    const cargarDispositivosMoviles = async () => {
+        if (!empleadoData?.id) {
+            setLoadingDispositivos(false);
+            return;
+        }
+
+        try {
+            setLoadingDispositivos(true);
+            const data = await getDispositivosMovilesPorEmpleado(empleadoData.id);
+            setDispositivosMoviles(data || []);
+        } catch (error) {
+            console.error('Error cargando dispositivos móviles:', error);
+            setDispositivosMoviles([]);
+        } finally {
+            setLoadingDispositivos(false);
+        }
+    };
+
     const getActivoBadgeColor = (activo) => {
         switch (activo) {
             case 'ACTIVO': return 'bg-green-100 text-green-800 border-green-200';
@@ -565,6 +592,69 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
                                         <InfoField icon={CreditCard} label="NSS" value={formatNSS(empleadoData.nss)} variant="blue" />
                                         <InfoField icon={Shield} label="RFC" value={empleadoData.rfc} variant="green" />
                                         <InfoField icon={Key} label="PIN de Acceso" value={empleadoData.pin ? '••••' : 'No configurado'} variant="purple" />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Dispositivos Móviles Asignados */}
+                            <div className="mt-10">
+                                <div className="mb-4 pb-2 border-b border-gray-100">
+                                    <h3 className="text-lg font-bold text-gray-900">Dispositivo Móvil</h3>
+                                </div>
+                                {loadingDispositivos ? (
+                                    <div className="py-8 text-center text-gray-400">Cargando dispositivos...</div>
+                                ) : dispositivosMoviles.length === 0 ? (
+                                    <div className="py-8 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                                        <Smartphone className="mx-auto text-gray-300 mb-2" size={32} />
+                                        <p className="text-gray-500">Este usuario no tiene dispositivos móviles asignados.</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {dispositivosMoviles.map((dispositivo) => (
+                                            <div key={dispositivo.id} className="bg-white border-2 border-purple-200 rounded-xl p-5 hover:shadow-lg transition-all">
+                                                <div className="flex items-start gap-4">
+                                                    <div className="p-3 bg-purple-100 rounded-xl">
+                                                        <Smartphone className="w-6 h-6 text-purple-700" />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="text-lg font-bold text-[#1D1D1F] mb-2">
+                                                            {dispositivo.tipo || 'Dispositivo Móvil'}
+                                                        </h4>
+                                                        <div className="space-y-2 text-sm">
+                                                            {dispositivo.sistema_operativo && (
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-[#6E6E73]">SO:</span>
+                                                                    <span className="font-medium text-[#1D1D1F]">{dispositivo.sistema_operativo}</span>
+                                                                </div>
+                                                            )}
+                                                            {dispositivo.estado && (
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-[#6E6E73]">Estado:</span>
+                                                                    <span className={`px-2 py-1 rounded-md font-medium ${dispositivo.estado === 'Activo'
+                                                                        ? 'bg-green-100 text-green-700'
+                                                                        : 'bg-gray-100 text-gray-700'
+                                                                        }`}>
+                                                                        {dispositivo.estado}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                            {dispositivo.fecha_registro && (
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-[#6E6E73]">Registrado:</span>
+                                                                    <span className="font-medium text-[#1D1D1F]">
+                                                                        {new Date(dispositivo.fecha_registro).toLocaleDateString('es-MX', {
+                                                                            day: 'numeric',
+                                                                            month: 'short',
+                                                                            year: 'numeric'
+                                                                        })}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
                             </div>

@@ -8,17 +8,13 @@ export const registrarAsistencia = async (req, res) => {
     try {
         const {
             id_empleado,
-            tipo, // 'Entrada' o 'Salida'
-            huella_dactilar, // Base64 o buffer de la huella capturada
-            dispositivo_id,
-            ubicacion
+            tipo, // 'Escritorio' o 'Movil'
+            huella_dactilar // Base64 o buffer de la huella capturada
         } = req.body;
 
         console.log('📥 Solicitud de registro de asistencia:', {
             id_empleado,
             tipo,
-            dispositivo_id,
-            ubicacion,
             huella_length: huella_dactilar?.length || 0
         });
 
@@ -87,16 +83,12 @@ export const registrarAsistencia = async (req, res) => {
             INSERT INTO registro_asistencia (
                 id_empleado,
                 fecha,
-                hora,
                 tipo,
-                dispositivo_id,
-                metodo_registro,
-                ubicacion,
-                verificado
+                dispositivo
             )
-            VALUES ($1, CURRENT_DATE, CURRENT_TIME, $2, $3, 'Huella', $4, true)
+            VALUES ($1, CURRENT_DATE, $2, 'Huella')
             RETURNING *
-        `, [id_empleado, tipo, dispositivo_id, ubicacion]);
+        `, [id_empleado, tipo]);
 
         // Obtener información del empleado para la respuesta
         const empleadoInfo = await pool.query(`
@@ -116,7 +108,7 @@ export const registrarAsistencia = async (req, res) => {
             registro_id: registroResult.rows[0].id,
             empleado: empleadoInfo.rows[0].nombre,
             tipo: tipo,
-            hora: registroResult.rows[0].hora
+            fecha: registroResult.rows[0].fecha
         });
 
         res.status(201).json({
@@ -205,7 +197,7 @@ export const obtenerAsistenciasEmpleado = async (req, res) => {
             paramIndex++;
         }
 
-        query += ` ORDER BY ra.fecha DESC, ra.hora DESC LIMIT $${paramIndex}`;
+        query += ` ORDER BY ra.fecha DESC, ra.created_at DESC LIMIT $${paramIndex}`;
         params.push(limit);
 
         const result = await pool.query(query, params);
@@ -243,7 +235,7 @@ export const obtenerAsistenciasPorFecha = async (req, res) => {
             INNER JOIN empleado e ON ra.id_empleado = e.id
             INNER JOIN usuario u ON e.id_usuario = u.id
             WHERE ra.fecha = $1
-            ORDER BY ra.hora DESC
+            ORDER BY ra.created_at DESC
         `, [fecha]);
 
         res.json({
@@ -273,7 +265,7 @@ export const obtenerUltimoRegistro = async (req, res) => {
             SELECT *
             FROM registro_asistencia
             WHERE id_empleado = $1
-            ORDER BY fecha DESC, hora DESC
+            ORDER BY fecha DESC, created_at DESC
             LIMIT 1
         `, [id_empleado]);
 
@@ -347,16 +339,12 @@ export const registrarAsistenciaFacial = async (req, res) => {
     try {
         const {
             id_empleado,
-            tipo, // 'Entrada' o 'Salida' (opcional, se autodetecta)
-            dispositivo_id,
-            ubicacion
+            tipo // 'Escritorio' o 'Movil'
         } = req.body;
 
         console.log('📸 Registro de asistencia facial:', {
             id_empleado,
-            tipo,
-            dispositivo_id,
-            ubicacion
+            tipo
         });
 
         // Validaciones
@@ -387,26 +375,13 @@ export const registrarAsistenciaFacial = async (req, res) => {
             });
         }
 
-        // Si no se especifica tipo, autodetectar basado en el último registro
-        let tipoRegistro = tipo;
-        if (!tipoRegistro) {
-            const ultimoRegistro = await pool.query(`
-                SELECT tipo
-                FROM registro_asistencia
-                WHERE id_empleado = $1
-                ORDER BY fecha DESC, hora DESC
-                LIMIT 1
-            `, [id_empleado]);
-
-            tipoRegistro = ultimoRegistro.rows.length === 0 || ultimoRegistro.rows[0].tipo === 'Salida'
-                ? 'Entrada'
-                : 'Salida';
-        }
+        // Usar tipo proporcionado o 'Escritorio' por defecto
+        const tipoRegistro = tipo || 'Escritorio';
 
         // Validar tipo
-        if (!['Entrada', 'Salida'].includes(tipoRegistro)) {
+        if (!['Escritorio', 'Movil'].includes(tipoRegistro)) {
             return res.status(400).json({
-                error: 'Tipo debe ser "Entrada" o "Salida"',
+                error: 'Tipo debe ser "Escritorio" o "Movil"',
                 codigo: 'TIPO_INVALIDO'
             });
         }
@@ -416,16 +391,12 @@ export const registrarAsistenciaFacial = async (req, res) => {
             INSERT INTO registro_asistencia (
                 id_empleado,
                 fecha,
-                hora,
                 tipo,
-                dispositivo_id,
-                metodo_registro,
-                ubicacion,
-                verificado
+                dispositivo
             )
-            VALUES ($1, CURRENT_DATE, CURRENT_TIME, $2, $3, 'Facial', $4, true)
+            VALUES ($1, CURRENT_DATE, $2, 'Facial')
             RETURNING *
-        `, [id_empleado, tipoRegistro, dispositivo_id, ubicacion]);
+        `, [id_empleado, tipoRegistro]);
 
         // Obtener información del empleado para la respuesta
         const empleadoInfo = await pool.query(`
@@ -445,7 +416,7 @@ export const registrarAsistenciaFacial = async (req, res) => {
             registro_id: registroResult.rows[0].id,
             empleado: empleadoInfo.rows[0].nombre,
             tipo: tipoRegistro,
-            hora: registroResult.rows[0].hora
+            fecha: registroResult.rows[0].fecha
         });
 
         res.status(201).json({
@@ -472,7 +443,6 @@ export const registrarAsistenciaManual = async (req, res) => {
         const {
             id_empleado,
             fecha,
-            hora,
             tipo,
             observaciones,
             id_usuario_registra
@@ -481,15 +451,14 @@ export const registrarAsistenciaManual = async (req, res) => {
         console.log('📝 Registro manual de asistencia:', {
             id_empleado,
             fecha,
-            hora,
             tipo,
             id_usuario_registra
         });
 
         // Validaciones
-        if (!id_empleado || !fecha || !hora || !tipo) {
+        if (!id_empleado || !fecha || !tipo) {
             return res.status(400).json({
-                error: 'Campos requeridos: id_empleado, fecha, hora, tipo'
+                error: 'Campos requeridos: id_empleado, fecha, tipo'
             });
         }
 
@@ -515,15 +484,14 @@ export const registrarAsistenciaManual = async (req, res) => {
             INSERT INTO registro_asistencia (
                 id_empleado,
                 fecha,
-                hora,
                 tipo,
                 metodo_registro,
                 verificado,
                 observaciones
             )
-            VALUES ($1, $2, $3, $4, 'Manual', true, $5)
+            VALUES ($1, $2, $3, 'Manual', true, $4)
             RETURNING *
-        `, [id_empleado, fecha, hora, tipo, observaciones]);
+        `, [id_empleado, fecha, tipo, observaciones]);
 
         console.log('✅ Asistencia manual registrada:', result.rows[0].id);
 
@@ -594,8 +562,8 @@ export const obtenerReporte = async (req, res) => {
                 e.nss,
                 COUNT(*) FILTER (WHERE ra.tipo = 'Entrada') as entradas,
                 COUNT(*) FILTER (WHERE ra.tipo = 'Salida') as salidas,
-                MIN(CASE WHEN ra.tipo = 'Entrada' THEN ra.hora END) as primera_entrada,
-                MAX(CASE WHEN ra.tipo = 'Salida' THEN ra.hora END) as ultima_salida,
+                MIN(CASE WHEN ra.tipo = 'Entrada' THEN ra.created_at END) as primera_entrada,
+                MAX(CASE WHEN ra.tipo = 'Salida' THEN ra.created_at END) as ultima_salida,
                 STRING_AGG(
                     CASE WHEN ra.metodo_registro = 'Manual'
                     THEN CONCAT(ra.tipo, ' (Manual)')
@@ -698,7 +666,7 @@ export const obtenerTodosRegistros = async (req, res) => {
         const total = parseInt(countResult.rows[0].count);
 
         // Agregar paginación
-        query += ` ORDER BY ra.fecha DESC, ra.hora DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+        query += ` ORDER BY ra.fecha DESC, ra.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
         params.push(limit, offset);
 
         const result = await pool.query(query, params);

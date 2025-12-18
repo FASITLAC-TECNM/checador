@@ -4,7 +4,7 @@ import HomePage from './modules/home/HomePage';
 import UserPage from './modules/users/UserPage';
 import RolesPage from './modules/roles/RolesPage';
 import SettingsPage from './modules/settings/SettingsPage';
-import DevicesPage from './modules/devices/DevicesPage';
+import DevicesManagementPage from './modules/devices/DevicesManagementPage';
 import DeviceRequestPage from './modules/devices/DeviceRequestPage';
 import DepartmentsPage from './modules/departments/DepartmentsPage';
 import HistoryPage from './modules/history/HistoryPage';
@@ -44,7 +44,7 @@ const DashboardPage = () => {
             case 'departments':
                 return <DepartmentsPage />;
             case 'devices':
-                return <DevicesPage />;
+                return <DevicesManagementPage />;
             case 'device-requests':
                 return (
                     <DeviceRequestPage

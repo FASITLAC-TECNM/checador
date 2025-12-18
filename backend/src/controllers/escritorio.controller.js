@@ -1,21 +1,51 @@
 import { pool } from '../config/db.js';
 
-// Obtener todos los escritorios
+// Obtener todos los escritorios y dispositivos móviles
 export const getEscritorios = async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM Escritorio ORDER BY id DESC');
-        // Mapear campos para compatibilidad con frontend
-        const escritorios = result.rows.map(e => ({
+        // Obtener escritorios
+        const escritoriosResult = await pool.query('SELECT * FROM Escritorio ORDER BY id DESC');
+        const escritorios = escritoriosResult.rows.map(e => ({
             ...e,
-            tipo: 'Registro Físico', // Todos los escritorios son dispositivos de registro físico
-            device_id: e.mac, // Usar MAC como device_id
+            tipo: 'Registro Físico',
+            device_id: e.mac,
             ip_address: e.ip,
             configuracion: e.dispositivos_biometricos || {}
         }));
-        res.json(escritorios);
+
+        // Obtener dispositivos móviles con información del usuario
+        const mobilesResult = await pool.query(`
+            SELECT
+                dm.*,
+                u.id as usuario_id,
+                u.nombre as usuario_nombre,
+                u.correo as usuario_email
+            FROM dispositivo_movil dm
+            LEFT JOIN Usuario u ON dm.id_usuario = u.id
+            ORDER BY dm.id DESC
+        `);
+
+        const moviles = mobilesResult.rows.map(m => ({
+            id: m.id,
+            nombre: m.tipo || 'Dispositivo Móvil',
+            tipo: 'Móvil',
+            estado: m.estado === true ? 'Activo' : 'Inactivo',
+            device_id: m.mac || m.id,
+            ubicacion: m.usuario_nombre || 'Sin asignar',
+            usuarioAsignado: m.usuario_nombre || 'Sin asignar',
+            usuario_id: m.usuario_id,
+            usuario_email: m.usuario_email,
+            sistema_operativo: m.sistema_operativo,
+            fecha_registro: m.fecha_registro,
+            ultima_sync: m.ultima_sincronizacion
+        }));
+
+        // Combinar ambos tipos de dispositivos
+        const allDevices = [...escritorios, ...moviles];
+        res.json(allDevices);
     } catch (error) {
-        console.error('Error al obtener escritorios:', error);
-        res.status(500).json({ error: 'Error al obtener escritorios' });
+        console.error('Error al obtener dispositivos:', error);
+        res.status(500).json({ error: 'Error al obtener dispositivos' });
     }
 };
 
@@ -212,10 +242,11 @@ export const registrarSync = async (req, res) => {
     }
 };
 
-// Obtener estadísticas de escritorios
+// Obtener estadísticas de escritorios y dispositivos móviles
 export const getEstadisticas = async (req, res) => {
     try {
-        const result = await pool.query(`
+        // Estadísticas de escritorios
+        const escritoriosResult = await pool.query(`
             SELECT
                 COUNT(*) as total,
                 COUNT(*) FILTER (WHERE estado::text = 'activo') as activos,
@@ -223,14 +254,25 @@ export const getEstadisticas = async (req, res) => {
             FROM Escritorio
         `);
 
-        // Mapear para compatibilidad con frontend
+        // Estadísticas de dispositivos móviles
+        const mobilesResult = await pool.query(`
+            SELECT
+                COUNT(*) as total,
+                COUNT(*) FILTER (WHERE estado = true) as activos
+            FROM dispositivo_movil
+        `);
+
+        const escritoriosStats = escritoriosResult.rows[0];
+        const mobilesStats = mobilesResult.rows[0];
+
+        // Combinar estadísticas
         const stats = {
-            total: parseInt(result.rows[0].total) || 0,
-            activos: parseInt(result.rows[0].activos) || 0,
-            inactivos: parseInt(result.rows[0].inactivos) || 0,
-            fisicos: parseInt(result.rows[0].total) || 0, // Todos son físicos
-            moviles: 0, // Los escritorios no incluyen móviles
-            biometricos: 0 // Los escritorios no incluyen biométricos directamente
+            total: (parseInt(escritoriosStats.total) || 0) + (parseInt(mobilesStats.total) || 0),
+            activos: (parseInt(escritoriosStats.activos) || 0) + (parseInt(mobilesStats.activos) || 0),
+            inactivos: parseInt(escritoriosStats.inactivos) || 0,
+            fisicos: parseInt(escritoriosStats.total) || 0,
+            moviles: parseInt(mobilesStats.total) || 0,
+            biometricos: 0
         };
 
         res.json(stats);

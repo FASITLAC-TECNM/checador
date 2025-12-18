@@ -96,25 +96,38 @@ const SolicitudMovilCard = ({ solicitud, onAceptar, onRechazar }) => {
                         </div>
                     </div>
 
-                    {/* Acciones */}
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => onAceptar(solicitud)}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 active:scale-95 transition-all font-medium shadow-sm hover:shadow"
-                            title="Aceptar solicitud"
-                        >
-                            <CheckCircle size={18} />
-                            <span className="hidden sm:inline">Aceptar</span>
-                        </button>
-                        <button
-                            onClick={() => setShowRejectModal(true)}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 active:scale-95 transition-all font-medium shadow-sm hover:shadow"
-                            title="Rechazar solicitud"
-                        >
-                            <XCircle size={18} />
-                            <span className="hidden sm:inline">Rechazar</span>
-                        </button>
-                    </div>
+                    {/* Acciones - Solo mostrar si está pendiente */}
+                    {solicitud.estado === 'Pendiente' && (
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => onAceptar(solicitud)}
+                                className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 active:scale-95 transition-all font-medium shadow-sm hover:shadow"
+                                title="Aceptar solicitud"
+                            >
+                                <CheckCircle size={18} />
+                                <span className="hidden sm:inline">Aceptar</span>
+                            </button>
+                            <button
+                                onClick={() => setShowRejectModal(true)}
+                                className="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 active:scale-95 transition-all font-medium shadow-sm hover:shadow"
+                                title="Rechazar solicitud"
+                            >
+                                <XCircle size={18} />
+                                <span className="hidden sm:inline">Rechazar</span>
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Badge de estado para solicitudes procesadas */}
+                    {solicitud.estado !== 'Pendiente' && (
+                        <div className={`px-4 py-2 rounded-lg font-semibold ${
+                            solicitud.estado === 'Aceptado'
+                                ? 'bg-green-100 text-green-700 border-2 border-green-300'
+                                : 'bg-red-100 text-red-700 border-2 border-red-300'
+                        }`}>
+                            {solicitud.estado === 'Aceptado' ? '✓ Aceptado' : '✗ Rechazado'}
+                        </div>
+                    )}
                 </div>
             </div>
 

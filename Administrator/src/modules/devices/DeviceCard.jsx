@@ -40,20 +40,30 @@ const DeviceCard = ({ device, onEdit, onDelete, onClick, isNested = false }) => 
         >
             <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3 flex-1">
-                    <div className="relative">
-                        <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${getDeviceColor(device.tipo)} flex items-center justify-center text-white shadow-md group-hover:scale-110 transition-transform duration-300`}>
-                            {getDeviceIcon(device.tipo)}
+                    {!isMobile && (
+                        <div className="relative">
+                            <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${getDeviceColor(device.tipo)} flex items-center justify-center text-white shadow-md group-hover:scale-110 transition-transform duration-300`}>
+                                {getDeviceIcon(device.tipo)}
+                            </div>
                         </div>
-                        {device.estado === 'Activo' && (
-                            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white shadow-md animate-pulse"></div>
-                        )}
-                    </div>
+                    )}
                     <div className="flex-1 min-w-0">
-                        <h3 className="text-[#1D1D1F] font-bold text-base truncate group-hover:text-blue-600 transition-colors">
-                            {device.nombre}
-                        </h3>
-                        {device.modelo && (
-                            <p className="text-[#86868B] text-xs mt-0.5 truncate">{device.modelo}</p>
+                        {isMobile ? (
+                            <>
+                                <h3 className="text-[#1D1D1F] font-bold text-base truncate group-hover:text-blue-600 transition-colors">
+                                    {device.usuario?.nombre || 'Sin asignar'}
+                                </h3>
+                                <p className="text-[#86868B] text-xs mt-0.5 truncate">{device.nombre}</p>
+                            </>
+                        ) : (
+                            <>
+                                <h3 className="text-[#1D1D1F] font-bold text-base truncate group-hover:text-blue-600 transition-colors">
+                                    {device.nombre}
+                                </h3>
+                                {device.modelo && (
+                                    <p className="text-[#86868B] text-xs mt-0.5 truncate">{device.modelo}</p>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>
@@ -63,7 +73,7 @@ const DeviceCard = ({ device, onEdit, onDelete, onClick, isNested = false }) => 
             </div>
 
             <div className="space-y-2 mb-4 text-sm">
-                {device.usuario?.nombre && (
+                {device.usuario?.nombre && !isMobile && (
                     <div className="flex items-center gap-2 text-[#6E6E73] bg-[#F5F5F7] rounded-lg px-3 py-2">
                         <User className="w-4 h-4 text-purple-600" />
                         <span className="text-[#86868B] text-xs font-medium">Empleado:</span>

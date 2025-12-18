@@ -185,45 +185,40 @@ const SolicitudesPage = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#FBFBFD]">
-            {/* Header */}
-            <div className="bg-white border-b border-[#E5E5E7] sticky top-0 z-10 shadow-sm">
-                <div className="max-w-7xl mx-auto px-6 py-6">
-                    <div className="flex justify-between items-start mb-4">
-                        <div>
-                            <h1 className="text-3xl font-bold text-[#1D1D1F] mb-2">Gestión de Solicitudes</h1>
-                            <p className="text-[#6E6E73]">Administra las solicitudes de dispositivos de escritorio y móviles</p>
-                        </div>
-                        <button
-                            onClick={cargarTodasLasSolicitudes}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                            <RefreshCw size={18} />
-                            Actualizar
-                        </button>
-                    </div>
+        <div className="bg-[#FBFBFD] min-h-screen">
+            {/* Header con estadísticas */}
+            <div className="bg-white border-b border-[#E5E5E7] px-6 py-4">
+                <div className="flex justify-between items-center mb-3">
+                    <p className="text-[#6E6E73]">Administra las solicitudes de dispositivos de escritorio y móviles</p>
+                    <button
+                        onClick={cargarTodasLasSolicitudes}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                        <RefreshCw size={18} />
+                        Actualizar
+                    </button>
+                </div>
 
-                    {/* Stats Globales */}
-                    <div className="flex items-center gap-3 flex-wrap">
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full border border-blue-200">
-                            <span className="font-semibold">{totalSolicitudes}</span>
-                            <span className="text-sm">total</span>
-                        </div>
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-50 text-yellow-700 rounded-full border border-yellow-200">
-                            <Clock size={16} />
-                            <span className="font-semibold">{totalPendientes}</span>
-                            <span className="text-sm">pendientes</span>
-                        </div>
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-full border border-green-200">
-                            <CheckCircle size={16} />
-                            <span className="font-semibold">{totalAceptadas}</span>
-                            <span className="text-sm">aceptadas</span>
-                        </div>
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-700 rounded-full border border-red-200">
-                            <XCircle size={16} />
-                            <span className="font-semibold">{totalRechazadas}</span>
-                            <span className="text-sm">rechazadas</span>
-                        </div>
+                {/* Stats Globales */}
+                <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full border border-blue-200">
+                        <span className="font-semibold">{totalSolicitudes}</span>
+                        <span className="text-sm">total</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-50 text-yellow-700 rounded-full border border-yellow-200">
+                        <Clock size={16} />
+                        <span className="font-semibold">{totalPendientes}</span>
+                        <span className="text-sm">pendientes</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-full border border-green-200">
+                        <CheckCircle size={16} />
+                        <span className="font-semibold">{totalAceptadas}</span>
+                        <span className="text-sm">aceptadas</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-700 rounded-full border border-red-200">
+                        <XCircle size={16} />
+                        <span className="font-semibold">{totalRechazadas}</span>
+                        <span className="text-sm">rechazadas</span>
                     </div>
                 </div>
             </div>

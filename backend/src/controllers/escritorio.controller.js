@@ -17,11 +17,13 @@ export const getEscritorios = async (req, res) => {
         const mobilesResult = await pool.query(`
             SELECT
                 dm.*,
+                e.id as empleado_id,
                 u.id as usuario_id,
                 u.nombre as usuario_nombre,
                 u.correo as usuario_email
             FROM dispositivo_movil dm
-            LEFT JOIN Usuario u ON dm.id_usuario = u.id
+            LEFT JOIN empleado e ON dm.id_empleado = e.id
+            LEFT JOIN usuario u ON e.id_usuario = u.id
             ORDER BY dm.id DESC
         `);
 
@@ -33,8 +35,11 @@ export const getEscritorios = async (req, res) => {
             device_id: m.mac || m.id,
             ubicacion: m.usuario_nombre || 'Sin asignar',
             usuarioAsignado: m.usuario_nombre || 'Sin asignar',
-            usuario_id: m.usuario_id,
-            usuario_email: m.usuario_email,
+            usuario: m.usuario_nombre ? {
+                id: m.usuario_id,
+                nombre: m.usuario_nombre,
+                email: m.usuario_email
+            } : null,
             sistema_operativo: m.sistema_operativo,
             fecha_registro: m.fecha_registro,
             ultima_sync: m.ultima_sincronizacion

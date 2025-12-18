@@ -63,22 +63,15 @@ const DeviceCard = ({ device, onEdit, onDelete, onClick, isNested = false }) => 
             </div>
 
             <div className="space-y-2 mb-4 text-sm">
-                <div className="flex items-center gap-2 text-[#6E6E73] bg-[#F5F5F7] rounded-lg px-3 py-2">
-                    {device.tipo === 'Registro Físico' && <MapPin className="w-4 h-4 text-blue-600" />}
-                    {device.tipo === 'Móvil' && <User className="w-4 h-4 text-purple-600" />}
-                    {device.tipo === 'Biométrico' && <MapPin className="w-4 h-4 text-green-600" />}
-                    <span className="text-[#86868B] text-xs font-medium">
-                        {device.tipo === 'Registro Físico' && 'Ubicación:'}
-                        {device.tipo === 'Móvil' && 'Empleado:'}
-                        {device.tipo === 'Biométrico' && 'Ubicación:'}
-                    </span>
-                    <span className="text-[#1D1D1F] font-semibold text-xs flex-1 truncate">
-                        {device.tipo === 'Móvil'
-                            ? (device.usuario?.nombre || device.usuarioAsignado || '-')
-                            : (device.ubicacion || '-')
-                        }
-                    </span>
-                </div>
+                {device.usuario?.nombre && (
+                    <div className="flex items-center gap-2 text-[#6E6E73] bg-[#F5F5F7] rounded-lg px-3 py-2">
+                        <User className="w-4 h-4 text-purple-600" />
+                        <span className="text-[#86868B] text-xs font-medium">Empleado:</span>
+                        <span className="text-[#1D1D1F] font-semibold text-xs flex-1 truncate">
+                            {device.usuario.nombre}
+                        </span>
+                    </div>
+                )}
 
                 {device.ipAddress && (
                     <div className="flex items-center gap-2 text-[#6E6E73] bg-[#F5F5F7] rounded-lg px-3 py-2">
@@ -114,9 +107,9 @@ const DeviceCard = ({ device, onEdit, onDelete, onClick, isNested = false }) => 
 
             <div className="flex items-center justify-between pt-3 border-t border-[#E5E5E7]">
                 <span className={`px-3 py-1.5 text-xs font-bold rounded-full flex items-center gap-1.5 ${device.estado === 'Activo' || device.estado === 'activo' ? 'bg-green-50 text-green-700 border-2 border-green-200' :
-                        device.estado === 'Inactivo' || device.estado === 'inactivo' ? 'bg-gray-50 text-gray-700 border-2 border-gray-200' :
-                            device.estado === 'En Mantenimiento' ? 'bg-yellow-50 text-yellow-700 border-2 border-yellow-200' :
-                                'bg-red-50 text-red-700 border-2 border-red-200'
+                    device.estado === 'Inactivo' || device.estado === 'inactivo' ? 'bg-gray-50 text-gray-700 border-2 border-gray-200' :
+                        device.estado === 'En Mantenimiento' ? 'bg-yellow-50 text-yellow-700 border-2 border-yellow-200' :
+                            'bg-red-50 text-red-700 border-2 border-red-200'
                     }`}>
                     <span className="w-2 h-2 rounded-full bg-current animate-pulse"></span>
                     {device.estado ? device.estado.toUpperCase() : 'DESCONOCIDO'}

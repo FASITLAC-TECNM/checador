@@ -4,41 +4,19 @@ import { pool } from '../config/db.js';
 export const getDispositivosMoviles = async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT
-                dm.*,
-                u.id as usuario_id,
-                u.nombre as usuario_nombre,
-                u.correo as usuario_email,
-                e.id as empleado_id,
-                e.nss as empleado_nss,
-                e.rfc as empleado_rfc
+            SELECT dm.*, u.nombre as usuario_nombre
             FROM dispositivo_movil dm
-            LEFT JOIN Usuario u ON dm.id_usuario = u.id
-            LEFT JOIN Empleado e ON dm.id_empleado = e.id
+            LEFT JOIN empleado e ON dm.id_empleado = e.id
+            LEFT JOIN usuario u ON e.id_usuario = u.id
             ORDER BY dm.id DESC
         `);
 
         const dispositivos = result.rows.map(row => ({
-            id: row.id,
-            id_empleado: row.id_empleado,
-            id_usuario: row.id_usuario,
-            tipo: row.tipo,
-            sistema_operativo: row.sistema_operativo,
-            fecha: row.fecha,
+            ...row,
             fecha_registro: row.fecha,
             estado: row.estado === true ? 'Activo' : 'Inactivo',
-            root: row.root,
-            // Información del usuario
-            usuario: row.usuario_id ? {
-                id: row.usuario_id,
-                nombre: row.usuario_nombre,
-                email: row.usuario_email
-            } : null,
-            // Información del empleado
-            empleado: row.empleado_id ? {
-                id: row.empleado_id,
-                nss: row.empleado_nss,
-                rfc: row.empleado_rfc
+            usuario: row.usuario_nombre ? {
+                nombre: row.usuario_nombre
             } : null
         }));
 
@@ -56,15 +34,15 @@ export const getDispositivoMovilById = async (req, res) => {
         const result = await pool.query(`
             SELECT
                 dm.*,
-                u.id as usuario_id,
-                u.nombre as usuario_nombre,
-                u.correo as usuario_email,
                 e.id as empleado_id,
                 e.nss as empleado_nss,
-                e.rfc as empleado_rfc
+                e.rfc as empleado_rfc,
+                u.id as usuario_id,
+                u.nombre as usuario_nombre,
+                u.email as usuario_email
             FROM dispositivo_movil dm
-            LEFT JOIN Usuario u ON dm.id_usuario = u.id
             LEFT JOIN Empleado e ON dm.id_empleado = e.id
+            LEFT JOIN Usuario u ON e.id_usuario = u.id
             WHERE dm.id = $1
         `, [id]);
 
@@ -109,12 +87,14 @@ export const getDispositivosMovilesPorUsuario = async (req, res) => {
         const result = await pool.query(`
             SELECT
                 dm.*,
+                e.id as empleado_id,
                 u.id as usuario_id,
                 u.nombre as usuario_nombre,
-                u.correo as usuario_email
+                u.email as usuario_email
             FROM dispositivo_movil dm
-            LEFT JOIN Usuario u ON dm.id_usuario = u.id
-            WHERE dm.id_usuario = $1
+            LEFT JOIN Empleado e ON dm.id_empleado = e.id
+            LEFT JOIN Usuario u ON e.id_usuario = u.id
+            WHERE e.id_usuario = $1
             ORDER BY dm.fecha DESC
         `, [id_usuario]);
 
@@ -147,12 +127,24 @@ export const getDispositivosMovilesPorEmpleado = async (req, res) => {
     try {
         const { id_empleado } = req.params;
         const result = await pool.query(`
-            SELECT * FROM dispositivo_movil
-            WHERE id_empleado = $1
-            ORDER BY fecha DESC
+            SELECT dm.*, u.nombre as usuario_nombre
+            FROM dispositivo_movil dm
+            LEFT JOIN empleado e ON dm.id_empleado = e.id
+            LEFT JOIN usuario u ON e.id_usuario = u.id
+            WHERE dm.id_empleado = $1
+            ORDER BY dm.fecha DESC
         `, [id_empleado]);
 
-        res.json(result.rows);
+        const dispositivos = result.rows.map(row => ({
+            ...row,
+            fecha_registro: row.fecha,
+            estado: row.estado === true ? 'Activo' : 'Inactivo',
+            usuario: row.usuario_nombre ? {
+                nombre: row.usuario_nombre
+            } : null
+        }));
+
+        res.json(dispositivos);
     } catch (error) {
         console.error('Error al obtener dispositivos del empleado:', error);
         res.status(500).json({ error: 'Error al obtener dispositivos del empleado' });

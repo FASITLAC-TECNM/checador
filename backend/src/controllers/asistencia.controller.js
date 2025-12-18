@@ -88,7 +88,7 @@ export const registrarAsistencia = async (req, res) => {
                 id_empleado,
                 fecha,
                 tipo,
-                dispositivo_id,
+                id_dispositivo,
                 metodo_registro,
                 ubicacion,
                 verificado
@@ -416,7 +416,7 @@ export const registrarAsistenciaFacial = async (req, res) => {
                 id_empleado,
                 fecha,
                 tipo,
-                dispositivo_id,
+                id_dispositivo,
                 metodo_registro,
                 ubicacion,
                 verificado

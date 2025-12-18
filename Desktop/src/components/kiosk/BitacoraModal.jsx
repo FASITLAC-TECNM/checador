@@ -103,16 +103,16 @@ export default function BitacoraModal({ onClose }) {
               <thead className="bg-bg-secondary border-b-2 border-border-subtle">
                 <tr>
                   <th className="text-center py-2 px-3 font-bold text-text-secondary text-xs">
-                    ⏰ Hora
+                    Hora
                   </th>
                   <th className="text-left py-2 px-3 font-bold text-text-secondary text-xs">
-                    👤 Usuario
+                    Usuario
                   </th>
                   <th className="text-left py-2 px-3 font-bold text-text-secondary text-xs">
-                    📋 Acción
+                    Acción
                   </th>
                   <th className="text-center py-2 px-3 font-bold text-text-secondary text-xs">
-                    ✓ Estado
+                    Estado
                   </th>
                 </tr>
               </thead>

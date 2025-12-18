@@ -8,17 +8,13 @@ export const registrarAsistencia = async (req, res) => {
     try {
         const {
             id_empleado,
-            tipo, // 'Entrada' o 'Salida'
-            huella_dactilar, // Base64 o buffer de la huella capturada
-            dispositivo_id,
-            ubicacion
+            tipo, // 'Escritorio' o 'Movil'
+            huella_dactilar // Base64 o buffer de la huella capturada
         } = req.body;
 
         console.log('📥 Solicitud de registro de asistencia:', {
             id_empleado,
             tipo,
-            dispositivo_id,
-            ubicacion,
             huella_length: huella_dactilar?.length || 0
         });
 
@@ -88,13 +84,11 @@ export const registrarAsistencia = async (req, res) => {
                 id_empleado,
                 fecha,
                 tipo,
-                dispositivo,
-                ubicacion,
-                verificado
+                dispositivo
             )
-            VALUES ($1, CURRENT_DATE, $2, 'Huella', $3, true)
+            VALUES ($1, CURRENT_DATE, $2, 'Huella')
             RETURNING *
-        `, [id_empleado, tipo, ubicacion]);
+        `, [id_empleado, tipo]);
 
         // Obtener información del empleado para la respuesta
         const empleadoInfo = await pool.query(`
@@ -345,14 +339,12 @@ export const registrarAsistenciaFacial = async (req, res) => {
     try {
         const {
             id_empleado,
-            tipo, // 'Escritorio' o 'Movil'
-            ubicacion
+            tipo // 'Escritorio' o 'Movil'
         } = req.body;
 
         console.log('📸 Registro de asistencia facial:', {
             id_empleado,
-            tipo,
-            ubicacion
+            tipo
         });
 
         // Validaciones
@@ -400,13 +392,11 @@ export const registrarAsistenciaFacial = async (req, res) => {
                 id_empleado,
                 fecha,
                 tipo,
-                dispositivo,
-                ubicacion,
-                verificado
+                dispositivo
             )
-            VALUES ($1, CURRENT_DATE, $2, 'Facial', $3, true)
+            VALUES ($1, CURRENT_DATE, $2, 'Facial')
             RETURNING *
-        `, [id_empleado, tipoRegistro, ubicacion]);
+        `, [id_empleado, tipoRegistro]);
 
         // Obtener información del empleado para la respuesta
         const empleadoInfo = await pool.query(`

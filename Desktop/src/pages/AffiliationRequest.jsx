@@ -78,16 +78,14 @@ export default function AffiliationRequest({ onComplete }) {
     try {
       setError(null);
 
-      // Obtener información del sistema
-      const infoSistema = await obtenerInfoSistema();
-
-      // Crear la solicitud
+      // Usar la información del sistema que ya se capturó en el paso 1
+      // Esta información ya fue detectada y está en nodeConfig
       const solicitud = await crearSolicitudAfiliacion({
         nombre: nodeConfig.nodeName,
         descripcion: nodeConfig.description,
-        ip: infoSistema.ip,
-        mac: infoSistema.mac,
-        sistema_operativo: infoSistema.sistema_operativo,
+        ip: nodeConfig.ipAddress || '127.0.0.1',
+        mac: nodeConfig.macAddress || '00:00:00:00:00:00',
+        sistema_operativo: nodeConfig.operatingSystem || 'Unknown',
       });
 
       setSolicitudId(solicitud.id);
@@ -100,28 +98,30 @@ export default function AffiliationRequest({ onComplete }) {
   };
 
   const handleRetryRequest = async () => {
-    try {
-      // Si hay una solicitud pendiente, eliminarla primero
-      if (solicitudId) {
-        console.log('🗑️ Eliminando solicitud anterior antes de reenviar...');
+    // 1. Intentar cancelar la solicitud previa si existe
+    if (solicitudId) {
+      try {
+        console.log('🗑️ Cancelando solicitud anterior antes de reenviar...');
         await cancelarSolicitud(solicitudId);
+        
+        // IMPORTANTE: Limpiar también del almacenamiento local para evitar
+        // que si recarga la página, vuelva a cargar la solicitud cancelada.
+        limpiarSolicitudGuardada(); 
+        
+      } catch (error) {
+        console.error("Error al cancelar solicitud anterior:", error);
+        // Aunque falle la cancelación (ej. error de red), 
+        // permitimos al usuario continuar para reintentar.
       }
-
-      // Resetear estados
-      setError(null);
-      setSolicitudId(null);
-      setRequestStatus("pending");
-
-      // Volver al paso de afiliación para reenviar
-      setStep(3);
-    } catch (error) {
-      console.error("Error al eliminar solicitud anterior:", error);
-      // Continuar de todos modos
-      setError(null);
-      setSolicitudId(null);
-      setRequestStatus("pending");
-      setStep(3);
     }
+
+    // 2. Resetear estados para permitir un nuevo envío limpio
+    setError(null);
+    setSolicitudId(null);
+    setRequestStatus("pending");
+
+    // 3. Volver al paso de afiliación (Paso 3)
+    setStep(3);
   };
 
   const handleCancelRequest = async () => {

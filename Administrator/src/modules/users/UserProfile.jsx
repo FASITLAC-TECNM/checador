@@ -596,31 +596,10 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
                                 )}
                             </div>
 
-                            {/* Botón para ver Horario Semanal del Usuario */}
-                            {empleadoData && (
-                                <div className="mt-10">
-                                    <div className="mb-4 pb-2 border-b border-gray-100">
-                                        <h3 className="text-lg font-bold text-gray-900">Horario de Trabajo</h3>
-                                    </div>
-                                    <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-                                        <p className="text-gray-600 mb-4">
-                                            Visualiza el horario semanal completo de este empleado
-                                        </p>
-                                        <button
-                                            onClick={() => setShowHorarioModal(true)}
-                                            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-colors shadow-sm flex items-center gap-2"
-                                        >
-                                            <Calendar size={20} />
-                                            Ver Horario Semanal
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
                             {/* Dispositivos Móviles Asignados */}
                             <div className="mt-10">
                                 <div className="mb-4 pb-2 border-b border-gray-100">
-                                    <h3 className="text-lg font-bold text-gray-900">Dispositivos Móviles</h3>
+                                    <h3 className="text-lg font-bold text-gray-900">Dispositivo Móvil</h3>
                                 </div>
                                 {loadingDispositivos ? (
                                     <div className="py-8 text-center text-gray-400">Cargando dispositivos...</div>
@@ -652,8 +631,8 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
                                                                 <div className="flex items-center gap-2">
                                                                     <span className="text-[#6E6E73]">Estado:</span>
                                                                     <span className={`px-2 py-1 rounded-md font-medium ${dispositivo.estado === 'Activo'
-                                                                            ? 'bg-green-100 text-green-700'
-                                                                            : 'bg-gray-100 text-gray-700'
+                                                                        ? 'bg-green-100 text-green-700'
+                                                                        : 'bg-gray-100 text-gray-700'
                                                                         }`}>
                                                                         {dispositivo.estado}
                                                                     </span>
@@ -679,6 +658,27 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
                                     </div>
                                 )}
                             </div>
+
+                            {/* Botón para ver Horario Semanal del Usuario */}
+                            {empleadoData && (
+                                <div className="mt-10">
+                                    <div className="mb-4 pb-2 border-b border-gray-100">
+                                        <h3 className="text-lg font-bold text-gray-900">Horario de Trabajo</h3>
+                                    </div>
+                                    <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                                        <p className="text-gray-600 mb-4">
+                                            Visualiza el horario semanal completo de este empleado
+                                        </p>
+                                        <button
+                                            onClick={() => setShowHorarioModal(true)}
+                                            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition-colors shadow-sm flex items-center gap-2"
+                                        >
+                                            <Calendar size={20} />
+                                            Ver Horario Semanal
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Modal de Horario Semanal */}
                             <HorarioSemanal

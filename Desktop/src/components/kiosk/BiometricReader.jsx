@@ -1,0 +1,686 @@
+import { useState, useEffect, useRef } from "react";
+import {
+  Fingerprint,
+  Wifi,
+  WifiOff,
+  Square,
+  Loader2,
+  X,
+  AlertCircle,
+  UserPlus,
+  Database,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
+
+export default function BiometricReader({
+  isOpen = false,
+  onClose,
+  onEnrollmentSuccess,
+  idEmpleado = 1, // ID del empleado desde tu sistema
+}) {
+  if (!isOpen) return null;
+
+  const [connected, setConnected] = useState(false);
+  const [readerConnected, setReaderConnected] = useState(false);
+  const [currentOperation, setCurrentOperation] = useState("None");
+  const [status, setStatus] = useState("disconnected");
+  const [statusMessage, setStatusMessage] = useState("");
+
+  const [enrollProgress, setEnrollProgress] = useState({
+    collected: 0,
+    required: 4,
+    percentage: 0,
+  });
+
+  const [newUserId, setNewUserId] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [savingToDatabase, setSavingToDatabase] = useState(false);
+  const [lastEnrollmentData, setLastEnrollmentData] = useState(null);
+
+  const wsRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null);
+  const reconnectAttemptsRef = useRef(0);
+  const MAX_RECONNECT_ATTEMPTS = 5;
+
+  useEffect(() => {
+    connectToServer();
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, []);
+
+  const connectToServer = () => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      return;
+    }
+
+    try {
+      addMessage("🔌 Conectando al servidor...", "info");
+      const ws = new WebSocket("ws://localhost:8787/");
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        setConnected(true);
+        setStatus("connected");
+        reconnectAttemptsRef.current = 0;
+        addMessage("✅ Conectado al servidor biométrico", "success");
+        sendCommand("getStatus");
+      };
+
+      ws.onclose = () => {
+        setConnected(false);
+        setReaderConnected(false);
+        setStatus("disconnected");
+        setCurrentOperation("None");
+        addMessage("❌ Desconectado del servidor", "warning");
+
+        if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+          reconnectAttemptsRef.current++;
+          const delay = Math.min(
+            1000 * Math.pow(2, reconnectAttemptsRef.current),
+            10000
+          );
+
+          reconnectTimeoutRef.current = setTimeout(() => {
+            addMessage(
+              `🔄 Reintentando conexión (${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})...`,
+              "info"
+            );
+            connectToServer();
+          }, delay);
+        } else {
+          addMessage("❌ Máximo de reintentos alcanzado", "error");
+        }
+      };
+
+      ws.onerror = (error) => {
+        addMessage("❌ Error de conexión WebSocket", "error");
+        console.error("WebSocket error:", error);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          handleServerMessage(data);
+        } catch (error) {
+          console.error("Error parsing message:", error);
+          addMessage("❌ Error al procesar mensaje del servidor", "error");
+        }
+      };
+    } catch (error) {
+      addMessage("❌ Error conectando al servidor", "error");
+      console.error("Connection error:", error);
+    }
+  };
+
+  const handleServerMessage = (data) => {
+    console.log("📨 Mensaje recibido:", data);
+
+    switch (data.type) {
+      case "status":
+        setStatus(data.status);
+        setStatusMessage(data.message);
+
+        if (data.status === "enrolling") {
+          setCurrentOperation("Enrollment");
+        } else if (data.status === "ready" || data.status === "connected") {
+          setCurrentOperation("None");
+        }
+
+        addMessage(`ℹ️ ${data.message}`, "info");
+        break;
+
+      case "systemStatus":
+        setReaderConnected(data.readerConnected);
+        setCurrentOperation(data.currentOperation);
+
+        if (data.readerConnected) {
+          addMessage("✅ Lector de huellas conectado", "success");
+        } else {
+          addMessage("⚠️ Sin lector de huellas detectado", "warning");
+        }
+        break;
+
+      case "enrollProgress":
+        setEnrollProgress({
+          collected: data.samplesCollected,
+          required: data.samplesRequired,
+          percentage: data.percentage,
+        });
+        addMessage(
+          `📊 Progreso: ${data.samplesCollected}/${data.samplesRequired} (${data.percentage}%)`,
+          "info"
+        );
+        break;
+
+      case "captureComplete":
+        if (data.result === "enrollmentSuccess") {
+          addMessage(`✅ Captura completada: ${data.userId}`, "success");
+
+          // Guardar datos del enrollment para enviarlos al backend
+          setLastEnrollmentData({
+            userId: data.userId,
+            templateBase64: data.templateBase64, // El middleware debe enviar esto
+            timestamp: data.timestamp,
+          });
+
+          // Guardar automáticamente en la base de datos
+          if (idEmpleado) {
+            guardarHuellaEnBaseDatos(data.userId, data.templateBase64);
+          } else {
+            addMessage("⚠️ No se proporcionó ID de empleado", "warning");
+          }
+
+          setEnrollProgress({ collected: 0, required: 4, percentage: 0 });
+          setCurrentOperation("None");
+          setStatus("ready");
+        }
+        break;
+
+      case "error":
+        addMessage(`❌ Error: ${data.message}`, "error");
+        setCurrentOperation("None");
+        setEnrollProgress({ collected: 0, required: 4, percentage: 0 });
+        setStatus("error");
+        break;
+
+      default:
+        console.log("Tipo de mensaje desconocido:", data.type);
+    }
+  };
+
+  const guardarHuellaEnBaseDatos = async (userId, templateBase64) => {
+    if (!idEmpleado) {
+      addMessage("❌ No hay ID de empleado configurado", "error");
+      return;
+    }
+
+    if (!templateBase64) {
+      addMessage("❌ No se recibió el template de la huella", "error");
+      return;
+    }
+
+    setSavingToDatabase(true);
+    addMessage("💾 Guardando huella en base de datos...", "info");
+
+    try {
+      const response = await fetch(
+        "http://localhost:3000/api/biometric/enroll",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id_empleado: idEmpleado,
+            template_base64: templateBase64,
+            userId: userId,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        addMessage("✅ Huella guardada en PostgreSQL", "success");
+        addMessage(`📊 Tamaño: ${result.data.template_size} bytes`, "info");
+
+        if (onEnrollmentSuccess) {
+          onEnrollmentSuccess({
+            userId: userId,
+            idEmpleado: idEmpleado,
+            idCredencial: result.data.id_credencial,
+            timestamp: result.data.timestamp,
+          });
+        }
+
+        setNewUserId("");
+      } else {
+        addMessage(`❌ Error DB: ${result.error}`, "error");
+      }
+    } catch (error) {
+      console.error("Error guardando en DB:", error);
+      addMessage(`❌ Error conectando con backend: ${error.message}`, "error");
+    } finally {
+      setSavingToDatabase(false);
+    }
+  };
+
+  const sendCommand = (command, params = {}) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      const payload = {
+        command,
+        ...params,
+      };
+      console.log("📤 Enviando comando:", payload);
+      wsRef.current.send(JSON.stringify(payload));
+    } else {
+      addMessage("❌ No conectado al servidor", "error");
+    }
+  };
+
+  const addMessage = (message, type = "info") => {
+    const timestamp = new Date().toLocaleTimeString("es-MX");
+    setMessages((prev) =>
+      [
+        {
+          id: Date.now() + Math.random(),
+          type,
+          message,
+          timestamp,
+        },
+        ...prev,
+      ].slice(0, 50)
+    );
+  };
+
+  const startEnrollment = () => {
+    if (!newUserId.trim()) {
+      addMessage("⚠️ Ingrese un ID de usuario", "warning");
+      return;
+    }
+
+    if (!idEmpleado) {
+      addMessage("⚠️ No se ha configurado el ID del empleado", "warning");
+      return;
+    }
+
+    if (currentOperation !== "None") {
+      addMessage("⚠️ Ya hay una operación en curso", "warning");
+      return;
+    }
+
+    setLastEnrollmentData(null);
+    setEnrollProgress({ collected: 0, required: 4, percentage: 0 });
+    setCurrentOperation("Enrollment");
+    sendCommand("startEnrollment", { userId: newUserId.trim() });
+  };
+
+  const cancelEnrollment = () => {
+    sendCommand("cancelEnrollment");
+    setEnrollProgress({ collected: 0, required: 4, percentage: 0 });
+    setCurrentOperation("None");
+    addMessage("⏹️ Enrollment cancelado", "warning");
+  };
+
+  const disconnect = () => {
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+    }
+    reconnectAttemptsRef.current = MAX_RECONNECT_ATTEMPTS;
+    setConnected(false);
+    setReaderConnected(false);
+    setCurrentOperation("None");
+    addMessage("👋 Desconectado manualmente", "info");
+  };
+
+  const refreshStatus = () => {
+    sendCommand("getStatus");
+    addMessage("🔄 Refrescando estado...", "info");
+  };
+
+  const isProcessing = currentOperation !== "None" || savingToDatabase;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div className="p-6">
+          {/* Header */}
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-6 border border-white/20">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="bg-blue-500 p-3 rounded-xl">
+                  <Fingerprint className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-white">
+                    Registro de Huella Digital
+                  </h1>
+                  <p className="text-blue-200 text-sm">
+                    BiometricMiddleware v1.0 + PostgreSQL
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div
+                  className={`flex items-center gap-2 ${
+                    connected ? "text-green-500" : "text-gray-400"
+                  }`}
+                >
+                  {connected ? (
+                    <Wifi className="w-5 h-5" />
+                  ) : (
+                    <WifiOff className="w-5 h-5" />
+                  )}
+                  <span className="text-sm font-medium capitalize text-white">
+                    {connected ? "Conectado" : "Desconectado"}
+                  </span>
+                </div>
+
+                {connected && (
+                  <button
+                    onClick={refreshStatus}
+                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Refrescar
+                  </button>
+                )}
+
+                {connected ? (
+                  <button
+                    onClick={disconnect}
+                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Desconectar
+                  </button>
+                ) : (
+                  <button
+                    onClick={connectToServer}
+                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Conectar
+                  </button>
+                )}
+
+                {onClose && (
+                  <button
+                    onClick={onClose}
+                    className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ID Empleado Info */}
+          {idEmpleado && (
+            <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-4 mb-6">
+              <div className="flex items-center gap-3">
+                <Database className="w-6 h-6 text-green-400" />
+                <div>
+                  <p className="text-white font-medium">
+                    Empleado ID: <strong>{idEmpleado}</strong>
+                  </p>
+                  <p className="text-green-200 text-sm">
+                    La huella se guardará automáticamente en PostgreSQL
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Status Banner */}
+          {statusMessage && (
+            <div className="bg-blue-500/20 border border-blue-500/50 rounded-xl p-4 mb-6">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-6 h-6 text-blue-400" />
+                <p className="text-white font-medium">{statusMessage}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Control Panel */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Reader Status */}
+              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+                <h2 className="text-xl font-semibold text-white mb-4">
+                  📡 Estado del Sistema
+                </h2>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div
+                    className={`rounded-lg p-4 ${
+                      readerConnected
+                        ? "bg-green-500/20 border border-green-500/50"
+                        : "bg-yellow-500/20 border border-yellow-500/50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Fingerprint
+                        className={`w-6 h-6 ${
+                          readerConnected ? "text-green-400" : "text-yellow-400"
+                        }`}
+                      />
+                      <div>
+                        <p className="text-white font-medium text-sm">Lector</p>
+                        <p className="text-white/70 text-xs">
+                          {readerConnected ? "Conectado" : "Desconectado"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                      <Loader2
+                        className={`w-6 h-6 text-blue-400 ${
+                          isProcessing ? "animate-spin" : ""
+                        }`}
+                      />
+                      <div>
+                        <p className="text-white font-medium text-sm">Estado</p>
+                        <p className="text-white/70 text-xs">
+                          {isProcessing ? "Procesando" : "Esperando"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    className={`rounded-lg p-4 ${
+                      savingToDatabase
+                        ? "bg-purple-500/20 border border-purple-500/50"
+                        : "bg-gray-500/20 border border-gray-500/50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Database
+                        className={`w-6 h-6 ${
+                          savingToDatabase ? "text-purple-400" : "text-gray-400"
+                        }`}
+                      />
+                      <div>
+                        <p className="text-white font-medium text-sm">
+                          Base Datos
+                        </p>
+                        <p className="text-white/70 text-xs">
+                          {savingToDatabase ? "Guardando..." : "Esperando"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Enrollment Section */}
+              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+                <h2 className="text-xl font-semibold text-white mb-4">
+                  📝 Registrar Nueva Huella
+                </h2>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-white text-sm font-medium mb-2">
+                      User ID (para el middleware):
+                    </label>
+                    <input
+                      type="text"
+                      value={newUserId}
+                      onChange={(e) => setNewUserId(e.target.value)}
+                      placeholder={
+                        idEmpleado ? `emp_${idEmpleado}` : "Ej: empleado001"
+                      }
+                      disabled={isProcessing}
+                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                    />
+                    <p className="text-white/60 text-xs mt-1">
+                      Este ID se usa internamente en el middleware biométrico
+                    </p>
+                  </div>
+
+                  {currentOperation === "Enrollment" && (
+                    <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-4">
+                      <div className="mb-3">
+                        <div className="flex justify-between text-white text-sm mb-2">
+                          <span>
+                            Muestras: {enrollProgress.collected}/
+                            {enrollProgress.required}
+                          </span>
+                          <span>{enrollProgress.percentage}%</span>
+                        </div>
+                        <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden">
+                          <div
+                            className="bg-blue-500 h-full transition-all duration-300 rounded-full"
+                            style={{ width: `${enrollProgress.percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                      <p className="text-white text-center">
+                        <Loader2 className="w-5 h-5 inline animate-spin mr-2" />
+                        Coloque el mismo dedo en el lector
+                      </p>
+                    </div>
+                  )}
+
+                  {savingToDatabase && (
+                    <div className="bg-purple-500/20 border border-purple-500/50 rounded-lg p-4">
+                      <p className="text-white text-center">
+                        <Database className="w-5 h-5 inline animate-pulse mr-2" />
+                        Guardando en PostgreSQL...
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    {currentOperation !== "Enrollment" ? (
+                      <button
+                        onClick={startEnrollment}
+                        disabled={
+                          !connected ||
+                          !readerConnected ||
+                          isProcessing ||
+                          !idEmpleado
+                        }
+                        className="flex-1 px-4 py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                      >
+                        <UserPlus className="w-5 h-5" />
+                        Iniciar Registro
+                      </button>
+                    ) : (
+                      <button
+                        onClick={cancelEnrollment}
+                        className="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Square className="w-5 h-5" />
+                        Cancelar
+                      </button>
+                    )}
+                  </div>
+
+                  {!idEmpleado && (
+                    <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3">
+                      <p className="text-red-200 text-sm text-center">
+                        ⚠️ Falta configurar el ID del empleado en el componente
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Last Enrollment Result */}
+              {lastEnrollmentData && (
+                <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+                  <h2 className="text-xl font-semibold text-white mb-4">
+                    ✅ Resultado del Registro
+                  </h2>
+                  <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="w-8 h-8 text-green-400" />
+                      <div className="flex-1">
+                        <p className="text-green-300 font-bold text-lg">
+                          Huella Registrada
+                        </p>
+                        <p className="text-white text-sm mt-1">
+                          User ID: <strong>{lastEnrollmentData.userId}</strong>
+                        </p>
+                        <p className="text-white/70 text-sm">
+                          Empleado: <strong>{idEmpleado}</strong>
+                        </p>
+                        <p className="text-white/70 text-xs mt-1">
+                          {new Date(
+                            lastEnrollmentData.timestamp
+                          ).toLocaleString("es-MX")}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Logs Panel */}
+            <div className="lg:col-span-1">
+              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 h-full">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-white">
+                    📋 Eventos
+                  </h2>
+                  <button
+                    onClick={() => setMessages([])}
+                    className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors"
+                  >
+                    Limpiar
+                  </button>
+                </div>
+
+                <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                  {messages.length === 0 ? (
+                    <p className="text-gray-400 text-sm text-center py-8">
+                      Sin eventos registrados
+                    </p>
+                  ) : (
+                    messages.map((log) => (
+                      <div
+                        key={log.id}
+                        className={`p-3 rounded-lg text-sm ${
+                          log.type === "success"
+                            ? "bg-green-500/20 border border-green-500/50"
+                            : log.type === "error"
+                            ? "bg-red-500/20 border border-red-500/50"
+                            : log.type === "warning"
+                            ? "bg-yellow-500/20 border border-yellow-500/50"
+                            : "bg-blue-500/20 border border-blue-500/50"
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <span className="text-gray-300 text-xs">
+                            {log.timestamp}
+                          </span>
+                        </div>
+                        <p className="text-white mt-1">{log.message}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

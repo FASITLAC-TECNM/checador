@@ -9,7 +9,8 @@ import {
   Fingerprint,
 } from "lucide-react";
 import { loginUsuario, guardarSesion } from "../../services/authService";
-import FingerprintManager from "./FingerprintManager"; // Importar el componente
+
+import BiometricReader from "./BiometricReader";
 
 export default function LoginModal({ onClose, onFacialLogin, onLoginSuccess }) {
   const [loginUsername, setLoginUsername] = useState("");
@@ -18,7 +19,7 @@ export default function LoginModal({ onClose, onFacialLogin, onLoginSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
-  const [showFingerprintModal, setShowFingerprintModal] = useState(false);
+  const [showBiometricModal, setShowBiometricModal] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -63,19 +64,20 @@ export default function LoginModal({ onClose, onFacialLogin, onLoginSuccess }) {
     }
   };
 
-  const handleFingerprintLogin = () => {
-    setShowFingerprintModal(true);
+  const handleBiometricLogin = () => {
+    setShowBiometricModal(true);
   };
 
-  const handleFingerprintSuccess = () => {
+  const handleBiometricSuccess = (data) => {
     // Login automático después de verificar la huella
     if (onLoginSuccess) {
       onLoginSuccess({
-        username: "Usuario Huella",
-        loginMethod: "fingerprint",
+        username: "Usuario Biométrico",
+        loginMethod: "biometric",
+        fingerprintData: data,
       });
     }
-    setShowFingerprintModal(false);
+    setShowBiometricModal(false);
     onClose();
   };
 
@@ -182,41 +184,45 @@ export default function LoginModal({ onClose, onFacialLogin, onLoginSuccess }) {
                 </div>
                 <div className="relative flex justify-center text-sm">
                   <span className="px-2 bg-bg-primary text-text-tertiary">
-                    o
+                    o inicia con
                   </span>
                 </div>
               </div>
 
+              {/* Botón de Huella Digital - Ahora abre BiometricReader */}
               <button
                 type="button"
-                onClick={onFacialLogin}
-                disabled={loading}
-                className="w-full py-2.5 bg-bg-secondary hover:bg-bg-tertiary text-text-secondary rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Camera className="w-4 h-4" />
-                Iniciar con Reconocimiento Facial
-              </button>
-
-              <button
-                type="button"
-                onClick={handleFingerprintLogin}
+                onClick={handleBiometricLogin}
                 disabled={loading}
                 className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-md"
               >
                 <Fingerprint className="w-4 h-4" />
                 Iniciar con Huella Digital
               </button>
+
+              {/* Botón de Reconocimiento Facial - Para futuro uso */}
+              {onFacialLogin && (
+                <button
+                  type="button"
+                  onClick={onFacialLogin}
+                  disabled={loading}
+                  className="w-full py-2.5 bg-bg-secondary hover:bg-bg-tertiary text-text-secondary rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Camera className="w-4 h-4" />
+                  Iniciar con Reconocimiento Facial
+                </button>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Modal de Huella Digital - Solo se renderiza cuando está abierto */}
-      {showFingerprintModal && (
-        <FingerprintManager
-          isOpen={showFingerprintModal}
-          onClose={() => setShowFingerprintModal(false)}
-          onVerificationSuccess={handleFingerprintSuccess}
+      {/* Modal Biométrico - Renderiza el componente BiometricReader */}
+      {showBiometricModal && (
+        <BiometricReader
+          isOpen={showBiometricModal}
+          onClose={() => setShowBiometricModal(false)}
+          onVerificationSuccess={handleBiometricSuccess}
         />
       )}
     </>

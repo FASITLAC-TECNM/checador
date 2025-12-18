@@ -115,14 +115,13 @@ const DeviceCard = ({ device, onEdit, onDelete, onClick, isNested = false }) => 
             </div>
 
             <div className="flex items-center justify-between pt-3 border-t border-[#E5E5E7]">
-                <span className={`px-3 py-1.5 text-xs font-bold rounded-full flex items-center gap-1.5 ${
-                    device.estado === 'Activo' ? 'bg-green-50 text-green-700 border-2 border-green-200' :
-                    device.estado === 'Inactivo' ? 'bg-gray-50 text-gray-700 border-2 border-gray-200' :
-                    device.estado === 'En Mantenimiento' ? 'bg-yellow-50 text-yellow-700 border-2 border-yellow-200' :
-                    'bg-red-50 text-red-700 border-2 border-red-200'
-                }`}>
+                <span className={`px-3 py-1.5 text-xs font-bold rounded-full flex items-center gap-1.5 ${device.estado === 'Activo' || device.estado === 'activo' ? 'bg-green-50 text-green-700 border-2 border-green-200' :
+                        device.estado === 'Inactivo' || device.estado === 'inactivo' ? 'bg-gray-50 text-gray-700 border-2 border-gray-200' :
+                            device.estado === 'En Mantenimiento' ? 'bg-yellow-50 text-yellow-700 border-2 border-yellow-200' :
+                                'bg-red-50 text-red-700 border-2 border-red-200'
+                    }`}>
                     <span className="w-2 h-2 rounded-full bg-current animate-pulse"></span>
-                    {device.estado.toUpperCase()}
+                    {device.estado ? device.estado.toUpperCase() : 'DESCONOCIDO'}
                 </span>
 
                 <div className="flex gap-1">

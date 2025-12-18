@@ -8,16 +8,123 @@ import path from 'path';
 import os from 'os';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { spawn } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let mainWindow;
+let biometricProcess = null;
 
 // Desactivar aceleración de hardware GPU para evitar errores en Windows
 app.commandLine.appendSwitch('disable-gpu');
 app.commandLine.appendSwitch('disable-gpu-compositing');
 app.commandLine.appendSwitch('disable-software-rasterizer');
+
+/**
+ * Función para iniciar el BiometricMiddleware como administrador
+ */
+function startBiometricMiddleware() {
+  try {
+    const middlewarePath = path.join(__dirname, 'biometric', 'BiometricMiddleware.exe');
+    const workingDir = path.join(__dirname, 'biometric');
+
+    // Verificar que el archivo existe
+    if (!fs.existsSync(middlewarePath)) {
+      console.error('❌ BiometricMiddleware.exe no encontrado en:', middlewarePath);
+      return;
+    }
+
+    console.log('🔐 Iniciando BiometricMiddleware desde:', middlewarePath);
+
+    if (process.platform === 'win32') {
+      // En Windows, ejecutar directamente con spawn
+      // El ejecutable debe tener configurado "requireAdministrator" en su manifiesto
+      // O se debe ejecutar Electron como administrador
+      console.log('🔑 Ejecutando BiometricMiddleware en Windows...');
+
+      biometricProcess = spawn(middlewarePath, [], {
+        cwd: workingDir,
+        shell: false,
+        windowsHide: false, // Mostrar ventana para debugging
+        detached: false,
+      });
+
+      // Manejar salida estándar
+      biometricProcess.stdout.on('data', (data) => {
+        console.log(`[BiometricMiddleware] ${data.toString().trim()}`);
+      });
+
+      // Manejar errores
+      biometricProcess.stderr.on('data', (data) => {
+        console.error(`[BiometricMiddleware ERROR] ${data.toString().trim()}`);
+      });
+
+      // Manejar cierre del proceso
+      biometricProcess.on('close', (code) => {
+        console.log(`🔐 BiometricMiddleware cerrado con código: ${code}`);
+        biometricProcess = null;
+      });
+
+      // Manejar errores al iniciar
+      biometricProcess.on('error', (error) => {
+        console.error('❌ Error al iniciar BiometricMiddleware:', error);
+        console.error('💡 SOLUCIÓN: Ejecuta Electron como administrador');
+        console.error('   Cierra esta ventana y haz clic derecho en VS Code > Ejecutar como administrador');
+        biometricProcess = null;
+      });
+
+      console.log('✅ BiometricMiddleware iniciado correctamente (PID:', biometricProcess.pid, ')');
+    } else {
+      // En otros sistemas operativos, ejecutar normalmente
+      biometricProcess = spawn(middlewarePath, [], {
+        cwd: workingDir,
+      });
+
+      // Manejar salida estándar
+      biometricProcess.stdout.on('data', (data) => {
+        console.log(`[BiometricMiddleware] ${data.toString().trim()}`);
+      });
+
+      // Manejar errores
+      biometricProcess.stderr.on('data', (data) => {
+        console.error(`[BiometricMiddleware ERROR] ${data.toString().trim()}`);
+      });
+
+      // Manejar cierre del proceso
+      biometricProcess.on('close', (code) => {
+        console.log(`🔐 BiometricMiddleware cerrado con código: ${code}`);
+        biometricProcess = null;
+      });
+
+      // Manejar errores al iniciar
+      biometricProcess.on('error', (error) => {
+        console.error('❌ Error al iniciar BiometricMiddleware:', error);
+        biometricProcess = null;
+      });
+
+      console.log('✅ BiometricMiddleware iniciado correctamente (PID:', biometricProcess.pid, ')');
+    }
+  } catch (error) {
+    console.error('❌ Error al iniciar BiometricMiddleware:', error);
+  }
+}
+
+/**
+ * Función para detener el BiometricMiddleware
+ */
+function stopBiometricMiddleware() {
+  if (biometricProcess) {
+    console.log('🔐 Deteniendo BiometricMiddleware...');
+    try {
+      biometricProcess.kill();
+      biometricProcess = null;
+      console.log('✅ BiometricMiddleware detenido');
+    } catch (error) {
+      console.error('❌ Error al detener BiometricMiddleware:', error);
+    }
+  }
+}
 
 // Función para crear la ventana principal
 function createWindow() {
@@ -80,6 +187,10 @@ function createWindow() {
 
 // Este método se llamará cuando Electron haya terminado la inicialización
 app.whenReady().then(() => {
+  // Iniciar el BiometricMiddleware
+  startBiometricMiddleware();
+
+  // Crear la ventana principal
   createWindow();
 
   app.on('activate', function () {
@@ -90,7 +201,16 @@ app.whenReady().then(() => {
 
 // Salir cuando todas las ventanas estén cerradas, excepto en macOS
 app.on('window-all-closed', function () {
-  if (process.platform !== 'darwin') app.quit();
+  if (process.platform !== 'darwin') {
+    // Detener el BiometricMiddleware antes de salir
+    stopBiometricMiddleware();
+    app.quit();
+  }
+});
+
+// Detener el BiometricMiddleware cuando la app se cierre
+app.on('will-quit', () => {
+  stopBiometricMiddleware();
 });
 
 // ===== IPC Handlers =====
@@ -517,6 +637,37 @@ ipcMain.handle('registrar-asistencia-facial', async (event, empleadoId) => {
       message: `Error de conexión: ${error.message}`,
       error: error.toString(),
     };
+  }
+});
+
+/**
+ * Leer template de huella dactilar desde archivo .fpt
+ * Lee el archivo guardado por BiometricMiddleware y lo convierte a Base64
+ */
+ipcMain.handle('read-fingerprint-template', async (event, userId) => {
+  try {
+    console.log(`📄 Leyendo template de huella para userId: ${userId}`);
+
+    const templatePath = path.join(__dirname, 'biometric', 'FingerprintTemplates', `${userId}.fpt`);
+
+    // Verificar que el archivo existe
+    if (!fs.existsSync(templatePath)) {
+      console.error(`❌ Archivo de template no encontrado: ${templatePath}`);
+      return null;
+    }
+
+    // Leer el archivo como Buffer
+    const buffer = fs.readFileSync(templatePath);
+    console.log(`✅ Template leído: ${buffer.length} bytes`);
+
+    // Convertir a Base64
+    const base64 = buffer.toString('base64');
+    console.log(`📤 Template convertido a Base64: ${base64.length} caracteres`);
+
+    return base64;
+  } catch (error) {
+    console.error('❌ Error leyendo template de huella:', error);
+    return null;
   }
 });
 

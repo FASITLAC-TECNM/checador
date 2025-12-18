@@ -27,6 +27,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   registrarDescriptorFacial: (empleadoId, descriptor) => ipcRenderer.invoke('registrar-descriptor-facial', empleadoId, descriptor),
   registrarAsistenciaFacial: (empleadoId) => ipcRenderer.invoke('registrar-asistencia-facial', empleadoId),
 
+  // Reconocimiento de Huella Dactilar
+  readFingerprintTemplate: (userId) => ipcRenderer.invoke('read-fingerprint-template', userId),
+
   // Información del entorno
   isElectron: true,
   platform: process.platform,

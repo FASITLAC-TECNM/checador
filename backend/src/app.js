@@ -11,7 +11,8 @@ import escritorioRoutes from './routes/escritorio.routes.js';
 import solicitudEscritorioRoutes from './routes/solicitudEscritorio.routes.js';
 import solicitudMovilRoutes from './routes/solicitudMovil.routes.js';
 import dispositivoMovilRoutes from './routes/dispositivoMovil.routes.js';
-import asistenciaRoutes from './routes/asistencia.routes.js'; // NUEVO
+import asistenciaRoutes from './routes/asistencia.routes.js';
+import biometricRoutes from './routes/biometric.routes.js'; // NUEVO
 
 const app = express();
 
@@ -46,5 +47,6 @@ app.use('/api/solicitudes-escritorio', solicitudEscritorioRoutes);
 app.use('/api/solicitudes-movil', solicitudMovilRoutes);
 app.use('/api/dispositivos-moviles', dispositivoMovilRoutes);
 app.use('/api/asistencia', asistenciaRoutes);
+app.use('/api/biometric', biometricRoutes); // NUEVO - Rutas biométricas
 
 export default app;

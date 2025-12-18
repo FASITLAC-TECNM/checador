@@ -492,9 +492,7 @@ ipcMain.handle('registrar-asistencia-facial', async (event, empleadoId) => {
       },
       body: JSON.stringify({
         id_empleado: empleadoId,
-        tipo: 'Entrada', // Por defecto registramos entrada
-        dispositivo_id: 6, // ID del dispositivo (cámara)
-        metodo_registro: 'Facial',
+        tipo: 'Escritorio', // Tipo de ubicación del dispositivo
       }),
     });
 

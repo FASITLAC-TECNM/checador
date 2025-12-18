@@ -88,14 +88,13 @@ export const registrarAsistencia = async (req, res) => {
                 id_empleado,
                 fecha,
                 tipo,
-                id_dispositivo,
-                metodo_registro,
+                dispositivo,
                 ubicacion,
                 verificado
             )
-            VALUES ($1, CURRENT_DATE, $2, $3, 'Huella', $4, true)
+            VALUES ($1, CURRENT_DATE, $2, 'Huella', $3, true)
             RETURNING *
-        `, [id_empleado, tipo, dispositivo_id, ubicacion]);
+        `, [id_empleado, tipo, ubicacion]);
 
         // Obtener información del empleado para la respuesta
         const empleadoInfo = await pool.query(`
@@ -416,14 +415,13 @@ export const registrarAsistenciaFacial = async (req, res) => {
                 id_empleado,
                 fecha,
                 tipo,
-                id_dispositivo,
-                metodo_registro,
+                dispositivo,
                 ubicacion,
                 verificado
             )
-            VALUES ($1, CURRENT_DATE, $2, $3, 'Facial', $4, true)
+            VALUES ($1, CURRENT_DATE, $2, 'Facial', $3, true)
             RETURNING *
-        `, [id_empleado, tipoRegistro, dispositivo_id, ubicacion]);
+        `, [id_empleado, tipoRegistro, ubicacion]);
 
         // Obtener información del empleado para la respuesta
         const empleadoInfo = await pool.query(`

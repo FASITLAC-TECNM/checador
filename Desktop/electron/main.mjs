@@ -389,18 +389,30 @@ ipcMain.handle('verificar-usuario', async (event, descriptor) => {
     }
 
     // Comparar el descriptor recibido con cada uno de la base de datos
-    const THRESHOLD = 0.6; // Umbral de similitud (< 0.6 es una buena coincidencia)
+    const THRESHOLD = 0.65; // Umbral de similitud más permisivo (< 0.65 es una buena coincidencia)
     let bestMatch = null;
     let bestDistance = Infinity;
 
+    console.log(`🔍 Descriptor recibido: ${descriptor.length} dimensiones`);
+    console.log(`📊 Primeros 5 valores: [${descriptor.slice(0, 5).map(v => v.toFixed(4)).join(', ')}...]`);
+
     for (const credencial of credenciales) {
-      if (!credencial.descriptor_facial) continue;
+      if (!credencial.descriptor_facial) {
+        console.log(`⚠️ Empleado ${credencial.empleado_id} (${credencial.nombre}) no tiene descriptor facial`);
+        continue;
+      }
 
       // El descriptor viene como array de números desde la BD
       const storedDescriptor = credencial.descriptor_facial;
+
+      if (storedDescriptor.length !== descriptor.length) {
+        console.log(`⚠️ Empleado ${credencial.empleado_id}: descriptor con longitud incorrecta (${storedDescriptor.length} vs ${descriptor.length})`);
+        continue;
+      }
+
       const distance = calculateEuclideanDistance(descriptor, storedDescriptor);
 
-      console.log(`Comparando con empleado ${credencial.empleado_id}: distancia = ${distance.toFixed(4)}`);
+      console.log(`📏 Empleado ${credencial.empleado_id} (${credencial.nombre}): distancia = ${distance.toFixed(4)} ${distance < THRESHOLD ? '✅ MATCH!' : '❌'}`);
 
       if (distance < bestDistance) {
         bestDistance = distance;
@@ -408,8 +420,13 @@ ipcMain.handle('verificar-usuario', async (event, descriptor) => {
       }
     }
 
+    console.log(`\n🎯 Mejor coincidencia: ${bestMatch ? `${bestMatch.empleado_id} (${bestMatch.nombre})` : 'Ninguna'}`);
+    console.log(`📏 Mejor distancia: ${bestDistance.toFixed(4)}`);
+    console.log(`🎚️ Umbral: ${THRESHOLD}`);
+    console.log(`✅ ¿Acepta?: ${bestMatch && bestDistance < THRESHOLD ? 'SÍ' : 'NO'}\n`);
+
     if (bestMatch && bestDistance < THRESHOLD) {
-      console.log(`✅ Usuario identificado: ${bestMatch.empleado_id} (distancia: ${bestDistance.toFixed(4)})`);
+      console.log(`✅ Usuario identificado: ${bestMatch.empleado_id} (${bestMatch.nombre}) - distancia: ${bestDistance.toFixed(4)}`);
 
       // Obtener información del empleado
       const empleadoResponse = await fetch(`${backendUrl}/api/empleados/${bestMatch.empleado_id}`, {
@@ -432,11 +449,17 @@ ipcMain.handle('verificar-usuario', async (event, descriptor) => {
         message: 'Usuario identificado correctamente',
       };
     } else {
-      console.log(`❌ No se encontró coincidencia (mejor distancia: ${bestDistance.toFixed(4)})`);
+      console.log(`❌ No se encontró coincidencia suficiente`);
+      console.log(`   Mejor candidato: ${bestMatch ? `${bestMatch.nombre} (distancia: ${bestDistance.toFixed(4)})` : 'Ninguno'}`);
+      console.log(`   Se requiere distancia < ${THRESHOLD}\n`);
       return {
         success: false,
         message: 'Rostro no identificado',
         distancia: bestDistance,
+        mejorCandidato: bestMatch ? {
+          nombre: bestMatch.nombre,
+          distancia: bestDistance
+        } : null
       };
     }
   } catch (error) {

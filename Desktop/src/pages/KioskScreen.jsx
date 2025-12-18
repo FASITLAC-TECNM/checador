@@ -7,8 +7,8 @@ import PinModal from "../components/kiosk/PinModal";
 import LoginModal from "../components/kiosk/LoginModal";
 import BitacoraModal from "../components/kiosk/BitacoraModal";
 import NoticeDetailModal from "../components/kiosk/NoticeDetailModal";
+import RegisterFaceModal from "../components/kiosk/RegisterFaceModal";
 import SessionScreen from "./SessionScreen";
-
 import { agregarEvento } from "../services/bitacoraService";
 import { useConnectivity } from "../hooks/useConnectivity";
 import { ConnectionStatusPanel } from "../components/common/ConnectionStatus";

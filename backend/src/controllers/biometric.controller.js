@@ -428,16 +428,39 @@ export const identificarHuella = async (req, res) => {
         console.log(`   - Tamaño BD: ${huellaRegistrada.length} bytes`);
         console.log(`   - Primeros 50 bytes (BYTEA): \\\\x${huellaRegistrada.slice(0, 50).toString('hex')}`);
 
-        // COMPARACIÓN EXACTA (byte por byte)
-        // NOTA: En producción, usar algoritmo biométrico real con threshold
-        const coincide = Buffer.compare(huellaCapturada, huellaRegistrada) === 0;
+        // COMPARACIÓN POR SIMILITUD (aproximación simple)
+        // NOTA: En producción, usar algoritmo biométrico real (DigitalPersona SDK)
 
-        console.log(`   - Tamaños coinciden: ${huellaCapturada.length === huellaRegistrada.length ? '✅ SÍ' : '❌ NO'}`);
-        console.log(`   - Bytes exactos coinciden: ${coincide ? '✅ SÍ' : '❌ NO'}`);
+        // Si los tamaños son muy diferentes, no es match
+        const sizeDiff = Math.abs(huellaCapturada.length - huellaRegistrada.length);
+        const sizeRatio = sizeDiff / Math.max(huellaCapturada.length, huellaRegistrada.length);
 
-        if (coincide) {
-          // Simulación de score (en producción viene del algoritmo biométrico)
-          const score = 100;
+        console.log(`   - Diferencia de tamaño: ${sizeDiff} bytes (${(sizeRatio * 100).toFixed(2)}%)`);
+
+        if (sizeRatio > 0.1) {
+          // Si la diferencia de tamaño es > 10%, skip
+          console.log(`   - ⏭️ Saltando: tamaños muy diferentes`);
+          continue;
+        }
+
+        // Calcular similitud de bytes
+        const minLength = Math.min(huellaCapturada.length, huellaRegistrada.length);
+        let bytesCoincidentes = 0;
+
+        for (let i = 0; i < minLength; i++) {
+          if (huellaCapturada[i] === huellaRegistrada[i]) {
+            bytesCoincidentes++;
+          }
+        }
+
+        const similitud = (bytesCoincidentes / minLength) * 100;
+        console.log(`   - Bytes coincidentes: ${bytesCoincidentes}/${minLength} (${similitud.toFixed(2)}%)`);
+
+        // Threshold de similitud (ajustar según sea necesario)
+        const THRESHOLD = 70; // 70% de similitud mínima
+
+        if (similitud >= THRESHOLD) {
+          const score = Math.round(similitud);
 
           if (score > mejorScore) {
             mejorScore = score;
@@ -451,6 +474,8 @@ export const identificarHuella = async (req, res) => {
           }
 
           console.log(`\n   ✅✅✅ MATCH ENCONTRADO: ${row.nombre} (Score: ${score}%) ✅✅✅\n`);
+        } else {
+          console.log(`   - ❌ No supera threshold: ${similitud.toFixed(2)}% < ${THRESHOLD}%`);
         }
       } catch (error) {
         console.error(

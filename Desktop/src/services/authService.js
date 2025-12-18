@@ -2,6 +2,7 @@
 // Servicio de autenticación con API remota
 
 import { getApiEndpoint } from "../config/apiEndPoint";
+import { agregarEvento } from "./bitacoraService";
 
 // Usar la configuración centralizada
 const API_URL = getApiEndpoint("/api");
@@ -33,6 +34,13 @@ export const loginUsuario = async (username, pin) => {
     );
 
     if (!usuarioEncontrado) {
+      // Registrar intento de login fallido - usuario no encontrado
+      const eventoError = agregarEvento({
+        user: username,
+        action: `Intento de login fallido - Usuario no encontrado`,
+        type: "error",
+      });
+      console.log("❌ Evento de error registrado en bitácora:", eventoError);
       throw new Error("Usuario no encontrado");
     }
 
@@ -40,8 +48,9 @@ export const loginUsuario = async (username, pin) => {
 
     // Verificar PIN desde la API de credenciales
     try {
+      // Usar el id del empleado (no id_usuario)
       const credencialesResponse = await fetch(
-        `${API_URL}/credenciales/empleado/${usuarioEncontrado.id_usuario}`
+        `${API_URL}/credenciales/empleado/${usuarioEncontrado.id}`
       );
 
       if (!credencialesResponse.ok) {
@@ -49,20 +58,73 @@ export const loginUsuario = async (username, pin) => {
       }
 
       const credenciales = await credencialesResponse.json();
-      console.log("🔑 Credenciales obtenidas");
+      console.log("🔑 Credenciales obtenidas:", {
+        id_empleado: credenciales.id_empleado,
+        tiene_pin: !!credenciales.pin,
+      });
+
+      // Verificar que el PIN exista
+      if (!credenciales.pin) {
+        throw new Error("Este empleado no tiene PIN configurado");
+      }
 
       // Verificar que el PIN coincida
-      if (credenciales.pin !== parseInt(pin)) {
+      const pinIngresado = parseInt(pin);
+      const pinRegistrado = parseInt(credenciales.pin);
+
+      console.log(`🔐 Comparando PINs - Ingresado: ${pinIngresado}, Registrado: ${pinRegistrado}`);
+
+      if (pinIngresado !== pinRegistrado) {
+        // Registrar intento de login fallido - PIN incorrecto
+        const eventoError = agregarEvento({
+          user: username,
+          action: `Intento de login fallido por PIN - PIN incorrecto`,
+          type: "error",
+        });
+        console.log("❌ Evento de PIN incorrecto registrado en bitácora:", eventoError);
         throw new Error("PIN incorrecto");
       }
 
       console.log("✅ PIN verificado correctamente");
     } catch (error) {
       console.error("❌ Error al verificar PIN:", error);
-      throw new Error("Usuario o PIN incorrectos");
+      // Si el error no es de PIN incorrecto, registrar el error
+      if (!error.message.includes("PIN incorrecto")) {
+        agregarEvento({
+          user: username,
+          action: `Error al verificar credenciales - ${error.message}`,
+          type: "error",
+        });
+      }
+      throw new Error(error.message || "Usuario o PIN incorrectos");
     }
 
-    // Verificar que el usuario esté activo
+    // Obtener datos completos del empleado desde el endpoint específico
+    try {
+      console.log(`📋 Obteniendo datos completos del empleado ID ${usuarioEncontrado.id}...`);
+      const empleadoResponse = await fetch(
+        `${API_URL}/empleados/${usuarioEncontrado.id}`
+      );
+
+      if (empleadoResponse.ok) {
+        const empleadoCompleto = await empleadoResponse.json();
+        console.log("✅ Datos completos del empleado obtenidos:", {
+          id: empleadoCompleto.id,
+          nombre: empleadoCompleto.nombre,
+          tiene_rfc: !!empleadoCompleto.rfc,
+          tiene_nss: !!empleadoCompleto.nss,
+        });
+
+        // Usar los datos completos del empleado
+        usuarioEncontrado.rfc = empleadoCompleto.rfc;
+        usuarioEncontrado.nss = empleadoCompleto.nss;
+        usuarioEncontrado.departamento = empleadoCompleto.departamento;
+        usuarioEncontrado.horario_inicio = empleadoCompleto.horario_inicio;
+        usuarioEncontrado.horario_fin = empleadoCompleto.horario_fin;
+      }
+    } catch (error) {
+      console.warn("⚠️ No se pudieron obtener datos completos del empleado:", error);
+    }
 
     // Actualizar estado a CONECTADO
     try {
@@ -77,9 +139,10 @@ export const loginUsuario = async (username, pin) => {
 
       // Usar el usuario actualizado de la respuesta si está disponible
       if (usuarioActualizado && usuarioActualizado.estado) {
+        // Combinar datos del empleado con estado actualizado
         return {
           success: true,
-          usuario: usuarioActualizado,
+          usuario: { ...usuarioEncontrado, estado: "CONECTADO" },
         };
       }
 
@@ -90,6 +153,19 @@ export const loginUsuario = async (username, pin) => {
       // Continuar con el login aunque falle la actualización
       usuarioEncontrado.estado = "CONECTADO";
     }
+
+    // Registrar login exitoso en la bitácora ANTES de retornar
+    const eventoRegistrado = agregarEvento({
+      user: usuarioEncontrado.nombre || username,
+      action: `Inicio de sesión exitoso por PIN`,
+      type: "success",
+    });
+
+    console.log("✅ Evento de login exitoso registrado en bitácora:", eventoRegistrado);
+
+    // Verificar que se guardó correctamente
+    const bitacoraActual = localStorage.getItem('eventLog');
+    console.log("📋 Bitácora actual en localStorage:", bitacoraActual ? JSON.parse(bitacoraActual).length + " eventos" : "vacía");
 
     return {
       success: true,

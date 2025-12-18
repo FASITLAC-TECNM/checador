@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Camera, User, Activity, Bell, UserPlus } from "lucide-react";
+import { Camera, User, ClipboardList, Bell, UserPlus } from "lucide-react";
 import { formatTime, formatDate, formatDay } from "../utils/dateHelpers";
 import { notices } from "../constants/notices";
 import CameraModal from "../components/kiosk/CameraModal";
@@ -266,7 +266,7 @@ export default function KioskScreen() {
           onClick={() => setShowBitacora(true)}
           className="flex flex-col items-center gap-1 text-blue-600 hover:bg-bg-secondary p-2 rounded-lg transition-all w-16"
         >
-          <Activity className="w-5 h-5" />
+          <ClipboardList className="w-5 h-5" />
           <span className="text-xs font-semibold">Bitácora</span>
         </button>
 

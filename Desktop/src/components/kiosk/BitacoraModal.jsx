@@ -54,22 +54,25 @@ export default function BitacoraModal({ onClose }) {
     // Función para cargar eventos
     const cargarEventos = () => {
       const eventosDinamicos = obtenerBitacora();
+      console.log("📋 Bitácora Modal - Cargando eventos:", eventosDinamicos.length);
 
       // Si hay eventos en localStorage, usarlos; si no, usar los de ejemplo
       if (eventosDinamicos.length > 0) {
         setEventos(eventosDinamicos);
+        console.log("✅ Eventos cargados desde localStorage");
       } else {
         setEventos(eventLog);
+        console.log("⚠️ No hay eventos en localStorage, usando eventos de ejemplo");
       }
     };
 
     // Cargar eventos inicialmente
     cargarEventos();
 
-    // Actualizar cada 2 segundos para reflejar nuevos eventos
+    // Actualizar cada 1 segundo para reflejar nuevos eventos más rápidamente
     const interval = setInterval(() => {
       cargarEventos();
-    }, 2000);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, []);

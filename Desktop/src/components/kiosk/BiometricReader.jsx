@@ -49,8 +49,55 @@ export default function BiometricReader({
   const reconnectAttemptsRef = useRef(0);
   const MAX_RECONNECT_ATTEMPTS = 5;
 
+  // DEBUG: Función para obtener la huella del empleado ID 1
+  const debugObtenerHuellaEmpleado1 = async () => {
+    try {
+      console.log("\n🔍 DEBUG: Obteniendo huella del empleado ID 1 desde BD...");
+      const API_URL = "https://9dm7dqf9-3001.usw3.devtunnels.ms/api";
+
+      const response = await fetch(`${API_URL}/biometric/template/1`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        console.error("❌ Error al obtener template:", response.status);
+        return;
+      }
+
+      const result = await response.json();
+      console.log("\n📦 HUELLA DEL EMPLEADO ID 1 EN LA BD:");
+      console.log("   - ID Empleado:", result.data.id_empleado);
+      console.log("   - Tamaño:", result.data.size_bytes, "bytes");
+      console.log("   - Template (Base64 - primeros 100 chars):", result.data.template_base64.substring(0, 100) + "...");
+      console.log("   - Template completo (Base64):", result.data.template_base64);
+
+      // Convertir a BYTEA para mostrar
+      const binaryString = atob(result.data.template_base64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const hexString = Array.from(bytes.slice(0, 50))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+      console.log("   - Primeros 50 bytes (BYTEA hex): \\\\x" + hexString);
+      console.log("\n");
+    } catch (error) {
+      console.error("❌ Error en debug de huella empleado 1:", error);
+    }
+  };
+
   useEffect(() => {
     connectToServer();
+
+    // DEBUG: Obtener y mostrar la huella del empleado ID 1
+    if (mode === "auth") {
+      debugObtenerHuellaEmpleado1();
+    }
+
     return () => {
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
@@ -272,6 +319,24 @@ export default function BiometricReader({
         addMessage("❌ No se recibió el template de la huella", "error");
         return;
       }
+
+      // DEBUG: Mostrar el template capturado
+      console.log("\n📸 TEMPLATE CAPTURADO DEL LECTOR:");
+      console.log("   - Tamaño:", atob(templateBase64).length, "bytes");
+      console.log("   - Template (Base64 - primeros 100 chars):", templateBase64.substring(0, 100) + "...");
+      console.log("   - Template completo (Base64):", templateBase64);
+
+      // Convertir a BYTEA para mostrar
+      const binaryString = atob(templateBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const hexString = Array.from(bytes.slice(0, 50))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+      console.log("   - Primeros 50 bytes (BYTEA hex): \\\\x" + hexString);
+      console.log("\n");
 
       setSavingToDatabase(true);
       addMessage("🔍 Identificando usuario por huella...", "info");
@@ -521,64 +586,24 @@ export default function BiometricReader({
                   📡 Estado del Sistema
                 </h2>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="flex justify-center">
                   <div
-                    className={`rounded-lg p-4 ${
+                    className={`rounded-lg p-6 w-full max-w-md ${
                       readerConnected
                         ? "bg-green-500/20 border border-green-500/50"
                         : "bg-yellow-500/20 border border-yellow-500/50"
                     }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4">
                       <Fingerprint
-                        className={`w-6 h-6 ${
+                        className={`w-8 h-8 ${
                           readerConnected ? "text-green-400" : "text-yellow-400"
                         }`}
                       />
                       <div>
-                        <p className="text-white font-medium text-sm">Lector</p>
-                        <p className="text-white/70 text-xs">
+                        <p className="text-white font-medium text-lg">Lector</p>
+                        <p className="text-white/70 text-sm">
                           {readerConnected ? "Conectado" : "Desconectado"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-6 h-6 flex items-center justify-center text-blue-400 font-bold text-lg`}
-                      >
-                        {isProcessing ? "⚡" : "⏸"}
-                      </div>
-                      <div>
-                        <p className="text-white font-medium text-sm">Estado</p>
-                        <p className="text-white/70 text-xs">
-                          {isProcessing ? "Procesando" : "Esperando"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div
-                    className={`rounded-lg p-4 ${
-                      savingToDatabase
-                        ? "bg-purple-500/20 border border-purple-500/50"
-                        : "bg-gray-500/20 border border-gray-500/50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Database
-                        className={`w-6 h-6 ${
-                          savingToDatabase ? "text-purple-400" : "text-gray-400"
-                        }`}
-                      />
-                      <div>
-                        <p className="text-white font-medium text-sm">
-                          Base Datos
-                        </p>
-                        <p className="text-white/70 text-xs">
-                          {savingToDatabase ? "Guardando..." : "Esperando"}
                         </p>
                       </div>
                     </div>

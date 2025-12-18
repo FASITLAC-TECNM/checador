@@ -1,8 +1,12 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+import { getApiEndpoint } from '../config/api';
+
+const API_URL = getApiEndpoint('/api');
+
+console.log('🔗 Solicitudes Móviles API URL:', API_URL);
 
 export const getSolicitudesMoviles = async () => {
     try {
-        const response = await fetch(API_URL);
+        const response = await fetch(`${API_URL}/solicitudes-movil`);
         if (!response.ok) throw new Error('Error al obtener solicitudes móviles');
         return await response.json();
     } catch (error) {
@@ -13,7 +17,7 @@ export const getSolicitudesMoviles = async () => {
 
 export const getSolicitudesMovilesPendientes = async () => {
     try {
-        const response = await fetch(`${API_URL}/pendientes`);
+        const response = await fetch(`${API_URL}/solicitudes-movil/pendientes`);
         if (!response.ok) throw new Error('Error al obtener solicitudes móviles pendientes');
         return await response.json();
     } catch (error) {
@@ -24,7 +28,7 @@ export const getSolicitudesMovilesPendientes = async () => {
 
 export const getSolicitudMovilById = async (id) => {
     try {
-        const response = await fetch(`${API_URL}/${id}`);
+        const response = await fetch(`${API_URL}/solicitudes-movil/${id}`);
         if (!response.ok) throw new Error('Error al obtener solicitud móvil');
         return await response.json();
     } catch (error) {
@@ -35,7 +39,7 @@ export const getSolicitudMovilById = async (id) => {
 
 export const aceptarSolicitudMovil = async (id, idUsuarioAprobador) => {
     try {
-        const response = await fetch(`${API_URL}/${id}/aceptar`, {
+        const response = await fetch(`${API_URL}/solicitudes-movil/${id}/aceptar`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -52,7 +56,7 @@ export const aceptarSolicitudMovil = async (id, idUsuarioAprobador) => {
 
 export const rechazarSolicitudMovil = async (id, idUsuarioAprobador, motivoRechazo) => {
     try {
-        const response = await fetch(`${API_URL}/${id}/rechazar`, {
+        const response = await fetch(`${API_URL}/solicitudes-movil/${id}/rechazar`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -72,7 +76,7 @@ export const rechazarSolicitudMovil = async (id, idUsuarioAprobador, motivoRecha
 
 export const deleteSolicitudMovil = async (id) => {
     try {
-        const response = await fetch(`${API_URL}/${id}`, {
+        const response = await fetch(`${API_URL}/solicitudes-movil/${id}`, {
             method: 'DELETE',
         });
         if (!response.ok) {
@@ -88,7 +92,7 @@ export const deleteSolicitudMovil = async (id) => {
 
 export const getEstadisticasMoviles = async () => {
     try {
-        const response = await fetch(`${API_URL}/stats`);
+        const response = await fetch(`${API_URL}/solicitudes-movil/stats`);
         if (!response.ok) throw new Error('Error al obtener estadísticas');
         return await response.json();
     } catch (error) {

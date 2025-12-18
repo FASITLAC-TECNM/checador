@@ -1,10 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Clock, CheckCircle, XCircle, AlertCircle, Monitor, Trash2, RefreshCw, Smartphone } from 'lucide-react';
-import { getSolicitudes, aceptarSolicitud, rechazarSolicitud, deleteSolicitud } from '../../services/solicitudesService';
-import { getSolicitudesMoviles, aceptarSolicitudMovil, rechazarSolicitudMovil, deleteSolicitudMovil } from '../../services/solicitudesMovilService';
+import React, { useState } from 'react';
+import { CheckCircle, XCircle, Smartphone, User, Mail, Globe, Calendar } from 'lucide-react';
 import { useNotification } from '../../contexts/NotificationContext';
-import SolicitudCard from './SolicitudCard';
-import SolicitudMovilCard from './SolicitudMovilCard';
 
 const SolicitudMovilCard = ({ solicitud, onAceptar, onRechazar }) => {
     const notification = useNotification();

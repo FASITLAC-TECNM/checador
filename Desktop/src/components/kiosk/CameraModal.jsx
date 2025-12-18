@@ -1,4 +1,6 @@
-import { X, CheckCircle, XCircle } from "lucide-react";
+import { useEffect } from "react";
+import { X, CheckCircle, XCircle, Eye } from "lucide-react";
+import { useFaceDetection } from "../../hooks/useFaceDetection";
 
 export default function CameraModal({
   cameraMode,
@@ -7,7 +9,75 @@ export default function CameraModal({
   captureFailed,
   isClosing,
   onClose,
+  onFaceDetected,
 }) {
+  const {
+    modelsLoaded,
+    faceDetected,
+    livenessDetected,
+    detectionProgress,
+    detectionError,
+    loadModels,
+    startFaceDetection,
+    stopFaceDetection,
+  } = useFaceDetection();
+
+  // Cargar modelos cuando se monta el componente
+  useEffect(() => {
+    console.log("📦 CameraModal montado, cargando modelos...");
+    loadModels();
+  }, [loadModels]);
+
+  // Iniciar detección facial cuando el video esté listo
+  useEffect(() => {
+    if (!modelsLoaded || captureSuccess || captureFailed) return;
+
+    const video = document.getElementById("cameraVideo");
+    if (!video) {
+      console.warn("⚠️ Elemento de video no encontrado");
+      return;
+    }
+
+    // Esperar a que el video esté listo
+    const handleVideoReady = () => {
+      console.log("📹 Video listo, iniciando detección facial...");
+      console.log("📹 Video dimensions:", video.videoWidth, "x", video.videoHeight);
+
+      startFaceDetection(
+        video,
+        (result) => {
+          console.log("✅ Rostro detectado y validado:", result);
+          onFaceDetected?.(result.descriptor);
+        },
+        (error) => {
+          console.error("❌ Error en detección:", error);
+        }
+      );
+    };
+
+    // Múltiples eventos para asegurar que el video se inicie
+    const handleCanPlay = () => {
+      console.log("📹 Video can play");
+      if (video.readyState >= 2) {
+        handleVideoReady();
+      }
+    };
+
+    video.addEventListener("loadeddata", handleCanPlay);
+    video.addEventListener("canplay", handleCanPlay);
+
+    // Si ya está listo, iniciar inmediatamente
+    if (video.readyState >= 2) {
+      handleVideoReady();
+    }
+
+    return () => {
+      video.removeEventListener("loadeddata", handleCanPlay);
+      video.removeEventListener("canplay", handleCanPlay);
+      stopFaceDetection();
+    };
+  }, [modelsLoaded, captureSuccess, captureFailed, startFaceDetection, stopFaceDetection, onFaceDetected]);
+
   return (
     <div
       className={`fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity duration-300 ${
@@ -39,13 +109,14 @@ export default function CameraModal({
 
         {/* Video */}
         <div className="p-6">
-          <div className="relative bg-black rounded-xl overflow-hidden" style={{ aspectRatio: "4/3" }}>
+          <div className="relative bg-black rounded-xl overflow-hidden w-full" style={{ aspectRatio: "4/3", minHeight: "400px" }}>
             <video
               id="cameraVideo"
               autoPlay
               playsInline
+              muted
               className="w-full h-full object-cover"
-              style={{ transform: "scaleX(-1)" }}
+              style={{ transform: "scaleX(-1)", minHeight: "400px" }}
             />
 
             {/* Esquinas simples */}
@@ -114,10 +185,53 @@ export default function CameraModal({
 
           </div>
 
-          {/* Instrucción */}
-          <p className="text-center text-text-secondary text-sm mt-4">
-            Coloca tu rostro frente a la cámara
-          </p>
+          {/* Indicadores de detección */}
+          <div className="mt-4 space-y-2">
+            {/* Instrucción */}
+            <p className="text-center text-gray-700 dark:text-gray-300 text-sm font-medium">
+              {!modelsLoaded && "Cargando modelos de reconocimiento..."}
+              {modelsLoaded && !faceDetected && "Coloca tu rostro frente a la cámara"}
+              {modelsLoaded && faceDetected && !livenessDetected && "Mantén tu rostro frente a la cámara (parpadea si quieres acelerar)"}
+              {modelsLoaded && livenessDetected && "¡Rostro validado! Procesando..."}
+            </p>
+
+            {/* Indicadores visuales */}
+            {modelsLoaded && (
+              <div className="flex items-center justify-center gap-4 text-sm">
+                <div className={`flex items-center gap-1.5 ${faceDetected ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                  <div className={`w-2.5 h-2.5 rounded-full ${faceDetected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                  <span className="font-medium">Rostro detectado</span>
+                </div>
+                <div className={`flex items-center gap-1.5 ${livenessDetected ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                  <Eye className={`w-4 h-4 ${livenessDetected ? 'animate-pulse' : ''}`} />
+                  <span className="font-medium">Liveness</span>
+                </div>
+              </div>
+            )}
+
+            {/* Barra de progreso de detección */}
+            {modelsLoaded && detectionProgress > 0 && !captureSuccess && !captureFailed && (
+              <div className="w-full bg-gray-300 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+                <div
+                  className="bg-blue-500 h-full transition-all duration-300 rounded-full"
+                  style={{ width: `${detectionProgress}%` }}
+                />
+              </div>
+            )}
+
+            {/* Estado de carga de modelos */}
+            {!modelsLoaded && (
+              <div className="flex items-center justify-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+                <span className="text-gray-600 dark:text-gray-400 text-xs">Cargando modelos...</span>
+              </div>
+            )}
+
+            {/* Error de detección */}
+            {detectionError && (
+              <p className="text-center text-red-500 dark:text-red-400 text-xs font-medium">{detectionError}</p>
+            )}
+          </div>
         </div>
       </div>
     </div>

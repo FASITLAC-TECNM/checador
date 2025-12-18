@@ -340,6 +340,131 @@ export const obtenerEstadisticas = async (req, res) => {
 };
 
 /**
+ * Registrar asistencia con reconocimiento facial
+ * No requiere verificación previa, solo el ID del empleado
+ */
+export const registrarAsistenciaFacial = async (req, res) => {
+    try {
+        const {
+            id_empleado,
+            tipo, // 'Entrada' o 'Salida' (opcional, se autodetecta)
+            dispositivo_id,
+            ubicacion
+        } = req.body;
+
+        console.log('📸 Registro de asistencia facial:', {
+            id_empleado,
+            tipo,
+            dispositivo_id,
+            ubicacion
+        });
+
+        // Validaciones
+        if (!id_empleado) {
+            return res.status(400).json({
+                error: 'Campo requerido: id_empleado',
+                codigo: 'CAMPOS_FALTANTES'
+            });
+        }
+
+        // Verificar que el empleado existe y está activo
+        const empleadoResult = await pool.query(
+            'SELECT id, estado FROM Empleado WHERE id = $1',
+            [id_empleado]
+        );
+
+        if (empleadoResult.rows.length === 0) {
+            return res.status(404).json({
+                error: 'Empleado no encontrado',
+                codigo: 'EMPLEADO_NO_ENCONTRADO'
+            });
+        }
+
+        if (!empleadoResult.rows[0].estado) {
+            return res.status(403).json({
+                error: 'Empleado inactivo',
+                codigo: 'EMPLEADO_INACTIVO'
+            });
+        }
+
+        // Si no se especifica tipo, autodetectar basado en el último registro
+        let tipoRegistro = tipo;
+        if (!tipoRegistro) {
+            const ultimoRegistro = await pool.query(`
+                SELECT tipo
+                FROM RegistroAsistencia
+                WHERE id_empleado = $1
+                ORDER BY fecha DESC, hora DESC
+                LIMIT 1
+            `, [id_empleado]);
+
+            tipoRegistro = ultimoRegistro.rows.length === 0 || ultimoRegistro.rows[0].tipo === 'Salida'
+                ? 'Entrada'
+                : 'Salida';
+        }
+
+        // Validar tipo
+        if (!['Entrada', 'Salida'].includes(tipoRegistro)) {
+            return res.status(400).json({
+                error: 'Tipo debe ser "Entrada" o "Salida"',
+                codigo: 'TIPO_INVALIDO'
+            });
+        }
+
+        // Registrar la asistencia
+        const registroResult = await pool.query(`
+            INSERT INTO RegistroAsistencia (
+                id_empleado,
+                fecha,
+                hora,
+                tipo,
+                dispositivo_id,
+                metodo_registro,
+                ubicacion,
+                verificado
+            )
+            VALUES ($1, CURRENT_DATE, CURRENT_TIME, $2, $3, 'Facial', $4, true)
+            RETURNING *
+        `, [id_empleado, tipoRegistro, dispositivo_id, ubicacion]);
+
+        // Obtener información del empleado para la respuesta
+        const empleadoInfo = await pool.query(`
+            SELECT
+                e.id,
+                e.id_usuario,
+                e.rfc,
+                e.nss,
+                u.nombre,
+                u.foto
+            FROM Empleado e
+            INNER JOIN Usuario u ON e.id_usuario = u.id
+            WHERE e.id = $1
+        `, [id_empleado]);
+
+        console.log('✅ Asistencia facial registrada exitosamente:', {
+            registro_id: registroResult.rows[0].id,
+            empleado: empleadoInfo.rows[0].nombre,
+            tipo: tipoRegistro,
+            hora: registroResult.rows[0].hora
+        });
+
+        res.status(201).json({
+            success: true,
+            message: `${tipoRegistro} registrada exitosamente`,
+            registro: registroResult.rows[0],
+            empleado: empleadoInfo.rows[0]
+        });
+
+    } catch (error) {
+        console.error('❌ Error registrando asistencia facial:', error);
+        res.status(500).json({
+            error: 'Error al registrar asistencia facial',
+            details: error.message
+        });
+    }
+};
+
+/**
  * Registrar asistencia manual (por administrador)
  */
 export const registrarAsistenciaManual = async (req, res) => {

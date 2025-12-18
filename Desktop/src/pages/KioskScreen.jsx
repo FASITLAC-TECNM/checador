@@ -7,9 +7,8 @@ import PinModal from "../components/kiosk/PinModal";
 import LoginModal from "../components/kiosk/LoginModal";
 import BitacoraModal from "../components/kiosk/BitacoraModal";
 import NoticeDetailModal from "../components/kiosk/NoticeDetailModal";
-import RegisterFaceModal from "../components/kiosk/RegisterFaceModal";
 import SessionScreen from "./SessionScreen";
-import { cerrarSesion } from "../services/authService";
+
 import { agregarEvento } from "../services/bitacoraService";
 import { useConnectivity } from "../hooks/useConnectivity";
 import { ConnectionStatusPanel } from "../components/common/ConnectionStatus";
@@ -54,22 +53,24 @@ export default function KioskScreen() {
   // Atajo para resetear configuración: Ctrl+Shift+R
   useEffect(() => {
     const handleKeyPress = (e) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+      if (e.ctrlKey && e.shiftKey && e.key === "R") {
         e.preventDefault();
-        const confirmReset = confirm('¿Está seguro que desea resetear la configuración de la aplicación? Esto eliminará todos los datos guardados y deberá volver a afiliar el equipo.');
+        const confirmReset = confirm(
+          "¿Está seguro que desea resetear la configuración de la aplicación? Esto eliminará todos los datos guardados y deberá volver a afiliar el equipo."
+        );
         if (confirmReset) {
           localStorage.clear();
           if (window.electronAPI && window.electronAPI.configRemove) {
-            window.electronAPI.configRemove('appConfigured');
+            window.electronAPI.configRemove("appConfigured");
           }
-          alert('Configuración reseteada. La aplicación se recargará.');
+          alert("Configuración reseteada. La aplicación se recargará.");
           window.location.reload();
         }
       }
     };
 
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
   }, []);
 
   // Manejar detección de rostro exitosa
@@ -98,7 +99,11 @@ export default function KioskScreen() {
 
         agregarEvento({
           user: nombreUsuario,
-          action: `${cameraMode === "asistencia" ? "Registro de asistencia" : "Inicio de sesión"} exitoso - Reconocimiento facial`,
+          action: `${
+            cameraMode === "asistencia"
+              ? "Registro de asistencia"
+              : "Inicio de sesión"
+          } exitoso - Reconocimiento facial`,
           type: "success",
         });
 
@@ -128,7 +133,9 @@ export default function KioskScreen() {
 
         agregarEvento({
           user: "Sistema",
-          action: `Intento de ${cameraMode === "asistencia" ? "registro de asistencia" : "acceso"} - Rostro no identificado`,
+          action: `Intento de ${
+            cameraMode === "asistencia" ? "registro de asistencia" : "acceso"
+          } - Rostro no identificado`,
           type: "error",
         });
 

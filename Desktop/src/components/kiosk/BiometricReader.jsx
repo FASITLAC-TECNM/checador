@@ -586,64 +586,24 @@ export default function BiometricReader({
                   📡 Estado del Sistema
                 </h2>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="flex justify-center">
                   <div
-                    className={`rounded-lg p-4 ${
+                    className={`rounded-lg p-6 w-full max-w-md ${
                       readerConnected
                         ? "bg-green-500/20 border border-green-500/50"
                         : "bg-yellow-500/20 border border-yellow-500/50"
                     }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4">
                       <Fingerprint
-                        className={`w-6 h-6 ${
+                        className={`w-8 h-8 ${
                           readerConnected ? "text-green-400" : "text-yellow-400"
                         }`}
                       />
                       <div>
-                        <p className="text-white font-medium text-sm">Lector</p>
-                        <p className="text-white/70 text-xs">
+                        <p className="text-white font-medium text-lg">Lector</p>
+                        <p className="text-white/70 text-sm">
                           {readerConnected ? "Conectado" : "Desconectado"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-6 h-6 flex items-center justify-center text-blue-400 font-bold text-lg`}
-                      >
-                        {isProcessing ? "⚡" : "⏸"}
-                      </div>
-                      <div>
-                        <p className="text-white font-medium text-sm">Estado</p>
-                        <p className="text-white/70 text-xs">
-                          {isProcessing ? "Procesando" : "Esperando"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div
-                    className={`rounded-lg p-4 ${
-                      savingToDatabase
-                        ? "bg-purple-500/20 border border-purple-500/50"
-                        : "bg-gray-500/20 border border-gray-500/50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Database
-                        className={`w-6 h-6 ${
-                          savingToDatabase ? "text-purple-400" : "text-gray-400"
-                        }`}
-                      />
-                      <div>
-                        <p className="text-white font-medium text-sm">
-                          Base Datos
-                        </p>
-                        <p className="text-white/70 text-xs">
-                          {savingToDatabase ? "Guardando..." : "Esperando"}
                         </p>
                       </div>
                     </div>

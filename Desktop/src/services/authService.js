@@ -40,8 +40,9 @@ export const loginUsuario = async (username, pin) => {
 
     // Verificar PIN desde la API de credenciales
     try {
+      // Usar el id del empleado (no id_usuario)
       const credencialesResponse = await fetch(
-        `${API_URL}/credenciales/empleado/${usuarioEncontrado.id_usuario}`
+        `${API_URL}/credenciales/empleado/${usuarioEncontrado.id}`
       );
 
       if (!credencialesResponse.ok) {
@@ -49,17 +50,30 @@ export const loginUsuario = async (username, pin) => {
       }
 
       const credenciales = await credencialesResponse.json();
-      console.log("🔑 Credenciales obtenidas");
+      console.log("🔑 Credenciales obtenidas:", {
+        id_empleado: credenciales.id_empleado,
+        tiene_pin: !!credenciales.pin,
+      });
+
+      // Verificar que el PIN exista
+      if (!credenciales.pin) {
+        throw new Error("Este empleado no tiene PIN configurado");
+      }
 
       // Verificar que el PIN coincida
-      if (credenciales.pin !== parseInt(pin)) {
+      const pinIngresado = parseInt(pin);
+      const pinRegistrado = parseInt(credenciales.pin);
+
+      console.log(`🔐 Comparando PINs - Ingresado: ${pinIngresado}, Registrado: ${pinRegistrado}`);
+
+      if (pinIngresado !== pinRegistrado) {
         throw new Error("PIN incorrecto");
       }
 
       console.log("✅ PIN verificado correctamente");
     } catch (error) {
       console.error("❌ Error al verificar PIN:", error);
-      throw new Error("Usuario o PIN incorrectos");
+      throw new Error(error.message || "Usuario o PIN incorrectos");
     }
 
     // Verificar que el usuario esté activo

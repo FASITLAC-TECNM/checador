@@ -18,7 +18,7 @@ const SolicitudesPage = () => {
     const [showMovilesSection, setShowMovilesSection] = useState(true);
 
     const [loading, setLoading] = useState(true);
-    const [filter, setFilter] = useState('all'); // all, pendientes, aceptadas, rechazadas
+    const [filter, setFilter] = useState('pendientes'); // all, pendientes, aceptadas, rechazadas
 
     useEffect(() => {
         console.log('🚀 Componente montado, cargando solicitudes...');

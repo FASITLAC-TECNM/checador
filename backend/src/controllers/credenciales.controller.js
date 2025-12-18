@@ -16,7 +16,7 @@ export const getCredencialesByEmpleado = async (req, res) => {
                 pin,
                 fecha_creacion,
                 fecha_actualizacion
-            FROM Credenciales
+            FROM credenciales
             WHERE id_empleado = $1
         `, [id_empleado]);
 
@@ -59,7 +59,7 @@ export const createCredenciales = async (req, res) => {
 
         // Verificar que el empleado existe
         const empleadoCheck = await pool.query(
-            'SELECT id FROM Empleado WHERE id = $1',
+            'SELECT id FROM empleado WHERE id = $1',
             [id_empleado]
         );
 
@@ -71,7 +71,7 @@ export const createCredenciales = async (req, res) => {
 
         // Verificar que no existan credenciales previas
         const credencialesCheck = await pool.query(
-            'SELECT id FROM Credenciales WHERE id_empleado = $1',
+            'SELECT id FROM credenciales WHERE id_empleado = $1',
             [id_empleado]
         );
 
@@ -82,7 +82,7 @@ export const createCredenciales = async (req, res) => {
         }
 
         const result = await pool.query(`
-            INSERT INTO Credenciales (id_empleado, pin, fecha_creacion)
+            INSERT INTO credenciales (id_empleado, pin, fecha_creacion)
             VALUES ($1, $2, CURRENT_DATE)
             RETURNING
                 id,
@@ -122,7 +122,7 @@ export const updateCredenciales = async (req, res) => {
         }
 
         const result = await pool.query(`
-            UPDATE Credenciales
+            UPDATE credenciales
             SET pin = COALESCE($1, pin),
                 fecha_actualizacion = CURRENT_DATE
             WHERE id_empleado = $2
@@ -155,7 +155,7 @@ export const deleteCredenciales = async (req, res) => {
         const { id_empleado } = req.params;
 
         const result = await pool.query(
-            'DELETE FROM Credenciales WHERE id_empleado = $1 RETURNING *',
+            'DELETE FROM credenciales WHERE id_empleado = $1 RETURNING *',
             [id_empleado]
         );
 
@@ -190,7 +190,7 @@ export const validarPin = async (req, res) => {
 
         const result = await pool.query(`
             SELECT pin
-            FROM Credenciales
+            FROM credenciales
             WHERE id_empleado = $1
         `, [id_empleado]);
 
@@ -230,7 +230,7 @@ export const updateDactilar = async (req, res) => {
         }
 
         const result = await pool.query(`
-            UPDATE Credenciales
+            UPDATE credenciales
             SET dactilar = $1,
                 fecha_actualizacion = CURRENT_DATE
             WHERE id_empleado = $2
@@ -269,7 +269,7 @@ export const updateFacial = async (req, res) => {
         }
 
         const result = await pool.query(`
-            UPDATE Credenciales
+            UPDATE credenciales
             SET facial = $1,
                 fecha_actualizacion = CURRENT_DATE
             WHERE id_empleado = $2
@@ -305,7 +305,7 @@ export const getMetodosAutenticacion = async (req, res) => {
                 (pin IS NOT NULL) as tiene_pin,
                 (dactilar IS NOT NULL) as tiene_dactilar,
                 (facial IS NOT NULL) as tiene_facial
-            FROM Credenciales
+            FROM credenciales
             WHERE id_empleado = $1
         `, [id_empleado]);
 

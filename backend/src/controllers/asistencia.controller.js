@@ -39,7 +39,7 @@ export const registrarAsistencia = async (req, res) => {
 
         // Verificar que el empleado existe
         const empleadoResult = await pool.query(
-            'SELECT id, estado FROM Empleado WHERE id = $1',
+            'SELECT id, estado FROM empleado WHERE id = $1',
             [id_empleado]
         );
 
@@ -59,7 +59,7 @@ export const registrarAsistencia = async (req, res) => {
 
         // Obtener la huella registrada del empleado
         const credencialesResult = await pool.query(
-            'SELECT dactilar FROM Credenciales WHERE id_empleado = $1',
+            'SELECT dactilar FROM credenciales WHERE id_empleado = $1',
             [id_empleado]
         );
 
@@ -84,7 +84,7 @@ export const registrarAsistencia = async (req, res) => {
 
         // Registrar la asistencia
         const registroResult = await pool.query(`
-            INSERT INTO RegistroAsistencia (
+            INSERT INTO registro_asistencia (
                 id_empleado,
                 fecha,
                 hora,
@@ -100,15 +100,15 @@ export const registrarAsistencia = async (req, res) => {
 
         // Obtener información del empleado para la respuesta
         const empleadoInfo = await pool.query(`
-            SELECT 
+            SELECT
                 e.id,
                 e.id_usuario,
                 e.rfc,
                 e.nss,
                 u.nombre,
                 u.foto
-            FROM Empleado e
-            INNER JOIN Usuario u ON e.id_usuario = u.id
+            FROM empleado e
+            INNER JOIN usuario u ON e.id_usuario = u.id
             WHERE e.id = $1
         `, [id_empleado]);
 
@@ -178,15 +178,15 @@ export const obtenerAsistenciasEmpleado = async (req, res) => {
         const { fecha_inicio, fecha_fin, limit = 100 } = req.query;
 
         let query = `
-            SELECT 
+            SELECT
                 ra.*,
                 u.nombre as nombre_empleado,
                 u.foto as foto_empleado,
                 e.rfc,
                 e.nss
-            FROM RegistroAsistencia ra
-            INNER JOIN Empleado e ON ra.id_empleado = e.id
-            INNER JOIN Usuario u ON e.id_usuario = u.id
+            FROM registro_asistencia ra
+            INNER JOIN empleado e ON ra.id_empleado = e.id
+            INNER JOIN usuario u ON e.id_usuario = u.id
             WHERE ra.id_empleado = $1
         `;
 
@@ -233,15 +233,15 @@ export const obtenerAsistenciasPorFecha = async (req, res) => {
         const { fecha } = req.params;
 
         const result = await pool.query(`
-            SELECT 
+            SELECT
                 ra.*,
                 u.nombre as nombre_empleado,
                 u.foto as foto_empleado,
                 e.rfc,
                 e.nss
-            FROM RegistroAsistencia ra
-            INNER JOIN Empleado e ON ra.id_empleado = e.id
-            INNER JOIN Usuario u ON e.id_usuario = u.id
+            FROM registro_asistencia ra
+            INNER JOIN empleado e ON ra.id_empleado = e.id
+            INNER JOIN usuario u ON e.id_usuario = u.id
             WHERE ra.fecha = $1
             ORDER BY ra.hora DESC
         `, [fecha]);
@@ -271,7 +271,7 @@ export const obtenerUltimoRegistro = async (req, res) => {
 
         const result = await pool.query(`
             SELECT *
-            FROM RegistroAsistencia
+            FROM registro_asistencia
             WHERE id_empleado = $1
             ORDER BY fecha DESC, hora DESC
             LIMIT 1
@@ -320,7 +320,7 @@ export const obtenerEstadisticas = async (req, res) => {
                 COUNT(*) FILTER (WHERE metodo_registro = 'PIN') as por_pin,
                 COUNT(*) FILTER (WHERE metodo_registro = 'Manual') as por_manual,
                 COUNT(DISTINCT id_empleado) as empleados_registrados
-            FROM RegistroAsistencia
+            FROM registro_asistencia
             WHERE fecha = $1
         `, [fecha]);
 
@@ -369,7 +369,7 @@ export const registrarAsistenciaFacial = async (req, res) => {
 
         // Verificar que el empleado existe y está activo
         const empleadoResult = await pool.query(
-            'SELECT id, estado FROM Empleado WHERE id = $1',
+            'SELECT id, estado FROM empleado WHERE id = $1',
             [id_empleado]
         );
 
@@ -392,7 +392,7 @@ export const registrarAsistenciaFacial = async (req, res) => {
         if (!tipoRegistro) {
             const ultimoRegistro = await pool.query(`
                 SELECT tipo
-                FROM RegistroAsistencia
+                FROM registro_asistencia
                 WHERE id_empleado = $1
                 ORDER BY fecha DESC, hora DESC
                 LIMIT 1
@@ -413,7 +413,7 @@ export const registrarAsistenciaFacial = async (req, res) => {
 
         // Registrar la asistencia
         const registroResult = await pool.query(`
-            INSERT INTO RegistroAsistencia (
+            INSERT INTO registro_asistencia (
                 id_empleado,
                 fecha,
                 hora,
@@ -436,8 +436,8 @@ export const registrarAsistenciaFacial = async (req, res) => {
                 e.nss,
                 u.nombre,
                 u.foto
-            FROM Empleado e
-            INNER JOIN Usuario u ON e.id_usuario = u.id
+            FROM empleado e
+            INNER JOIN usuario u ON e.id_usuario = u.id
             WHERE e.id = $1
         `, [id_empleado]);
 
@@ -501,7 +501,7 @@ export const registrarAsistenciaManual = async (req, res) => {
 
         // Verificar que el empleado existe
         const empleadoCheck = await pool.query(
-            'SELECT id FROM Empleado WHERE id = $1',
+            'SELECT id FROM empleado WHERE id = $1',
             [id_empleado]
         );
 
@@ -512,7 +512,7 @@ export const registrarAsistenciaManual = async (req, res) => {
         }
 
         const result = await pool.query(`
-            INSERT INTO RegistroAsistencia (
+            INSERT INTO registro_asistencia (
                 id_empleado,
                 fecha,
                 hora,
@@ -550,7 +550,7 @@ export const eliminarRegistro = async (req, res) => {
         const { id } = req.params;
 
         const result = await pool.query(
-            'DELETE FROM RegistroAsistencia WHERE id = $1 RETURNING *',
+            'DELETE FROM registro_asistencia WHERE id = $1 RETURNING *',
             [id]
         );
 
@@ -585,7 +585,7 @@ export const obtenerReporte = async (req, res) => {
         const { fecha_inicio, fecha_fin, id_empleado } = req.query;
 
         let query = `
-            SELECT 
+            SELECT
                 ra.fecha,
                 ra.id_empleado,
                 u.nombre as empleado,
@@ -597,13 +597,13 @@ export const obtenerReporte = async (req, res) => {
                 MIN(CASE WHEN ra.tipo = 'Entrada' THEN ra.hora END) as primera_entrada,
                 MAX(CASE WHEN ra.tipo = 'Salida' THEN ra.hora END) as ultima_salida,
                 STRING_AGG(
-                    CASE WHEN ra.metodo_registro = 'Manual' 
-                    THEN CONCAT(ra.tipo, ' (Manual)') 
+                    CASE WHEN ra.metodo_registro = 'Manual'
+                    THEN CONCAT(ra.tipo, ' (Manual)')
                     END, ', '
                 ) as registros_manuales
-            FROM RegistroAsistencia ra
-            INNER JOIN Empleado e ON ra.id_empleado = e.id
-            INNER JOIN Usuario u ON e.id_usuario = u.id
+            FROM registro_asistencia ra
+            INNER JOIN empleado e ON ra.id_empleado = e.id
+            INNER JOIN usuario u ON e.id_usuario = u.id
             WHERE 1=1
         `;
 
@@ -659,15 +659,15 @@ export const obtenerTodosRegistros = async (req, res) => {
         const offset = (page - 1) * limit;
 
         let query = `
-            SELECT 
+            SELECT
                 ra.*,
                 u.nombre as nombre_empleado,
                 u.foto as foto_empleado,
                 e.rfc,
                 e.nss
-            FROM RegistroAsistencia ra
-            INNER JOIN Empleado e ON ra.id_empleado = e.id
-            INNER JOIN Usuario u ON e.id_usuario = u.id
+            FROM registro_asistencia ra
+            INNER JOIN empleado e ON ra.id_empleado = e.id
+            INNER JOIN usuario u ON e.id_usuario = u.id
             WHERE 1=1
         `;
 
@@ -733,9 +733,9 @@ export const healthCheck = async (req, res) => {
 
         // Obtener estadísticas básicas
         const stats = await pool.query(`
-            SELECT 
+            SELECT
                 COUNT(*) as total_registros_hoy
-            FROM RegistroAsistencia
+            FROM registro_asistencia
             WHERE fecha = CURRENT_DATE
         `);
 

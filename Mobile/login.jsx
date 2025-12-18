@@ -9,9 +9,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StatusBar
+  StatusBar,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { login } from './services/authService';
 
 export const LoginScreen = ({ onLoginSuccess }) => {
@@ -23,14 +25,12 @@ export const LoginScreen = ({ onLoginSuccess }) => {
   const [passwordError, setPasswordError] = useState('');
   const [generalError, setGeneralError] = useState('');
 
-  // Validar formato de correo electrónico
   const validateEmail = (text) => {
     setEmail(text);
-    setEmailError(''); // Limpiar error cuando escribe
-    setGeneralError(''); // Limpiar error general
+    setEmailError('');
+    setGeneralError('');
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
     if (text && !emailRegex.test(text)) {
       setEmailError('Formato de correo inválido');
     }
@@ -38,24 +38,21 @@ export const LoginScreen = ({ onLoginSuccess }) => {
 
   const handlePasswordChange = (text) => {
     setPassword(text);
-    setPasswordError(''); // Limpiar error cuando escribe
-    setGeneralError(''); // Limpiar error general
+    setPasswordError('');
+    setGeneralError('');
   };
 
   const handleLogin = async () => {
-    // Limpiar errores anteriores
     setEmailError('');
     setPasswordError('');
     setGeneralError('');
 
-    // Validar campos vacíos
     if (!email || !password) {
       if (!email) setEmailError('El correo es requerido');
       if (!password) setPasswordError('La contraseña es requerida');
       return;
     }
 
-    // Validar formato de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       setEmailError('Por favor ingresa un correo electrónico válido');
@@ -68,9 +65,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
       const response = await login(email, password);
 
       if (response && response.success && response.usuario) {
-        // Construir objeto completo del usuario con toda la información
         const datosCompletos = {
-          // Información del usuario
           id: response.usuario.id,
           id_empresa: response.usuario.id_empresa,
           username: response.usuario.username,
@@ -80,40 +75,22 @@ export const LoginScreen = ({ onLoginSuccess }) => {
           foto: response.usuario.foto,
           activo: response.usuario.activo,
           conexion: response.usuario.conexion,
-
-          // Información del empleado (si existe)
           empleado: response.empleado || null,
-
-          // Información del rol
           rol: response.rol || null,
-
-          // Permisos del usuario
           permisos: response.permisos || [],
-
-          // Departamento del empleado
           departamento: response.departamento || null,
-
-          // Token (si existe)
           token: response.token || null,
-
-          // Bandera para saber si es empleado
           esEmpleado: response.empleado !== null
         };
 
-        console.log('📤 Datos completos del usuario:', datosCompletos);
-        console.log('👔 ¿Es empleado?', datosCompletos.esEmpleado);
-
-        // Entrar directamente sin mostrar Alert
         onLoginSuccess(datosCompletos);
       }
     } catch (error) {
       console.error('❌ Error en login:', error);
 
-      // Mensajes de error más específicos SIN ALERTS
       const errorMessage = error?.message || '';
 
       if (errorMessage.includes('Credenciales inválidas')) {
-        // Error genérico - mostrar en ambos campos
         setGeneralError('El correo o la contraseña son incorrectos');
       } else if (errorMessage.includes('Email no encontrado') || errorMessage.includes('usuario no encontrado')) {
         setEmailError('No existe una cuenta con este correo');
@@ -130,307 +107,334 @@ export const LoginScreen = ({ onLoginSuccess }) => {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={loginStyles.container}
-    >
-      <StatusBar barStyle="light-content" />
-      <ScrollView
-        contentContainerStyle={loginStyles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={loginStyles.header}>
-          <View style={loginStyles.logoContainer}>
-            <Ionicons name="shield-checkmark" size={40} color="#2563eb" />
-          </View>
-          <Text style={loginStyles.title}>FASITLAC™</Text>
-          <Text style={loginStyles.subtitle}>Fábrica de Software del ITLAC</Text>
-        </View>
-
-        <View style={loginStyles.formContainer}>
-          <Text style={loginStyles.label}>Correo Electrónico</Text>
-          <View style={[
-            loginStyles.inputContainer,
-            emailError ? loginStyles.inputError : null
-          ]}>
-            <Ionicons name="mail-outline" size={18} color="#9ca3af" style={loginStyles.inputIcon} />
-            <TextInput
-              style={loginStyles.input}
-              placeholder="correo@ejemplo.com"
-              placeholderTextColor="#9ca3af"
-              value={email}
-              onChangeText={validateEmail}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              editable={!isLoading}
-            />
-          </View>
-          {emailError ? (
-            <View style={loginStyles.errorContainer}>
-              <Ionicons name="information-circle" size={14} color="#dc2626" />
-              <Text style={loginStyles.errorText}>{emailError}</Text>
-            </View>
-          ) : null}
-
-          <Text style={loginStyles.label}>Contraseña</Text>
-          <View style={[
-            loginStyles.inputContainer,
-            passwordError ? loginStyles.inputError : null
-          ]}>
-            <Ionicons name="lock-closed-outline" size={18} color="#9ca3af" style={loginStyles.inputIcon} />
-            <TextInput
-              style={loginStyles.input}
-              placeholder="••••••••"
-              placeholderTextColor="#9ca3af"
-              value={password}
-              onChangeText={handlePasswordChange}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              editable={!isLoading}
-            />
-            <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)}
-              style={loginStyles.eyeIcon}
-              disabled={isLoading}
-            >
-              <Ionicons
-                name={showPassword ? "eye-off-outline" : "eye-outline"}
-                size={18}
-                color="#9ca3af"
-              />
-            </TouchableOpacity>
-          </View>
-          {passwordError ? (
-            <View style={loginStyles.errorContainer}>
-              <Ionicons name="information-circle" size={14} color="#dc2626" />
-              <Text style={loginStyles.errorText}>{passwordError}</Text>
-            </View>
-          ) : null}
-
-          {/* Error general debajo de contraseña */}
-          {generalError ? (
-            <View style={loginStyles.generalErrorContainer}>
-              <Ionicons name="alert-circle" size={18} color="#dc2626" />
-              <Text style={loginStyles.generalErrorText}>{generalError}</Text>
-            </View>
-          ) : null}
-
-          <TouchableOpacity disabled={isLoading}>
-            <Text style={loginStyles.forgotPassword}>¿Olvidaste tu contraseña?</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              loginStyles.loginButton,
-              (isLoading || emailError) && loginStyles.loginButtonDisabled
-            ]}
-            onPress={handleLogin}
-            disabled={isLoading || !!emailError}
-            activeOpacity={0.8}
+    <View style={styles.mainContainer}>
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor="#2563eb"
+        translucent={false}
+      />
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.container}
+        >
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
-            {isLoading ? (
-              <View style={loginStyles.loadingContainer}>
-                <ActivityIndicator color="#fff" size="small" />
-                <Text style={loginStyles.loadingText}>Verificando...</Text>
+            {/* Header compacto */}
+            <View style={styles.header}>
+              <LinearGradient
+                colors={['#ffffff', '#f0f9ff']}
+                style={styles.logoContainer}
+              >
+                <Ionicons name="shield-checkmark" size={32} color="#2563eb" />
+              </LinearGradient>
+              
+              <Text style={styles.title}>FASITLAC™</Text>
+              <Text style={styles.subtitle}>Fábrica de Software del ITLAC</Text>
+            </View>
+
+            {/* Formulario compacto */}
+            <View style={styles.formContainer}>
+              <Text style={styles.welcomeText}>Iniciar Sesión</Text>
+
+              {/* Email Input */}
+              <View style={styles.inputWrapper}>
+                <Text style={styles.label}>Correo</Text>
+                <View style={[styles.inputContainer, emailError ? styles.inputError : null]}>
+                  <Ionicons name="mail" size={18} color="#2563eb" style={styles.icon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="correo@ejemplo.com"
+                    placeholderTextColor="#94a3b8"
+                    value={email}
+                    onChangeText={validateEmail}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                    editable={!isLoading}
+                  />
+                </View>
+                {emailError ? (
+                  <View style={styles.errorContainer}>
+                    <Ionicons name="alert-circle" size={12} color="#ef4444" />
+                    <Text style={styles.errorText}>{emailError}</Text>
+                  </View>
+                ) : null}
               </View>
-            ) : (
-              <Text style={loginStyles.loginButtonText}>Iniciar Sesión →</Text>
-            )}
-          </TouchableOpacity>
 
-          <View style={loginStyles.footer}>
-            <Text style={loginStyles.footerText}>
-              ¿No tienes cuenta?
-              <TouchableOpacity disabled={isLoading} style={loginStyles.linkWrapper}>
-                <Text style={loginStyles.footerLink}> Contacta al administrador</Text>
+              {/* Password Input */}
+              <View style={styles.inputWrapper}>
+                <Text style={styles.label}>Contraseña</Text>
+                <View style={[styles.inputContainer, passwordError ? styles.inputError : null]}>
+                  <Ionicons name="lock-closed" size={18} color="#2563eb" style={styles.icon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="••••••••"
+                    placeholderTextColor="#94a3b8"
+                    value={password}
+                    onChangeText={handlePasswordChange}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    editable={!isLoading}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={styles.eyeButton}
+                    disabled={isLoading}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-off" : "eye"}
+                      size={18}
+                      color="#64748b"
+                    />
+                  </TouchableOpacity>
+                </View>
+                {passwordError ? (
+                  <View style={styles.errorContainer}>
+                    <Ionicons name="alert-circle" size={12} color="#ef4444" />
+                    <Text style={styles.errorText}>{passwordError}</Text>
+                  </View>
+                ) : null}
+              </View>
+
+              {/* Error general */}
+              {generalError ? (
+                <View style={styles.generalErrorContainer}>
+                  <Ionicons name="warning" size={16} color="#dc2626" />
+                  <Text style={styles.generalErrorText}>{generalError}</Text>
+                </View>
+              ) : null}
+
+              {/* Forgot Password */}
+              <TouchableOpacity disabled={isLoading} activeOpacity={0.7}>
+                <Text style={styles.forgotPassword}>¿Olvidaste tu contraseña?</Text>
               </TouchableOpacity>
-            </Text>
-          </View>
-        </View>
 
-        <Text style={loginStyles.copyright}>© 2024 FASITLAC™</Text>
-      </ScrollView>
-    </KeyboardAvoidingView>
+              {/* Login Button */}
+              <TouchableOpacity
+                style={styles.loginButtonWrapper}
+                onPress={handleLogin}
+                disabled={isLoading || !!emailError}
+                activeOpacity={0.9}
+              >
+                <LinearGradient
+                  colors={isLoading || emailError ? ['#94a3b8', '#cbd5e1'] : ['#2563eb', '#1d4ed8']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.loginButton}
+                >
+                  {isLoading ? (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator color="#fff" size="small" />
+                      <Text style={styles.buttonText}>Verificando...</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.buttonContent}>
+                      <Text style={styles.buttonText}>Iniciar Sesión</Text>
+                      <Ionicons name="arrow-forward" size={18} color="#fff" />
+                    </View>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+
+              {/* Footer */}
+              <Text style={styles.footerText}>
+                ¿No tienes cuenta?{' '}
+                <Text style={styles.footerLink}>Contacta al admin</Text>
+              </Text>
+            </View>
+
+            {/* Copyright */}
+            <Text style={styles.copyright}>© 2024 FASITLAC™</Text>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 };
 
-const loginStyles = StyleSheet.create({
+const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#2563eb',
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#2563eb',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#1e3a8a',
+    backgroundColor: '#2563eb',
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 24,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 24,
   },
   logoContainer: {
-    width: 70,
-    height: 70,
-    backgroundColor: '#fff',
-    borderRadius: 18,
+    width: 64,
+    height: 64,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 6,
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#ffffff',
+    marginBottom: 4,
     letterSpacing: 0.5,
   },
   subtitle: {
-    fontSize: 13,
-    color: '#93c5fd',
-    textAlign: 'center',
+    fontSize: 12,
+    color: '#e0f2fe',
+    fontWeight: '500',
   },
   formContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
     borderRadius: 20,
     padding: 20,
-    elevation: 4,
+    elevation: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
+  welcomeText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 20,
+  },
+  inputWrapper: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#334155',
+    marginBottom: 6,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    paddingHorizontal: 12,
+    height: 44,
+  },
+  inputError: {
+    borderColor: '#ef4444',
+    backgroundColor: '#fef2f2',
+  },
+  icon: {
+    marginRight: 8,
+  },
+  input: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1e293b',
+    fontWeight: '500',
+  },
+  eyeButton: {
+    padding: 6,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    marginLeft: 2,
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 11,
+    marginLeft: 4,
+    fontWeight: '500',
   },
   generalErrorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fee2e2',
-    borderLeftWidth: 4,
+    borderLeftWidth: 3,
     borderLeftColor: '#dc2626',
-    padding: 12,
+    padding: 10,
     borderRadius: 8,
-    marginTop: 12,
+    marginBottom: 12,
   },
   generalErrorText: {
     color: '#991b1b',
     fontSize: 12,
     marginLeft: 8,
     flex: 1,
-    fontWeight: '500',
-  },
-  label: {
-    fontSize: 13,
     fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-    marginTop: 12,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: '#e5e7eb',
-    paddingHorizontal: 12,
-    height: 48,
-  },
-  inputError: {
-    borderColor: '#dc2626',
-    borderWidth: 2,
-    backgroundColor: '#fef2f2',
-  },
-  inputIcon: {
-    marginRight: 8,
-  },
-  input: {
-    flex: 1,
-    fontSize: 15,
-    color: '#374151',
-  },
-  eyeIcon: {
-    padding: 8,
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-    marginLeft: 4,
-  },
-  errorText: {
-    color: '#dc2626',
-    fontSize: 12,
-    marginLeft: 4,
-    fontWeight: '500',
   },
   forgotPassword: {
     color: '#2563eb',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     textAlign: 'right',
-    marginTop: 12,
+    marginBottom: 16,
   },
-  loginButton: {
-    backgroundColor: '#2563eb',
+  loginButtonWrapper: {
     borderRadius: 12,
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-    elevation: 3,
+    overflow: 'hidden',
+    elevation: 4,
     shadowColor: '#2563eb',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
-    shadowRadius: 4,
+    shadowRadius: 6,
+    marginBottom: 16,
   },
-  loginButtonDisabled: {
-    opacity: 0.5,
+  loginButton: {
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  loginButtonText: {
-    color: '#fff',
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonText: {
+    color: '#ffffff',
     fontSize: 15,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    marginRight: 6,
   },
   loadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  loadingText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: 'bold',
-    marginLeft: 8,
-  },
-  footer: {
-    alignItems: 'center',
-    marginTop: 20,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
   footerText: {
-    color: '#6b7280',
-    fontSize: 13,
+    color: '#64748b',
+    fontSize: 12,
     textAlign: 'center',
-  },
-  linkWrapper: {
-    display: 'inline',
   },
   footerLink: {
     color: '#2563eb',
-    fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   copyright: {
-    color: '#93c5fd',
+    color: '#e0f2fe',
     fontSize: 11,
     textAlign: 'center',
     marginTop: 16,
+    fontWeight: '500',
   },
 });

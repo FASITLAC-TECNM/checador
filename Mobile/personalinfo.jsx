@@ -10,6 +10,7 @@ import {
   Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Función helper para obtener URL de foto
 const obtenerUrlFotoPerfil = (foto) => {
@@ -17,12 +18,10 @@ const obtenerUrlFotoPerfil = (foto) => {
     return null;
   }
 
-  // Si ya es una URL completa, devolverla directamente
   if (foto.startsWith('http://') || foto.startsWith('https://')) {
     return foto;
   }
 
-  // Si es una ruta relativa, construir la URL completa
   const BASE_URL = 'https://9dm7dqf9-3001.usw3.devtunnels.ms';
   const url = `${BASE_URL}${foto.startsWith('/') ? '' : '/'}${foto}`;
   return url;
@@ -31,22 +30,19 @@ const obtenerUrlFotoPerfil = (foto) => {
 export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
   const styles = darkMode ? personalInfoStylesDark : personalInfoStyles;
 
-  // Obtener la URL completa de la foto si existe
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
-
-  // Extraer datos adicionales
   const empleado = userData.empleado || null;
   const rol = userData.rol || null;
   const departamento = userData.departamento || null;
   const permisos = userData.permisos || [];
-
-  // Si es empleado, priorizar rol "Empleado"
   const rolMostrar = empleado ? 'Empleado' : (rol?.nombre_rol || 'Usuario');
 
   const InfoRow = ({ icon, label, value, valueColor }) => (
     <View style={styles.infoRow}>
       <View style={styles.infoLeft}>
-        <Ionicons name={icon} size={20} color={darkMode ? '#93c5fd' : '#2563eb'} />
+        <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#1e3a8a' : '#dbeafe' }]}>
+          <Ionicons name={icon} size={18} color={darkMode ? '#93c5fd' : '#2563eb'} />
+        </View>
         <Text style={styles.infoLabel}>{label}</Text>
       </View>
       <Text style={[styles.infoValue, valueColor && { color: valueColor }]}>
@@ -57,62 +53,95 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" backgroundColor="#2563eb" translucent={false} />
 
-      {/* Header */}
-      <View style={styles.header}>
+      {/* Header Moderno */}
+      <LinearGradient
+        colors={['#2563eb', '#3b82f6']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Información Personal</Text>
+        <Text style={styles.headerTitle}>Mi Perfil</Text>
         <View style={styles.headerPlaceholder} />
-      </View>
+      </LinearGradient>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Profile Section */}
-        <View style={styles.profileSection}>
-          <View style={styles.avatarLarge}>
-            {fotoUrl ? (
-              <Image
-                source={{ uri: fotoUrl }}
-                style={styles.avatarImage}
-                onError={(error) => {
-                  console.log('❌ Error cargando imagen:', error.nativeEvent.error);
-                }}
-                onLoad={() => console.log('✅ Imagen cargada correctamente')}
-              />
-            ) : (
-              <Ionicons name="person" size={60} color="#fff" />
-            )}
-          </View>
-          <Text style={styles.profileName}>{userData.nombre}</Text>
-          <Text style={styles.profileUsername}>@{userData.username}</Text>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Profile Card Compacta */}
+        <View style={styles.profileCard}>
+          <LinearGradient
+            colors={darkMode ? ['#1e293b', '#334155'] : ['#ffffff', '#f8fafc']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.profileGradient}
+          >
+            <View style={styles.profileHeader}>
+              <View style={styles.avatarContainer}>
+                {fotoUrl ? (
+                  <Image
+                    source={{ uri: fotoUrl }}
+                    style={styles.avatarImage}
+                  />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Ionicons name="person" size={40} color="#fff" />
+                  </View>
+                )}
+                <View style={[
+                  styles.statusIndicator,
+                  { backgroundColor: userData.conexion === 'Conectado' ? '#10b981' : '#6b7280' }
+                ]} />
+              </View>
 
-          {/* Estado de conexión */}
-          <View style={styles.statusBadge}>
-            <View style={[
-              styles.statusDot,
-              { backgroundColor: userData.conexion === 'Conectado' ? '#10b981' : '#6b7280' }
-            ]} />
-            <Text style={styles.statusText}>
-              {userData.conexion === 'Conectado' ? 'En línea' : 'Desconectado'}
-            </Text>
-          </View>
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName}>{userData.nombre}</Text>
+                <Text style={styles.profileUsername}>@{userData.username}</Text>
+                
+                <View style={styles.badgesRow}>
+                  <View style={[
+                    styles.roleBadge,
+                    userData.empleado && styles.roleBadgeEmployee
+                  ]}>
+                    <Ionicons 
+                      name={userData.empleado ? "briefcase" : "person"} 
+                      size={10} 
+                      color={userData.empleado ? '#166534' : '#2563eb'} 
+                    />
+                    <Text style={[
+                      styles.roleText,
+                      userData.empleado && styles.roleTextEmployee
+                    ]}>
+                      {rolMostrar}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </LinearGradient>
         </View>
 
-        {/* Account Information */}
+        {/* Información Personal */}
         <View style={styles.section}>
-          <Text style={styles.sectionHeader}>INFORMACIÓN DE CUENTA</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="person-circle" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
+            <Text style={styles.sectionTitle}>Información Personal</Text>
+          </View>
 
           <InfoRow
             icon="person-outline"
-            label="Nombre de usuario"
+            label="Usuario"
             value={userData.username}
           />
 
           <InfoRow
             icon="mail-outline"
-            label="Correo electrónico"
+            label="Email"
             value={userData.email}
           />
 
@@ -123,20 +152,23 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
           />
 
           <InfoRow
-            icon="id-card-outline"
-            label="ID de usuario"
+            icon="card-outline"
+            label="ID"
             value={`#${userData.id}`}
           />
         </View>
 
-        {/* Employee Information - Solo si es empleado */}
+        {/* Información de Empleado */}
         {empleado && (
           <View style={styles.section}>
-            <Text style={styles.sectionHeader}>INFORMACIÓN DE EMPLEADO</Text>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="briefcase" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
+              <Text style={styles.sectionTitle}>Datos Laborales</Text>
+            </View>
 
             <InfoRow
-              icon="briefcase-outline"
-              label="ID de empleado"
+              icon="id-card-outline"
+              label="ID Empleado"
               value={`#${empleado.id_empleado}`}
             />
 
@@ -147,7 +179,7 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
             />
 
             <InfoRow
-              icon="card-outline"
+              icon="shield-outline"
               label="NSS"
               value={empleado.nss || 'No registrado'}
             />
@@ -155,118 +187,98 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
             {departamento && (
               <View style={styles.infoRow}>
                 <View style={styles.infoLeft}>
-                  <Ionicons name="business-outline" size={20} color={darkMode ? '#93c5fd' : '#2563eb'} />
+                  <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#581c87' : '#f3e8ff' }]}>
+                    <Ionicons name="business-outline" size={18} color={darkMode ? '#d8b4fe' : '#9333ea'} />
+                  </View>
                   <Text style={styles.infoLabel}>Departamento</Text>
                 </View>
-                <View style={[
-                  styles.departmentBadge,
-                  departamento.color && { backgroundColor: `${departamento.color}20` }
-                ]}>
-                  <Text style={[
-                    styles.departmentText,
-                    departamento.color && { color: departamento.color }
-                  ]}>
+                <View style={styles.departmentBadge}>
+                  <Text style={styles.departmentText}>
                     {departamento.nombre_departamento}
                   </Text>
                 </View>
               </View>
             )}
-
-            {departamento?.ubicacion && (
-              <InfoRow
-                icon="location-outline"
-                label="Ubicación"
-                value={departamento.ubicacion}
-              />
-            )}
           </View>
         )}
 
-        {/* Status and Permissions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionHeader}>ESTADO Y PERMISOS</Text>
+        {/* Permisos */}
+        {permisos && permisos.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="key" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
+              <Text style={styles.sectionTitle}>Permisos de Acceso</Text>
+            </View>
 
-          <View style={styles.infoRow}>
-            <View style={styles.infoLeft}>
-              <Ionicons name="shield-checkmark-outline" size={20} color={darkMode ? '#93c5fd' : '#2563eb'} />
-              <Text style={styles.infoLabel}>Rol</Text>
-            </View>
-            <View style={[
-              styles.roleBadge,
-              empleado && { backgroundColor: '#dcfce7' } // Verde para empleados
-            ]}>
-              <Text style={[
-                styles.roleText,
-                empleado && { color: '#166534' } // Verde oscuro para empleados
-              ]}>
-                {rolMostrar}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.infoRow}>
-            <View style={styles.infoLeft}>
-              <Ionicons name="checkmark-circle-outline" size={20} color={darkMode ? '#93c5fd' : '#2563eb'} />
-              <Text style={styles.infoLabel}>Estado de cuenta</Text>
-            </View>
-            <View style={[
-              styles.statusChip,
-              { backgroundColor: userData.activo === 'Activo' ? '#dcfce7' : '#fee2e2' }
-            ]}>
-              <Text style={[
-                styles.statusChipText,
-                { color: userData.activo === 'Activo' ? '#166534' : '#991b1b' }
-              ]}>
-                {userData.activo || 'Inactivo'}
-              </Text>
-            </View>
-          </View>
-
-          {/* Permisos del usuario */}
-          {permisos && permisos.length > 0 && (
-            <View style={styles.permissionsContainer}>
-              <Text style={styles.permissionsTitle}>Módulos Permitidos</Text>
-              {permisos.map((permiso, index) => (
-                <View key={index} style={styles.permissionItem}>
-                  <View style={styles.permissionLeft}>
-                    <Ionicons name="grid-outline" size={16} color="#6b7280" />
-                    <Text style={styles.permissionModule}>{permiso.nombre_modulo}</Text>
-                  </View>
-                  <View style={styles.permissionActions}>
-                    {permiso.ver && <Text style={styles.permissionBadge}>Ver</Text>}
-                    {permiso.crear && <Text style={styles.permissionBadge}>Crear</Text>}
-                    {permiso.editar && <Text style={styles.permissionBadge}>Editar</Text>}
-                    {permiso.eliminar && <Text style={styles.permissionBadge}>Eliminar</Text>}
-                  </View>
+            {permisos.map((permiso, index) => (
+              <View key={index} style={styles.permissionCard}>
+                <View style={styles.permissionHeader}>
+                  <Ionicons name="grid-outline" size={16} color={darkMode ? '#93c5fd' : '#2563eb'} />
+                  <Text style={styles.permissionModule}>{permiso.nombre_modulo}</Text>
                 </View>
-              ))}
-            </View>
-          )}
-        </View>
+                <View style={styles.permissionActions}>
+                  {permiso.ver && (
+                    <View style={styles.permissionBadge}>
+                      <Ionicons name="eye-outline" size={10} color="#059669" />
+                      <Text style={styles.permissionBadgeText}>Ver</Text>
+                    </View>
+                  )}
+                  {permiso.crear && (
+                    <View style={styles.permissionBadge}>
+                      <Ionicons name="add-circle-outline" size={10} color="#059669" />
+                      <Text style={styles.permissionBadgeText}>Crear</Text>
+                    </View>
+                  )}
+                  {permiso.editar && (
+                    <View style={styles.permissionBadge}>
+                      <Ionicons name="create-outline" size={10} color="#059669" />
+                      <Text style={styles.permissionBadgeText}>Editar</Text>
+                    </View>
+                  )}
+                  {permiso.eliminar && (
+                    <View style={styles.permissionBadge}>
+                      <Ionicons name="trash-outline" size={10} color="#dc2626" />
+                      <Text style={[styles.permissionBadgeText, { color: '#dc2626' }]}>Eliminar</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
-        {/* Actions */}
+        {/* Acciones Rápidas */}
         <View style={styles.section}>
-          <Text style={styles.sectionHeader}>ACCIONES</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="settings" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
+            <Text style={styles.sectionTitle}>Acciones</Text>
+          </View>
 
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} activeOpacity={0.7}>
             <View style={styles.actionLeft}>
-              <Ionicons name="create-outline" size={20} color={darkMode ? '#d1d5db' : '#6b7280'} />
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#1e3a8a' : '#dbeafe' }]}>
+                <Ionicons name="create-outline" size={18} color={darkMode ? '#93c5fd' : '#2563eb'} />
+              </View>
               <Text style={styles.actionText}>Editar información</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} activeOpacity={0.7}>
             <View style={styles.actionLeft}>
-              <Ionicons name="camera-outline" size={20} color={darkMode ? '#d1d5db' : '#6b7280'} />
-              <Text style={styles.actionText}>Cambiar foto de perfil</Text>
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#065f46' : '#d1fae5' }]}>
+                <Ionicons name="camera-outline" size={18} color={darkMode ? '#6ee7b7' : '#059669'} />
+              </View>
+              <Text style={styles.actionText}>Cambiar foto</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
+          <TouchableOpacity style={styles.actionButton} activeOpacity={0.7}>
             <View style={styles.actionLeft}>
-              <Ionicons name="lock-closed-outline" size={20} color={darkMode ? '#d1d5db' : '#6b7280'} />
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#78350f' : '#fef3c7' }]}>
+                <Ionicons name="lock-closed-outline" size={18} color={darkMode ? '#fde047' : '#d97706'} />
+              </View>
               <Text style={styles.actionText}>Cambiar contraseña</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
@@ -280,12 +292,12 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
 const personalInfoStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#f8fafc',
   },
   header: {
-    backgroundColor: '#2563eb',
-    padding: 20,
-    paddingTop: Platform.OS === 'android' ? 60 : 50,
+    paddingTop: Platform.OS === 'android' ? 16 : 50,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -295,115 +307,165 @@ const personalInfoStyles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '700',
     color: '#fff',
   },
   headerPlaceholder: {
     width: 40,
   },
   scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
     paddingBottom: 100,
   },
-  profileSection: {
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginTop: 20,
+  profileCard: {
     borderRadius: 20,
-    padding: 30,
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-  },
-  avatarLarge: {
-    width: 120,
-    height: 120,
-    backgroundColor: '#3b82f6',
-    borderRadius: 60,
-    justifyContent: 'center',
-    alignItems: 'center',
     marginBottom: 20,
     overflow: 'hidden',
-    borderWidth: 4,
-    borderColor: '#dbeafe',
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+  profileGradient: {
+    padding: 20,
   },
-  profileName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 5,
-  },
-  profileUsername: {
-    fontSize: 16,
-    color: '#6b7280',
-    marginBottom: 15,
-  },
-  statusBadge: {
+  profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f3f4f6',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
   },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 8,
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 16,
   },
-  statusText: {
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#f1f5f9',
+  },
+  avatarPlaceholder: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#3b82f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 3,
+    borderColor: '#fff',
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  profileUsername: {
     fontSize: 14,
     color: '#6b7280',
-    fontWeight: '500',
+    marginBottom: 10,
+  },
+  badgesRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#dbeafe',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 4,
+  },
+  roleBadgeEmployee: {
+    backgroundColor: '#dcfce7',
+  },
+  roleText: {
+    color: '#2563eb',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  roleTextEmployee: {
+    color: '#166534',
+  },
+  departmentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f3e8ff',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 4,
+  },
+  departmentText: {
+    color: '#6366f1',
+    fontSize: 11,
+    fontWeight: '600',
   },
   section: {
     backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginTop: 20,
-    borderRadius: 20,
-    padding: 15,
-    elevation: 2,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   sectionHeader: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#9ca3af',
-    marginBottom: 15,
-    marginLeft: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1f2937',
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
   },
   infoLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
+  iconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
   infoLabel: {
     fontSize: 14,
     color: '#6b7280',
-    marginLeft: 10,
     fontWeight: '500',
     flex: 1,
   },
@@ -414,65 +476,22 @@ const personalInfoStyles = StyleSheet.create({
     textAlign: 'right',
     maxWidth: '50%',
   },
-  roleBadge: {
-    backgroundColor: '#dbeafe',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  permissionCard: {
+    backgroundColor: darkMode => darkMode ? '#374151' : '#f9fafb',
     borderRadius: 12,
-  },
-  roleText: {
-    color: '#2563eb',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  departmentBadge: {
-    backgroundColor: '#f3f4f6',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  departmentText: {
-    color: '#1f2937',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  statusChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  statusChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  permissionsContainer: {
-    marginTop: 15,
-    paddingTop: 15,
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
-  },
-  permissionsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 12,
-  },
-  permissionItem: {
-    backgroundColor: '#f9fafb',
     padding: 12,
-    borderRadius: 10,
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  permissionLeft: {
+  permissionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
+    gap: 8,
   },
   permissionModule: {
     fontSize: 14,
     fontWeight: '600',
     color: '#1f2937',
-    marginLeft: 8,
   },
   permissionActions: {
     flexDirection: 'row',
@@ -480,22 +499,25 @@ const personalInfoStyles = StyleSheet.create({
     gap: 6,
   },
   permissionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#dcfce7',
-    color: '#166534',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
+    gap: 4,
+  },
+  permissionBadgeText: {
     fontSize: 11,
     fontWeight: '600',
+    color: '#059669',
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 15,
-    paddingHorizontal: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
   },
   actionLeft: {
     flexDirection: 'row',
@@ -503,10 +525,9 @@ const personalInfoStyles = StyleSheet.create({
     flex: 1,
   },
   actionText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
     color: '#1f2937',
-    marginLeft: 12,
   },
 });
 
@@ -514,58 +535,42 @@ const personalInfoStylesDark = StyleSheet.create({
   ...personalInfoStyles,
   container: {
     ...personalInfoStyles.container,
-    backgroundColor: '#111827',
-  },
-  profileSection: {
-    ...personalInfoStyles.profileSection,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#0f172a',
   },
   profileName: {
     ...personalInfoStyles.profileName,
-    color: '#fff',
+    color: '#f9fafb',
   },
   profileUsername: {
     ...personalInfoStyles.profileUsername,
-    color: '#d1d5db',
-  },
-  statusBadge: {
-    ...personalInfoStyles.statusBadge,
-    backgroundColor: '#374151',
+    color: '#9ca3af',
   },
   section: {
     ...personalInfoStyles.section,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#1e293b',
   },
-  infoRow: {
-    ...personalInfoStyles.infoRow,
-    borderBottomColor: '#374151',
-  },
-  infoValue: {
-    ...personalInfoStyles.infoValue,
-    color: '#fff',
+  sectionTitle: {
+    ...personalInfoStyles.sectionTitle,
+    color: '#f9fafb',
   },
   infoLabel: {
     ...personalInfoStyles.infoLabel,
-    color: '#d1d5db',
+    color: '#9ca3af',
+  },
+  infoValue: {
+    ...personalInfoStyles.infoValue,
+    color: '#f9fafb',
+  },
+  permissionCard: {
+    ...personalInfoStyles.permissionCard,
+    backgroundColor: '#374151',
   },
   permissionModule: {
     ...personalInfoStyles.permissionModule,
-    color: '#fff',
-  },
-  permissionsTitle: {
-    ...personalInfoStyles.permissionsTitle,
-    color: '#fff',
-  },
-  permissionItem: {
-    ...personalInfoStyles.permissionItem,
-    backgroundColor: '#374151',
-  },
-  actionButton: {
-    ...personalInfoStyles.actionButton,
-    borderBottomColor: '#374151',
+    color: '#f9fafb',
   },
   actionText: {
     ...personalInfoStyles.actionText,
-    color: '#fff',
+    color: '#f9fafb',
   },
 });

@@ -11,7 +11,9 @@ import {
   Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { PersonalInfoScreen } from './personalinfo';
+import { TermsAndConditionsScreen } from './TermsAndConditionsScreen';
 
 // Función helper para obtener URL de foto
 const obtenerUrlFotoPerfil = (foto) => {
@@ -19,12 +21,10 @@ const obtenerUrlFotoPerfil = (foto) => {
     return null;
   }
   
-  // Si ya es una URL completa, devolverla directamente
   if (foto.startsWith('http://') || foto.startsWith('https://')) {
     return foto;
   }
   
-  // Si es una ruta relativa, construir la URL completa
   const BASE_URL = 'https://9dm7dqf9-3001.usw3.devtunnels.ms';
   const url = `${BASE_URL}${foto.startsWith('/') ? '' : '/'}${foto}`;
   console.log('✅ URL construida:', url);
@@ -39,14 +39,13 @@ export const SettingsScreen = ({
   onLogout 
 }) => {
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const styles = darkMode ? settingsStylesDark : settingsStyles;
 
-  // Obtener la URL completa de la foto si existe
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
-
-  // Si es empleado, priorizar rol "Empleado"
   const rolMostrar = userData.empleado ? 'Empleado' : (userData.rol?.nombre_rol || 'Usuario');
-  // Si se está mostrando información personal, renderizar ese componente
+
+  // Si se está mostrando información personal
   if (showPersonalInfo) {
     return (
       <PersonalInfoScreen 
@@ -57,102 +56,183 @@ export const SettingsScreen = ({
     );
   }
 
+  // Si se están mostrando términos y condiciones
+  if (showTerms) {
+    return (
+      <TermsAndConditionsScreen 
+        darkMode={darkMode}
+        onBack={() => setShowTerms(false)}
+      />
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      {/* Header */}
-      <View style={styles.header}>
+      <StatusBar barStyle="light-content" backgroundColor="#2563eb" translucent={false} />
+      
+      {/* Header con gradiente */}
+      <LinearGradient
+        colors={['#2563eb', '#3b82f6']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
         <Text style={styles.headerTitle}>Configuración</Text>
-        <Text style={styles.headerSubtitle}>Ajustes de tu cuenta</Text>
-      </View>
+        <Text style={styles.headerSubtitle}>Gestiona tu cuenta y preferencias</Text>
+      </LinearGradient>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         {/* User Profile Card */}
         <View style={styles.profileCard}>
-          <View style={styles.avatarContainer}>
-            <View style={styles.avatarLarge}>
-              {fotoUrl ? (
-                <Image 
-                  source={{ uri: fotoUrl }}
-                  style={styles.avatarImage}
-                  onError={(error) => {
-                    console.log('❌ Error cargando imagen en Settings:', error.nativeEvent.error);
-                    console.log('📍 URL que falló:', fotoUrl);
-                  }}
-                  onLoad={() => console.log('✅ Imagen cargada correctamente en Settings')}
-                />
-              ) : (
-                <Ionicons name="person" size={40} color="#fff" />
-              )}
+          <LinearGradient
+            colors={darkMode ? ['#1e293b', '#334155'] : ['#ffffff', '#f8fafc']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={styles.profileGradient}
+          >
+            <View style={styles.profileHeader}>
+              <View style={styles.avatarWrapper}>
+                <View style={styles.avatarContainer}>
+                  {fotoUrl ? (
+                    <Image 
+                      source={{ uri: fotoUrl }}
+                      style={styles.avatarImage}
+                      onError={(error) => {
+                        console.log('❌ Error cargando imagen en Settings:', error.nativeEvent.error);
+                        console.log('📍 URL que falló:', fotoUrl);
+                      }}
+                      onLoad={() => console.log('✅ Imagen cargada correctamente en Settings')}
+                    />
+                  ) : (
+                    <View style={styles.avatarPlaceholder}>
+                      <Ionicons name="person" size={48} color="#fff" />
+                    </View>
+                  )}
+                  <View style={[
+                    styles.statusIndicator,
+                    { backgroundColor: userData.conexion === 'Conectado' ? '#10b981' : '#6b7280' }
+                  ]} />
+                </View>
+              </View>
+
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName}>{userData.nombre}</Text>
+                <Text style={styles.profileEmail}>{userData.email || 'usuario@correo.com'}</Text>
+                
+                <View style={styles.badgesContainer}>
+                  <View style={[
+                    styles.roleBadge,
+                    userData.empleado && styles.roleBadgeEmployee
+                  ]}>
+                    <Ionicons 
+                      name={userData.empleado ? "briefcase" : "person"} 
+                      size={12} 
+                      color={userData.empleado ? '#166534' : '#2563eb'} 
+                    />
+                    <Text style={[
+                      styles.roleText,
+                      userData.empleado && styles.roleTextEmployee
+                    ]}>
+                      {rolMostrar}
+                    </Text>
+                  </View>
+
+                  {userData.departamento && (
+                    <View style={styles.departmentBadge}>
+                      <Ionicons name="business" size={12} color="#6366f1" />
+                      <Text style={styles.departmentText}>
+                        {userData.departamento.nombre_departamento}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
             </View>
-            {/* Indicador de estado al lado de la foto */}
-            <View style={[
-              styles.statusIndicator,
-              { backgroundColor: userData.conexion === 'Conectado' ? '#10b981' : '#6b7280' }
-            ]} />
-          </View>
-          <Text style={styles.profileName}>{userData.nombre}</Text>
-          <Text style={styles.profileEmail}>{userData.email || 'usuario@correo.com'}</Text>
-          <View style={[
-            styles.roleBadge,
-            userData.empleado && { backgroundColor: '#dcfce7' } // Verde claro para empleados
-          ]}>
-            <Text style={[
-              styles.roleText,
-              userData.empleado && { color: '#166534' } // Verde oscuro para empleados
-            ]}>
-              {rolMostrar}
-            </Text>
-          </View>
+          </LinearGradient>
         </View>
 
         {/* Appearance Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionHeader}>APARIENCIA</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="color-palette" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
+            <Text style={styles.sectionTitle}>Apariencia</Text>
+          </View>
           
           <View style={styles.settingItem}>
             <View style={styles.settingLeft}>
-              <Ionicons
-                name={darkMode ? "moon" : "sunny"}
-                size={20}
-                color={darkMode ? '#d1d5db' : '#6b7280'}
-                style={styles.settingIcon}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.settingTitle}>Tema de la aplicación</Text>
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#4338ca' : '#eef2ff' }]}>
+                <Ionicons
+                  name={darkMode ? "moon" : "sunny"}
+                  size={22}
+                  color={darkMode ? '#c7d2fe' : '#6366f1'}
+                />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Modo {darkMode ? 'Oscuro' : 'Claro'}</Text>
                 <Text style={styles.settingSubtitle}>
-                  {darkMode ? 'Modo Oscuro' : 'Modo Claro'}
+                  Cambia el tema de la aplicación
                 </Text>
               </View>
             </View>
             <Switch
               value={darkMode}
               onValueChange={onToggleDarkMode}
-              trackColor={{ false: '#d1d5db', true: '#3b82f6' }}
+              trackColor={{ false: '#d1d5db', true: '#6366f1' }}
               thumbColor={darkMode ? '#fff' : '#f3f4f6'}
+              ios_backgroundColor="#d1d5db"
             />
           </View>
         </View>
 
         {/* Account Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionHeader}>CUENTA</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="person-circle" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
+            <Text style={styles.sectionTitle}>Cuenta</Text>
+          </View>
           
           <TouchableOpacity
             style={styles.settingItem}
             onPress={() => setShowPersonalInfo(true)}
+            activeOpacity={0.7}
           >
             <View style={styles.settingLeft}>
-              <Ionicons name="person-outline" size={20} color={darkMode ? '#d1d5db' : '#6b7280'} style={styles.settingIcon} />
-              <Text style={styles.settingTitle}>Información Personal</Text>
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#1e3a8a' : '#dbeafe' }]}>
+                <Ionicons name="person-outline" size={22} color={darkMode ? '#93c5fd' : '#2563eb'} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Información Personal</Text>
+                <Text style={styles.settingSubtitle}>Actualiza tus datos</Text>
+              </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
             <View style={styles.settingLeft}>
-              <Ionicons name="notifications-outline" size={20} color={darkMode ? '#d1d5db' : '#6b7280'} style={styles.settingIcon} />
-              <Text style={styles.settingTitle}>Notificaciones</Text>
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#065f46' : '#d1fae5' }]}>
+                <Ionicons name="notifications-outline" size={22} color={darkMode ? '#6ee7b7' : '#059669'} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Notificaciones</Text>
+                <Text style={styles.settingSubtitle}>Configura tus alertas</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#78350f' : '#fef3c7' }]}>
+                <Ionicons name="lock-closed-outline" size={22} color={darkMode ? '#fde047' : '#d97706'} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Seguridad</Text>
+                <Text style={styles.settingSubtitle}>Contraseña y acceso</Text>
+              </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
@@ -160,28 +240,97 @@ export const SettingsScreen = ({
 
         {/* App Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionHeader}>APLICACIÓN</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="apps" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
+            <Text style={styles.sectionTitle}>Aplicación</Text>
+          </View>
           
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
             <View style={styles.settingLeft}>
-              <Ionicons name="location-outline" size={20} color={darkMode ? '#d1d5db' : '#6b7280'} style={styles.settingIcon} />
-              <Text style={styles.settingTitle}>Áreas Permitidas</Text>
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#7f1d1d' : '#fee2e2' }]}>
+                <Ionicons name="location-outline" size={22} color={darkMode ? '#fca5a5' : '#dc2626'} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Áreas Permitidas</Text>
+                <Text style={styles.settingSubtitle}>Gestiona ubicaciones</Text>
+              </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
             <View style={styles.settingLeft}>
-              <Ionicons name="shield-checkmark-outline" size={20} color={darkMode ? '#d1d5db' : '#6b7280'} style={styles.settingIcon} />
-              <Text style={styles.settingTitle}>Privacidad y Seguridad</Text>
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#581c87' : '#f3e8ff' }]}>
+                <Ionicons name="shield-checkmark-outline" size={22} color={darkMode ? '#d8b4fe' : '#9333ea'} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Privacidad</Text>
+                <Text style={styles.settingSubtitle}>Permisos y datos</Text>
+              </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
+          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
             <View style={styles.settingLeft}>
-              <Ionicons name="help-circle-outline" size={20} color={darkMode ? '#d1d5db' : '#6b7280'} style={styles.settingIcon} />
-              <Text style={styles.settingTitle}>Ayuda y Soporte</Text>
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#164e63' : '#cffafe' }]}>
+                <Ionicons name="help-circle-outline" size={22} color={darkMode ? '#67e8f9' : '#0891b2'} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Ayuda y Soporte</Text>
+                <Text style={styles.settingSubtitle}>Centro de ayuda</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Legal Section - NUEVA SECCIÓN */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="document-text" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
+            <Text style={styles.sectionTitle}>Legal</Text>
+          </View>
+          
+          <TouchableOpacity 
+            style={styles.settingItem} 
+            onPress={() => setShowTerms(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#422006' : '#fef3c7' }]}>
+                <Ionicons name="document-text-outline" size={22} color={darkMode ? '#fcd34d' : '#d97706'} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Términos y Condiciones</Text>
+                <Text style={styles.settingSubtitle}>Revisa nuestros términos</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#1e3a8a' : '#dbeafe' }]}>
+                <Ionicons name="shield-outline" size={22} color={darkMode ? '#93c5fd' : '#2563eb'} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Política de Privacidad</Text>
+                <Text style={styles.settingSubtitle}>Cómo usamos tus datos</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#713f12' : '#fed7aa' }]}>
+                <Ionicons name="Reader-outline" size={22} color={darkMode ? '#fbbf24' : '#ea580c'} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Licencias</Text>
+                <Text style={styles.settingSubtitle}>Software de terceros</Text>
+              </View>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
@@ -189,15 +338,27 @@ export const SettingsScreen = ({
 
         {/* Info Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionHeader}>INFORMACIÓN</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="information-circle" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
+            <Text style={styles.sectionTitle}>Información</Text>
+          </View>
           
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Versión de la app</Text>
+            <View style={styles.infoLeft}>
+              <Ionicons name="code-slash" size={18} color="#6b7280" />
+              <Text style={styles.infoLabel}>Versión de la app</Text>
+            </View>
             <Text style={styles.infoValue}>1.0.0</Text>
           </View>
+          
+          <View style={styles.infoDivider} />
+          
           <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Última actualización</Text>
-            <Text style={styles.infoValue}>16/10/2025</Text>
+            <View style={styles.infoLeft}>
+              <Ionicons name="calendar" size={18} color="#6b7280" />
+              <Text style={styles.infoLabel}>Última actualización</Text>
+            </View>
+            <Text style={styles.infoValue}>17/12/2024</Text>
           </View>
         </View>
 
@@ -205,9 +366,17 @@ export const SettingsScreen = ({
         <TouchableOpacity 
           style={styles.logoutButton}
           onPress={onLogout}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
         >
-          <Text style={styles.logoutText}>Cerrar Sesión</Text>
+          <LinearGradient
+            colors={['#ef4444', '#dc2626']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.logoutGradient}
+          >
+            <Ionicons name="log-out-outline" size={24} color="#fff" />
+            <Text style={styles.logoutText}>Cerrar Sesión</Text>
+          </LinearGradient>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -217,170 +386,232 @@ export const SettingsScreen = ({
 const settingsStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#f8fafc',
   },
   header: {
-    backgroundColor: '#2563eb',
-    padding: 20,
-    paddingTop: Platform.OS === 'android' ? 60 : 50,
+    paddingTop: Platform.OS === 'android' ? 16 : 50,
+    paddingBottom: 20,
+    paddingHorizontal: 24,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 32,
+    fontWeight: '800',
     color: '#fff',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   headerSubtitle: {
-    fontSize: 12,
-    color: '#93c5fd',
+    fontSize: 14,
+    color: '#e0f2fe',
+    fontWeight: '500',
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 120,
   },
   profileCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginTop: 20,
-    borderRadius: 20,
-    padding: 25,
+    borderRadius: 24,
+    marginBottom: 24,
+    overflow: 'hidden',
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  profileGradient: {
+    padding: 24,
+  },
+  profileHeader: {
     alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    marginBottom: 24,
+  },
+  avatarWrapper: {
+    marginBottom: 16,
   },
   avatarContainer: {
     position: 'relative',
-    marginBottom: 15,
-  },
-  avatarLarge: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#3b82f6',
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
   },
   avatarImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#f1f5f9',
+  },
+  avatarPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#3b82f6',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   statusIndicator: {
     position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    bottom: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     borderWidth: 3,
     borderColor: '#fff',
   },
+  profileInfo: {
+    alignItems: 'center',
+  },
   profileName: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '700',
     color: '#1f2937',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   profileEmail: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#6b7280',
-    marginBottom: 10,
+    marginBottom: 12,
+  },
+  badgesContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
   roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#dbeafe',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+  roleBadgeEmployee: {
+    backgroundColor: '#dcfce7',
   },
   roleText: {
     color: '#2563eb',
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  roleTextEmployee: {
+    color: '#166534',
+  },
+  departmentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f3e8ff',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+  departmentText: {
+    color: '#6366f1',
+    fontSize: 13,
+    fontWeight: '700',
   },
   section: {
     backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginTop: 20,
     borderRadius: 20,
-    padding: 15,
-    elevation: 2,
+    padding: 20,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   sectionHeader: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#9ca3af',
-    marginBottom: 10,
-    marginLeft: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 18,
+    gap: 8,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1f2937',
   },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 15,
-    paddingHorizontal: 10,
+    paddingVertical: 14,
   },
   settingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-  settingIcon: {
-    marginRight: 12,
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
   },
   settingTextContainer: {
-    marginLeft: 10,
     flex: 1,
   },
   settingTitle: {
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#1f2937',
+    marginBottom: 3,
   },
   settingSubtitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#6b7280',
-    marginTop: 2,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 10,
+  },
+  infoLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   infoLabel: {
     fontSize: 14,
     color: '#6b7280',
+    fontWeight: '500',
   },
   infoValue: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#1f2937',
   },
+  infoDivider: {
+    height: 1,
+    backgroundColor: '#f3f4f6',
+    marginVertical: 4,
+  },
   logoutButton: {
-    backgroundColor: '#ef4444',
-    marginHorizontal: 20,
-    marginTop: 20,
+    borderRadius: 20,
+    overflow: 'hidden',
     marginBottom: 20,
-    borderRadius: 15,
-    padding: 16,
-    alignItems: 'center',
-    elevation: 3,
     shadowColor: '#ef4444',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
-    shadowRadius: 5,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  logoutGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    gap: 12,
   },
   logoutText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });
 
@@ -388,34 +619,42 @@ const settingsStylesDark = StyleSheet.create({
   ...settingsStyles,
   container: {
     ...settingsStyles.container,
-    backgroundColor: '#111827',
-  },
-  profileCard: {
-    ...settingsStyles.profileCard,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#0f172a',
   },
   profileName: {
     ...settingsStyles.profileName,
-    color: '#fff',
+    color: '#f9fafb',
   },
   profileEmail: {
     ...settingsStyles.profileEmail,
-    color: '#d1d5db',
+    color: '#9ca3af',
   },
   section: {
     ...settingsStyles.section,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#1e293b',
+  },
+  sectionTitle: {
+    ...settingsStyles.sectionTitle,
+    color: '#f9fafb',
   },
   settingTitle: {
     ...settingsStyles.settingTitle,
-    color: '#fff',
+    color: '#f9fafb',
+  },
+  settingSubtitle: {
+    ...settingsStyles.settingSubtitle,
+    color: '#9ca3af',
   },
   infoValue: {
     ...settingsStyles.infoValue,
-    color: '#fff',
+    color: '#f9fafb',
   },
   infoLabel: {
     ...settingsStyles.infoLabel,
-    color: '#d1d5db',
+    color: '#9ca3af',
+  },
+  infoDivider: {
+    ...settingsStyles.infoDivider,
+    backgroundColor: '#374151',
   },
 });

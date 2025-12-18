@@ -293,6 +293,13 @@ const DevicePage = () => {
         setShowBiometricForm(true);
     };
 
+    // Memorizar cálculos para evitar re-renders innecesarios
+    const statsCalculados = useMemo(() => ({
+        activos: parseInt(stats.activos) || 0,
+        suspendidos: parseInt(stats.inactivos) || 0,
+        moviles: parseInt(stats.moviles) || 0
+    }), [stats]);
+
     // Si está mostrando el formulario
     if (showForm) {
         return (
@@ -340,13 +347,7 @@ const DevicePage = () => {
         );
     }
 
-    // Vista principal - Memorizar cálculos para evitar re-renders innecesarios
-    const statsCalculados = useMemo(() => ({
-        activos: parseInt(stats.activos) || 0,
-        suspendidos: parseInt(stats.inactivos) || 0,
-        moviles: parseInt(stats.moviles) || 0
-    }), [stats]);
-
+    // Vista principal
     if (loading) {
         return (
             <div className="min-h-screen bg-white flex items-center justify-center">

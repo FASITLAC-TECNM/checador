@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import Constants from 'expo-constants';
 import { 
   getHorarioPorEmpleado, 
   parsearHorario, 
@@ -31,12 +30,8 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
   const [fadeAnim] = useState(new Animated.Value(0));
 
   const getEmpleadoId = () => {
-    if (userData?.empleado?.id_empleado) {
-      return userData.empleado.id_empleado;
-    }
-    if (userData?.empleado?.id) {
-      return userData.empleado.id;
-    }
+    if (userData?.empleado?.id_empleado) return userData.empleado.id_empleado;
+    if (userData?.empleado?.id) return userData.empleado.id;
     return null;
   };
 
@@ -44,25 +39,17 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
     const empleadoId = getEmpleadoId();
     
     if (empleadoId) {
-      console.log('✅ ID de empleado encontrado:', empleadoId);
-      
       const timeoutId = setTimeout(() => {
         if (isLoading) {
-          console.error('⏱️ TIMEOUT: La carga tomó más de 10 segundos');
           setError('La carga del horario está tomando demasiado tiempo. Verifica tu conexión.');
           setIsLoading(false);
           setScheduleData(obtenerHorarioVacio());
         }
       }, 10000);
 
-      cargarHorario(empleadoId).finally(() => {
-        clearTimeout(timeoutId);
-      });
-
+      cargarHorario(empleadoId).finally(() => clearTimeout(timeoutId));
       return () => clearTimeout(timeoutId);
     } else {
-      console.warn('⚠️ No se pudo obtener el ID del empleado');
-      console.warn('userData:', JSON.stringify(userData, null, 2));
       setIsLoading(false);
       setError('No se pudo identificar al empleado. Verifica tu sesión.');
       setScheduleData(obtenerHorarioVacio());
@@ -84,41 +71,19 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
       setIsLoading(true);
       setError(null);
 
-      console.log('📅 === INICIO CARGA DE HORARIO ===');
-      console.log('📅 Cargando horario para empleado ID:', empleadoId);
-
       const horario = await getHorarioPorEmpleado(empleadoId);
-      console.log('📅 Horario recibido:', horario);
-
       const horarioParsed = parsearHorario(horario);
-      console.log('📅 Horario parseado:', horarioParsed);
       
       setScheduleData(horarioParsed);
-
-      const resumenCalculado = calcularResumenSemanal(horarioParsed);
-      console.log('📅 Resumen calculado:', resumenCalculado);
-      setResumen(resumenCalculado);
-
-      const infoDia = getInfoDiaActual(horarioParsed);
-      console.log('📅 Info día actual:', infoDia);
-      setInfoHoy(infoDia);
-
-      console.log('✅ Horario cargado exitosamente');
+      setResumen(calcularResumenSemanal(horarioParsed));
+      setInfoHoy(getInfoDiaActual(horarioParsed));
     } catch (error) {
-      console.error('❌ === ERROR EN CARGA DE HORARIO ===');
-      console.error('❌ Error:', error);
-      console.error('❌ Error message:', error.message);
-      console.error('❌ Error stack:', error.stack);
-      
       setError(error.message || 'Error desconocido al cargar horario');
-      
-      const horarioVacio = obtenerHorarioVacio();
-      setScheduleData(horarioVacio);
+      setScheduleData(obtenerHorarioVacio());
       setResumen({ diasLaborales: 0, totalDias: 7, horasTotales: '0' });
       setInfoHoy({ trabaja: false, entrada: null, salida: null });
     } finally {
       setIsLoading(false);
-      console.log('📅 === FIN CARGA DE HORARIO ===');
     }
   };
 
@@ -149,13 +114,11 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
     primerDia.setDate(hoy.getDate() - hoy.getDay() + 1);
 
     const ultimoDia = new Date(primerDia);
-    ultimoDia.setDate(primerDia.getDate() + 4);
+    ultimoDia.setDate(primerDia.getDate() + 6);
 
     const formatoFecha = (fecha) => {
-      const dia = fecha.getDate();
       const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-      const mes = meses[fecha.getMonth()];
-      return `${dia} ${mes}`;
+      return `${fecha.getDate()} ${meses[fecha.getMonth()]}`;
     };
 
     return `${formatoFecha(primerDia)} - ${formatoFecha(ultimoDia)}`;
@@ -174,41 +137,49 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
     return icons[day] || 'calendar-outline';
   };
 
+  const obtenerSaludo = () => {
+    const hora = new Date().getHours();
+    if (hora < 12) return 'Buenos días';
+    if (hora < 19) return 'Buenas tardes';
+    return 'Buenas noches';
+  };
+
   const styles = darkMode ? scheduleStylesDark : scheduleStyles;
 
   if (isLoading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
-        <StatusBar barStyle={darkMode ? "light-content" : "dark-content"} />
-        <ActivityIndicator size="large" color="#6366f1" />
+        <StatusBar barStyle="light-content" backgroundColor="#2563eb" translucent={false} />
+        <ActivityIndicator size="large" color="#2563eb" />
         <Text style={styles.loadingText}>Cargando tu horario...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+    <View style={styles.mainContainer}>
+      <StatusBar barStyle="light-content" backgroundColor="#2563eb" translucent={false} />
       
-      {/* Header con gradiente */}
-      <LinearGradient
-        colors={darkMode ? ['#4f46e5', '#7c3aed'] : ['#6366f1', '#8b5cf6']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <View>
-            <Text style={styles.headerGreeting}>Hola de nuevo 👋</Text>
-            <Text style={styles.headerTitle}>
-              {userData?.nombre || userData?.usuario?.nombre || 'Usuario'}
-            </Text>
+      {/* Header igual al Home */}
+      <View style={styles.headerWrapper}>
+        <LinearGradient
+          colors={['#2563eb', '#3b82f6']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
+        >
+          <View style={styles.headerContent}>
+            <View style={styles.headerInfo}>
+              <Text style={styles.headerGreeting}>{obtenerSaludo()}</Text>
+              <Text style={styles.headerName} numberOfLines={1}>{userData?.nombre || 'Usuario'}</Text>
+              <View style={styles.headerSubtitle}>
+                <Ionicons name="calendar-outline" size={12} color="#e0f2fe" />
+                <Text style={styles.headerSubtitleText}>Mi Horario Semanal</Text>
+              </View>
+            </View>
           </View>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Ionicons name="notifications-outline" size={24} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
+        </LinearGradient>
+      </View>
 
       <ScrollView 
         style={styles.scrollView}
@@ -218,7 +189,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#6366f1"
+            tintColor="#2563eb"
           />
         }
       >
@@ -232,8 +203,8 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
             </View>
           )}
 
-          {/* Info del Día Actual - Destacado */}
-          {infoHoy.trabaja && (
+          {/* 1. PRIORIDAD: Info del Día Actual */}
+          {infoHoy.trabaja ? (
             <View style={styles.todayCard}>
               <View style={styles.todayHeader}>
                 <View style={styles.todayBadge}>
@@ -269,7 +240,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
                 </View>
               </View>
 
-              {infoHoy.tipo === 'quebrado' && infoHoy.turnos.length > 1 && (
+              {infoHoy.tipo === 'quebrado' && infoHoy.turnos && infoHoy.turnos.length > 1 && (
                 <View style={styles.splitShiftBanner}>
                   <Ionicons name="swap-horizontal" size={18} color="#8b5cf6" />
                   <Text style={styles.splitShiftText}>Horario Quebrado</Text>
@@ -281,9 +252,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
                 <Text style={styles.todayLocationText}>Edificio A - Entrada Principal</Text>
               </View>
             </View>
-          )}
-
-          {!infoHoy.trabaja && (
+          ) : (
             <View style={styles.dayOffCard}>
               <View style={styles.dayOffIcon}>
                 <Ionicons name="cafe-outline" size={48} color="#6366f1" />
@@ -293,7 +262,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
             </View>
           )}
 
-          {/* Resumen Semanal */}
+          {/* 2. Resumen Semanal */}
           <View style={styles.summarySection}>
             <View style={styles.summaryCard}>
               <LinearGradient
@@ -322,7 +291,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
             </View>
           </View>
 
-          {/* Horario Semanal */}
+          {/* 3. Horario Semanal Completo */}
           <View style={styles.scheduleSection}>
             <View style={styles.scheduleSectionHeader}>
               <Text style={styles.scheduleSectionTitle}>Horario Semanal</Text>
@@ -330,7 +299,10 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
             </View>
             
             {scheduleData.map((schedule, index) => {
-              const isToday = schedule.day === new Date().toLocaleDateString('es-ES', { weekday: 'long' }).charAt(0).toUpperCase() + new Date().toLocaleDateString('es-ES', { weekday: 'long' }).slice(1);
+              const diasSemana = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+              const hoy = new Date();
+              const diaActual = diasSemana[hoy.getDay()];
+              const isToday = schedule.day.toLowerCase() === diaActual;
               
               return (
                 <TouchableOpacity
@@ -403,48 +375,65 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
 };
 
 const scheduleStyles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
   },
   loadingContainer: {
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#f8fafc',
   },
   loadingText: {
     marginTop: 16,
-    fontSize: 16,
-    color: '#6b7280',
+    fontSize: 14,
+    color: '#64748b',
     fontWeight: '500',
   },
+  headerWrapper: {
+    backgroundColor: '#2563eb',
+  },
   header: {
-    paddingTop: Platform.OS === 'android' ? Constants.statusBarHeight + 20 : 50,
-    paddingBottom: 30,
-    paddingHorizontal: 24,
+    paddingTop: Platform.OS === 'android' ? 16 : 50,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
   },
   headerContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  headerInfo: {
+    flex: 1,
   },
   headerGreeting: {
-    fontSize: 14,
-    color: '#e0e7ff',
-    marginBottom: 4,
+    fontSize: 13,
+    color: '#e0f2fe',
     fontWeight: '500',
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
+  headerName: {
+    fontSize: 19,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginTop: 2,
+    marginBottom: 6,
   },
-  headerIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
+  headerSubtitle: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    gap: 4,
+  },
+  headerSubtitleText: {
+    fontSize: 11,
+    color: '#e0f2fe',
+    fontWeight: '600',
   },
   scrollView: {
     flex: 1,
@@ -452,7 +441,7 @@ const scheduleStyles = StyleSheet.create({
   scrollContent: {
     paddingTop: 20,
     paddingBottom: 100,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   errorCard: {
     backgroundColor: '#fee2e2',
@@ -667,11 +656,12 @@ const scheduleStyles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
     borderRadius: 16,
     marginBottom: 8,
     backgroundColor: '#f9fafb',
+    minHeight: 76,
   },
   scheduleItemInactive: {
     backgroundColor: 'transparent',
@@ -685,6 +675,7 @@ const scheduleStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    marginRight: 12,
   },
   dayIconContainer: {
     width: 44,
@@ -702,13 +693,14 @@ const scheduleStyles = StyleSheet.create({
   },
   scheduleInfo: {
     flex: 1,
+    paddingRight: 8,
   },
   scheduleTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   scheduleDay: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#1f2937',
   },
@@ -723,7 +715,7 @@ const scheduleStyles = StyleSheet.create({
     marginLeft: 8,
   },
   scheduleLocation: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#6b7280',
     marginTop: 2,
   },
@@ -745,24 +737,28 @@ const scheduleStyles = StyleSheet.create({
   },
   scheduleRight: {
     alignItems: 'flex-end',
+    minWidth: 80,
+    maxWidth: 100,
   },
   scheduleTime: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#1f2937',
+    textAlign: 'right',
   },
   scheduleTimeInactive: {
     color: '#9ca3af',
   },
   hoursChip: {
     backgroundColor: '#dbeafe',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginTop: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginTop: 3,
+    alignSelf: 'flex-end',
   },
   hoursChipText: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#1e40af',
     fontWeight: '600',
   },
@@ -770,9 +766,17 @@ const scheduleStyles = StyleSheet.create({
 
 const scheduleStylesDark = StyleSheet.create({
   ...scheduleStyles,
-  container: {
-    ...scheduleStyles.container,
-    backgroundColor: '#111827',
+  mainContainer: {
+    ...scheduleStyles.mainContainer,
+    backgroundColor: '#0f172a',
+  },
+  loadingContainer: {
+    ...scheduleStyles.loadingContainer,
+    backgroundColor: '#0f172a',
+  },
+  headerWrapper: {
+    ...scheduleStyles.headerWrapper,
+    backgroundColor: '#1e293b',
   },
   todayCard: {
     ...scheduleStyles.todayCard,

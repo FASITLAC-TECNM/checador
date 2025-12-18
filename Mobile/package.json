@@ -13,10 +13,13 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/netinfo": "^11.4.1",
+    "axios": "^1.13.2",
     "expo": "^54.0.0",
+    "expo-camera": "~17.0.10",
     "expo-device": "~7.0.1",
     "expo-linear-gradient": "~14.0.1",
     "expo-location": "~19.0.8",
+    "expo-navigation-bar": "~5.0.10",
     "expo-status-bar": "~3.0.8",
     "nativewind": "latest",
     "react": "19.1.0",

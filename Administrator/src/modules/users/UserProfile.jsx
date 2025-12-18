@@ -617,9 +617,6 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
                                                         <Smartphone className="w-6 h-6 text-purple-700" />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <h4 className="text-lg font-bold text-[#1D1D1F] mb-2">
-                                                            {dispositivo.tipo || 'Dispositivo Móvil'}
-                                                        </h4>
                                                         <div className="space-y-2 text-sm">
                                                             {dispositivo.sistema_operativo && (
                                                                 <div className="flex items-center gap-2">

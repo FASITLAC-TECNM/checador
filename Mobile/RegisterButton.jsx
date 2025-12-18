@@ -9,13 +9,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { validarUbicacionPermitida, formatearCoordenadas, isPointInPolygon } from '../Mobile/services/ubicacionService';
+import { validarUbicacionPermitida, formatearCoordenadas, isPointInPolygon, extraerCoordenadas } from '../Mobile/services/ubicacionService';
 import { getApiEndpoint } from '../Mobile/config/api';
 
 const API_URL = getApiEndpoint('/api');
 
 /**
- * Componente de botón de registro con validación de ubicación - Diseño Moderno
+ * Componente de botón de registro con validación de ubicación y biometría
  */
 export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [ubicacionActual, setUbicacionActual] = useState(null);
@@ -31,31 +31,16 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
   // ==================== OBTENER ID DEL EMPLEADO ====================
   const getEmpleadoId = () => {
-    console.log('🔍 Extrayendo ID del empleado...');
-    console.log('📦 userData:', JSON.stringify(userData, null, 2));
-    
     let empleadoId = null;
     
     if (userData?.empleado?.id) {
       empleadoId = userData.empleado.id;
-      console.log('✅ ID encontrado en userData.empleado.id:', empleadoId);
     } else if (userData?.empleado && typeof userData.empleado === 'number') {
       empleadoId = userData.empleado;
-      console.log('✅ userData.empleado es directamente el ID:', empleadoId);
     } else if (userData?.id_empleado) {
       empleadoId = userData.id_empleado;
-      console.log('✅ ID encontrado en userData.id_empleado:', empleadoId);
     } else if (userData?.empleado?.id_empleado) {
       empleadoId = userData.empleado.id_empleado;
-      console.log('✅ ID encontrado en userData.empleado.id_empleado:', empleadoId);
-    }
-    
-    if (!empleadoId) {
-      console.error('❌ NO SE PUDO ENCONTRAR EL ID DEL EMPLEADO');
-      console.log('📋 Estructura de userData:', Object.keys(userData));
-      if (userData.empleado) {
-        console.log('📋 Estructura de empleado:', Object.keys(userData.empleado));
-      }
     }
     
     return empleadoId;
@@ -103,7 +88,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         
         if (status !== 'granted') {
           console.error('❌ Permiso de ubicación denegado');
-          setError('Permiso de ubicación denegado. Por favor, habilita el acceso a la ubicación en la configuración.');
+          setError('Permiso de ubicación denegado.');
           setEstadoBoton('error');
           setLoading(false);
           return;
@@ -134,14 +119,13 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
               lat: newLocation.coords.latitude,
               lng: newLocation.coords.longitude
             };
-            console.log('📍 Ubicación actualizada:', formatearCoordenadas(newCoords));
             setUbicacionActual(newCoords);
           }
         );
 
       } catch (err) {
         console.error('❌ Error obteniendo ubicación:', err);
-        setError('Error al obtener ubicación. Verifica que el GPS esté habilitado.');
+        setError('Error al obtener ubicación.');
         setEstadoBoton('error');
         setLoading(false);
       }
@@ -166,9 +150,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         }
 
         console.log('═══════════════════════════════════════');
-        console.log('🔍 DIAGNÓSTICO DE DATOS DEL USUARIO');
+        console.log('🔍 INICIANDO VALIDACIÓN DE UBICACIÓN');
         console.log('═══════════════════════════════════════');
-        console.log('📦 userData completo:', JSON.stringify(userData, null, 2));
 
         let departamentoId = null;
         let departamentoData = null;
@@ -176,40 +159,34 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         if (userData?.departamento?.id) {
           departamentoId = userData.departamento.id;
           departamentoData = userData.departamento;
-          console.log('✅ Departamento encontrado en userData.departamento.id:', departamentoId);
         } else if (userData?.departamento?.id_departamento) {
           departamentoId = userData.departamento.id_departamento;
           departamentoData = userData.departamento;
-          console.log('✅ Departamento encontrado en userData.departamento.id_departamento:', departamentoId);
         } else if (userData?.id_departamento) {
           departamentoId = userData.id_departamento;
-          console.log('✅ Departamento encontrado en userData.id_departamento:', departamentoId);
         }
 
         if (!departamentoId) {
-          console.log('❌ NO SE ENCONTRÓ ID DE DEPARTAMENTO');
-          setError('No tienes un departamento asignado. Contacta al administrador.');
+          console.error('❌ NO SE ENCONTRÓ ID DE DEPARTAMENTO');
+          setError('No tienes un departamento asignado.');
           setEstadoBoton('error');
           setLoading(false);
           return;
         }
 
-        console.log('🔍 Validando ubicación con departamento ID:', departamentoId);
-
         if (departamentoData?.ubicacion) {
           console.log('✅ Usando datos de departamento del login');
           
-          let ubicacionParsed = departamentoData.ubicacion;
-          if (typeof ubicacionParsed === 'string') {
-            ubicacionParsed = JSON.parse(ubicacionParsed);
-          }
-
-          const coordenadas = ubicacionParsed.coordenadas || ubicacionParsed;
+          const coordenadas = extraerCoordenadas(departamentoData.ubicacion);
           
-          if (Array.isArray(coordenadas) && coordenadas.length >= 3) {
+          if (coordenadas && coordenadas.length >= 3) {
             const dentroDelArea = isPointInPolygon(ubicacionActual, coordenadas);
+            
             setDentroDelArea(dentroDelArea);
-            setDepartamento(departamentoData);
+            setDepartamento({
+              ...departamentoData,
+              nombre: departamentoData.nombre_departamento || departamentoData.nombre
+            });
             setEstadoBoton(dentroDelArea ? 'disponible' : 'fuera');
             setError(null);
             setLoading(false);
@@ -217,13 +194,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           }
         }
 
-        console.log('🌐 Haciendo fetch del departamento...');
+        console.log('🌐 Haciendo fetch del departamento desde API...');
         const resultado = await validarUbicacionPermitida(
           ubicacionActual,
           departamentoId
         );
-
-        console.log('📊 Resultado de validación:', JSON.stringify(resultado, null, 2));
 
         if (resultado.error) {
           setError(resultado.error);
@@ -264,7 +239,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       const empleadoId = getEmpleadoId();
       if (!empleadoId) {
-        Alert.alert('Error', 'No se pudo identificar tu información de empleado. Por favor contacta al administrador.');
+        Alert.alert('Error', 'No se pudo identificar tu información de empleado.');
         return;
       }
 
@@ -284,6 +259,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
               setRegistrando(true);
               
               try {
+                // Generar placeholder de huella
                 const huellaPlaceholder = 'HUELLA_PLACEHOLDER_' + Date.now();
 
                 console.log('📤 Enviando registro de asistencia:', {
@@ -347,7 +323,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }
   };
 
-  // ==================== OBTENER COLOR Y DATOS DEL BOTÓN ====================
+  // ==================== OBTENER ESTADO DEL BOTÓN ====================
   const getButtonColor = () => {
     switch (estadoBoton) {
       case 'disponible':
@@ -446,7 +422,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           activeOpacity={0.7}
         >
           {registrando ? (
-            <ActivityIndicator size="small" color="#fff" />
+            <>
+              <ActivityIndicator size="small" color="#fff" />
+              <Text style={styles.registerButtonText}>Registrando...</Text>
+            </>
           ) : (
             <>
               <Ionicons 
@@ -540,6 +519,17 @@ const registerStyles = StyleSheet.create({
     fontSize: 13,
     color: '#6b7280',
     fontWeight: '500',
+  },
+  biometricInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 6,
+  },
+  biometricText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   registerButton: {
     flexDirection: 'row',

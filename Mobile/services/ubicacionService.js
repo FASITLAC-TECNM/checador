@@ -64,6 +64,76 @@ export const isPointInPolygon = (point, polygon) => {
 };
 
 /**
+ * Extraer coordenadas del formato que viene del backend
+ * @param {string|Object|Array} ubicacion - Ubicación en cualquier formato
+ * @returns {Array|null} Array de coordenadas normalizadas
+ */
+const extraerCoordenadas = (ubicacion) => {
+    if (!ubicacion) {
+        console.warn('⚠️ Ubicación vacía');
+        return null;
+    }
+
+    try {
+        // 1. Si es string, parsearlo
+        let parsed = ubicacion;
+        if (typeof ubicacion === 'string') {
+            console.log('📍 Ubicación es string, parseando...');
+            parsed = JSON.parse(ubicacion);
+        }
+
+        console.log('📍 Estructura parseada:', JSON.stringify(parsed).substring(0, 200));
+
+        // 2. Extraer coordenadas según la estructura
+        let coordenadas = null;
+
+        // Caso A: Objeto con propiedad 'coordenadas'
+        if (parsed.coordenadas && Array.isArray(parsed.coordenadas)) {
+            console.log('✅ Estructura: Objeto con propiedad coordenadas');
+            coordenadas = parsed.coordenadas;
+        }
+        // Caso B: Objeto con propiedad 'coordinates'
+        else if (parsed.coordinates && Array.isArray(parsed.coordinates)) {
+            console.log('✅ Estructura: Objeto con propiedad coordinates');
+            coordenadas = parsed.coordinates;
+        }
+        // Caso C: Array directo de coordenadas
+        else if (Array.isArray(parsed)) {
+            console.log('✅ Estructura: Array directo');
+            
+            // Sub-caso 1: Array de objetos polígono/rectángulo [{type: 'polygon'/'rectangle', coordinates: [...]}]
+            if (parsed.length > 0 && parsed[0].coordinates && Array.isArray(parsed[0].coordinates)) {
+                console.log('✅ Sub-estructura: Array de objetos con coordinates');
+                console.log('📍 Tipo de objeto:', parsed[0].type);
+                coordenadas = parsed[0].coordinates;
+            }
+            // Sub-caso 2: Array de coordenadas directamente [[lat, lng], ...]
+            else if (parsed.length > 0 && (Array.isArray(parsed[0]) || parsed[0].lat !== undefined)) {
+                console.log('✅ Sub-estructura: Array de coordenadas directas');
+                coordenadas = parsed;
+            }
+        }
+
+        if (!coordenadas || coordenadas.length < 3) {
+            console.error('❌ No se pudieron extraer coordenadas válidas');
+            console.log('📊 Estructura recibida:', parsed);
+            return null;
+        }
+
+        console.log('📊 Coordenadas extraídas:', coordenadas.length, 'puntos');
+        console.log('📍 Primera coordenada:', coordenadas[0]);
+        console.log('📍 Última coordenada:', coordenadas[coordenadas.length - 1]);
+
+        return coordenadas;
+
+    } catch (e) {
+        console.error('❌ Error procesando ubicación:', e);
+        console.error('❌ Ubicación raw:', ubicacion);
+        return null;
+    }
+};
+
+/**
  * Obtener ubicación del departamento por ID
  * @param {number} departamentoId - ID del departamento
  * @returns {Promise<Object>} Datos de ubicación del departamento
@@ -86,78 +156,28 @@ export const getUbicacionDepartamento = async (departamentoId) => {
 
         const data = await response.json();
         console.log('✅ Departamento obtenido:', data.nombre);
+        console.log('📦 Ubicación raw:', data.ubicacion);
 
-        // Parsear ubicación
-        let ubicacionParsed = null;
-        if (data.ubicacion) {
-            try {
-                // Si viene como string, parsearlo
-                if (typeof data.ubicacion === 'string') {
-                    console.log('📍 Ubicación es string, parseando...');
-                    ubicacionParsed = JSON.parse(data.ubicacion);
-                } else {
-                    console.log('📍 Ubicación ya es objeto');
-                    ubicacionParsed = data.ubicacion;
-                }
-                
-                console.log('📍 Tipo de ubicación:', Array.isArray(ubicacionParsed) ? 'Array' : 'Objeto');
-                
-                // La ubicación puede ser un array de polígonos o un solo polígono
-                let coordenadas = null;
-                
-                if (Array.isArray(ubicacionParsed)) {
-                    // Si es un array, puede ser:
-                    // 1. Array de objetos polígono: [{type: 'polygon', coordinates: [...]}]
-                    // 2. Array directo de coordenadas: [[lat, lng], [lat, lng], ...]
-                    
-                    if (ubicacionParsed.length > 0) {
-                        if (ubicacionParsed[0].type === 'polygon' && ubicacionParsed[0].coordinates) {
-                            // Caso 1: Array de objetos polígono
-                            console.log('✅ Estructura: Array de polígonos');
-                            coordenadas = ubicacionParsed[0].coordinates;
-                        } else if (Array.isArray(ubicacionParsed[0])) {
-                            // Caso 2: Array directo de coordenadas
-                            console.log('✅ Estructura: Array directo de coordenadas');
-                            coordenadas = ubicacionParsed;
-                        }
-                    }
-                } else if (ubicacionParsed.type === 'polygon' && ubicacionParsed.coordinates) {
-                    // Objeto polígono único
-                    console.log('✅ Estructura: Objeto polígono único');
-                    coordenadas = ubicacionParsed.coordinates;
-                } else if (ubicacionParsed.coordenadas) {
-                    // Objeto con propiedad 'coordenadas'
-                    console.log('✅ Estructura: Objeto con propiedad coordenadas');
-                    coordenadas = ubicacionParsed.coordenadas;
-                }
-                
-                if (coordenadas) {
-                    console.log('📊 Número de puntos del polígono:', coordenadas.length);
-                    console.log('📍 Primera coordenada:', coordenadas[0]);
-                    
-                    // Asignar las coordenadas procesadas
-                    ubicacionParsed = {
-                        type: 'polygon',
-                        coordenadas: coordenadas
-                    };
-                } else {
-                    console.warn('⚠️ No se pudieron extraer las coordenadas');
-                    return null;
-                }
-                
-            } catch (e) {
-                console.error('❌ Error parseando ubicación:', e);
-                console.error('❌ Ubicación raw:', data.ubicacion);
-                return null;
-            }
-        } else {
-            console.warn('⚠️ No hay campo ubicacion en la respuesta');
+        // Extraer coordenadas usando la función auxiliar
+        const coordenadas = extraerCoordenadas(data.ubicacion);
+
+        if (!coordenadas) {
+            console.warn('⚠️ No se pudieron obtener coordenadas válidas');
+            return {
+                id: data.id || data.id_departamento,
+                nombre: data.nombre,
+                ubicacion: null,
+                color: data.color
+            };
         }
 
         return {
             id: data.id || data.id_departamento,
             nombre: data.nombre,
-            ubicacion: ubicacionParsed,
+            ubicacion: {
+                type: 'polygon',
+                coordenadas: coordenadas
+            },
             color: data.color
         };
     } catch (error) {
@@ -192,8 +212,8 @@ export const validarUbicacionPermitida = async (ubicacionUsuario, departamentoId
             };
         }
 
-        // Verificar estructura de coordenadas
-        const coordenadas = departamento.ubicacion.coordenadas || departamento.ubicacion;
+        // Obtener coordenadas
+        const coordenadas = departamento.ubicacion.coordenadas;
         
         if (!Array.isArray(coordenadas) || coordenadas.length < 3) {
             console.warn('⚠️ Coordenadas inválidas');
@@ -287,12 +307,18 @@ export const formatearCoordenadas = (coords) => {
     return `${normalized.lat.toFixed(6)}, ${normalized.lng.toFixed(6)}`;
 };
 
-// Exportar todo el servicio
+// Exportar funciones individuales y servicio completo
+export {
+    normalizarCoordenada,
+    extraerCoordenadas
+};
+
 export default {
     isPointInPolygon,
     getUbicacionDepartamento,
     validarUbicacionPermitida,
     calcularDistancia,
     getCentroPoligono,
-    formatearCoordenadas
+    formatearCoordenadas,
+    extraerCoordenadas
 };

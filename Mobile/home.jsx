@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { RegisterButton } from './RegisterButton';
+import { NotificacionesModal } from './NotificacionesModal';
 
 const obtenerUrlFotoPerfil = (foto) => {
   if (!foto) return null;
@@ -21,6 +22,8 @@ const obtenerUrlFotoPerfil = (foto) => {
 };
 
 export const HomeScreen = ({ userData, darkMode }) => {
+  const [showNotificaciones, setShowNotificaciones] = useState(false);
+
   const styles = darkMode ? homeStylesDark : homeStyles;
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
   const empleado = userData.empleado || null;
@@ -44,6 +47,13 @@ export const HomeScreen = ({ userData, darkMode }) => {
         barStyle="light-content" 
         backgroundColor="#2563eb"
         translucent={false}
+      />
+      
+      {/* Modal de Notificaciones */}
+      <NotificacionesModal
+        visible={showNotificaciones}
+        onClose={() => setShowNotificaciones(false)}
+        darkMode={darkMode}
       />
       
       {/* Header mejorado */}
@@ -96,7 +106,10 @@ export const HomeScreen = ({ userData, darkMode }) => {
                 <Text style={styles.roleChipText}>{rolMostrar}</Text>
               </View>
               
-              <TouchableOpacity style={styles.notificationButton}>
+              <TouchableOpacity 
+                style={styles.notificationButton}
+                onPress={() => setShowNotificaciones(true)}
+              >
                 <Ionicons name="notifications-outline" size={22} color="#fff" />
                 <View style={styles.badge} />
               </TouchableOpacity>

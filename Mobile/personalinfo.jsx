@@ -311,7 +311,7 @@ const personalInfoStyles = StyleSheet.create({
     borderRadius: 20,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
     color: '#fff',
   },

@@ -168,21 +168,15 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
           end={{ x: 1, y: 1 }}
           style={styles.header}
         >
-          <View style={styles.headerTop}>
-            <View style={styles.headerLeft}>
-              <View style={styles.headerInfo}>
-                <Text style={styles.headerGreeting}>{obtenerSaludo()}</Text>
-                <Text style={styles.headerName} numberOfLines={1}>{userData?.nombre || 'Usuario'}</Text>
-                <View style={styles.headerSubtitle}>
-                  <Ionicons name="calendar-outline" size={12} color="#e0f2fe" />
-                  <Text style={styles.headerSubtitleText}>Mi Horario Semanal</Text>
-                </View>
+          <View style={styles.headerContent}>
+            <View style={styles.headerInfo}>
+              <Text style={styles.headerGreeting}>{obtenerSaludo()}</Text>
+              <Text style={styles.headerName} numberOfLines={1}>{userData?.nombre || 'Usuario'}</Text>
+              <View style={styles.headerSubtitle}>
+                <Ionicons name="calendar-outline" size={12} color="#e0f2fe" />
+                <Text style={styles.headerSubtitleText}>Mi Horario Semanal</Text>
               </View>
             </View>
-            
-            <TouchableOpacity style={styles.notificationButton} onPress={onRefresh}>
-              <Ionicons name="refresh" size={22} color="#fff" />
-            </TouchableOpacity>
           </View>
         </LinearGradient>
       </View>
@@ -407,16 +401,9 @@ const scheduleStyles = StyleSheet.create({
     paddingBottom: 20,
     paddingHorizontal: 20,
   },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerLeft: {
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    marginRight: 12,
   },
   headerInfo: {
     flex: 1,
@@ -447,15 +434,6 @@ const scheduleStyles = StyleSheet.create({
     fontSize: 11,
     color: '#e0f2fe',
     fontWeight: '600',
-  },
-  notificationButton: {
-    position: 'relative',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   scrollView: {
     flex: 1,

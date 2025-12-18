@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PersonalInfoScreen } from './personalinfo';
+import { TermsAndConditionsScreen } from './TermsAndConditionsScreen';
 
 // Función helper para obtener URL de foto
 const obtenerUrlFotoPerfil = (foto) => {
@@ -20,12 +21,10 @@ const obtenerUrlFotoPerfil = (foto) => {
     return null;
   }
   
-  // Si ya es una URL completa, devolverla directamente
   if (foto.startsWith('http://') || foto.startsWith('https://')) {
     return foto;
   }
   
-  // Si es una ruta relativa, construir la URL completa
   const BASE_URL = 'https://9dm7dqf9-3001.usw3.devtunnels.ms';
   const url = `${BASE_URL}${foto.startsWith('/') ? '' : '/'}${foto}`;
   console.log('✅ URL construida:', url);
@@ -40,15 +39,13 @@ export const SettingsScreen = ({
   onLogout 
 }) => {
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const styles = darkMode ? settingsStylesDark : settingsStyles;
 
-  // Obtener la URL completa de la foto si existe
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
-
-  // Si es empleado, priorizar rol "Empleado"
   const rolMostrar = userData.empleado ? 'Empleado' : (userData.rol?.nombre_rol || 'Usuario');
 
-  // Si se está mostrando información personal, renderizar ese componente
+  // Si se está mostrando información personal
   if (showPersonalInfo) {
     return (
       <PersonalInfoScreen 
@@ -59,11 +56,21 @@ export const SettingsScreen = ({
     );
   }
 
+  // Si se están mostrando términos y condiciones
+  if (showTerms) {
+    return (
+      <TermsAndConditionsScreen 
+        darkMode={darkMode}
+        onBack={() => setShowTerms(false)}
+      />
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#2563eb" translucent={false} />
       
-      {/* Header con gradiente - IGUAL QUE HOME */}
+      {/* Header con gradiente */}
       <LinearGradient
         colors={['#2563eb', '#3b82f6']}
         start={{ x: 0, y: 0 }}
@@ -78,7 +85,7 @@ export const SettingsScreen = ({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* User Profile Card - Elemento Principal */}
+        {/* User Profile Card */}
         <View style={styles.profileCard}>
           <LinearGradient
             colors={darkMode ? ['#1e293b', '#334155'] : ['#ffffff', '#f8fafc']}
@@ -104,7 +111,6 @@ export const SettingsScreen = ({
                       <Ionicons name="person" size={48} color="#fff" />
                     </View>
                   )}
-                  {/* Indicador de estado */}
                   <View style={[
                     styles.statusIndicator,
                     { backgroundColor: userData.conexion === 'Conectado' ? '#10b981' : '#6b7280' }
@@ -145,8 +151,6 @@ export const SettingsScreen = ({
                 </View>
               </View>
             </View>
-
-
           </LinearGradient>
         </View>
 
@@ -281,6 +285,57 @@ export const SettingsScreen = ({
           </TouchableOpacity>
         </View>
 
+        {/* Legal Section - NUEVA SECCIÓN */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="document-text" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
+            <Text style={styles.sectionTitle}>Legal</Text>
+          </View>
+          
+          <TouchableOpacity 
+            style={styles.settingItem} 
+            onPress={() => setShowTerms(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#422006' : '#fef3c7' }]}>
+                <Ionicons name="document-text-outline" size={22} color={darkMode ? '#fcd34d' : '#d97706'} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Términos y Condiciones</Text>
+                <Text style={styles.settingSubtitle}>Revisa nuestros términos</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#1e3a8a' : '#dbeafe' }]}>
+                <Ionicons name="shield-outline" size={22} color={darkMode ? '#93c5fd' : '#2563eb'} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Política de Privacidad</Text>
+                <Text style={styles.settingSubtitle}>Cómo usamos tus datos</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#713f12' : '#fed7aa' }]}>
+                <Ionicons name="Reader-outline" size={22} color={darkMode ? '#fbbf24' : '#ea580c'} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Licencias</Text>
+                <Text style={styles.settingSubtitle}>Software de terceros</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+          </TouchableOpacity>
+        </View>
+
         {/* Info Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -303,7 +358,7 @@ export const SettingsScreen = ({
               <Ionicons name="calendar" size={18} color="#6b7280" />
               <Text style={styles.infoLabel}>Última actualización</Text>
             </View>
-            <Text style={styles.infoValue}>16/10/2025</Text>
+            <Text style={styles.infoValue}>17/12/2024</Text>
           </View>
         </View>
 
@@ -455,7 +510,6 @@ const settingsStyles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-
   section: {
     backgroundColor: '#fff',
     borderRadius: 20,
@@ -575,7 +629,6 @@ const settingsStylesDark = StyleSheet.create({
     ...settingsStyles.profileEmail,
     color: '#9ca3af',
   },
-
   section: {
     ...settingsStyles.section,
     backgroundColor: '#1e293b',

@@ -383,9 +383,17 @@ export const identificarHuella = async (req, res) => {
       });
     }
 
+    // Convertir el template capturado a Buffer
+    const huellaCapturada = Buffer.from(template_base64, "base64");
+
+    console.log("📥 TEMPLATE CAPTURADO:");
+    console.log(`   - Tamaño: ${huellaCapturada.length} bytes`);
+    console.log(`   - Primeros 50 bytes (BYTEA): \\\\x${huellaCapturada.slice(0, 50).toString('hex')}`);
+    console.log(`   - Base64 (primeros 100 chars): ${template_base64.substring(0, 100)}...`);
+
     // Obtener TODAS las huellas registradas
     const result = await pool.query(`
-            SELECT 
+            SELECT
                 c.id,
                 c.id_empleado,
                 c.dactilar,
@@ -406,9 +414,8 @@ export const identificarHuella = async (req, res) => {
       });
     }
 
-    console.log(`📊 Comparando contra ${result.rows.length} huellas...`);
+    console.log(`\n📊 Comparando contra ${result.rows.length} huellas registradas...\n`);
 
-    const huellaCapturada = Buffer.from(template_base64, "base64");
     let mejorCoincidencia = null;
     let mejorScore = 0;
 
@@ -417,10 +424,16 @@ export const identificarHuella = async (req, res) => {
       try {
         const huellaRegistrada = row.dactilar;
 
+        console.log(`\n👤 Empleado: ${row.nombre} (ID: ${row.id_empleado})`);
+        console.log(`   - Tamaño BD: ${huellaRegistrada.length} bytes`);
+        console.log(`   - Primeros 50 bytes (BYTEA): \\\\x${huellaRegistrada.slice(0, 50).toString('hex')}`);
+
         // COMPARACIÓN EXACTA (byte por byte)
         // NOTA: En producción, usar algoritmo biométrico real con threshold
-        const coincide =
-          Buffer.compare(huellaCapturada, huellaRegistrada) === 0;
+        const coincide = Buffer.compare(huellaCapturada, huellaRegistrada) === 0;
+
+        console.log(`   - Tamaños coinciden: ${huellaCapturada.length === huellaRegistrada.length ? '✅ SÍ' : '❌ NO'}`);
+        console.log(`   - Bytes exactos coinciden: ${coincide ? '✅ SÍ' : '❌ NO'}`);
 
         if (coincide) {
           // Simulación de score (en producción viene del algoritmo biométrico)
@@ -437,7 +450,7 @@ export const identificarHuella = async (req, res) => {
             };
           }
 
-          console.log(`✅ MATCH encontrado: ${row.nombre} (Score: ${score}%)`);
+          console.log(`\n   ✅✅✅ MATCH ENCONTRADO: ${row.nombre} (Score: ${score}%) ✅✅✅\n`);
         }
       } catch (error) {
         console.error(

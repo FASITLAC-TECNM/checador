@@ -4,7 +4,7 @@ import { getEmpleadoPorUsuario, actualizarEmpleado, crearEmpleado } from '../../
 import { actualizarUsuario } from '../../services/api';
 import { crearCredenciales, actualizarCredenciales, getCredencialesPorEmpleado } from '../../services/credencialesService';
 import { obtenerHorarioPorId, actualizarHorario, obtenerHorarioPorEmpleado } from '../../services/horariosService';
-import { getDispositivosMovilesPorUsuario } from '../../services/dispositivosMovilesService';
+import { getDispositivosMovilesPorEmpleado } from '../../services/dispositivosMovilesService';
 import UserRolesModal from './UserRolesModal';
 import HorarioEditor from './HorarioEditor';
 import HorarioSemanal from '../../components/HorarioSemanal';
@@ -51,9 +51,14 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
 
     useEffect(() => {
         cargarDatosEmpleado();
-        cargarDispositivosMoviles();
         setPreviewImage(user?.foto || '');
     }, [user]);
+
+    useEffect(() => {
+        if (empleadoData?.id) {
+            cargarDispositivosMoviles();
+        }
+    }, [empleadoData?.id]);
 
     useEffect(() => {
         const cargarHorarioSemanal = async () => {
@@ -322,14 +327,14 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
     };
 
     const cargarDispositivosMoviles = async () => {
-        if (!user?.id) {
+        if (!empleadoData?.id) {
             setLoadingDispositivos(false);
             return;
         }
 
         try {
             setLoadingDispositivos(true);
-            const data = await getDispositivosMovilesPorUsuario(user.id);
+            const data = await getDispositivosMovilesPorEmpleado(empleadoData.id);
             setDispositivosMoviles(data || []);
         } catch (error) {
             console.error('Error cargando dispositivos móviles:', error);

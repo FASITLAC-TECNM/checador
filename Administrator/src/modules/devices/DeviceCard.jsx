@@ -52,11 +52,6 @@ const DeviceCard = ({ device, onEdit, onDelete, onClick, isNested = false }) => 
                         <h3 className="text-[#1D1D1F] font-bold text-base truncate group-hover:text-blue-600 transition-colors">
                             {device.nombre}
                         </h3>
-                        <p className="text-[#6E6E73] text-xs font-medium">
-                            {device.tipo === 'Registro Físico' && '🖥️ Escritorio'}
-                            {device.tipo === 'Móvil' && '📱 Móvil'}
-                            {device.tipo === 'Biométrico' && '👆 Biométrico'}
-                        </p>
                         {device.modelo && (
                             <p className="text-[#86868B] text-xs mt-0.5 truncate">{device.modelo}</p>
                         )}
@@ -74,11 +69,14 @@ const DeviceCard = ({ device, onEdit, onDelete, onClick, isNested = false }) => 
                     {device.tipo === 'Biométrico' && <MapPin className="w-4 h-4 text-green-600" />}
                     <span className="text-[#86868B] text-xs font-medium">
                         {device.tipo === 'Registro Físico' && 'Ubicación:'}
-                        {device.tipo === 'Móvil' && 'Usuario:'}
+                        {device.tipo === 'Móvil' && 'Empleado:'}
                         {device.tipo === 'Biométrico' && 'Ubicación:'}
                     </span>
                     <span className="text-[#1D1D1F] font-semibold text-xs flex-1 truncate">
-                        {device.ubicacion || device.usuarioAsignado || '-'}
+                        {device.tipo === 'Móvil'
+                            ? (device.usuario?.nombre || device.usuarioAsignado || '-')
+                            : (device.ubicacion || '-')
+                        }
                     </span>
                 </div>
 

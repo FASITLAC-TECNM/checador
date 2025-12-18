@@ -345,15 +345,13 @@ export const registrarAsistenciaFacial = async (req, res) => {
     try {
         const {
             id_empleado,
-            tipo, // 'Entrada' o 'Salida' (opcional, se autodetecta)
-            dispositivo_id,
+            tipo, // 'Escritorio' o 'Movil'
             ubicacion
         } = req.body;
 
         console.log('📸 Registro de asistencia facial:', {
             id_empleado,
             tipo,
-            dispositivo_id,
             ubicacion
         });
 
@@ -385,26 +383,13 @@ export const registrarAsistenciaFacial = async (req, res) => {
             });
         }
 
-        // Si no se especifica tipo, autodetectar basado en el último registro
-        let tipoRegistro = tipo;
-        if (!tipoRegistro) {
-            const ultimoRegistro = await pool.query(`
-                SELECT tipo
-                FROM registro_asistencia
-                WHERE id_empleado = $1
-                ORDER BY fecha DESC, created_at DESC
-                LIMIT 1
-            `, [id_empleado]);
-
-            tipoRegistro = ultimoRegistro.rows.length === 0 || ultimoRegistro.rows[0].tipo === 'Salida'
-                ? 'Entrada'
-                : 'Salida';
-        }
+        // Usar tipo proporcionado o 'Escritorio' por defecto
+        const tipoRegistro = tipo || 'Escritorio';
 
         // Validar tipo
-        if (!['Entrada', 'Salida'].includes(tipoRegistro)) {
+        if (!['Escritorio', 'Movil'].includes(tipoRegistro)) {
             return res.status(400).json({
-                error: 'Tipo debe ser "Entrada" o "Salida"',
+                error: 'Tipo debe ser "Escritorio" o "Movil"',
                 codigo: 'TIPO_INVALIDO'
             });
         }

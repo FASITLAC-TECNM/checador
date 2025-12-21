@@ -4,9 +4,6 @@
 import { getApiEndpoint } from '../config/api';
 
 const API_URL = getApiEndpoint('/api');
-
-console.log('🔗 Solicitudes API URL:', API_URL);
-
 /**
  * Obtener todas las solicitudes
  */

@@ -4,9 +4,6 @@
 import { getApiEndpoint } from '../config/api';
 
 const API_URL = getApiEndpoint('/api');
-
-console.log('🔗 Eventos API URL:', API_URL);
-
 /**
  * Obtener todos los eventos
  * @param {Object} filtros - Filtros opcionales

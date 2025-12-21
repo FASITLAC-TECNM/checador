@@ -5,9 +5,6 @@ import { getApiEndpoint } from '../config/api';
 
 // Usar la configuración centralizada
 const API_URL = getApiEndpoint('/api');
-
-console.log('🔗 Escritorios API URL:', API_URL);
-
 /**
  * Obtener todos los dispositivos
  */

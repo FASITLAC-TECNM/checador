@@ -1,9 +1,6 @@
 import { getApiEndpoint } from '../config/api';
 
 const API_URL = getApiEndpoint('/api');
-
-console.log('📱 Dispositivos Móviles API URL:', API_URL);
-
 /**
  * Obtener todos los dispositivos móviles
  */

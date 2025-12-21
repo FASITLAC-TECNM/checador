@@ -2,8 +2,6 @@ import { getApiEndpoint } from '../config/api';
 
 const API_URL = getApiEndpoint('/api');
 
-console.log('🔗 Solicitudes Móviles API URL:', API_URL);
-
 export const getSolicitudesMoviles = async () => {
     try {
         const response = await fetch(`${API_URL}/solicitudes-movil`);

@@ -5,9 +5,6 @@ import { getApiEndpoint } from '../config/api';
 
 // Usar la configuración centralizada
 const API_URL = getApiEndpoint('/api');
-
-console.log('🔗 Credenciales API URL:', API_URL);
-
 /**
  * Obtener credenciales de un empleado
  * @param {number} idEmpleado - ID del empleado

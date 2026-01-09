@@ -22,7 +22,7 @@ export default function BiometricReader({
   onClose,
   onEnrollmentSuccess,
   onAuthSuccess, // Nuevo: Callback cuando se autentica exitosamente
-  idEmpleado = 1, // ID del empleado desde tu sistema
+  idEmpleado = null, // ID del empleado desde tu sistema (null para modo manual)
   mode = "auth", // "enroll" para registro, "auth" para autenticación
 }) {
   if (!isOpen) return null;
@@ -39,7 +39,7 @@ export default function BiometricReader({
     percentage: 0,
   });
 
-  const [newUserId, setNewUserId] = useState("");
+  const [inputIdEmpleado, setInputIdEmpleado] = useState(""); // ID del empleado manual
   const [messages, setMessages] = useState([]);
   const [savingToDatabase, setSavingToDatabase] = useState(false);
   const [lastEnrollmentData, setLastEnrollmentData] = useState(null);
@@ -267,7 +267,9 @@ export default function BiometricReader({
   const guardarHuellaEnBaseDatos = async (userId, templateBase64) => {
     if (mode === "enroll") {
       // Modo Registro: Guardar huella para un empleado específico
-      if (!idEmpleado) {
+      const empleadoId = idEmpleado || parseInt(inputIdEmpleado);
+
+      if (!empleadoId) {
         addMessage("❌ No hay ID de empleado configurado", "error");
         return;
       }
@@ -282,7 +284,7 @@ export default function BiometricReader({
 
       try {
         const result = await registrarHuella(
-          idEmpleado,
+          empleadoId,
           templateBase64,
           userId
         );
@@ -294,13 +296,13 @@ export default function BiometricReader({
           if (onEnrollmentSuccess) {
             onEnrollmentSuccess({
               userId: userId,
-              idEmpleado: idEmpleado,
+              idEmpleado: empleadoId,
               idCredencial: result.data.id_credencial,
               timestamp: result.data.timestamp,
             });
           }
 
-          setNewUserId("");
+          setInputIdEmpleado("");
         } else {
           addMessage(`❌ Error DB: ${result.error}`, "error");
         }
@@ -406,13 +408,10 @@ export default function BiometricReader({
   const startEnrollment = () => {
     if (mode === "enroll") {
       // Validaciones para modo registro
-      if (!newUserId.trim()) {
-        addMessage("⚠️ Ingrese un ID de usuario", "warning");
-        return;
-      }
+      const empleadoId = idEmpleado || parseInt(inputIdEmpleado);
 
-      if (!idEmpleado) {
-        addMessage("⚠️ No se ha configurado el ID del empleado", "warning");
+      if (!empleadoId || isNaN(empleadoId)) {
+        addMessage("⚠️ Ingrese un ID de empleado válido", "warning");
         return;
       }
     }
@@ -426,8 +425,15 @@ export default function BiometricReader({
     setEnrollProgress({ collected: 0, required: 4, percentage: 0 });
     setCurrentOperation("Enrollment");
 
-    // En modo auth, usar un ID temporal
-    const userId = mode === "auth" ? `auth_${Date.now()}` : newUserId.trim();
+    // Generar automáticamente el User ID basado en el ID del empleado
+    let userId;
+    if (mode === "auth") {
+      userId = `auth_${Date.now()}`;
+    } else {
+      const empleadoId = idEmpleado || parseInt(inputIdEmpleado);
+      userId = `emp_${empleadoId}`;
+    }
+
     sendCommand("startEnrollment", { userId });
   };
 
@@ -537,17 +543,30 @@ export default function BiometricReader({
           </div>
 
           {/* ID Empleado Info / Auth Mode Info */}
-          {mode === "enroll" && idEmpleado && (
+          {mode === "enroll" && (
             <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-4 mb-6">
               <div className="flex items-center gap-3">
                 <Database className="w-6 h-6 text-green-400" />
-                <div>
-                  <p className="text-white font-medium">
-                    Empleado ID: <strong>{idEmpleado}</strong>
-                  </p>
-                  <p className="text-green-200 text-sm">
-                    La huella se guardará automáticamente en PostgreSQL
-                  </p>
+                <div className="flex-1">
+                  {idEmpleado ? (
+                    <>
+                      <p className="text-white font-medium">
+                        Empleado ID: <strong>{idEmpleado}</strong>
+                      </p>
+                      <p className="text-green-200 text-sm">
+                        La huella se guardará automáticamente en PostgreSQL
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-white font-medium">
+                        Registro Manual de Huella
+                      </p>
+                      <p className="text-green-200 text-sm">
+                        Ingrese el ID del empleado para registrar su huella
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -621,24 +640,36 @@ export default function BiometricReader({
 
                 <div className="space-y-4">
                   {mode === "enroll" && (
-                    <div>
-                      <label className="block text-white text-sm font-medium mb-2">
-                        User ID (para el middleware):
-                      </label>
-                      <input
-                        type="text"
-                        value={newUserId}
-                        onChange={(e) => setNewUserId(e.target.value)}
-                        placeholder={
-                          idEmpleado ? `emp_${idEmpleado}` : "Ej: empleado001"
-                        }
-                        disabled={isProcessing}
-                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-blue-500 disabled:opacity-50"
-                      />
-                      <p className="text-white/60 text-xs mt-1">
-                        Este ID se usa internamente en el middleware biométrico
-                      </p>
-                    </div>
+                    <>
+                      {/* Campo para ID de Empleado (solo si no viene como prop) */}
+                      {!idEmpleado && (
+                        <div>
+                          <label className="block text-white text-sm font-medium mb-2">
+                            ID del Empleado: <span className="text-red-400">*</span>
+                          </label>
+                          <input
+                            type="number"
+                            value={inputIdEmpleado}
+                            onChange={(e) => setInputIdEmpleado(e.target.value)}
+                            placeholder="Ej: 1, 2, 3..."
+                            disabled={isProcessing}
+                            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+                            autoFocus
+                          />
+                          <p className="text-white/60 text-xs mt-1">
+                            La huella se guardará directamente para este empleado
+                          </p>
+                        </div>
+                      )}
+
+                      {idEmpleado && (
+                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 text-center">
+                          <p className="text-white font-medium">
+                            Registrando huella para empleado: <strong className="text-blue-400">#{idEmpleado}</strong>
+                          </p>
+                        </div>
+                      )}
+                    </>
                   )}
 
                   {mode === "auth" && (
@@ -694,7 +725,7 @@ export default function BiometricReader({
                           !connected ||
                           !readerConnected ||
                           isProcessing ||
-                          (mode === "enroll" && !idEmpleado)
+                          (mode === "enroll" && !idEmpleado && !inputIdEmpleado)
                         }
                         className="flex-1 px-4 py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
                       >
@@ -721,10 +752,10 @@ export default function BiometricReader({
                     )}
                   </div>
 
-                  {mode === "enroll" && !idEmpleado && (
-                    <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3">
-                      <p className="text-red-200 text-sm text-center">
-                        ⚠️ Falta configurar el ID del empleado en el componente
+                  {mode === "enroll" && !idEmpleado && !inputIdEmpleado && (
+                    <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3">
+                      <p className="text-yellow-200 text-sm text-center">
+                        ⚠️ Ingrese el ID del empleado para continuar
                       </p>
                     </div>
                   )}
@@ -748,7 +779,7 @@ export default function BiometricReader({
                           User ID: <strong>{lastEnrollmentData.userId}</strong>
                         </p>
                         <p className="text-white/70 text-sm">
-                          Empleado: <strong>{idEmpleado}</strong>
+                          Empleado ID: <strong>{idEmpleado || inputIdEmpleado}</strong>
                         </p>
                         <p className="text-white/70 text-xs mt-1">
                           {new Date(

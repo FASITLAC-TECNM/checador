@@ -8,6 +8,7 @@ import LoginModal from "../components/kiosk/LoginModal";
 import BitacoraModal from "../components/kiosk/BitacoraModal";
 import NoticeDetailModal from "../components/kiosk/NoticeDetailModal";
 import RegisterFaceModal from "../components/kiosk/RegisterFaceModal";
+import BiometricEnrollButton from "../components/kiosk/BiometricEnrollButton";
 import SessionScreen from "./SessionScreen";
 import { agregarEvento } from "../services/bitacoraService";
 import { useConnectivity } from "../hooks/useConnectivity";
@@ -408,6 +409,9 @@ export default function KioskScreen() {
       {showRegisterFace && (
         <RegisterFaceModal onClose={() => setShowRegisterFace(false)} />
       )}
+
+      {/* Botón flotante para registrar huellas - NUEVO */}
+      <BiometricEnrollButton />
     </div>
   );
 }

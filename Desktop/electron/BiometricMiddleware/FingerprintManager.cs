@@ -263,15 +263,40 @@ namespace BiometricMiddleware
 
         private void SaveTemplate(string userId, byte[] template)
         {
+            // NO GUARDAR EN ARCHIVO - Solo mostrar en consola
             try
             {
-                var filePath = Path.Combine(TEMPLATES_FOLDER, $"{userId}.fpt");
-                File.WriteAllBytes(filePath, template);
-                Console.WriteLine($"💾 Template guardado: {filePath}");
+                // Convertir a Base64 para mostrar
+                string templateBase64 = Convert.ToBase64String(template);
+
+                Console.WriteLine("\n" + new string('=', 70));
+                Console.WriteLine(" TEMPLATE CAPTURADO (NO SE GUARDA EN ARCHIVO)");
+                Console.WriteLine(new string('=', 70));
+                Console.WriteLine($" User ID: {userId}");
+                Console.WriteLine($" Tamanio: {template.Length} bytes");
+                Console.WriteLine(new string('-', 70));
+                Console.WriteLine(" BASE64 (primeros 100 chars):");
+                Console.WriteLine($" {templateBase64.Substring(0, Math.Min(100, templateBase64.Length))}...");
+                Console.WriteLine(new string('-', 70));
+                Console.WriteLine(" BYTEA (primeros 50 bytes hex):");
+
+                // Mostrar los primeros 50 bytes en formato BYTEA
+                var hexBytes = string.Join("", template.Take(50).Select(b => b.ToString("x2")));
+                Console.WriteLine($" \\x{hexBytes}");
+                Console.WriteLine(new string('-', 70));
+                Console.WriteLine(" FULL BASE64 (copiar para guardar en BD):");
+                Console.WriteLine($" {templateBase64}");
+                Console.WriteLine(new string('=', 70) + "\n");
+
+                // NO guardar en archivo
+                // var filePath = Path.Combine(TEMPLATES_FOLDER, $"{userId}.fpt");
+                // File.WriteAllBytes(filePath, template);
+
+                Console.WriteLine("[OK] Template procesado (NO guardado en disco)");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error guardando template: {ex.Message}");
+                Console.WriteLine($"[ERROR] Error procesando template: {ex.Message}");
             }
         }
 

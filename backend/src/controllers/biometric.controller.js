@@ -9,11 +9,11 @@ export const guardarHuellaDesdeMiddleware = async (req, res) => {
   try {
     const { id_empleado, template_base64, userId } = req.body;
 
-    console.log("\n═══════════════════════════════════════════════════");
-    console.log("💾 GUARDANDO HUELLA DESDE MIDDLEWARE");
-    console.log("═══════════════════════════════════════════════════");
-    console.log(`👤 Empleado ID: ${id_empleado}`);
-    console.log(`🆔 User ID: ${userId}`);
+    console.log("\n" + "=".repeat(70));
+    console.log(" GUARDANDO HUELLA DESDE MIDDLEWARE");
+    console.log("=".repeat(70));
+    console.log(` Empleado ID: ${id_empleado}`);
+    console.log(` User ID: ${userId}`);
 
     // Validaciones
     if (!id_empleado) {
@@ -37,7 +37,7 @@ export const guardarHuellaDesdeMiddleware = async (req, res) => {
     );
 
     if (empleadoCheck.rows.length === 0) {
-      console.log(`❌ Empleado ${id_empleado} no encontrado`);
+      console.log(`[ERROR] Empleado ${id_empleado} no encontrado`);
       return res.status(404).json({
         success: false,
         error: `Empleado con ID ${id_empleado} no existe`,
@@ -46,7 +46,7 @@ export const guardarHuellaDesdeMiddleware = async (req, res) => {
 
     // Convertir Base64 a Buffer (PostgreSQL BYTEA)
     const buffer = Buffer.from(template_base64, "base64");
-    console.log(`📊 Template: ${buffer.length} bytes`);
+    console.log(` Template: ${buffer.length} bytes`);
 
     // Verificar si ya existe una credencial
     const credencialCheck = await pool.query(
@@ -58,7 +58,7 @@ export const guardarHuellaDesdeMiddleware = async (req, res) => {
 
     if (credencialCheck.rows.length > 0) {
       // Actualizar huella existente
-      console.log("🔄 Actualizando huella existente...");
+      console.log(" Actualizando huella existente...");
       result = await pool.query(
         `
                 UPDATE Credenciales
@@ -71,13 +71,13 @@ export const guardarHuellaDesdeMiddleware = async (req, res) => {
       );
     } else {
       // Crear nueva credencial
-      console.log("➕ Creando nueva credencial...");
+      console.log(" Creando nueva credencial...");
       result = await pool.query(
         `
                 INSERT INTO Credenciales (
-                    id_empleado, 
-                    dactilar, 
-                    fecha_creacion, 
+                    id_empleado,
+                    dactilar,
+                    fecha_creacion,
                     fecha_actualizacion
                 )
                 VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -87,9 +87,9 @@ export const guardarHuellaDesdeMiddleware = async (req, res) => {
       );
     }
 
-    console.log("✅ Huella guardada exitosamente");
+    console.log("[OK] Huella guardada exitosamente");
     console.log(`   ID Credencial: ${result.rows[0].id}`);
-    console.log("═══════════════════════════════════════════════════\n");
+    console.log("=".repeat(70) + "\n");
 
     res.status(200).json({
       success: true,
@@ -104,7 +104,7 @@ export const guardarHuellaDesdeMiddleware = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("❌ Error guardando huella:", error);
+    console.error("[ERROR] Error guardando huella:", error);
     res.status(500).json({
       success: false,
       error: "Error al guardar huella",
@@ -114,17 +114,17 @@ export const guardarHuellaDesdeMiddleware = async (req, res) => {
 };
 
 /**
- * 🔍 VERIFICAR HUELLA DESDE MIDDLEWARE
+ * VERIFICAR HUELLA DESDE MIDDLEWARE
  * Compara el template capturado con el registrado
  */
 export const verificarHuellaDesdeMiddleware = async (req, res) => {
   try {
     const { id_empleado, template_base64 } = req.body;
 
-    console.log("\n═══════════════════════════════════════════════════");
-    console.log("🔍 VERIFICANDO HUELLA");
-    console.log("═══════════════════════════════════════════════════");
-    console.log(`👤 Empleado ID: ${id_empleado}`);
+    console.log("\n" + "=".repeat(70));
+    console.log(" VERIFICANDO HUELLA");
+    console.log("=".repeat(70));
+    console.log(` Empleado ID: ${id_empleado}`);
 
     if (!id_empleado || !template_base64) {
       return res.status(400).json({
@@ -140,7 +140,7 @@ export const verificarHuellaDesdeMiddleware = async (req, res) => {
     );
 
     if (result.rows.length === 0 || !result.rows[0].dactilar) {
-      console.log("❌ No hay huella registrada");
+      console.log("[ERROR] No hay huella registrada");
       return res.status(404).json({
         success: false,
         error: "No hay huella registrada para este empleado",
@@ -155,11 +155,11 @@ export const verificarHuellaDesdeMiddleware = async (req, res) => {
     const coincide = Buffer.compare(huellaCapturada, huellaRegistrada) === 0;
 
     console.log(
-      `${coincide ? "✅" : "❌"} Resultado: ${
+      `${coincide ? "[OK]" : "[ERROR]"} Resultado: ${
         coincide ? "COINCIDE" : "NO COINCIDE"
       }`
     );
-    console.log("═══════════════════════════════════════════════════\n");
+    console.log("=".repeat(70) + "\n");
 
     res.json({
       success: true,
@@ -174,7 +174,7 @@ export const verificarHuellaDesdeMiddleware = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("❌ Error verificando huella:", error);
+    console.error("[ERROR] Error verificando huella:", error);
     res.status(500).json({
       success: false,
       error: "Error al verificar huella",
@@ -184,14 +184,14 @@ export const verificarHuellaDesdeMiddleware = async (req, res) => {
 };
 
 /**
- * 📤 OBTENER TEMPLATE PARA VERIFICACIÓN
+ * OBTENER TEMPLATE PARA VERIFICACION
  * Retorna el template en Base64 para que el middleware lo compare
  */
 export const obtenerHuellaParaVerificacion = async (req, res) => {
   try {
     const { id_empleado } = req.params;
 
-    console.log(`📤 Obteniendo template para empleado ${id_empleado}`);
+    console.log(` Obteniendo template para empleado ${id_empleado}`);
 
     const result = await pool.query(
       "SELECT dactilar FROM Credenciales WHERE id_empleado = $1",
@@ -208,7 +208,7 @@ export const obtenerHuellaParaVerificacion = async (req, res) => {
     const template = result.rows[0].dactilar;
     const base64 = template.toString("base64");
 
-    console.log(`✅ Template enviado: ${template.length} bytes`);
+    console.log(`[OK] Template enviado: ${template.length} bytes`);
 
     res.json({
       success: true,
@@ -219,7 +219,7 @@ export const obtenerHuellaParaVerificacion = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("❌ Error obteniendo template:", error);
+    console.error("[ERROR] Error obteniendo template:", error);
     res.status(500).json({
       success: false,
       error: "Error al obtener template",
@@ -229,13 +229,13 @@ export const obtenerHuellaParaVerificacion = async (req, res) => {
 };
 
 /**
- * 👥 LISTAR USUARIOS CON HUELLA
+ * LISTAR USUARIOS CON HUELLA
  * Para poblar el select del componente React
  */
 export const listarUsuariosConHuella = async (req, res) => {
   try {
     const result = await pool.query(`
-            SELECT 
+            SELECT
                 c.id,
                 c.id_empleado,
                 e.id_usuario,
@@ -251,7 +251,7 @@ export const listarUsuariosConHuella = async (req, res) => {
             ORDER BY u.nombre ASC
         `);
 
-    console.log(`📋 Encontrados ${result.rows.length} usuarios con huella`);
+    console.log(` Encontrados ${result.rows.length} usuarios con huella`);
 
     res.json({
       success: true,
@@ -267,7 +267,7 @@ export const listarUsuariosConHuella = async (req, res) => {
       })),
     });
   } catch (error) {
-    console.error("❌ Error listando usuarios:", error);
+    console.error("[ERROR] Error listando usuarios:", error);
     res.status(500).json({
       success: false,
       error: "Error al listar usuarios",
@@ -277,7 +277,7 @@ export const listarUsuariosConHuella = async (req, res) => {
 };
 
 /**
- * ✅ VERIFICAR ESTADO DE HUELLA
+ * VERIFICAR ESTADO DE HUELLA
  * Verifica si un empleado tiene huella registrada
  */
 export const verificarEstadoHuella = async (req, res) => {
@@ -311,7 +311,7 @@ export const verificarEstadoHuella = async (req, res) => {
       fecha_actualizacion: result.rows[0].fecha_actualizacion,
     });
   } catch (error) {
-    console.error("❌ Error verificando estado:", error);
+    console.error("[ERROR] Error verificando estado:", error);
     res.status(500).json({
       success: false,
       error: "Error al verificar estado",
@@ -321,13 +321,13 @@ export const verificarEstadoHuella = async (req, res) => {
 };
 
 /**
- * 🗑️ ELIMINAR HUELLA
+ * ELIMINAR HUELLA
  */
 export const eliminarHuellaEmpleado = async (req, res) => {
   try {
     const { id_empleado } = req.params;
 
-    console.log(`🗑️ Eliminando huella del empleado ${id_empleado}`);
+    console.log(` Eliminando huella del empleado ${id_empleado}`);
 
     const result = await pool.query(
       `
@@ -347,7 +347,7 @@ export const eliminarHuellaEmpleado = async (req, res) => {
       });
     }
 
-    console.log("✅ Huella eliminada exitosamente");
+    console.log("[OK] Huella eliminada exitosamente");
 
     res.json({
       success: true,
@@ -355,7 +355,7 @@ export const eliminarHuellaEmpleado = async (req, res) => {
       data: result.rows[0],
     });
   } catch (error) {
-    console.error("❌ Error eliminando huella:", error);
+    console.error("[ERROR] Error eliminando huella:", error);
     res.status(500).json({
       success: false,
       error: "Error al eliminar huella",
@@ -365,16 +365,16 @@ export const eliminarHuellaEmpleado = async (req, res) => {
 };
 
 /**
- * 🔍 IDENTIFICAR HUELLA (1:N) - Para Login
+ * IDENTIFICAR HUELLA (1:N) - Para Login
  * Compara la huella capturada contra TODAS las registradas
  */
 export const identificarHuella = async (req, res) => {
   try {
     const { template_base64 } = req.body;
 
-    console.log("\n═══════════════════════════════════════════════════");
-    console.log("🔍 IDENTIFICACIÓN DE HUELLA (1:N)");
-    console.log("═══════════════════════════════════════════════════");
+    console.log("\n" + "=".repeat(70));
+    console.log(" IDENTIFICACION DE HUELLA (1:N)");
+    console.log("=".repeat(70));
 
     if (!template_base64) {
       return res.status(400).json({
@@ -386,9 +386,9 @@ export const identificarHuella = async (req, res) => {
     // Convertir el template capturado a Buffer
     const huellaCapturada = Buffer.from(template_base64, "base64");
 
-    console.log("📥 TEMPLATE CAPTURADO:");
-    console.log(`   - Tamaño: ${huellaCapturada.length} bytes`);
-    console.log(`   - Primeros 50 bytes (BYTEA): \\\\x${huellaCapturada.slice(0, 50).toString('hex')}`);
+    console.log(" TEMPLATE CAPTURADO:");
+    console.log(`   - Tamanio: ${huellaCapturada.length} bytes`);
+    console.log(`   - Primeros 50 bytes (BYTEA): \\\\x${Buffer.from(huellaCapturada).subarray(0, 50).toString('hex')}`);
     console.log(`   - Base64 (primeros 100 chars): ${template_base64.substring(0, 100)}...`);
 
     // Obtener TODAS las huellas registradas
@@ -407,14 +407,14 @@ export const identificarHuella = async (req, res) => {
         `);
 
     if (result.rows.length === 0) {
-      console.log("❌ No hay huellas registradas en el sistema");
+      console.log("[ERROR] No hay huellas registradas en el sistema");
       return res.status(404).json({
         success: false,
         error: "No hay huellas registradas en el sistema",
       });
     }
 
-    console.log(`\n📊 Comparando contra ${result.rows.length} huellas registradas...\n`);
+    console.log(`\n Comparando contra ${result.rows.length} huellas registradas...\n`);
 
     let mejorCoincidencia = null;
     let mejorScore = 0;
@@ -424,9 +424,9 @@ export const identificarHuella = async (req, res) => {
       try {
         const huellaRegistrada = row.dactilar;
 
-        console.log(`\n👤 Empleado: ${row.nombre} (ID: ${row.id_empleado})`);
-        console.log(`   - Tamaño BD: ${huellaRegistrada.length} bytes`);
-        console.log(`   - Primeros 50 bytes (BYTEA): \\\\x${huellaRegistrada.slice(0, 50).toString('hex')}`);
+        console.log(`\n Empleado: ${row.nombre} (ID: ${row.id_empleado})`);
+        console.log(`   - Tamanio BD: ${huellaRegistrada.length} bytes`);
+        console.log(`   - Primeros 50 bytes (BYTEA): \\\\x${Buffer.from(huellaRegistrada).subarray(0, 50).toString('hex')}`);
 
         // COMPARACIÓN POR SIMILITUD (aproximación simple)
         // NOTA: En producción, usar algoritmo biométrico real (DigitalPersona SDK)
@@ -435,11 +435,11 @@ export const identificarHuella = async (req, res) => {
         const sizeDiff = Math.abs(huellaCapturada.length - huellaRegistrada.length);
         const sizeRatio = sizeDiff / Math.max(huellaCapturada.length, huellaRegistrada.length);
 
-        console.log(`   - Diferencia de tamaño: ${sizeDiff} bytes (${(sizeRatio * 100).toFixed(2)}%)`);
+        console.log(`   - Diferencia de tamanio: ${sizeDiff} bytes (${(sizeRatio * 100).toFixed(2)}%)`);
 
         if (sizeRatio > 0.1) {
           // Si la diferencia de tamaño es > 10%, skip
-          console.log(`   - ⏭️ Saltando: tamaños muy diferentes`);
+          console.log(`   - Saltando: tamanios muy diferentes`);
           continue;
         }
 
@@ -473,20 +473,20 @@ export const identificarHuella = async (req, res) => {
             };
           }
 
-          console.log(`\n   ✅✅✅ MATCH ENCONTRADO: ${row.nombre} (Score: ${score}%) ✅✅✅\n`);
+          console.log(`\n   [OK] MATCH ENCONTRADO: ${row.nombre} (Score: ${score}%)\n`);
         } else {
-          console.log(`   - ❌ No supera threshold: ${similitud.toFixed(2)}% < ${THRESHOLD}%`);
+          console.log(`   - [ERROR] No supera threshold: ${similitud.toFixed(2)}% < ${THRESHOLD}%`);
         }
       } catch (error) {
         console.error(
-          `⚠️ Error comparando con empleado ${row.id_empleado}:`,
+          ` Error comparando con empleado ${row.id_empleado}:`,
           error
         );
       }
     }
 
     if (!mejorCoincidencia) {
-      console.log("❌ No se encontró coincidencia");
+      console.log("[ERROR] No se encontro coincidencia");
       return res.json({
         success: true,
         verified: false,
@@ -495,9 +495,9 @@ export const identificarHuella = async (req, res) => {
     }
 
     console.log(
-      `✅ IDENTIFICADO: ${mejorCoincidencia.nombre} (${mejorCoincidencia.score}%)`
+      `[OK] IDENTIFICADO: ${mejorCoincidencia.nombre} (${mejorCoincidencia.score}%)`
     );
-    console.log("═══════════════════════════════════════════════════\n");
+    console.log("=".repeat(70) + "\n");
 
     res.json({
       success: true,
@@ -510,7 +510,7 @@ export const identificarHuella = async (req, res) => {
       message: `Usuario identificado: ${mejorCoincidencia.nombre}`,
     });
   } catch (error) {
-    console.error("❌ Error identificando huella:", error);
+    console.error("[ERROR] Error identificando huella:", error);
     res.status(500).json({
       success: false,
       error: "Error al identificar huella",
@@ -520,7 +520,7 @@ export const identificarHuella = async (req, res) => {
 };
 
 /**
- * 📊 ESTADÍSTICAS BIOMÉTRICAS
+ * ESTADISTICAS BIOMETRICAS
  */
 export const obtenerEstadisticasBiometricas = async (req, res) => {
   try {
@@ -556,10 +556,10 @@ export const obtenerEstadisticasBiometricas = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("❌ Error obteniendo estadísticas:", error);
+    console.error("[ERROR] Error obteniendo estadisticas:", error);
     res.status(500).json({
       success: false,
-      error: "Error al obtener estadísticas",
+      error: "Error al obtener estadisticas",
       details: error.message,
     });
   }

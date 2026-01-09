@@ -222,7 +222,8 @@ export default function LoginModal({ onClose, onFacialLogin, onLoginSuccess }) {
         <BiometricReader
           isOpen={showBiometricModal}
           onClose={() => setShowBiometricModal(false)}
-          onVerificationSuccess={handleBiometricSuccess}
+          onAuthSuccess={handleBiometricSuccess}
+          mode="auth"
         />
       )}
     </>

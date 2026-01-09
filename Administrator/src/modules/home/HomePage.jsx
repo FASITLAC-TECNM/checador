@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import logo from './logo.png';
 import { getEstadisticas } from '../../services';
-import { BarChart3, Calendar } from "lucide-react";
+import { BarChart3, Calendar, FileText } from "lucide-react";
 import HorarioSemanal from '../../components/HorarioSemanal';
 import { obtenerHorariosConEmpleados } from '../../services/horariosService';
+import ReportPanel from '../../components/ReportPanel';
 
 function HomePage() {
     const [stats, setStats] = useState(null);
@@ -12,6 +13,7 @@ function HomePage() {
     const [horarios, setHorarios] = useState([]);
     const [loadingHorarios, setLoadingHorarios] = useState(true);
     const [showHorarioModal, setShowHorarioModal] = useState(false);
+    const [showReportPanel, setShowReportPanel] = useState(false);
 
     useEffect(() => {
         const cargar = async () => {
@@ -115,6 +117,23 @@ function HomePage() {
                     showEmployeeInfo={true}
                     isOpen={showHorarioModal}
                     onClose={() => setShowHorarioModal(false)}
+                />
+
+                {/* Botón flotante para reportes */}
+                <button
+                    onClick={() => setShowReportPanel(true)}
+                    className="fixed bottom-8 right-8 p-4 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-2xl transition-all hover:scale-110 z-40 flex items-center gap-2"
+                    title="Generar Reporte"
+                >
+                    <FileText size={24} />
+                    <span className="font-semibold">Reportes</span>
+                </button>
+
+                {/* Panel de Reportes */}
+                <ReportPanel
+                    isOpen={showReportPanel}
+                    onClose={() => setShowReportPanel(false)}
+                    contexto="global"
                 />
 
             </div>

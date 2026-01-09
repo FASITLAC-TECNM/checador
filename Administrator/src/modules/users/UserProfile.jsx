@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Mail, Phone, User, Shield, Edit, CreditCard, Briefcase, Save, Camera, Users, Key, Calendar, Smartphone, Building2 } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, User, Shield, Edit, CreditCard, Briefcase, Save, Camera, Users, Key, Calendar, Smartphone, Building2, FileText } from 'lucide-react';
 import { getEmpleadoPorUsuario, actualizarEmpleado, crearEmpleado } from '../../services/empleadoService';
 import { actualizarUsuario } from '../../services/api';
 import { crearCredenciales, actualizarCredenciales, getCredencialesPorEmpleado } from '../../services/credencialesService';
@@ -9,6 +9,7 @@ import UserRolesModal from './UserRolesModal';
 import UserDepartmentsModal from './UserDepartmentsModal';
 import HorarioEditor from './HorarioEditor';
 import HorarioSemanal from '../../components/HorarioSemanal';
+import ReportPanel from '../../components/ReportPanel';
 import { useNotification } from '../../contexts/NotificationContext';
 
 const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, onEditRoles }) => {
@@ -25,6 +26,7 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
     const [horarioSemanal, setHorarioSemanal] = useState([]);
     const [loadingHorarioSemanal, setLoadingHorarioSemanal] = useState(true);
     const [showHorarioModal, setShowHorarioModal] = useState(false);
+    const [showReportPanel, setShowReportPanel] = useState(false);
     const [dispositivosMoviles, setDispositivosMoviles] = useState([]);
     const [loadingDispositivos, setLoadingDispositivos] = useState(true);
     const fileInputRef = useRef(null);
@@ -473,6 +475,15 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
                                                             Departamentos
                                                         </button>
                                                     )}
+                                                    {empleadoData && (
+                                                        <button
+                                                            onClick={() => setShowReportPanel(true)}
+                                                            className="px-4 py-2 bg-white border border-gray-200 text-gray-700 hover:border-green-300 hover:text-green-600 hover:bg-green-50 rounded-xl text-sm font-semibold transition-all shadow-sm flex items-center gap-2"
+                                                        >
+                                                            <FileText size={18} className="text-green-500" />
+                                                            Reporte
+                                                        </button>
+                                                    )}
                                                 </>
                                             )}
                                             <div className="h-8 w-px bg-gray-200 mx-1 hidden sm:block"></div>
@@ -701,6 +712,14 @@ const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, 
                                 showEmployeeInfo={false}
                                 isOpen={showHorarioModal}
                                 onClose={() => setShowHorarioModal(false)}
+                            />
+
+                            {/* Panel de Reportes */}
+                            <ReportPanel
+                                isOpen={showReportPanel}
+                                onClose={() => setShowReportPanel(false)}
+                                contexto="usuario"
+                                idContexto={empleadoData?.id}
                             />
                         </div>
                     </div>

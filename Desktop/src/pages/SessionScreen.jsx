@@ -20,6 +20,7 @@ import {
 } from "../utils/dateHelpers";
 import { notices, registrosPorDia } from "../constants/notices";
 import AusenciaModal from "../components/session/AusenciaModal";
+import HistorialModal from "../components/session/HistorialModal";
 import ConfigModal from "../components/session/ConfigModal";
 import GeneralNodoModal from "../components/session/GeneralNodoModal";
 import DispositivosModal from "../components/session/DispositivosModal";
@@ -288,6 +289,14 @@ export default function SessionScreen({ onLogout, usuario }) {
       </div>
 
       {/* MODALES */}
+
+      {/* Historial Modal */}
+      {showHistorialModal && (
+        <HistorialModal
+          onClose={() => setShowHistorialModal(false)}
+          usuario={usuario}
+        />
+      )}
 
       {/* Ausencia Modal */}
       {showAusenciaModal && (

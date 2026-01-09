@@ -26,8 +26,9 @@ app.commandLine.appendSwitch('disable-software-rasterizer');
  */
 function startBiometricMiddleware() {
   try {
-    const middlewarePath = path.join(__dirname, 'biometric', 'BiometricMiddleware.exe');
-    const workingDir = path.join(__dirname, 'biometric');
+    // Ahora usamos el ejecutable compilado desde el código fuente
+    const middlewarePath = path.join(__dirname, 'BiometricMiddleware', 'bin', 'BiometricMiddleware.exe');
+    const workingDir = path.join(__dirname, 'BiometricMiddleware', 'bin');
 
     // Verificar que el archivo existe
     if (!fs.existsSync(middlewarePath)) {
@@ -648,7 +649,7 @@ ipcMain.handle('read-fingerprint-template', async (event, userId) => {
   try {
     console.log(`📄 Leyendo template de huella para userId: ${userId}`);
 
-    const templatePath = path.join(__dirname, 'biometric', 'FingerprintTemplates', `${userId}.fpt`);
+    const templatePath = path.join(__dirname, 'BiometricMiddleware', 'bin', 'FingerprintTemplates', `${userId}.fpt`);
 
     // Verificar que el archivo existe
     if (!fs.existsSync(templatePath)) {

@@ -17,8 +17,8 @@ namespace BiometricMiddleware.Adapters
         /// <returns>Adaptador del lector detectado o null si no hay ninguno</returns>
         public static async Task<IFingerprintReader> AutoDetectReader()
         {
-            Console.WriteLine("🔍 AUTO-DETECCIÓN DE LECTORES");
-            Console.WriteLine("═══════════════════════════════════════\n");
+            Console.WriteLine("[INIT] AUTO-DETECCION DE LECTORES");
+            Console.WriteLine("=".PadRight(70, '=') + "\n");
 
             // Lista de adaptadores a probar (en orden de prioridad)
             var adapters = new List<IFingerprintReader>
@@ -37,33 +37,33 @@ namespace BiometricMiddleware.Adapters
             {
                 try
                 {
-                    Console.WriteLine($"🔍 Probando: {adapter.ReaderBrand}...");
-                    
+                    Console.WriteLine($"[TEST] Probando: {adapter.ReaderBrand}...");
+
                     bool initialized = await adapter.Initialize();
-                    
+
                     if (initialized && adapter.IsConnected)
                     {
-                        Console.WriteLine($"✅ LECTOR DETECTADO: {adapter.ReaderBrand}");
+                        Console.WriteLine($"[OK] LECTOR DETECTADO: {adapter.ReaderBrand}");
                         Console.WriteLine($"   Modelo: {adapter.DeviceModel}");
                         Console.WriteLine($"   S/N: {adapter.SerialNumber}");
-                        Console.WriteLine("═══════════════════════════════════════\n");
+                        Console.WriteLine("=".PadRight(70, '=') + "\n");
                         return adapter;
                     }
                     else
                     {
-                        Console.WriteLine($"   ⚠️ {adapter.ReaderBrand} no detectado");
+                        Console.WriteLine($"   [ ] {adapter.ReaderBrand} no detectado");
                         adapter.Dispose();
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"   ❌ Error probando {adapter.ReaderBrand}: {ex.Message}");
+                    Console.WriteLine($"   [ERROR] Error probando {adapter.ReaderBrand}: {ex.Message}");
                     adapter.Dispose();
                 }
             }
 
-            Console.WriteLine("❌ NO SE DETECTÓ NINGÚN LECTOR");
-            Console.WriteLine("═══════════════════════════════════════\n");
+            Console.WriteLine("[ERROR] NO SE DETECTO NINGUN LECTOR");
+            Console.WriteLine("=".PadRight(70, '=') + "\n");
             return null;
         }
 
@@ -74,7 +74,7 @@ namespace BiometricMiddleware.Adapters
         /// <returns>Instancia del adaptador solicitado</returns>
         public static async Task<IFingerprintReader> CreateReader(string brand)
         {
-            Console.WriteLine($"🔧 Creando adaptador para: {brand}");
+            Console.WriteLine($"[INIT] Creando adaptador para: {brand}");
 
             IFingerprintReader reader = null;
 
@@ -176,14 +176,14 @@ namespace BiometricMiddleware.Adapters
         /// </summary>
         public static void ShowAvailableAdapters()
         {
-            Console.WriteLine("\n📋 ADAPTADORES DISPONIBLES");
-            Console.WriteLine("═══════════════════════════════════════");
-            Console.WriteLine("✅ DigitalPersona - IMPLEMENTADO");
-            Console.WriteLine("⚠️ SecuGen - PENDIENTE (SDK requerido)");
-            Console.WriteLine("⚠️ ZKTeco - PENDIENTE");
-            Console.WriteLine("⚠️ Suprema - PENDIENTE");
-            Console.WriteLine("⚠️ Futronic - PENDIENTE");
-            Console.WriteLine("═══════════════════════════════════════\n");
+            Console.WriteLine("\n[INFO] ADAPTADORES DISPONIBLES");
+            Console.WriteLine("=".PadRight(70, '='));
+            Console.WriteLine("[OK] DigitalPersona - IMPLEMENTADO");
+            Console.WriteLine("[ ] SecuGen - PENDIENTE (SDK requerido)");
+            Console.WriteLine("[ ] ZKTeco - PENDIENTE");
+            Console.WriteLine("[ ] Suprema - PENDIENTE");
+            Console.WriteLine("[ ] Futronic - PENDIENTE");
+            Console.WriteLine("=".PadRight(70, '=') + "\n");
         }
     }
 }

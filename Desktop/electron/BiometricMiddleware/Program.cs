@@ -31,12 +31,12 @@ namespace BiometricMiddleware
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"\n❌ ERROR FATAL: {ex.Message}");
-                Console.WriteLine("\n⚠️ POSIBLES CAUSAS:");
-                Console.WriteLine("   • No hay ningún lector conectado");
-                Console.WriteLine("   • El SDK del lector no está instalado");
-                Console.WriteLine("   • El lector está siendo usado por otra aplicación");
-                Console.WriteLine("   • Drivers del lector no instalados correctamente");
+                Console.WriteLine($"\n[ERROR FATAL] {ex.Message}");
+                Console.WriteLine("\nPOSIBLES CAUSAS:");
+                Console.WriteLine("   - No hay ningun lector conectado");
+                Console.WriteLine("   - El SDK del lector no esta instalado");
+                Console.WriteLine("   - El lector esta siendo usado por otra aplicacion");
+                Console.WriteLine("   - Drivers del lector no instalados correctamente");
                 Console.WriteLine("\nPresione cualquier tecla para salir...");
                 Console.ReadKey();
                 return;
@@ -47,19 +47,17 @@ namespace BiometricMiddleware
 
         static void PrintBanner()
         {
-            Console.WriteLine("╔════════════════════════════════════════════════════════╗");
-            Console.WriteLine("║                                                        ║");
-            Console.WriteLine("║   🔐 BIOMETRIC MIDDLEWARE SERVER v2.0                ║");
-            Console.WriteLine("║   Multi-Brand Fingerprint Reader Support             ║");
-            Console.WriteLine("║   + PostgreSQL Integration (Base64 Templates)        ║");
-            Console.WriteLine("║                                                        ║");
-            Console.WriteLine("║   Soporta:                                            ║");
-            Console.WriteLine("║   ✅ DigitalPersona (U.are.U)                         ║");
-            Console.WriteLine("║   ⚠️  SecuGen (Pendiente SDK)                         ║");
-            Console.WriteLine("║   ⚠️  ZKTeco (Pendiente)                              ║");
-            Console.WriteLine("║   ⚠️  Otros (Extensible)                              ║");
-            Console.WriteLine("║                                                        ║");
-            Console.WriteLine("╚════════════════════════════════════════════════════════╝\n");
+            Console.WriteLine("=".PadRight(70, '='));
+            Console.WriteLine(" BIOMETRIC MIDDLEWARE SERVER v2.0");
+            Console.WriteLine(" Multi-Brand Fingerprint Reader Support");
+            Console.WriteLine(" PostgreSQL Integration (Base64 Templates)");
+            Console.WriteLine("=".PadRight(70, '='));
+            Console.WriteLine(" Soporta:");
+            Console.WriteLine("   [OK] DigitalPersona (U.are.U)");
+            Console.WriteLine("   [ ] SecuGen (Pendiente SDK)");
+            Console.WriteLine("   [ ] ZKTeco (Pendiente)");
+            Console.WriteLine("   [ ] Otros (Extensible)");
+            Console.WriteLine("=".PadRight(70, '=') + "\n");
         }
 
         static async Task StartWebSocketServer()
@@ -71,8 +69,8 @@ namespace BiometricMiddleware
             try
             {
                 _httpListener.Start();
-                Console.WriteLine($"\n✅ WebSocket Server corriendo en: {url}");
-                Console.WriteLine("⏳ Esperando conexiones de clientes...\n");
+                Console.WriteLine($"\n[OK] WebSocket Server corriendo en: {url}");
+                Console.WriteLine("Esperando conexiones de clientes...\n");
 
                 while (true)
                 {
@@ -88,7 +86,7 @@ namespace BiometricMiddleware
                             _connections.Add(connection);
                         }
 
-                        Console.WriteLine($"🔌 Nueva conexión WebSocket (Total: {_connections.Count})");
+                        Console.WriteLine($"[+] Nueva conexion WebSocket (Total: {_connections.Count})");
 
                         _ = Task.Run(async () => await HandleWebSocketConnection(connection));
                     }
@@ -101,7 +99,7 @@ namespace BiometricMiddleware
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error en servidor: {ex.Message}");
+                Console.WriteLine($"[ERROR] Error en servidor: {ex.Message}");
             }
         }
 
@@ -113,7 +111,7 @@ namespace BiometricMiddleware
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error en conexión: {ex.Message}");
+                Console.WriteLine($"[ERROR] Error en conexion: {ex.Message}");
             }
             finally
             {
@@ -121,7 +119,7 @@ namespace BiometricMiddleware
                 {
                     _connections.Remove(connection);
                 }
-                Console.WriteLine($"🔌❌ Conexión cerrada (Total: {_connections.Count})");
+                Console.WriteLine($"[-] Conexion cerrada (Total: {_connections.Count})");
             }
         }
     }
@@ -166,7 +164,7 @@ namespace BiometricMiddleware
             {
                 var request = JsonConvert.DeserializeObject<WebSocketRequest>(message);
 
-                Console.WriteLine($"📨 Comando recibido: {request.Command}");
+                Console.WriteLine($"[CMD] Comando recibido: {request.Command}");
 
                 switch (request.Command)
                 {
@@ -261,7 +259,7 @@ namespace BiometricMiddleware
             // Log para debug
             if (!string.IsNullOrEmpty(templateBase64))
             {
-                Console.WriteLine($"📤 Enviando template Base64 ({templateBase64.Length} chars) al cliente React");
+                Console.WriteLine($"[SEND] Enviando template Base64 ({templateBase64.Length} chars) al cliente React");
             }
 
             await SendMessage(response);

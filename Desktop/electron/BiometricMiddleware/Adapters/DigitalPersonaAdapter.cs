@@ -55,15 +55,15 @@ namespace BiometricMiddleware.Adapters
         {
             try
             {
-                Console.WriteLine("🔧 [DigitalPersona] Inicializando...");
+                Console.WriteLine("[INIT] [DigitalPersona] Inicializando...");
 
                 // Detectar lectores
                 var readers = new DPFP.Capture.ReadersCollection();
-                Console.WriteLine($"📊 [DigitalPersona] Lectores encontrados: {readers.Count}");
+                Console.WriteLine($"[INFO] [DigitalPersona] Lectores encontrados: {readers.Count}");
 
                 if (readers.Count == 0)
                 {
-                    Console.WriteLine("⚠️ [DigitalPersona] No se encontraron lectores");
+                    Console.WriteLine("[WARN] [DigitalPersona] No se encontraron lectores");
                     IsConnected = false;
                     return false;
                 }
@@ -73,8 +73,8 @@ namespace BiometricMiddleware.Adapters
                 DeviceModel = reader.ProductName;
                 SerialNumber = reader.SerialNumber;
 
-                Console.WriteLine($"   ✅ Modelo: {DeviceModel}");
-                Console.WriteLine($"   ✅ S/N: {SerialNumber}");
+                Console.WriteLine($"   [OK] Modelo: {DeviceModel}");
+                Console.WriteLine($"   [OK] S/N: {SerialNumber}");
 
                 // Inicializar componentes
                 _capture = new DPFP.Capture.Capture(DPFP.Capture.Priority.High);
@@ -86,12 +86,12 @@ namespace BiometricMiddleware.Adapters
                 IsConnected = true;
                 await NotifyStatus("ready", "Lector DigitalPersona listo");
 
-                Console.WriteLine("✅ [DigitalPersona] Inicialización exitosa\n");
+                Console.WriteLine("[OK] [DigitalPersona] Inicialización exitosa\n");
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ [DigitalPersona] Error inicializando: {ex.Message}");
+                Console.WriteLine($"[ERROR] [DigitalPersona] Error inicializando: {ex.Message}");
                 IsConnected = false;
                 return false;
             }
@@ -108,11 +108,11 @@ namespace BiometricMiddleware.Adapters
                 _capture?.Dispose();
                 _enrollment?.Clear();
                 IsConnected = false;
-                Console.WriteLine("👋 [DigitalPersona] Recursos liberados");
+                Console.WriteLine("[INFO] [DigitalPersona] Recursos liberados");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"⚠️ [DigitalPersona] Error en Dispose: {ex.Message}");
+                Console.WriteLine($"[WARN] [DigitalPersona] Error en Dispose: {ex.Message}");
             }
         }
 
@@ -134,14 +134,14 @@ namespace BiometricMiddleware.Adapters
                 _enrollment.Clear();
 
                 await NotifyStatus("enrolling", $"Iniciando registro para: {userId}");
-                Console.WriteLine($"👤 [DigitalPersona] Enrollment iniciado: {userId}");
+                Console.WriteLine($"[USER] [DigitalPersona] Enrollment iniciado: {userId}");
 
                 _capture.StartCapture();
                 await NotifyEnrollProgress(0, REQUIRED_SAMPLES);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ [DigitalPersona] Error en StartEnrollment: {ex.Message}");
+                Console.WriteLine($"[ERROR] [DigitalPersona] Error en StartEnrollment: {ex.Message}");
                 await NotifyStatus("error", ex.Message);
                 _currentOperation = OperationType.None;
                 throw;
@@ -156,7 +156,7 @@ namespace BiometricMiddleware.Adapters
             StopCapture();
             _enrollment.Clear();
             _currentUserId = null;
-            Console.WriteLine("ℹ️ [DigitalPersona] Enrollment cancelado");
+            Console.WriteLine("[INFO] [DigitalPersona] Enrollment cancelado");
         }
 
         /// <summary>
@@ -184,13 +184,13 @@ namespace BiometricMiddleware.Adapters
                 _verificationTemplate = template;
 
                 await NotifyStatus("verifying", $"Verificando identidad de: {userId}");
-                Console.WriteLine($"🔍 [DigitalPersona] Verificación iniciada: {userId}");
+                Console.WriteLine($"[SCAN] [DigitalPersona] Verificación iniciada: {userId}");
 
                 _capture.StartCapture();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ [DigitalPersona] Error en StartVerification: {ex.Message}");
+                Console.WriteLine($"[ERROR] [DigitalPersona] Error en StartVerification: {ex.Message}");
                 await NotifyStatus("error", ex.Message);
                 _currentOperation = OperationType.None;
                 throw;
@@ -215,13 +215,13 @@ namespace BiometricMiddleware.Adapters
                 _currentUserId = null;
 
                 await NotifyStatus("identifying", $"Identificando entre {templates.Count} usuarios...");
-                Console.WriteLine($"🔎 [DigitalPersona] Identificación iniciada ({templates.Count} templates)");
+                Console.WriteLine($"[SCAN] [DigitalPersona] Identificación iniciada ({templates.Count} templates)");
 
                 _capture.StartCapture();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ [DigitalPersona] Error en StartIdentification: {ex.Message}");
+                Console.WriteLine($"[ERROR] [DigitalPersona] Error en StartIdentification: {ex.Message}");
                 await NotifyStatus("error", ex.Message);
                 _currentOperation = OperationType.None;
                 throw;
@@ -240,11 +240,11 @@ namespace BiometricMiddleware.Adapters
                 _currentUserId = null;
                 _verificationTemplate = null;
                 _identificationTemplates = null;
-                Console.WriteLine("ℹ️ [DigitalPersona] Captura detenida");
+                Console.WriteLine("[INFO] [DigitalPersona] Captura detenida");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"⚠️ [DigitalPersona] Error en StopCapture: {ex.Message}");
+                Console.WriteLine($"[WARN] [DigitalPersona] Error en StopCapture: {ex.Message}");
             }
         }
 
@@ -289,7 +289,7 @@ namespace BiometricMiddleware.Adapters
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"⚠️ [DigitalPersona] Error obteniendo info: {ex.Message}");
+                Console.WriteLine($"[WARN] [DigitalPersona] Error obteniendo info: {ex.Message}");
             }
 
             return list;
@@ -303,7 +303,7 @@ namespace BiometricMiddleware.Adapters
             {
                 try
                 {
-                    Console.WriteLine($"✅ [DigitalPersona] Muestra capturada ({Sample.Bytes.Length} bytes)");
+                    Console.WriteLine($"[OK] [DigitalPersona] Muestra capturada ({Sample.Bytes.Length} bytes)");
 
                     var purpose = _currentOperation == OperationType.Enrollment
                         ? DPFP.Processing.DataPurpose.Enrollment
@@ -334,7 +334,7 @@ namespace BiometricMiddleware.Adapters
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"❌ [DigitalPersona] Error procesando: {ex.Message}");
+                    Console.WriteLine($"[ERROR] [DigitalPersona] Error procesando: {ex.Message}");
                     await NotifyStatus("error", $"Error: {ex.Message}");
                     _currentOperation = OperationType.None;
                 }
@@ -343,31 +343,31 @@ namespace BiometricMiddleware.Adapters
 
         public void OnFingerTouch(object Capture, string ReaderSerialNumber)
         {
-            Console.WriteLine("👆 [DigitalPersona] Dedo detectado");
+            Console.WriteLine("[FINGER] [DigitalPersona] Dedo detectado");
             OnFingerDetected?.Invoke("Dedo detectado");
         }
 
         public void OnFingerGone(object Capture, string ReaderSerialNumber)
         {
-            Console.WriteLine("👋 [DigitalPersona] Dedo removido");
+            Console.WriteLine("[INFO] [DigitalPersona] Dedo removido");
             OnFingerRemoved?.Invoke();
         }
 
         public void OnReaderConnect(object Capture, string ReaderSerialNumber)
         {
-            Console.WriteLine($"🔌 [DigitalPersona] Lector conectado: {ReaderSerialNumber}");
+            Console.WriteLine($"[CONN] [DigitalPersona] Lector conectado: {ReaderSerialNumber}");
             IsConnected = true;
         }
 
         public void OnReaderDisconnect(object Capture, string ReaderSerialNumber)
         {
-            Console.WriteLine($"🔌❌ [DigitalPersona] Lector desconectado: {ReaderSerialNumber}");
+            Console.WriteLine($"[CONN][ERROR] [DigitalPersona] Lector desconectado: {ReaderSerialNumber}");
             IsConnected = false;
         }
 
         public void OnSampleQuality(object Capture, string ReaderSerialNumber, CaptureFeedback CaptureFeedback)
         {
-            Console.WriteLine($"⭐ [DigitalPersona] Calidad: {CaptureFeedback}");
+            Console.WriteLine($"[INFO] [DigitalPersona] Calidad: {CaptureFeedback}");
         }
 
         // ===== MÉTODOS PRIVADOS =====
@@ -381,7 +381,7 @@ namespace BiometricMiddleware.Adapters
                 int collected = REQUIRED_SAMPLES - (int)_enrollment.FeaturesNeeded;
                 await NotifyEnrollProgress(collected, REQUIRED_SAMPLES);
 
-                Console.WriteLine($"   📊 [DigitalPersona] Progreso: {collected}/{REQUIRED_SAMPLES}");
+                Console.WriteLine($"   [INFO] [DigitalPersona] Progreso: {collected}/{REQUIRED_SAMPLES}");
 
                 if (_enrollment.TemplateStatus == DPFP.Processing.Enrollment.Status.Ready)
                 {
@@ -399,7 +399,7 @@ namespace BiometricMiddleware.Adapters
                         Message = "Enrollment completado exitosamente"
                     };
 
-                    Console.WriteLine($"✅ [DigitalPersona] Enrollment completado: {_currentUserId}");
+                    Console.WriteLine($"[OK] [DigitalPersona] Enrollment completado: {_currentUserId}");
                     await NotifyCaptureComplete(result);
 
                     StopCapture();
@@ -421,7 +421,7 @@ namespace BiometricMiddleware.Adapters
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ [DigitalPersona] Error en ProcessEnrollment: {ex.Message}");
+                Console.WriteLine($"[ERROR] [DigitalPersona] Error en ProcessEnrollment: {ex.Message}");
                 throw;
             }
         }
@@ -437,7 +437,7 @@ namespace BiometricMiddleware.Adapters
                 _verification.Verify(features, dpTemplate, ref result);
 
                 int score = (int)(result.FARAchieved * 100);
-                Console.WriteLine($"   📊 [DigitalPersona] Verificación - FAR: {result.FARAchieved}, Verificado: {result.Verified}");
+                Console.WriteLine($"   [INFO] [DigitalPersona] Verificación - FAR: {result.FARAchieved}, Verificado: {result.Verified}");
 
                 var captureResult = new CaptureResult
                 {
@@ -452,7 +452,7 @@ namespace BiometricMiddleware.Adapters
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ [DigitalPersona] Error en ProcessVerification: {ex.Message}");
+                Console.WriteLine($"[ERROR] [DigitalPersona] Error en ProcessVerification: {ex.Message}");
                 throw;
             }
         }
@@ -464,7 +464,7 @@ namespace BiometricMiddleware.Adapters
                 string identifiedUser = null;
                 int bestScore = 0;
 
-                Console.WriteLine($"🔎 [DigitalPersona] Buscando en {_identificationTemplates.Count} usuarios...");
+                Console.WriteLine($"[SCAN] [DigitalPersona] Buscando en {_identificationTemplates.Count} usuarios...");
 
                 foreach (var kvp in _identificationTemplates)
                 {
@@ -479,7 +479,7 @@ namespace BiometricMiddleware.Adapters
                         if (result.Verified)
                         {
                             int score = (int)(result.FARAchieved * 100);
-                            Console.WriteLine($"   ✅ Match con {kvp.Key}: {score}%");
+                            Console.WriteLine($"   [OK] Match con {kvp.Key}: {score}%");
 
                             if (score > bestScore)
                             {
@@ -490,7 +490,7 @@ namespace BiometricMiddleware.Adapters
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"   ⚠️ Error verificando {kvp.Key}: {ex.Message}");
+                        Console.WriteLine($"   [WARN] Error verificando {kvp.Key}: {ex.Message}");
                     }
                 }
 
@@ -507,7 +507,7 @@ namespace BiometricMiddleware.Adapters
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ [DigitalPersona] Error en ProcessIdentification: {ex.Message}");
+                Console.WriteLine($"[ERROR] [DigitalPersona] Error en ProcessIdentification: {ex.Message}");
                 throw;
             }
         }
@@ -524,18 +524,18 @@ namespace BiometricMiddleware.Adapters
 
                 if (feedback == DPFP.Capture.CaptureFeedback.Good)
                 {
-                    Console.WriteLine($"   ✅ Features extraídos correctamente");
+                    Console.WriteLine($"   [OK] Features extraídos correctamente");
                     return features;
                 }
                 else
                 {
-                    Console.WriteLine($"   ⚠️ Calidad: {feedback}");
+                    Console.WriteLine($"   [WARN] Calidad: {feedback}");
                     return null;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error extrayendo features: {ex.Message}");
+                Console.WriteLine($"[ERROR] Error extrayendo features: {ex.Message}");
                 return null;
             }
         }
@@ -558,13 +558,13 @@ namespace BiometricMiddleware.Adapters
                 Console.WriteLine(FormatByteaForDisplay(byteaString, 80));
                 Console.WriteLine("─────────────────────────────────────────────────────────────\n");
 
-                Console.WriteLine("💾 Ejemplo INSERT:");
+                Console.WriteLine("[SAVE] Ejemplo INSERT:");
                 Console.WriteLine($"INSERT INTO fingerprints (user_id, template_data)");
                 Console.WriteLine($"VALUES ('{_currentUserId}', '{byteaString.Substring(0, Math.Min(100, byteaString.Length))}...');\n");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error mostrando BYTEA: {ex.Message}");
+                Console.WriteLine($"[ERROR] Error mostrando BYTEA: {ex.Message}");
             }
         }
 

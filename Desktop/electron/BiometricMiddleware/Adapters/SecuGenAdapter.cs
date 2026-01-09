@@ -25,7 +25,7 @@ namespace BiometricMiddleware.Adapters
 
         public async Task<bool> Initialize()
         {
-            Console.WriteLine("⚠️ [SecuGen] Adaptador no implementado aún");
+            Console.WriteLine("[WARN] [SecuGen] Adaptador no implementado aún");
             Console.WriteLine("   Para implementar:");
             Console.WriteLine("   1. Instalar SecuGen SDK");
             Console.WriteLine("   2. Agregar referencias DLL");

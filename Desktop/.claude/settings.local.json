@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(ren:*)",
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Bash(powershell:*)"
     ],
     "deny": [],
     "ask": []

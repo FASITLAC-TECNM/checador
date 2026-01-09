@@ -32,7 +32,7 @@ export const guardarHuellaDesdeMiddleware = async (req, res) => {
 
     // Verificar que el empleado existe
     const empleadoCheck = await pool.query(
-      "SELECT id, id_usuario FROM Empleado WHERE id = $1",
+      "SELECT id, id_usuario FROM empleado WHERE id = $1",
       [id_empleado]
     );
 
@@ -50,7 +50,7 @@ export const guardarHuellaDesdeMiddleware = async (req, res) => {
 
     // Verificar si ya existe una credencial
     const credencialCheck = await pool.query(
-      "SELECT id FROM Credenciales WHERE id_empleado = $1",
+      "SELECT id FROM credenciales WHERE id_empleado = $1",
       [id_empleado]
     );
 
@@ -61,7 +61,7 @@ export const guardarHuellaDesdeMiddleware = async (req, res) => {
       console.log(" Actualizando huella existente...");
       result = await pool.query(
         `
-                UPDATE Credenciales
+                UPDATE credenciales
                 SET dactilar = $1,
                     fecha_actualizacion = CURRENT_TIMESTAMP
                 WHERE id_empleado = $2
@@ -74,7 +74,7 @@ export const guardarHuellaDesdeMiddleware = async (req, res) => {
       console.log(" Creando nueva credencial...");
       result = await pool.query(
         `
-                INSERT INTO Credenciales (
+                INSERT INTO credenciales (
                     id_empleado,
                     dactilar,
                     fecha_creacion,
@@ -135,7 +135,7 @@ export const verificarHuellaDesdeMiddleware = async (req, res) => {
 
     // Obtener huella registrada
     const result = await pool.query(
-      "SELECT dactilar FROM Credenciales WHERE id_empleado = $1",
+      "SELECT dactilar FROM credenciales WHERE id_empleado = $1",
       [id_empleado]
     );
 
@@ -194,7 +194,7 @@ export const obtenerHuellaParaVerificacion = async (req, res) => {
     console.log(` Obteniendo template para empleado ${id_empleado}`);
 
     const result = await pool.query(
-      "SELECT dactilar FROM Credenciales WHERE id_empleado = $1",
+      "SELECT dactilar FROM credenciales WHERE id_empleado = $1",
       [id_empleado]
     );
 
@@ -244,9 +244,9 @@ export const listarUsuariosConHuella = async (req, res) => {
                 u.foto,
                 LENGTH(c.dactilar) as template_size,
                 c.fecha_actualizacion
-            FROM Credenciales c
-            INNER JOIN Empleado e ON c.id_empleado = e.id
-            INNER JOIN Usuario u ON e.id_usuario = u.id
+            FROM credenciales c
+            INNER JOIN empleado e ON c.id_empleado = e.id
+            INNER JOIN usuario u ON e.id_usuario = u.id
             WHERE c.dactilar IS NOT NULL
             ORDER BY u.nombre ASC
         `);
@@ -290,7 +290,7 @@ export const verificarEstadoHuella = async (req, res) => {
                 (dactilar IS NOT NULL) as tiene_huella,
                 LENGTH(dactilar) as template_size,
                 fecha_actualizacion
-            FROM Credenciales
+            FROM credenciales
             WHERE id_empleado = $1
         `,
       [id_empleado]
@@ -331,7 +331,7 @@ export const eliminarHuellaEmpleado = async (req, res) => {
 
     const result = await pool.query(
       `
-            UPDATE Credenciales
+            UPDATE credenciales
             SET dactilar = NULL,
                 fecha_actualizacion = CURRENT_TIMESTAMP
             WHERE id_empleado = $1
@@ -400,9 +400,9 @@ export const identificarHuella = async (req, res) => {
                 e.id_usuario,
                 u.nombre,
                 u.correo
-            FROM Credenciales c
-            INNER JOIN Empleado e ON c.id_empleado = e.id
-            INNER JOIN Usuario u ON e.id_usuario = u.id
+            FROM credenciales c
+            INNER JOIN empleado e ON c.id_empleado = e.id
+            INNER JOIN usuario u ON e.id_usuario = u.id
             WHERE c.dactilar IS NOT NULL
         `);
 
@@ -532,8 +532,8 @@ export const obtenerEstadisticasBiometricas = async (req, res) => {
                 AVG(LENGTH(c.dactilar)) as tamano_promedio,
                 MIN(LENGTH(c.dactilar)) as tamano_minimo,
                 MAX(LENGTH(c.dactilar)) as tamano_maximo
-            FROM Empleado e
-            LEFT JOIN Credenciales c ON e.id = c.id_empleado
+            FROM empleado e
+            LEFT JOIN credenciales c ON e.id = c.id_empleado
         `);
 
     const stats = result.rows[0];

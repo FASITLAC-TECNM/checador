@@ -32,11 +32,11 @@ function startBiometricMiddleware() {
 
     // Verificar que el archivo existe
     if (!fs.existsSync(middlewarePath)) {
-      console.error('❌ BiometricMiddleware.exe no encontrado en:', middlewarePath);
+      console.error('[ERROR] BiometricMiddleware.exe no encontrado en:', middlewarePath);
       return;
     }
 
-    console.log('🔐 Iniciando BiometricMiddleware desde:', middlewarePath);
+    console.log('[BIOMETRIC] Iniciando BiometricMiddleware desde:', middlewarePath);
 
     if (process.platform === 'win32') {
       // En Windows, ejecutar directamente con spawn
@@ -63,19 +63,19 @@ function startBiometricMiddleware() {
 
       // Manejar cierre del proceso
       biometricProcess.on('close', (code) => {
-        console.log(`🔐 BiometricMiddleware cerrado con código: ${code}`);
+        console.log(`[BIOMETRIC] BiometricMiddleware cerrado con código: ${code}`);
         biometricProcess = null;
       });
 
       // Manejar errores al iniciar
       biometricProcess.on('error', (error) => {
-        console.error('❌ Error al iniciar BiometricMiddleware:', error);
+        console.error('[ERROR] Error al iniciar BiometricMiddleware:', error);
         console.error('💡 SOLUCIÓN: Ejecuta Electron como administrador');
         console.error('   Cierra esta ventana y haz clic derecho en VS Code > Ejecutar como administrador');
         biometricProcess = null;
       });
 
-      console.log('✅ BiometricMiddleware iniciado correctamente (PID:', biometricProcess.pid, ')');
+      console.log('[OK] BiometricMiddleware iniciado correctamente (PID:', biometricProcess.pid, ')');
     } else {
       // En otros sistemas operativos, ejecutar normalmente
       biometricProcess = spawn(middlewarePath, [], {
@@ -94,20 +94,20 @@ function startBiometricMiddleware() {
 
       // Manejar cierre del proceso
       biometricProcess.on('close', (code) => {
-        console.log(`🔐 BiometricMiddleware cerrado con código: ${code}`);
+        console.log(`[BIOMETRIC] BiometricMiddleware cerrado con código: ${code}`);
         biometricProcess = null;
       });
 
       // Manejar errores al iniciar
       biometricProcess.on('error', (error) => {
-        console.error('❌ Error al iniciar BiometricMiddleware:', error);
+        console.error('[ERROR] Error al iniciar BiometricMiddleware:', error);
         biometricProcess = null;
       });
 
-      console.log('✅ BiometricMiddleware iniciado correctamente (PID:', biometricProcess.pid, ')');
+      console.log('[OK] BiometricMiddleware iniciado correctamente (PID:', biometricProcess.pid, ')');
     }
   } catch (error) {
-    console.error('❌ Error al iniciar BiometricMiddleware:', error);
+    console.error('[ERROR] Error al iniciar BiometricMiddleware:', error);
   }
 }
 
@@ -116,13 +116,13 @@ function startBiometricMiddleware() {
  */
 function stopBiometricMiddleware() {
   if (biometricProcess) {
-    console.log('🔐 Deteniendo BiometricMiddleware...');
+    console.log('[BIOMETRIC] Deteniendo BiometricMiddleware...');
     try {
       biometricProcess.kill();
       biometricProcess = null;
-      console.log('✅ BiometricMiddleware detenido');
+      console.log('[OK] BiometricMiddleware detenido');
     } catch (error) {
-      console.error('❌ Error al detener BiometricMiddleware:', error);
+      console.error('[ERROR] Error al detener BiometricMiddleware:', error);
     }
   }
 }
@@ -162,7 +162,7 @@ function createWindow() {
     console.log('📂 App path:', app.getAppPath());
 
     mainWindow.loadFile(indexPath).catch(err => {
-      console.error('❌ Error cargando index.html:', err);
+      console.error('[ERROR] Error cargando index.html:', err);
     });
 
     // Abrir DevTools en producción para ver errores
@@ -171,13 +171,13 @@ function createWindow() {
 
   // Mostrar cuando esté listo para evitar flash
   mainWindow.once('ready-to-show', () => {
-    console.log('✅ Ventana lista para mostrar');
+    console.log('[OK] Ventana lista para mostrar');
     mainWindow.show();
   });
 
   // Log de errores de carga
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-    console.error('❌ Error de carga:', errorCode, errorDescription);
+    console.error('[ERROR] Error de carga:', errorCode, errorDescription);
   });
 
   // Emitted when the window is closed.
@@ -469,7 +469,7 @@ function getBackendUrl() {
       backendUrl = config.backendUrl || backendUrl;
     }
   } catch (error) {
-    console.error('⚠️ Error leyendo configuración, usando URL por defecto:', error);
+    console.error('[WARN] Error leyendo configuración, usando URL por defecto:', error);
   }
 
   // Eliminar barra final si existe
@@ -482,7 +482,7 @@ function getBackendUrl() {
  */
 ipcMain.handle('verificar-usuario', async (event, descriptor) => {
   try {
-    console.log('🔍 Verificando usuario por reconocimiento facial...');
+    console.log('[SCAN] Verificando usuario por reconocimiento facial...');
 
     const backendUrl = getBackendUrl();
     console.log(`📡 Conectando a: ${backendUrl}`);
@@ -500,7 +500,7 @@ ipcMain.handle('verificar-usuario', async (event, descriptor) => {
     }
 
     const credenciales = await response.json();
-    console.log(`📊 Comparando con ${credenciales.length} descriptores en la BD...`);
+    console.log(`[INFO] Comparando con ${credenciales.length} descriptores en la BD...`);
 
     if (credenciales.length === 0) {
       return {
@@ -514,12 +514,12 @@ ipcMain.handle('verificar-usuario', async (event, descriptor) => {
     let bestMatch = null;
     let bestDistance = Infinity;
 
-    console.log(`🔍 Descriptor recibido: ${descriptor.length} dimensiones`);
-    console.log(`📊 Primeros 5 valores: [${descriptor.slice(0, 5).map(v => v.toFixed(4)).join(', ')}...]`);
+    console.log(`[SCAN] Descriptor recibido: ${descriptor.length} dimensiones`);
+    console.log(`[INFO] Primeros 5 valores: [${descriptor.slice(0, 5).map(v => v.toFixed(4)).join(', ')}...]`);
 
     for (const credencial of credenciales) {
       if (!credencial.descriptor_facial) {
-        console.log(`⚠️ Empleado ${credencial.empleado_id} (${credencial.nombre}) no tiene descriptor facial`);
+        console.log(`[WARN] Empleado ${credencial.empleado_id} (${credencial.nombre}) no tiene descriptor facial`);
         continue;
       }
 
@@ -527,13 +527,13 @@ ipcMain.handle('verificar-usuario', async (event, descriptor) => {
       const storedDescriptor = credencial.descriptor_facial;
 
       if (storedDescriptor.length !== descriptor.length) {
-        console.log(`⚠️ Empleado ${credencial.empleado_id}: descriptor con longitud incorrecta (${storedDescriptor.length} vs ${descriptor.length})`);
+        console.log(`[WARN] Empleado ${credencial.empleado_id}: descriptor con longitud incorrecta (${storedDescriptor.length} vs ${descriptor.length})`);
         continue;
       }
 
       const distance = calculateEuclideanDistance(descriptor, storedDescriptor);
 
-      console.log(`📏 Empleado ${credencial.empleado_id} (${credencial.nombre}): distancia = ${distance.toFixed(4)} ${distance < THRESHOLD ? '✅ MATCH!' : '❌'}`);
+      console.log(`[MEASURE] Empleado ${credencial.empleado_id} (${credencial.nombre}): distancia = ${distance.toFixed(4)} ${distance < THRESHOLD ? '[OK] MATCH!' : '[ERROR]'}`);
 
       if (distance < bestDistance) {
         bestDistance = distance;
@@ -542,12 +542,12 @@ ipcMain.handle('verificar-usuario', async (event, descriptor) => {
     }
 
     console.log(`\n🎯 Mejor coincidencia: ${bestMatch ? `${bestMatch.empleado_id} (${bestMatch.nombre})` : 'Ninguna'}`);
-    console.log(`📏 Mejor distancia: ${bestDistance.toFixed(4)}`);
-    console.log(`🎚️ Umbral: ${THRESHOLD}`);
-    console.log(`✅ ¿Acepta?: ${bestMatch && bestDistance < THRESHOLD ? 'SÍ' : 'NO'}\n`);
+    console.log(`[MEASURE] Mejor distancia: ${bestDistance.toFixed(4)}`);
+    console.log(`[THRESHOLD] Umbral: ${THRESHOLD}`);
+    console.log(`[OK] ¿Acepta?: ${bestMatch && bestDistance < THRESHOLD ? 'SÍ' : 'NO'}\n`);
 
     if (bestMatch && bestDistance < THRESHOLD) {
-      console.log(`✅ Usuario identificado: ${bestMatch.empleado_id} (${bestMatch.nombre}) - distancia: ${bestDistance.toFixed(4)}`);
+      console.log(`[OK] Usuario identificado: ${bestMatch.empleado_id} (${bestMatch.nombre}) - distancia: ${bestDistance.toFixed(4)}`);
 
       // Obtener información del empleado
       const empleadoResponse = await fetch(`${backendUrl}/api/empleados/${bestMatch.empleado_id}`, {
@@ -570,7 +570,7 @@ ipcMain.handle('verificar-usuario', async (event, descriptor) => {
         message: 'Usuario identificado correctamente',
       };
     } else {
-      console.log(`❌ No se encontró coincidencia suficiente`);
+      console.log(`[ERROR] No se encontró coincidencia suficiente`);
       console.log(`   Mejor candidato: ${bestMatch ? `${bestMatch.nombre} (distancia: ${bestDistance.toFixed(4)})` : 'Ninguno'}`);
       console.log(`   Se requiere distancia < ${THRESHOLD}\n`);
       return {
@@ -584,7 +584,7 @@ ipcMain.handle('verificar-usuario', async (event, descriptor) => {
       };
     }
   } catch (error) {
-    console.error('❌ Error verificando usuario:', error);
+    console.error('[ERROR] Error verificando usuario:', error);
     return {
       success: false,
       message: `Error de conexión: ${error.message}`,
@@ -619,12 +619,12 @@ ipcMain.handle('registrar-asistencia-facial', async (event, empleadoId) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Respuesta del servidor:', errorText);
+      console.error('[ERROR] Respuesta del servidor:', errorText);
       throw new Error(`Error HTTP ${response.status}: ${errorText}`);
     }
 
     const result = await response.json();
-    console.log('✅ Asistencia registrada exitosamente');
+    console.log('[OK] Asistencia registrada exitosamente');
 
     return {
       success: true,
@@ -632,7 +632,7 @@ ipcMain.handle('registrar-asistencia-facial', async (event, empleadoId) => {
       data: result,
     };
   } catch (error) {
-    console.error('❌ Error registrando asistencia:', error);
+    console.error('[ERROR] Error registrando asistencia:', error);
     return {
       success: false,
       message: `Error de conexión: ${error.message}`,
@@ -647,19 +647,19 @@ ipcMain.handle('registrar-asistencia-facial', async (event, empleadoId) => {
  */
 ipcMain.handle('read-fingerprint-template', async (event, userId) => {
   try {
-    console.log(`📄 Leyendo template de huella para userId: ${userId}`);
+    console.log(`[FILE] Leyendo template de huella para userId: ${userId}`);
 
     const templatePath = path.join(__dirname, 'BiometricMiddleware', 'bin', 'FingerprintTemplates', `${userId}.fpt`);
 
     // Verificar que el archivo existe
     if (!fs.existsSync(templatePath)) {
-      console.error(`❌ Archivo de template no encontrado: ${templatePath}`);
+      console.error(`[ERROR] Archivo de template no encontrado: ${templatePath}`);
       return null;
     }
 
     // Leer el archivo como Buffer
     const buffer = fs.readFileSync(templatePath);
-    console.log(`✅ Template leído: ${buffer.length} bytes`);
+    console.log(`[OK] Template leído: ${buffer.length} bytes`);
 
     // Convertir a Base64
     const base64 = buffer.toString('base64');
@@ -667,7 +667,7 @@ ipcMain.handle('read-fingerprint-template', async (event, userId) => {
 
     return base64;
   } catch (error) {
-    console.error('❌ Error leyendo template de huella:', error);
+    console.error('[ERROR] Error leyendo template de huella:', error);
     return null;
   }
 });
@@ -678,7 +678,7 @@ ipcMain.handle('read-fingerprint-template', async (event, userId) => {
  */
 ipcMain.handle('registrar-descriptor-facial', async (event, empleadoId, descriptor) => {
   try {
-    console.log(`💾 Registrando descriptor facial para empleado ${empleadoId}...`);
+    console.log(`[SAVE] Registrando descriptor facial para empleado ${empleadoId}...`);
 
     const backendUrl = getBackendUrl();
     console.log(`📡 Conectando a: ${backendUrl}`);
@@ -688,7 +688,7 @@ ipcMain.handle('registrar-descriptor-facial', async (event, empleadoId, descript
       throw new Error('Descriptor facial inválido');
     }
 
-    console.log(`📊 Descriptor: ${descriptor.length} dimensiones`);
+    console.log(`[INFO] Descriptor: ${descriptor.length} dimensiones`);
 
     // Enviar el descriptor al backend para guardarlo
     const response = await fetch(`${backendUrl}/api/credenciales/descriptor-facial/${empleadoId}`, {
@@ -702,12 +702,12 @@ ipcMain.handle('registrar-descriptor-facial', async (event, empleadoId, descript
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Respuesta del servidor:', errorText);
+      console.error('[ERROR] Respuesta del servidor:', errorText);
       throw new Error(`Error HTTP ${response.status}: ${errorText}`);
     }
 
     const result = await response.json();
-    console.log('✅ Descriptor facial guardado exitosamente');
+    console.log('[OK] Descriptor facial guardado exitosamente');
 
     return {
       success: true,
@@ -715,7 +715,7 @@ ipcMain.handle('registrar-descriptor-facial', async (event, empleadoId, descript
       data: result,
     };
   } catch (error) {
-    console.error('❌ Error registrando descriptor facial:', error);
+    console.error('[ERROR] Error registrando descriptor facial:', error);
     return {
       success: false,
       message: `Error de conexión: ${error.message}`,

@@ -168,12 +168,18 @@ const ReportPanel = ({ isOpen, onClose, contexto = 'global', idContexto = null }
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-end">
-            {/* Panel lateral deslizable */}
-            <div className="bg-white h-full w-full md:w-[600px] shadow-2xl overflow-y-auto">
+        <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 animate-fadeIn"
+            onClick={onClose}
+        >
+            {/* Modal centrado */}
+            <div
+                className="bg-white w-full max-w-2xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-scaleIn"
+                onClick={(e) => e.stopPropagation()}
+            >
 
                 {/* Header */}
-                <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 z-10">
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <FileText size={28} />
@@ -191,8 +197,8 @@ const ReportPanel = ({ isOpen, onClose, contexto = 'global', idContexto = null }
                     </div>
                 </div>
 
-                {/* Contenido */}
-                <div className="p-6 space-y-6">
+                {/* Contenido con scroll */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6">
 
                     {/* Mensaje de error */}
                     {error && (

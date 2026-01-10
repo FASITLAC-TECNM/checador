@@ -36,7 +36,8 @@
       "Bash(do echo \"Procesando $file\")",
       "Bash(done)",
       "Bash(grep:*)",
-      "Bash(ping:*)"
+      "Bash(ping:*)",
+      "Bash(python -m json.tool:*)"
     ],
     "deny": [],
     "ask": []

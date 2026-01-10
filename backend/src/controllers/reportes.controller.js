@@ -83,8 +83,8 @@ export const obtenerReporteEmpleado = async (req, res) => {
                     COUNT(*) FILTER (WHERE ra.dispositivo = 'Huella') AS registros_huella,
                     COUNT(*) FILTER (WHERE ra.dispositivo = 'Facial') AS registros_facial,
                     COUNT(*) FILTER (WHERE ra.tipo = 'PIN') AS registros_pin,
-                    MIN(CASE WHEN ra.tipo = 'Entrada' THEN ra.created_at END) AS primera_entrada,
-                    MAX(CASE WHEN ra.tipo = 'Salida' THEN ra.created_at END) AS ultima_salida
+                    MIN(CASE WHEN ra.tipo = 'Entrada' THEN ra.fecha END) AS primera_entrada,
+                    MAX(CASE WHEN ra.tipo = 'Salida' THEN ra.fecha END) AS ultima_salida
                 FROM registro_asistencia ra
                 WHERE ra.id_empleado = $1
                     AND ra.fecha >= $2::date
@@ -109,8 +109,8 @@ export const obtenerReporteEmpleado = async (req, res) => {
                     SELECT
                         DATE(ra.fecha) AS fecha,
                         EXTRACT(EPOCH FROM (
-                            MAX(CASE WHEN ra.tipo = 'Salida' THEN ra.created_at END) -
-                            MIN(CASE WHEN ra.tipo = 'Entrada' THEN ra.created_at END)
+                            MAX(CASE WHEN ra.tipo = 'Salida' THEN ra.fecha END)::timestamp -
+                            MIN(CASE WHEN ra.tipo = 'Entrada' THEN ra.fecha END)::timestamp
                         ))/3600 AS horas_trabajadas
                     FROM registro_asistencia ra
                     WHERE ra.id_empleado = $1
@@ -118,8 +118,8 @@ export const obtenerReporteEmpleado = async (req, res) => {
                         AND ra.fecha <= $3::date
                     GROUP BY DATE(ra.fecha)
                     HAVING
-                        MIN(CASE WHEN ra.tipo = 'Entrada' THEN ra.created_at END) IS NOT NULL
-                        AND MAX(CASE WHEN ra.tipo = 'Salida' THEN ra.created_at END) IS NOT NULL
+                        MIN(CASE WHEN ra.tipo = 'Entrada' THEN ra.fecha END) IS NOT NULL
+                        AND MAX(CASE WHEN ra.tipo = 'Salida' THEN ra.fecha END) IS NOT NULL
                 ) AS horas_por_dia
             `, [id_empleado, fecha_inicio, fecha_fin]);
 
@@ -130,14 +130,13 @@ export const obtenerReporteEmpleado = async (req, res) => {
         const registrosResult = await pool.query(`
             SELECT
                 DATE(ra.fecha) AS fecha,
-                MIN(CASE WHEN ra.tipo = 'Entrada' THEN ra.created_at END) AS hora_entrada,
-                MAX(CASE WHEN ra.tipo = 'Salida' THEN ra.created_at END) AS hora_salida,
+                MIN(CASE WHEN ra.tipo = 'Entrada' THEN ra.fecha END) AS hora_entrada,
+                MAX(CASE WHEN ra.tipo = 'Salida' THEN ra.fecha END) AS hora_salida,
                 MIN(CASE WHEN ra.tipo = 'Entrada' THEN ra.dispositivo END) AS metodo_entrada,
                 MAX(CASE WHEN ra.tipo = 'Salida' THEN ra.dispositivo END) AS metodo_salida,
-                MAX(ra.observaciones) AS observaciones,
                 EXTRACT(EPOCH FROM (
-                    MAX(CASE WHEN ra.tipo = 'Salida' THEN ra.created_at END) -
-                    MIN(CASE WHEN ra.tipo = 'Entrada' THEN ra.created_at END)
+                    MAX(CASE WHEN ra.tipo = 'Salida' THEN ra.fecha END)::timestamp -
+                    MIN(CASE WHEN ra.tipo = 'Entrada' THEN ra.fecha END)::timestamp
                 ))/3600 AS horas_trabajadas
             FROM registro_asistencia ra
             WHERE ra.id_empleado = $1
@@ -153,8 +152,7 @@ export const obtenerReporteEmpleado = async (req, res) => {
             hora_salida: row.hora_salida ? new Date(row.hora_salida).toTimeString().split(' ')[0] : null,
             horas_trabajadas: row.horas_trabajadas ? parseFloat(row.horas_trabajadas) : null,
             metodo_entrada: row.metodo_entrada,
-            metodo_salida: row.metodo_salida,
-            observaciones: row.observaciones
+            metodo_salida: row.metodo_salida
         }));
 
         // 6. Incidencias (si se solicita)
@@ -201,7 +199,9 @@ export const obtenerReporteEmpleado = async (req, res) => {
 
     } catch (err) {
         console.error('Error obteniendo reporte de empleado:', err);
-        res.status(500).json({ error: 'Error al obtener reporte de empleado' });
+        console.error('Stack trace:', err.stack);
+        console.error('SQL Error Detail:', err.detail);
+        res.status(500).json({ error: 'Error al obtener reporte de empleado', details: err.message });
     }
 };
 
@@ -257,13 +257,7 @@ export const obtenerReporteDepartamento = async (req, res) => {
                 COUNT(DISTINCT DATE(ra.fecha)) AS dias_asistidos,
                 COUNT(*) FILTER (WHERE ra.tipo = 'Entrada') AS total_entradas,
                 COUNT(*) FILTER (WHERE ra.tipo = 'Salida') AS total_salidas,
-                COUNT(DISTINCT i.id) AS total_incidencias,
-                AVG(
-                    EXTRACT(EPOCH FROM (
-                        MAX(CASE WHEN ra.tipo = 'Salida' THEN ra.created_at END) -
-                        MIN(CASE WHEN ra.tipo = 'Entrada' THEN ra.created_at END)
-                    ))/3600
-                ) AS promedio_horas_diarias
+                COUNT(DISTINCT i.id) AS total_incidencias
             FROM empleado_departamento ed
             INNER JOIN empleado e ON ed.id_empleado = e.id
             INNER JOIN usuario u ON e.id_usuario = u.id
@@ -275,8 +269,8 @@ export const obtenerReporteDepartamento = async (req, res) => {
                 AND i.fecha_fin >= $2::date
             WHERE ed.id_departamento = $1
                 AND ed.estado = true
-                AND (e.estado = true OR $4::boolean = true)
-            GROUP BY e.id, u.nombre, e.rfc, e.nss, e.estado
+                AND (u.activo = 'Activo' OR $4::boolean = true)
+            GROUP BY e.id, u.nombre, e.rfc, e.nss, e.estado, u.activo
             ORDER BY u.nombre
         `, [id_departamento, fecha_inicio, fecha_fin, incluir_empleados_inactivos === 'true']);
 
@@ -372,7 +366,7 @@ export const obtenerReporteDepartamento = async (req, res) => {
 
     } catch (err) {
         console.error('Error obteniendo reporte de departamento:', err);
-        res.status(500).json({ error: 'Error al obtener reporte de departamento' });
+        res.status(500).json({ error: 'Error al obtener reporte de departamento', details: err.message });
     }
 };
 
@@ -392,15 +386,13 @@ export const obtenerReporteGlobal = async (req, res) => {
         // 1. Estadísticas generales del sistema
         const statsResult = await pool.query(`
             SELECT
-                COUNT(DISTINCT e.id) AS total_empleados,
-                COUNT(DISTINCT e.id) FILTER (WHERE e.estado = true) AS empleados_activos,
-                COUNT(DISTINCT d.id_departamento) AS total_departamentos,
+                (SELECT COUNT(DISTINCT id) FROM empleado) AS total_empleados,
+                (SELECT COUNT(DISTINCT e.id) FROM empleado e INNER JOIN usuario u ON e.id_usuario = u.id WHERE u.activo = 'Activo') AS empleados_activos,
+                (SELECT COUNT(DISTINCT id_departamento) FROM departamento) AS total_departamentos,
                 (SELECT COUNT(*) FROM registro_asistencia
                  WHERE fecha >= $1::date AND fecha <= $2::date) AS total_registros_periodo,
                 (SELECT COUNT(DISTINCT DATE(fecha)) FROM registro_asistencia
                  WHERE fecha >= $1::date AND fecha <= $2::date) AS dias_con_registros
-            FROM empleado e
-            CROSS JOIN departamento d
         `, [fecha_inicio, fecha_fin]);
 
         const estadisticas_generales = {
@@ -430,7 +422,8 @@ export const obtenerReporteGlobal = async (req, res) => {
                 ) AS porcentaje_asistencia
             FROM departamento d
             LEFT JOIN empleado_departamento ed ON d.id_departamento = ed.id_departamento AND ed.estado = true
-            LEFT JOIN empleado e ON ed.id_empleado = e.id AND e.estado = true
+            LEFT JOIN empleado e ON ed.id_empleado = e.id
+            LEFT JOIN usuario u ON e.id_usuario = u.id AND u.activo = 'Activo'
             LEFT JOIN registro_asistencia ra ON e.id = ra.id_empleado
                 AND ra.fecha >= $1::date
                 AND ra.fecha <= $2::date
@@ -491,33 +484,27 @@ export const obtenerReporteGlobal = async (req, res) => {
             total_registros: parseInt(dia.total_registros) || 0
         }));
 
-        // 5. Top 10 empleados más puntuales
+        // 5. Top 10 empleados más puntuales (por días asistidos)
         const topEmpleadosResult = await pool.query(`
             SELECT
                 u.nombre,
                 e.rfc,
                 COUNT(DISTINCT DATE(ra.fecha)) AS dias_asistidos,
-                AVG(
-                    EXTRACT(EPOCH FROM (
-                        MIN(CASE WHEN ra.tipo = 'Entrada' THEN ra.created_at END) -
-                        DATE(ra.fecha)
-                    ))/60
-                ) AS promedio_minutos_diferencia
+                COUNT(*) FILTER (WHERE ra.tipo = 'Entrada') AS total_entradas
             FROM empleado e
             INNER JOIN usuario u ON e.id_usuario = u.id
             INNER JOIN registro_asistencia ra ON e.id = ra.id_empleado
             WHERE ra.fecha >= $1::date AND ra.fecha <= $2::date
-                AND ra.tipo = 'Entrada'
             GROUP BY u.nombre, e.rfc
             HAVING COUNT(DISTINCT DATE(ra.fecha)) >= 5
-            ORDER BY promedio_minutos_diferencia
+            ORDER BY dias_asistidos DESC
             LIMIT 10
         `, [fecha_inicio, fecha_fin]);
 
         const top_empleados_puntuales = topEmpleadosResult.rows.map(emp => ({
             ...emp,
             dias_asistidos: parseInt(emp.dias_asistidos) || 0,
-            promedio_minutos_diferencia: parseFloat(emp.promedio_minutos_diferencia) || 0
+            total_entradas: parseInt(emp.total_entradas) || 0
         }));
 
         // 6. Incidencias globales por tipo
@@ -563,7 +550,7 @@ export const obtenerReporteGlobal = async (req, res) => {
 
     } catch (err) {
         console.error('Error obteniendo reporte global:', err);
-        res.status(500).json({ error: 'Error al obtener reporte global' });
+        res.status(500).json({ error: 'Error al obtener reporte global', details: err.message });
     }
 };
 

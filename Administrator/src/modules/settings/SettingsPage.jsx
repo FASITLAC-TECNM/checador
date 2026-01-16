@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Palette, Clock, Globe, Shield, Key, Save, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Settings as SettingsIcon, Palette, Clock, Globe, Shield, Key, Save, AlertTriangle, CheckCircle, Building2, Image } from 'lucide-react';
 import { getConfiguracion, updateConfiguracion, toggleMantenimiento } from '../../services/settingsService';
 import { useNotification } from '../../contexts/NotificationContext';
 
@@ -8,6 +8,8 @@ const SettingsPage = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [config, setConfig] = useState({
+        nombre_empresa: 'FASITLAC',
+        logo_empresa: null,
         paleta_colores: {
             primary: '#4F46E5',
             secondary: '#10B981',
@@ -62,6 +64,40 @@ const SettingsPage = () => {
         setConfig(prev => ({
             ...prev,
             credenciales_orden: newOrden
+        }));
+    };
+
+    const handleLogoChange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Validar tipo de archivo
+        if (!file.type.startsWith('image/')) {
+            notification.error('Archivo inválido', 'Por favor selecciona una imagen válida');
+            return;
+        }
+
+        // Validar tamaño (máximo 2MB)
+        if (file.size > 2 * 1024 * 1024) {
+            notification.error('Archivo muy grande', 'El logo debe ser menor a 2MB');
+            return;
+        }
+
+        // Convertir a base64
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            setConfig(prev => ({
+                ...prev,
+                logo_empresa: event.target.result
+            }));
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleRemoveLogo = () => {
+        setConfig(prev => ({
+            ...prev,
+            logo_empresa: null
         }));
     };
 
@@ -150,6 +186,80 @@ const SettingsPage = () => {
             </div>
 
             <div className="max-w-6xl mx-auto px-6 py-8">
+                {/* Información de la Empresa */}
+                <div className="mb-8 bg-white rounded-2xl shadow-sm border border-[#E5E5E7] overflow-hidden">
+                    <div className="bg-gradient-to-r from-indigo-50 to-blue-50 px-6 py-4 border-b border-[#E5E5E7]">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-indigo-600 rounded-lg">
+                                <Building2 className="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-semibold text-[#1D1D1F]">Información de la Empresa</h2>
+                                <p className="text-sm text-[#6E6E73]">Configura el nombre y logo de la organización</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-medium text-[#6E6E73] mb-2">Nombre de la Empresa</label>
+                                <input
+                                    type="text"
+                                    value={config.nombre_empresa || ''}
+                                    onChange={(e) => handleInputChange('nombre_empresa', e.target.value)}
+                                    placeholder="Ej: FASITLAC - TECNM"
+                                    className="w-full px-4 py-3 border-2 border-[#D2D2D7] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-400"
+                                />
+                                <p className="text-xs text-[#6E6E73] mt-2">
+                                    Este nombre se mostrará en el panel de administración
+                                </p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-[#6E6E73] mb-2">Logo de la Empresa</label>
+                                <div className="space-y-3">
+                                    {config.logo_empresa ? (
+                                        <div className="relative w-32 h-32 border-2 border-[#D2D2D7] rounded-lg overflow-hidden">
+                                            <img
+                                                src={config.logo_empresa}
+                                                alt="Logo empresa"
+                                                className="w-full h-full object-contain"
+                                            />
+                                            <button
+                                                onClick={handleRemoveLogo}
+                                                className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition-colors"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="w-32 h-32 border-2 border-dashed border-[#D2D2D7] rounded-lg flex items-center justify-center">
+                                            <Image className="w-12 h-12 text-[#86868B]" />
+                                        </div>
+                                    )}
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleLogoChange}
+                                        id="logo-upload"
+                                        className="hidden"
+                                    />
+                                    <label
+                                        htmlFor="logo-upload"
+                                        className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer transition-colors text-sm font-medium"
+                                    >
+                                        {config.logo_empresa ? 'Cambiar Logo' : 'Subir Logo'}
+                                    </label>
+                                    <p className="text-xs text-[#6E6E73]">
+                                        PNG, JPG o GIF (máximo 2MB)
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Modo Mantenimiento */}
                 <div className="mb-8 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl p-6">
                     <div className="flex items-center justify-between">

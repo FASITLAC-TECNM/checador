@@ -33,6 +33,8 @@ export const getConfiguracion = async (req, res) => {
 export const updateConfiguracion = async (req, res) => {
     try {
         const {
+            nombre_empresa,
+            logo_empresa,
             paleta_colores,
             mantenimiento,
             formato_fecha,
@@ -63,17 +65,21 @@ export const updateConfiguracion = async (req, res) => {
 
         const result = await pool.query(
             `UPDATE configuracion
-            SET paleta_colores = COALESCE($1, paleta_colores),
-                mantenimiento = COALESCE($2, mantenimiento),
-                formato_fecha = COALESCE($3, formato_fecha),
-                formato_hora = COALESCE($4, formato_hora),
-                zona_horaria = COALESCE($5, zona_horaria),
-                idioma = COALESCE($6, idioma),
-                max_intentos = COALESCE($7, max_intentos),
-                credenciales_orden = COALESCE($8, credenciales_orden)
-            WHERE id = $9
+            SET nombre_empresa = COALESCE($1, nombre_empresa),
+                logo_empresa = COALESCE($2, logo_empresa),
+                paleta_colores = COALESCE($3, paleta_colores),
+                mantenimiento = COALESCE($4, mantenimiento),
+                formato_fecha = COALESCE($5, formato_fecha),
+                formato_hora = COALESCE($6, formato_hora),
+                zona_horaria = COALESCE($7, zona_horaria),
+                idioma = COALESCE($8, idioma),
+                max_intentos = COALESCE($9, max_intentos),
+                credenciales_orden = COALESCE($10, credenciales_orden)
+            WHERE id = $11
             RETURNING *`,
             [
+                nombre_empresa,
+                logo_empresa,
                 paletaJson,
                 mantenimiento,
                 formato_fecha,

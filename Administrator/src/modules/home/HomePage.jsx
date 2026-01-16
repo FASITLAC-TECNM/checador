@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import logo from './logo.png';
 import { getEstadisticasDashboard } from '../../services/dashboardService';
+import { getConfiguracion } from '../../services/settingsService';
 import { BarChart3, Calendar, FileText, Users, Building2, Clock, AlertCircle, Monitor, Activity, TrendingUp } from "lucide-react";
 import HorarioSemanal from '../../components/HorarioSemanal';
 import { obtenerHorariosConEmpleados } from '../../services/horariosService';
@@ -13,16 +14,21 @@ function HomePage() {
     const [horarios, setHorarios] = useState([]);
     const [showHorarioModal, setShowHorarioModal] = useState(false);
     const [showReportPanel, setShowReportPanel] = useState(false);
+    const [config, setConfig] = useState({ nombre_empresa: 'FASITLAC', logo_empresa: null });
 
     useEffect(() => {
         const cargar = async () => {
             try {
                 setLoading(true);
-                const data = await getEstadisticasDashboard();
-                setStats(data);
+                const [statsData, configData] = await Promise.all([
+                    getEstadisticasDashboard(),
+                    getConfiguracion()
+                ]);
+                setStats(statsData);
+                setConfig(configData);
                 setLastUpdate(new Date());
             } catch (error) {
-                console.error("Error cargando estadísticas:", error);
+                console.error("Error cargando datos:", error);
             } finally {
                 setLoading(false);
             }
@@ -71,10 +77,14 @@ function HomePage() {
                 <header className="bg-white rounded-3xl shadow-sm border border-slate-200 p-8">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-6">
-                            <img src={logo} className="h-20 w-20 opacity-90" alt="Logo FASITLAC" />
+                            <img
+                                src={config.logo_empresa || logo}
+                                className="h-20 w-20 opacity-90 object-contain"
+                                alt={`Logo ${config.nombre_empresa || 'FASITLAC'}`}
+                            />
                             <div>
                                 <h1 className="text-4xl font-semibold text-slate-900 tracking-tight">
-                                    FASITLAC
+                                    {config.nombre_empresa || 'FASITLAC'}
                                 </h1>
                                 <p className="text-sm text-slate-500 mt-1">
                                     Sistema de Control de Asistencias - TECNM

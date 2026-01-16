@@ -3,7 +3,6 @@ import {
   Fingerprint,
   Wifi,
   WifiOff,
-  Square,
   X,
   AlertCircle,
   UserPlus,
@@ -47,7 +46,13 @@ export default function BiometricReader({
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const reconnectAttemptsRef = useRef(0);
+  const inputIdEmpleadoRef = useRef(""); // Ref para mantener el valor actualizado
   const MAX_RECONNECT_ATTEMPTS = 5;
+
+  // Mantener la ref sincronizada con el state
+  useEffect(() => {
+    inputIdEmpleadoRef.current = inputIdEmpleado;
+  }, [inputIdEmpleado]);
 
   // DEBUG: Función para obtener la huella del empleado ID 1
   const debugObtenerHuellaEmpleado1 = async () => {
@@ -216,6 +221,13 @@ export default function BiometricReader({
         if (data.result === "enrollmentSuccess") {
           addMessage(`✅ Captura completada: ${data.userId}`, "success");
 
+          // DEBUG: Ver qué recibimos del middleware
+          console.log("📨 DEBUG captureComplete recibido:");
+          console.log("   - data.userId:", data.userId);
+          console.log("   - data.templateBase64 existe:", !!data.templateBase64);
+          console.log("   - data.templateBase64 length:", data.templateBase64?.length);
+          console.log("   - data completo:", data);
+
           // Guardar datos del enrollment para enviarlos al backend
           setLastEnrollmentData({
             userId: data.userId,
@@ -267,15 +279,31 @@ export default function BiometricReader({
   const guardarHuellaEnBaseDatos = async (userId, templateBase64) => {
     if (mode === "enroll") {
       // Modo Registro: Guardar huella para un empleado específico
-      const empleadoId = idEmpleado || parseInt(inputIdEmpleado);
+      // Usar la ref para obtener el valor actualizado (evita problemas de closure)
+      const inputValue = inputIdEmpleadoRef.current;
+      const empleadoId = idEmpleado || parseInt(inputValue);
 
-      if (!empleadoId) {
+      // DEBUG: Log de valores
+      console.log("🔍 DEBUG guardarHuellaEnBaseDatos:");
+      console.log("   - idEmpleado (prop):", idEmpleado);
+      console.log("   - inputIdEmpleadoRef.current:", inputValue);
+      console.log("   - empleadoId (calculado):", empleadoId);
+      console.log("   - templateBase64 existe:", !!templateBase64);
+      console.log("   - templateBase64 length:", templateBase64?.length);
+
+      if (!empleadoId || isNaN(empleadoId)) {
         addMessage("❌ No hay ID de empleado configurado", "error");
+        console.error("❌ Error: ID de empleado inválido", {
+          empleadoId,
+          idEmpleado,
+          inputValue
+        });
         return;
       }
 
       if (!templateBase64) {
         addMessage("❌ No se recibió el template de la huella", "error");
+        console.error("❌ Error: Template no recibido");
         return;
       }
 
@@ -303,6 +331,7 @@ export default function BiometricReader({
           }
 
           setInputIdEmpleado("");
+          inputIdEmpleadoRef.current = ""; // Limpiar también la ref
         } else {
           addMessage(`❌ Error DB: ${result.error}`, "error");
         }
@@ -467,378 +496,262 @@ export default function BiometricReader({
   const isProcessing = currentOperation !== "None" || savingToDatabase;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-2xl w-full shadow-2xl">
         <div className="p-6">
           {/* Header */}
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-6 border border-white/20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="bg-blue-500 p-3 rounded-xl">
-                  <Fingerprint className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-white">
-                    {mode === "auth"
-                      ? "Autenticación por Huella"
-                      : "Registro de Huella Digital"}
-                  </h1>
-                  <p className="text-blue-200 text-sm">
-                    BiometricMiddleware v1.0 + PostgreSQL
-                  </p>
-                </div>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="bg-green-500 p-2 rounded-lg">
+                <Fingerprint className="w-6 h-6 text-white" />
               </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {mode === "auth"
+                    ? "Autenticación por Huella"
+                    : "Registrar Huella Digital"}
+                </h1>
+              </div>
+            </div>
 
-              <div className="flex items-center gap-4">
-                <div
-                  className={`flex items-center gap-2 ${
-                    connected ? "text-green-500" : "text-gray-400"
-                  }`}
-                >
-                  {connected ? (
-                    <Wifi className="w-5 h-5" />
-                  ) : (
-                    <WifiOff className="w-5 h-5" />
-                  )}
-                  <span className="text-sm font-medium capitalize text-white">
-                    {connected ? "Conectado" : "Desconectado"}
-                  </span>
-                </div>
-
-                {connected && (
-                  <button
-                    onClick={refreshStatus}
-                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
-                  >
-                    Refrescar
-                  </button>
-                )}
-
+            <div className="flex items-center gap-3">
+              <div
+                className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${
+                  connected
+                    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                    : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                }`}
+              >
                 {connected ? (
-                  <button
-                    onClick={disconnect}
-                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
-                  >
-                    Desconectar
-                  </button>
+                  <Wifi className="w-3 h-3" />
                 ) : (
-                  <button
-                    onClick={connectToServer}
-                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
-                  >
-                    Conectar
-                  </button>
+                  <WifiOff className="w-3 h-3" />
                 )}
-
-                {onClose && (
-                  <button
-                    onClick={onClose}
-                    className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                )}
+                <span>{connected ? "Conectado" : "Desconectado"}</span>
               </div>
+
+              {onClose && (
+                <button
+                  onClick={onClose}
+                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
             </div>
           </div>
 
-          {/* ID Empleado Info / Auth Mode Info */}
-          {mode === "enroll" && (
-            <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-4 mb-6">
+          {/* Content */}
+          <div className="space-y-4">
+            {/* Reader Status */}
+            <div
+              className={`flex items-center justify-between p-4 rounded-xl ${
+                readerConnected
+                  ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+                  : "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
+              }`}
+            >
               <div className="flex items-center gap-3">
-                <Database className="w-6 h-6 text-green-400" />
-                <div className="flex-1">
-                  {idEmpleado ? (
-                    <>
-                      <p className="text-white font-medium">
-                        Empleado ID: <strong>{idEmpleado}</strong>
-                      </p>
-                      <p className="text-green-200 text-sm">
-                        La huella se guardará automáticamente en PostgreSQL
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-white font-medium">
-                        Registro Manual de Huella
-                      </p>
-                      <p className="text-green-200 text-sm">
-                        Ingrese el ID del empleado para registrar su huella
-                      </p>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {mode === "auth" && (
-            <div className="bg-blue-500/20 border border-blue-500/50 rounded-xl p-4 mb-6">
-              <div className="flex items-center gap-3">
-                <LogIn className="w-6 h-6 text-blue-400" />
+                <Fingerprint
+                  className={`w-6 h-6 ${
+                    readerConnected
+                      ? "text-green-600 dark:text-green-400"
+                      : "text-yellow-600 dark:text-yellow-400"
+                  }`}
+                />
                 <div>
-                  <p className="text-white font-medium">Modo Autenticación</p>
-                  <p className="text-blue-200 text-sm">
-                    Coloca tu dedo en el lector para iniciar sesión
+                  <p className="font-medium text-gray-900 dark:text-white">
+                    Lector de Huellas
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {readerConnected ? "Conectado y listo" : "Desconectado"}
                   </p>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Status Banner */}
-          {statusMessage && (
-            <div className="bg-blue-500/20 border border-blue-500/50 rounded-xl p-4 mb-6">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="w-6 h-6 text-blue-400" />
-                <p className="text-white font-medium">{statusMessage}</p>
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Control Panel */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Reader Status */}
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-                <h2 className="text-xl font-semibold text-white mb-4">
-                  📡 Estado del Sistema
-                </h2>
-
-                <div className="flex justify-center">
-                  <div
-                    className={`rounded-lg p-6 w-full max-w-md ${
-                      readerConnected
-                        ? "bg-green-500/20 border border-green-500/50"
-                        : "bg-yellow-500/20 border border-yellow-500/50"
-                    }`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <Fingerprint
-                        className={`w-8 h-8 ${
-                          readerConnected ? "text-green-400" : "text-yellow-400"
-                        }`}
-                      />
-                      <div>
-                        <p className="text-white font-medium text-lg">Lector</p>
-                        <p className="text-white/70 text-sm">
-                          {readerConnected ? "Conectado" : "Desconectado"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Enrollment / Auth Section */}
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-                <h2 className="text-xl font-semibold text-white mb-4">
-                  {mode === "auth"
-                    ? "🔐 Iniciar Sesión con Huella"
-                    : "📝 Registrar Nueva Huella"}
-                </h2>
-
-                <div className="space-y-4">
-                  {mode === "enroll" && (
-                    <>
-                      {/* Campo para ID de Empleado (solo si no viene como prop) */}
-                      {!idEmpleado && (
-                        <div>
-                          <label className="block text-white text-sm font-medium mb-2">
-                            ID del Empleado: <span className="text-red-400">*</span>
-                          </label>
-                          <input
-                            type="number"
-                            value={inputIdEmpleado}
-                            onChange={(e) => setInputIdEmpleado(e.target.value)}
-                            placeholder="Ej: 1, 2, 3..."
-                            disabled={isProcessing}
-                            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-blue-500 disabled:opacity-50"
-                            autoFocus
-                          />
-                          <p className="text-white/60 text-xs mt-1">
-                            La huella se guardará directamente para este empleado
-                          </p>
-                        </div>
-                      )}
-
-                      {idEmpleado && (
-                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 text-center">
-                          <p className="text-white font-medium">
-                            Registrando huella para empleado: <strong className="text-blue-400">#{idEmpleado}</strong>
-                          </p>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {mode === "auth" && (
-                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 text-center">
-                      <Fingerprint className="w-16 h-16 mx-auto mb-3 text-blue-400" />
-                      <p className="text-white font-medium mb-1">
-                        Coloca tu dedo en el lector
-                      </p>
-                      <p className="text-white/70 text-sm">
-                        El sistema te identificará automáticamente
-                      </p>
-                    </div>
-                  )}
-
-                  {currentOperation === "Enrollment" && (
-                    <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-4">
-                      <div className="mb-3">
-                        <div className="flex justify-between text-white text-sm mb-2">
-                          <span>
-                            Muestras: {enrollProgress.collected}/
-                            {enrollProgress.required}
-                          </span>
-                          <span>{enrollProgress.percentage}%</span>
-                        </div>
-                        <div className="w-full bg-white/20 rounded-full h-3 overflow-hidden">
-                          <div
-                            className="bg-blue-500 h-full transition-all duration-300 rounded-full"
-                            style={{ width: `${enrollProgress.percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                      <p className="text-white text-center">
-                        <span className="inline-block mr-2">👆</span>
-                        Coloque el mismo dedo en el lector
-                      </p>
-                    </div>
-                  )}
-
-                  {savingToDatabase && (
-                    <div className="bg-purple-500/20 border border-purple-500/50 rounded-lg p-4">
-                      <p className="text-white text-center">
-                        <Database className="w-5 h-5 inline mr-2" />
-                        Guardando en PostgreSQL...
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="flex gap-3">
-                    {currentOperation !== "Enrollment" ? (
-                      <button
-                        onClick={startEnrollment}
-                        disabled={
-                          !connected ||
-                          !readerConnected ||
-                          isProcessing ||
-                          (mode === "enroll" && !idEmpleado && !inputIdEmpleado)
-                        }
-                        className="flex-1 px-4 py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                      >
-                        {mode === "auth" ? (
-                          <>
-                            <LogIn className="w-5 h-5" />
-                            Iniciar Autenticación
-                          </>
-                        ) : (
-                          <>
-                            <UserPlus className="w-5 h-5" />
-                            Iniciar Registro
-                          </>
-                        )}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={cancelEnrollment}
-                        className="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                      >
-                        <Square className="w-5 h-5" />
-                        Cancelar
-                      </button>
-                    )}
-                  </div>
-
-                  {mode === "enroll" && !idEmpleado && !inputIdEmpleado && (
-                    <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-lg p-3">
-                      <p className="text-yellow-200 text-sm text-center">
-                        ⚠️ Ingrese el ID del empleado para continuar
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Last Enrollment Result */}
-              {lastEnrollmentData && (
-                <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-                  <h2 className="text-xl font-semibold text-white mb-4">
-                    ✅ Resultado del Registro
-                  </h2>
-                  <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-4">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle className="w-8 h-8 text-green-400" />
-                      <div className="flex-1">
-                        <p className="text-green-300 font-bold text-lg">
-                          Huella Registrada
-                        </p>
-                        <p className="text-white text-sm mt-1">
-                          User ID: <strong>{lastEnrollmentData.userId}</strong>
-                        </p>
-                        <p className="text-white/70 text-sm">
-                          Empleado ID: <strong>{idEmpleado || inputIdEmpleado}</strong>
-                        </p>
-                        <p className="text-white/70 text-xs mt-1">
-                          {new Date(
-                            lastEnrollmentData.timestamp
-                          ).toLocaleString("es-MX")}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              {!connected && (
+                <button
+                  onClick={connectToServer}
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Conectar
+                </button>
               )}
             </div>
 
-            {/* Logs Panel */}
-            <div className="lg:col-span-1">
-              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 h-full">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-white">
-                    📋 Eventos
-                  </h2>
+            {/* Enrollment / Auth Section */}
+            <div className="bg-gray-50 dark:bg-slate-700/50 rounded-xl p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                {mode === "auth"
+                  ? "Iniciar Sesión con Huella"
+                  : "Registrar Nueva Huella"}
+              </h2>
+
+              <div className="space-y-4">
+                {mode === "enroll" && (
+                  <>
+                    {!idEmpleado && (
+                      <div>
+                        <label className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
+                          ID del Empleado <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          value={inputIdEmpleado}
+                          onChange={(e) => setInputIdEmpleado(e.target.value)}
+                          placeholder="Ej: 1, 2, 3..."
+                          disabled={isProcessing}
+                          className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+                          autoFocus
+                        />
+                        <p className="text-gray-500 dark:text-gray-400 text-xs mt-1">
+                          La huella se guardará para este empleado
+                        </p>
+                      </div>
+                    )}
+
+                    {idEmpleado && (
+                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-center">
+                        <p className="text-gray-900 dark:text-white font-medium">
+                          Empleado: <strong className="text-blue-600 dark:text-blue-400">#{idEmpleado}</strong>
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {mode === "auth" && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 text-center">
+                    <Fingerprint className="w-16 h-16 mx-auto mb-3 text-blue-600 dark:text-blue-400" />
+                    <p className="text-gray-900 dark:text-white font-medium mb-1">
+                      Coloca tu dedo en el lector
+                    </p>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">
+                      El sistema te identificará automáticamente
+                    </p>
+                  </div>
+                )}
+
+                {currentOperation === "Enrollment" && (
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <div className="mb-3">
+                      <div className="flex justify-between text-gray-900 dark:text-white text-sm mb-2">
+                        <span>
+                          Muestras: {enrollProgress.collected}/{enrollProgress.required}
+                        </span>
+                        <span>{enrollProgress.percentage}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-blue-600 h-full transition-all duration-300 rounded-full"
+                          style={{ width: `${enrollProgress.percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-gray-700 dark:text-gray-300 text-center text-sm">
+                      Coloque el mismo dedo en el lector
+                    </p>
+                  </div>
+                )}
+
+                {savingToDatabase && (
+                  <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3">
+                    <p className="text-gray-900 dark:text-white text-center text-sm flex items-center justify-center gap-2">
+                      <Database className="w-4 h-4" />
+                      Guardando en base de datos...
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  {currentOperation !== "Enrollment" ? (
+                    <button
+                      onClick={startEnrollment}
+                      disabled={
+                        !connected ||
+                        !readerConnected ||
+                        isProcessing ||
+                        (mode === "enroll" && !idEmpleado && !inputIdEmpleado)
+                      }
+                      className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                    >
+                      {mode === "auth" ? (
+                        <>
+                          <LogIn className="w-5 h-5" />
+                          Iniciar Autenticación
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="w-5 h-5" />
+                          Iniciar Registro
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={cancelEnrollment}
+                      className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                    >
+                      <X className="w-5 h-5" />
+                      Cancelar
+                    </button>
+                  )}
+                </div>
+
+                {mode === "enroll" && !idEmpleado && !inputIdEmpleado && (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                    <p className="text-yellow-800 dark:text-yellow-200 text-sm text-center">
+                      Ingrese el ID del empleado para continuar
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Last Enrollment Result */}
+            {lastEnrollmentData && (
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+                  <div className="flex-1">
+                    <p className="text-green-800 dark:text-green-300 font-bold">
+                      Huella Registrada Exitosamente
+                    </p>
+                    <p className="text-gray-700 dark:text-gray-300 text-sm mt-1">
+                      Empleado ID: <strong>{idEmpleado || inputIdEmpleado}</strong>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Logs Panel - Minimalist */}
+            {messages.length > 0 && (
+              <div className="bg-gray-50 dark:bg-slate-700/50 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                    Registro de Eventos
+                  </h3>
                   <button
                     onClick={() => setMessages([])}
-                    className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors"
+                    className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
                   >
                     Limpiar
                   </button>
                 </div>
 
-                <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                  {messages.length === 0 ? (
-                    <p className="text-gray-400 text-sm text-center py-8">
-                      Sin eventos registrados
-                    </p>
-                  ) : (
-                    messages.map((log) => (
-                      <div
-                        key={log.id}
-                        className={`p-3 rounded-lg text-sm ${
-                          log.type === "success"
-                            ? "bg-green-500/20 border border-green-500/50"
-                            : log.type === "error"
-                            ? "bg-red-500/20 border border-red-500/50"
-                            : log.type === "warning"
-                            ? "bg-yellow-500/20 border border-yellow-500/50"
-                            : "bg-blue-500/20 border border-blue-500/50"
-                        }`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <span className="text-gray-300 text-xs">
-                            {log.timestamp}
-                          </span>
-                        </div>
-                        <p className="text-white mt-1">{log.message}</p>
-                      </div>
-                    ))
-                  )}
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {messages.slice(0, 5).map((log) => (
+                    <div
+                      key={log.id}
+                      className="text-xs text-gray-600 dark:text-gray-400 flex gap-2"
+                    >
+                      <span className="text-gray-400">{log.timestamp}</span>
+                      <span className="flex-1">{log.message}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

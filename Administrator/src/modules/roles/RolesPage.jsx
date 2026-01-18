@@ -15,7 +15,7 @@ import {
     transformarPermisosParaBackend,
     transformarPermisosParaFrontend
 } from '../../services/rolesService';
-import { useNotification } from '../../contexts/NotificationContext';
+import { useNotification } from '../../context/NotificationContext';
 
 const RolesPage = () => {
     const notification = useNotification();

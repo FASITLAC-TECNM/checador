@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CheckCircle, XCircle, Smartphone, User, Mail, Globe, Calendar } from 'lucide-react';
-import { useNotification } from '../../contexts/NotificationContext';
+import { useNotification } from '../../context/NotificationContext';
 
 const SolicitudMovilCard = ({ solicitud, onAceptar, onRechazar }) => {
     const notification = useNotification();
@@ -120,11 +120,10 @@ const SolicitudMovilCard = ({ solicitud, onAceptar, onRechazar }) => {
 
                     {/* Badge de estado para solicitudes procesadas */}
                     {solicitud.estado !== 'Pendiente' && (
-                        <div className={`px-4 py-2 rounded-lg font-semibold ${
-                            solicitud.estado === 'Aceptado'
+                        <div className={`px-4 py-2 rounded-lg font-semibold ${solicitud.estado === 'Aceptado'
                                 ? 'bg-green-100 text-green-700 border-2 border-green-300'
                                 : 'bg-red-100 text-red-700 border-2 border-red-300'
-                        }`}>
+                            }`}>
                             {solicitud.estado === 'Aceptado' ? '✓ Aceptado' : '✗ Rechazado'}
                         </div>
                     )}

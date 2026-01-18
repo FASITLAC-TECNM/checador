@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { MapPin, Download, Upload, Trash2 } from 'lucide-react';
-import { useNotification } from '../../contexts/NotificationContext';
+import { useNotification } from '../../context/NotificationContext';
 
 const DepartmentMap = ({ zonas, color, onZonasChange, departmentName }) => {
     const notification = useNotification();

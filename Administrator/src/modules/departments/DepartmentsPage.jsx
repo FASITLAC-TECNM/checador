@@ -11,7 +11,7 @@ import {
     actualizarDepartamento,
     eliminarDepartamento
 } from '../../services/departamentosService';
-import { useNotification } from '../../contexts/NotificationContext';
+import { useNotification } from '../../context/NotificationContext';
 
 const DepartmentsPage = () => {
     const notification = useNotification();

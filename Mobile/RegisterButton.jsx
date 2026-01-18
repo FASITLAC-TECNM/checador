@@ -9,8 +9,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { validarUbicacionPermitida, formatearCoordenadas, isPointInPolygon, extraerCoordenadas } from '../Mobile/services/ubicacionService';
-import { getApiEndpoint } from '../Mobile/config/api';
+import { validarUbicacionPermitida, formatearCoordenadas, isPointInPolygon, extraerCoordenadas } from './services/ubicacionService';
+import { getApiEndpoint } from './config/api';
 
 const API_URL = getApiEndpoint('/api');
 
@@ -32,7 +32,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   // ==================== OBTENER ID DEL EMPLEADO ====================
   const getEmpleadoId = () => {
     let empleadoId = null;
-    
+
     if (userData?.empleado?.id) {
       empleadoId = userData.empleado.id;
     } else if (userData?.empleado && typeof userData.empleado === 'number') {
@@ -42,7 +42,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     } else if (userData?.empleado?.id_empleado) {
       empleadoId = userData.empleado.id_empleado;
     }
-    
+
     return empleadoId;
   };
 
@@ -83,9 +83,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     const iniciarRastreoUbicacion = async () => {
       try {
         console.log('📍 Solicitando permisos de ubicación...');
-        
+
         const { status } = await Location.requestForegroundPermissionsAsync();
-        
+
         if (status !== 'granted') {
           console.error('❌ Permiso de ubicación denegado');
           setError('Permiso de ubicación denegado.');
@@ -155,7 +155,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
         let departamentoId = null;
         let departamentoData = null;
-        
+
         if (userData?.departamento?.id) {
           departamentoId = userData.departamento.id;
           departamentoData = userData.departamento;
@@ -176,12 +176,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
         if (departamentoData?.ubicacion) {
           console.log('✅ Usando datos de departamento del login');
-          
+
           const coordenadas = extraerCoordenadas(departamentoData.ubicacion);
-          
+
           if (coordenadas && coordenadas.length >= 3) {
             const dentroDelArea = isPointInPolygon(ubicacionActual, coordenadas);
-            
+
             setDentroDelArea(dentroDelArea);
             setDepartamento({
               ...departamentoData,
@@ -229,7 +229,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       if (estadoBoton !== 'disponible') {
         Alert.alert(
           'No disponible',
-          estadoBoton === 'fuera' 
+          estadoBoton === 'fuera'
             ? 'Debes estar dentro del área permitida para registrar tu asistencia.'
             : 'El registro no está disponible en este momento.',
           [{ text: 'Entendido' }]
@@ -257,7 +257,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             text: 'Confirmar',
             onPress: async () => {
               setRegistrando(true);
-              
+
               try {
                 // Generar placeholder de huella
                 const huellaPlaceholder = 'HUELLA_PLACEHOLDER_' + Date.now();
@@ -392,10 +392,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         <View style={styles.timeContainer}>
           <Text style={styles.timeLabel}>Hora actual</Text>
           <Text style={styles.timeValue}>
-            {new Date().toLocaleTimeString('es-MX', { 
-              hour: '2-digit', 
+            {new Date().toLocaleTimeString('es-MX', {
+              hour: '2-digit',
               minute: '2-digit',
-              hour12: true 
+              hour12: true
             })}
           </Text>
         </View>
@@ -428,10 +428,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             </>
           ) : (
             <>
-              <Ionicons 
-                name={estadoBoton === 'disponible' ? 'finger-print' : 'lock-closed'} 
-                size={20} 
-                color="#fff" 
+              <Ionicons
+                name={estadoBoton === 'disponible' ? 'finger-print' : 'lock-closed'}
+                size={20}
+                color="#fff"
               />
               <Text style={styles.registerButtonText}>
                 {estadoBoton === 'disponible' ? `Registrar ${getTipoRegistro()}` : 'No disponible'}
@@ -444,10 +444,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         {ultimoRegistro && (
           <View style={styles.lastRegisterContainer}>
             <View style={styles.lastRegisterIcon}>
-              <Ionicons 
-                name={ultimoRegistro.tipo === 'Entrada' ? 'log-in' : 'log-out'} 
-                size={12} 
-                color="#9ca3af" 
+              <Ionicons
+                name={ultimoRegistro.tipo === 'Entrada' ? 'log-in' : 'log-out'}
+                size={12}
+                color="#9ca3af"
               />
             </View>
             <Text style={styles.lastRegisterText}>

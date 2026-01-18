@@ -3,7 +3,7 @@ import { ArrowLeft, Save, X, Building2 } from 'lucide-react';
 import { getUsuarios } from '../../services/api';
 import DepartmentMap from './DepartamentMap';
 import JefesSelector from './JefesSelector';
-import { useNotification } from '../../contexts/NotificationContext';
+import { useNotification } from '../../context/NotificationContext';
 
 const DepartmentForm = ({ department, onSave, onCancel }) => {
     const notification = useNotification();

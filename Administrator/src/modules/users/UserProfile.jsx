@@ -10,7 +10,7 @@ import UserDepartmentsModal from './UserDepartmentsModal';
 import HorarioEditor from './HorarioEditor';
 import HorarioSemanal from '../../components/HorarioSemanal';
 import ReportPanel from '../../components/ReportPanel';
-import { useNotification } from '../../contexts/NotificationContext';
+import { useNotification } from '../../context/NotificationContext';
 
 const UserProfileEnhanced2 = ({ user, onEdit, onBack, onUpdate, onEditSchedule, onEditRoles }) => {
     const notification = useNotification();

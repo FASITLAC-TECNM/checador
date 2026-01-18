@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, User, Check, Save, Search } from 'lucide-react';
 import { getUsuarios, obtenerRolesDeUsuario, asignarRolAUsuario, removerRolDeUsuario } from '../../services/api';
-import { useNotification } from '../../contexts/NotificationContext';
+import { useNotification } from '../../context/NotificationContext';
 
 const AssignUsersModal = ({ role, onClose, onUpdate }) => {
     const notification = useNotification();
@@ -178,11 +178,10 @@ const AssignUsersModal = ({ role, onClose, onUpdate }) => {
                                     <button
                                         key={usuario.id}
                                         onClick={() => toggleUsuario(usuario.id)}
-                                        className={`w-full p-3 rounded-lg border-2 transition-all duration-200 text-left ${
-                                            isSelected
+                                        className={`w-full p-3 rounded-lg border-2 transition-all duration-200 text-left ${isSelected
                                                 ? 'border-blue-500 bg-blue-50'
                                                 : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-                                        }`}
+                                            }`}
                                         style={isSelected ? {
                                             borderColor: role.color,
                                             backgroundColor: `${role.color}10`
@@ -191,9 +190,8 @@ const AssignUsersModal = ({ role, onClose, onUpdate }) => {
                                         <div className="flex items-center gap-3">
                                             {/* Avatar */}
                                             <div
-                                                className={`w-10 h-10 rounded-lg flex items-center justify-center font-semibold text-white flex-shrink-0 ${
-                                                    isSelected ? '' : 'bg-gray-400'
-                                                }`}
+                                                className={`w-10 h-10 rounded-lg flex items-center justify-center font-semibold text-white flex-shrink-0 ${isSelected ? '' : 'bg-gray-400'
+                                                    }`}
                                                 style={isSelected ? { backgroundColor: role.color } : {}}
                                             >
                                                 {usuario.foto ? (

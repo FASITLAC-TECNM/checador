@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, Palette, Clock, Globe, Shield, Key, Save, AlertTriangle, CheckCircle, Building2, Image } from 'lucide-react';
 import { getConfiguracion, updateConfiguracion, toggleMantenimiento } from '../../services/settingsService';
-import { useNotification } from '../../contexts/NotificationContext';
+import { useNotification } from '../../context/NotificationContext';
 
 const SettingsPage = () => {
     const notification = useNotification();
@@ -282,14 +282,12 @@ const SettingsPage = () => {
                         </div>
                         <button
                             onClick={handleToggleMantenimiento}
-                            className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${
-                                config.mantenimiento ? 'bg-red-500' : 'bg-green-500'
-                            }`}
+                            className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${config.mantenimiento ? 'bg-red-500' : 'bg-green-500'
+                                }`}
                         >
                             <span
-                                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
-                                    config.mantenimiento ? 'translate-x-9' : 'translate-x-1'
-                                }`}
+                                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${config.mantenimiento ? 'translate-x-9' : 'translate-x-1'
+                                    }`}
                             />
                         </button>
                     </div>

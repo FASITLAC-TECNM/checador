@@ -17,23 +17,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { login } from '../../services/authService';
 
 export const LoginScreen = ({ onLoginSuccess }) => {
-  const [email, setEmail] = useState('');
+  const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [emailError, setEmailError] = useState('');
+  const [usuarioError, setUsuarioError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [generalError, setGeneralError] = useState('');
 
-  const validateEmail = (text) => {
-    setEmail(text);
-    setEmailError('');
+  const handleUsuarioChange = (text) => {
+    setUsuario(text);
+    setUsuarioError('');
     setGeneralError('');
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (text && !emailRegex.test(text)) {
-      setEmailError('Formato de correo inválido');
-    }
   };
 
   const handlePasswordChange = (text) => {
@@ -43,46 +38,46 @@ export const LoginScreen = ({ onLoginSuccess }) => {
   };
 
   const handleLogin = async () => {
-    setEmailError('');
+    setUsuarioError('');
     setPasswordError('');
     setGeneralError('');
 
-    if (!email || !password) {
-      if (!email) setEmailError('El correo es requerido');
+    if (!usuario || !password) {
+      if (!usuario) setUsuarioError('El usuario o correo es requerido');
       if (!password) setPasswordError('La contraseña es requerida');
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setEmailError('Por favor ingresa un correo electrónico válido');
+    if (password.length < 6) {
+      setPasswordError('La contraseña debe tener al menos 6 caracteres');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      const response = await login(email, password);
+      const response = await login(usuario, password);
 
       if (response && response.success && response.usuario) {
         const datosCompletos = {
           id: response.usuario.id,
-          id_empresa: response.usuario.id_empresa,
-          username: response.usuario.username,
-          email: response.usuario.email,
+          usuario: response.usuario.usuario,
+          correo: response.usuario.correo,
           nombre: response.usuario.nombre,
           telefono: response.usuario.telefono,
           foto: response.usuario.foto,
-          activo: response.usuario.activo,
-          conexion: response.usuario.conexion,
-          empleado: response.empleado || null,
-          rol: response.rol || null,
-          permisos: response.permisos || [],
-          departamento: response.departamento || null,
-          token: response.token || null,
-          esEmpleado: response.empleado !== null
+          es_empleado: response.usuario.es_empleado,
+          empleado_id: response.usuario.empleado_id,
+          rfc: response.usuario.rfc,
+          nss: response.usuario.nss,
+          empleadoInfo: response.empleadoInfo || null,
+          roles: response.roles || [],
+          permisos: response.permisos || '0',
+          esAdmin: response.esAdmin || false,
+          token: response.token || null
         };
 
+        console.log('✅ Datos enviados a App:', datosCompletos);
         onLoginSuccess(datosCompletos);
       }
     } catch (error) {
@@ -91,11 +86,9 @@ export const LoginScreen = ({ onLoginSuccess }) => {
       const errorMessage = error?.message || '';
 
       if (errorMessage.includes('Credenciales inválidas')) {
-        setGeneralError('El correo o la contraseña son incorrectos');
-      } else if (errorMessage.includes('Email no encontrado') || errorMessage.includes('usuario no encontrado')) {
-        setEmailError('No existe una cuenta con este correo');
-      } else if (errorMessage.includes('Contraseña incorrecta')) {
-        setPasswordError('La contraseña es incorrecta');
+        setGeneralError('El usuario/correo o la contraseña son incorrectos');
+      } else if (errorMessage.includes('Cuenta')) {
+        setGeneralError(errorMessage);
       } else if (errorMessage.includes('respuesta no válida') || errorMessage.includes('servidor')) {
         setGeneralError('No se pudo conectar con el servidor. Verifica tu conexión.');
       } else {
@@ -140,27 +133,26 @@ export const LoginScreen = ({ onLoginSuccess }) => {
             <View style={styles.formContainer}>
               <Text style={styles.welcomeText}>Iniciar Sesión</Text>
 
-              {/* Email Input */}
+              {/* Usuario Input */}
               <View style={styles.inputWrapper}>
-                <Text style={styles.label}>Correo</Text>
-                <View style={[styles.inputContainer, emailError ? styles.inputError : null]}>
-                  <Ionicons name="mail" size={18} color="#2563eb" style={styles.icon} />
+                <Text style={styles.label}>Usuario o Correo</Text>
+                <View style={[styles.inputContainer, usuarioError ? styles.inputError : null]}>
+                  <Ionicons name="person" size={18} color="#2563eb" style={styles.icon} />
                   <TextInput
                     style={styles.input}
-                    placeholder="correo@ejemplo.com"
+                    placeholder="usuario o correo@ejemplo.com"
                     placeholderTextColor="#94a3b8"
-                    value={email}
-                    onChangeText={validateEmail}
+                    value={usuario}
+                    onChangeText={handleUsuarioChange}
                     autoCapitalize="none"
                     autoCorrect={false}
-                    keyboardType="email-address"
                     editable={!isLoading}
                   />
                 </View>
-                {emailError ? (
+                {usuarioError ? (
                   <View style={styles.errorContainer}>
                     <Ionicons name="alert-circle" size={12} color="#ef4444" />
-                    <Text style={styles.errorText}>{emailError}</Text>
+                    <Text style={styles.errorText}>{usuarioError}</Text>
                   </View>
                 ) : null}
               </View>
@@ -217,11 +209,11 @@ export const LoginScreen = ({ onLoginSuccess }) => {
               <TouchableOpacity
                 style={styles.loginButtonWrapper}
                 onPress={handleLogin}
-                disabled={isLoading || !!emailError}
+                disabled={isLoading}
                 activeOpacity={0.9}
               >
                 <LinearGradient
-                  colors={isLoading || emailError ? ['#94a3b8', '#cbd5e1'] : ['#2563eb', '#1d4ed8']}
+                  colors={isLoading ? ['#94a3b8', '#cbd5e1'] : ['#2563eb', '#1d4ed8']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.loginButton}

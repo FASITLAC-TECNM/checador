@@ -112,7 +112,7 @@ export default function App() {
         {currentScreen === 'settings' && (
           <SettingsScreen
             userData={userData}
-            email={userData.email}
+            email={userData.correo}
             darkMode={darkMode}
             onToggleDarkMode={() => setDarkMode(!darkMode)}
             onLogout={handleLogout}

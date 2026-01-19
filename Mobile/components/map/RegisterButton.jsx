@@ -31,19 +31,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
   // ==================== OBTENER ID DEL EMPLEADO ====================
   const getEmpleadoId = () => {
-    let empleadoId = null;
-
-    if (userData?.empleado?.id) {
-      empleadoId = userData.empleado.id;
-    } else if (userData?.empleado && typeof userData.empleado === 'number') {
-      empleadoId = userData.empleado;
-    } else if (userData?.id_empleado) {
-      empleadoId = userData.id_empleado;
-    } else if (userData?.empleado?.id_empleado) {
-      empleadoId = userData.empleado.id_empleado;
-    }
-
-    return empleadoId;
+    // La nueva API retorna empleado_id directamente en userData
+    return userData?.empleado_id || null;
   };
 
   // ==================== OBTENER ÚLTIMO REGISTRO ====================
@@ -153,17 +142,13 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         console.log('🔍 INICIANDO VALIDACIÓN DE UBICACIÓN');
         console.log('═══════════════════════════════════════');
 
+        // Obtener ID de departamento desde empleadoInfo
         let departamentoId = null;
         let departamentoData = null;
 
-        if (userData?.departamento?.id) {
-          departamentoId = userData.departamento.id;
-          departamentoData = userData.departamento;
-        } else if (userData?.departamento?.id_departamento) {
-          departamentoId = userData.departamento.id_departamento;
-          departamentoData = userData.departamento;
-        } else if (userData?.id_departamento) {
-          departamentoId = userData.id_departamento;
+        if (userData?.empleadoInfo?.id_departamento) {
+          departamentoId = userData.empleadoInfo.id_departamento;
+          console.log('📋 ID de departamento obtenido de empleadoInfo:', departamentoId);
         }
 
         if (!departamentoId) {
@@ -174,8 +159,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           return;
         }
 
-        if (departamentoData?.ubicacion) {
-          console.log('✅ Usando datos de departamento del login');
+        // Si ya tenemos los datos del departamento en empleadoInfo
+        if (userData?.empleadoInfo?.departamento?.ubicacion) {
+          console.log('✅ Usando datos de departamento del empleadoInfo');
+          departamentoData = userData.empleadoInfo.departamento;
 
           const coordenadas = extraerCoordenadas(departamentoData.ubicacion);
 
@@ -194,6 +181,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           }
         }
 
+        // Si no, hacer fetch del departamento desde API
         console.log('🌐 Haciendo fetch del departamento desde API...');
         const resultado = await validarUbicacionPermitida(
           ubicacionActual,

@@ -7,7 +7,7 @@ import SolicitudCard from './SolicitudCard';
 import { Plus, Clock, Smartphone, ChevronDown, ChevronUp, Bell } from 'lucide-react';
 import { getDevices, createDevice, updateDevice, deleteDevice, getDeviceStats } from '../../services/devicesService';
 import { getSolicitudesPendientes, aceptarSolicitud, rechazarSolicitud } from '../../services/solicitudesService';
-import { useNotification } from '../../contexts/NotificationContext';
+import { useNotification } from '../../context/NotificationContext';
 
 const DevicePage = () => {
     const notification = useNotification();

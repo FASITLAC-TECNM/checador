@@ -1,5 +1,5 @@
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { NotificationProvider, useNotification } from './contexts/NotificationContext';
+import { NotificationProvider, useNotification } from './context/NotificationContext';
 import DashboardPage from './DashboardPage';
 import LoginPage from './LoginPage';
 

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { RegisterButton } from './RegisterButton';
+import { RegisterButton } from '../map/RegisterButton';
 import { NotificacionesModal } from './NotificacionesModal';
 
 const obtenerUrlFotoPerfil = (foto) => {
@@ -26,9 +26,16 @@ export const HomeScreen = ({ userData, darkMode }) => {
 
   const styles = darkMode ? homeStylesDark : homeStyles;
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
-  const empleado = userData.empleado || null;
-  const departamento = userData.departamento || null;
-  const rolMostrar = empleado ? 'Empleado' : (userData.rol?.nombre_rol || 'Usuario');
+
+  // Determinar si es empleado basado en es_empleado y empleado_id
+  const esEmpleado = userData.es_empleado && userData.empleado_id;
+
+  // Determinar el rol a mostrar
+  const rolMostrar = esEmpleado
+    ? 'Empleado'
+    : (userData.roles && userData.roles.length > 0
+        ? userData.roles[0].nombre
+        : (userData.esAdmin ? 'Administrador' : 'Usuario'));
 
   const handleRegistroExitoso = (data) => {
     console.log('✅ Registro exitoso:', data);
@@ -79,29 +86,29 @@ export const HomeScreen = ({ userData, darkMode }) => {
                 )}
                 <View style={[
                   styles.statusDot,
-                  { backgroundColor: userData.conexion === 'Conectado' ? '#10b981' : '#6b7280' }
+                  { backgroundColor: '#10b981' }
                 ]} />
               </View>
               
               <View style={styles.headerInfo}>
                 <Text style={styles.headerGreeting}>{obtenerSaludo()}</Text>
                 <Text style={styles.headerName} numberOfLines={1}>{userData.nombre}</Text>
-                {departamento && (
+                {userData.rfc && (
                   <View style={styles.departmentChip}>
                     <Ionicons name="briefcase-outline" size={11} color="#e0f2fe" />
                     <Text style={styles.departmentChipText} numberOfLines={1}>
-                      {departamento.nombre_departamento}
+                      RFC: {userData.rfc}
                     </Text>
                   </View>
                 )}
               </View>
             </View>
-            
+
             <View style={styles.headerRight}>
               <View style={[
                 styles.roleChip,
-                empleado && { backgroundColor: 'rgba(16, 185, 129, 0.2)' },
-                !empleado && { backgroundColor: 'rgba(255, 255, 255, 0.2)' }
+                esEmpleado && { backgroundColor: 'rgba(16, 185, 129, 0.2)' },
+                !esEmpleado && { backgroundColor: 'rgba(255, 255, 255, 0.2)' }
               ]}>
                 <Text style={styles.roleChipText}>{rolMostrar}</Text>
               </View>

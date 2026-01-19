@@ -4,7 +4,7 @@ import { getSolicitudes, aceptarSolicitud, rechazarSolicitud, deleteSolicitud } 
 import { getSolicitudesMoviles, aceptarSolicitudMovil, rechazarSolicitudMovil, deleteSolicitudMovil } from '../../services/solicitudesMovilService';
 import SolicitudCard from './SolicitudCard';
 import SolicitudMovilCard from './SolicitudMovilCard';
-import { useNotification } from '../../contexts/NotificationContext';
+import { useNotification } from '../../context/NotificationContext';
 
 const SolicitudesPage = () => {
     const notification = useNotification();

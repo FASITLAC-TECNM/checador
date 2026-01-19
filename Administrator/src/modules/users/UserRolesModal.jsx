@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Shield, Check, Save } from 'lucide-react';
 import { obtenerRoles } from '../../services/rolesService';
 import { asignarRolAUsuario, obtenerRolesDeUsuario, removerRolDeUsuario } from '../../services/api';
-import { useNotification } from '../../contexts/NotificationContext';
+import { useNotification } from '../../context/NotificationContext';
 
 const UserRolesModal = ({ user, onClose, onUpdate }) => {
     const notification = useNotification();
@@ -127,11 +127,10 @@ const UserRolesModal = ({ user, onClose, onUpdate }) => {
                                 <button
                                     key={role.id}
                                     onClick={() => toggleRole(role.id)}
-                                    className={`relative p-4 rounded-xl border-2 transition-all duration-200 text-left ${
-                                        isSelected
+                                    className={`relative p-4 rounded-xl border-2 transition-all duration-200 text-left ${isSelected
                                             ? 'border-blue-500 bg-blue-50'
                                             : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-                                    }`}
+                                        }`}
                                     style={isSelected ? {
                                         boxShadow: `0 4px 6px -1px ${role.color}20, 0 2px 4px -1px ${role.color}10`
                                     } : {}}

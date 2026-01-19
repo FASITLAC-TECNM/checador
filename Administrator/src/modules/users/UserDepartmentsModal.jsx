@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Building2, CheckCircle } from 'lucide-react';
 import { getDepartamentosEmpleado, asignarDepartamento, eliminarAsignacionDepartamento } from '../../services/empleadoDepartamentoService';
 import { getDepartamentos } from '../../services/departamentosService';
-import { useNotification } from '../../contexts/NotificationContext';
+import { useNotification } from '../../context/NotificationContext';
 
 const UserDepartmentsModal = ({ empleadoId, onClose }) => {
     const notification = useNotification();

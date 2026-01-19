@@ -7,7 +7,7 @@ import {
   StatusBar
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import config from './config/onboardingConfig.json';
+import config from '../../config/onboardingConfig.json';
 
 export const ApprovedScreen = ({ email, deviceInfo, onComplete }) => {
   const { approved } = config;

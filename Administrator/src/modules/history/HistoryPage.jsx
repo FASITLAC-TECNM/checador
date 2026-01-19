@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { History, Filter, Download } from 'lucide-react';
 import HistoryList from './HistoryList';
-import { useNotification } from '../../contexts/NotificationContext';
+import { useNotification } from '../../context/NotificationContext';
 import { obtenerEventosRecientes, exportarEventosCSV } from '../../services/eventosService';
 
 const HistoryPage = () => {

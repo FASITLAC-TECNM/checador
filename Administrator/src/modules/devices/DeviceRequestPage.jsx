@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import DeviceRequestList from './DeviceRequestList';
 import DeviceRequestDetail from './DeviceRequestDetail';
 import { Bell, ArrowLeft } from 'lucide-react';
-import { useNotification } from '../../contexts/NotificationContext';
+import { useNotification } from '../../context/NotificationContext';
 
 const DeviceRequestPage = ({ onNavigateToDevices, onUpdatePeticiones }) => {
     const notification = useNotification();

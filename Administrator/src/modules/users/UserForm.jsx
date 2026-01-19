@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Save, Mail, Phone, User, Lock, Shield, Briefcase, Upload, Camera, X } from 'lucide-react';
 import EmployeeFormEnhanced from './EmployeeForm';
 import { getEmpleadoPorUsuario } from '../../services/empleadoService';
-import { useNotification } from '../../contexts/NotificationContext';
+import { useNotification } from '../../context/NotificationContext';
 
 const UserFormEnhanced = ({ user, onSave, onCancel }) => {
     const notification = useNotification();

@@ -234,16 +234,29 @@ export const obtenerHuellaParaVerificacion = async (req, res) => {
  */
 export const listarUsuariosConHuella = async (req, res) => {
   try {
-    // Primero verificar cuántas credenciales tienen dactilar
+    console.log("\n" + "=".repeat(60));
+    console.log("[API] GET /api/biometric/users - Listando usuarios con huella");
+    console.log("=".repeat(60));
+
+    // DEBUG: Ver todas las credenciales
+    const allCredenciales = await pool.query(`
+      SELECT id, id_empleado,
+             dactilar IS NOT NULL as tiene_dactilar,
+             LENGTH(dactilar) as dactilar_size
+      FROM credenciales
+    `);
+    console.log(`[DEBUG] Total credenciales en BD: ${allCredenciales.rows.length}`);
+    allCredenciales.rows.forEach(r => {
+      console.log(`   - Empleado ${r.id_empleado}: dactilar=${r.tiene_dactilar}, size=${r.dactilar_size || 0}`);
+    });
+
+    // Credenciales con dactilar
     const debugResult = await pool.query(`
       SELECT id, id_empleado, LENGTH(dactilar) as size
       FROM credenciales
       WHERE dactilar IS NOT NULL
     `);
-    console.log(`[DEBUG] Credenciales con dactilar: ${debugResult.rows.length}`);
-    if (debugResult.rows.length > 0) {
-      console.log(`[DEBUG] IDs empleados con huella:`, debugResult.rows.map(r => r.id_empleado));
-    }
+    console.log(`\n[DEBUG] Credenciales con dactilar NOT NULL: ${debugResult.rows.length}`);
 
     // Usar LEFT JOIN para ser más flexible
     const result = await pool.query(`
@@ -263,7 +276,7 @@ export const listarUsuariosConHuella = async (req, res) => {
       ORDER BY COALESCE(u.nombre, 'Empleado ' || c.id_empleado::text) ASC
     `);
 
-    console.log(`[OK] Encontrados ${result.rows.length} usuarios con huella`);
+    console.log(`[OK] Resultado final: ${result.rows.length} usuarios con huella\n`);
 
     res.json({
       success: true,

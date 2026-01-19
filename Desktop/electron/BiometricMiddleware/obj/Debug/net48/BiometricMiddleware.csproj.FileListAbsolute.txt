@@ -4,3 +4,14 @@ C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\ob
 C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\obj\Debug\net48\BiometricMiddleware.AssemblyInfo.cs
 C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\obj\Debug\net48\BiometricMiddleware.csproj.CoreCompileInputs.cache
 C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\obj\Debug\net48\BiometricMiddleware.sourcelink.json
+C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\bin\Debug\net48\BiometricMiddleware.exe.config
+C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\bin\Debug\net48\BiometricMiddleware.exe
+C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\bin\Debug\net48\BiometricMiddleware.pdb
+C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\bin\Debug\net48\Newtonsoft.Json.dll
+C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\bin\Debug\net48\DPFPDevNET.dll
+C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\bin\Debug\net48\DPFPEngNET.dll
+C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\bin\Debug\net48\DPFPShrNET.dll
+C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\bin\Debug\net48\DPFPVerNET.dll
+C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\obj\Debug\net48\Biometri.803538C5.Up2Date
+C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\obj\Debug\net48\BiometricMiddleware.exe
+C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\obj\Debug\net48\BiometricMiddleware.pdb

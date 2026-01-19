@@ -9,8 +9,8 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import config from './config/onboardingConfig.json';
-import { getSolicitudPorToken } from './services/solicitudMovilService';
+import config from '../../config/onboardingConfig.json';
+import { getSolicitudPorToken } from '../../services/solicitudMovilService';
 
 export const PendingApprovalScreen = ({ tokenSolicitud, idSolicitud, onApproved, onRejected }) => {
   const { pending } = config;

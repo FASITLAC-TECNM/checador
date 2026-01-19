@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { login } from './services/authService';
+import { login } from '../../services/authService';
 
 export const LoginScreen = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');

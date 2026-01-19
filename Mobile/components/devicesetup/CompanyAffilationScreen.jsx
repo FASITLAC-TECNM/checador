@@ -12,7 +12,7 @@ import {
   ScrollView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import config from './config/onboardingConfig.json';
+import config from '../../config/onboardingConfig.json';
 
 export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
   const { affiliation } = config;

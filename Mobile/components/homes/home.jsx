@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { RegisterButton } from './RegisterButton';
+import { RegisterButton } from '../../RegisterButton';
 import { NotificacionesModal } from './NotificacionesModal';
 
 const obtenerUrlFotoPerfil = (foto) => {

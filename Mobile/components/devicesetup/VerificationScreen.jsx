@@ -9,7 +9,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import config from './config/onboardingConfig.json';
+import config from '../../config/onboardingConfig.json';
 
 export const VerificationCodeScreen = ({ email, onNext, onPrevious }) => {
   const { verification } = config;

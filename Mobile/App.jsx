@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LoginScreen } from './login';
-import { HomeScreen } from './home';
-import { HistoryScreen } from './history';
-import { ScheduleScreen } from './schedule';
-import { SettingsScreen } from './settings';
-import { BottomNavigation } from './nav';
-import { OnboardingNavigator } from './onBoardNavigator';
+import { LoginScreen } from './components/logins/login';
+import { HomeScreen } from './components/homes/home';
+import { HistoryScreen } from './components/homes/history';
+import { ScheduleScreen } from './components/homes/schedule';
+import { SettingsScreen } from './components/homes/settings';
+import { BottomNavigation } from './components/homes/nav';
+import { OnboardingNavigator } from './components/devicesetup/onBoardNavigator';
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -112,7 +112,7 @@ export default function App() {
         {currentScreen === 'settings' && (
           <SettingsScreen
             userData={userData}
-            email={userData.email}
+            email={userData.correo}
             darkMode={darkMode}
             onToggleDarkMode={() => setDarkMode(!darkMode)}
             onLogout={handleLogout}

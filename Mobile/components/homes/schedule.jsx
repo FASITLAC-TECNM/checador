@@ -18,7 +18,7 @@ import {
   parsearHorario, 
   calcularResumenSemanal,
   getInfoDiaActual 
-} from './services/horariosService';
+} from '../../services/horariosService';
 
 export const ScheduleScreen = ({ darkMode, userData }) => {
   const [scheduleData, setScheduleData] = useState([]);

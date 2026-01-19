@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import config from './config/onboardingConfig.json';
+import config from '../../config/onboardingConfig.json';
 
 export const WelcomeScreen = ({ onNext }) => {
   const { welcome } = config;

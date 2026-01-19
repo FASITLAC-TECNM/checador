@@ -14,8 +14,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Device from 'expo-device';
 import NetInfo from '@react-native-community/netinfo';
-import config from './config/onboardingConfig.json';
-import { crearSolicitudMovil } from './services/solicitudMovilService';
+import config from '../../config/onboardingConfig.json';
+import { crearSolicitudMovil } from '../../services/solicitudMovilService';
 
 export const DeviceConfigScreen = ({ onNext, onPrevious }) => {
   const { deviceConfig } = config;

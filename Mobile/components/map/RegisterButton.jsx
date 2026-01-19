@@ -9,8 +9,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { validarUbicacionPermitida, formatearCoordenadas, isPointInPolygon, extraerCoordenadas } from './services/ubicacionService';
-import { getApiEndpoint } from './config/api';
+import { validarUbicacionPermitida, formatearCoordenadas, isPointInPolygon, extraerCoordenadas } from '../../services/ubicacionService';
+import { getApiEndpoint } from '../../config/api';
 
 const API_URL = getApiEndpoint('/api');
 

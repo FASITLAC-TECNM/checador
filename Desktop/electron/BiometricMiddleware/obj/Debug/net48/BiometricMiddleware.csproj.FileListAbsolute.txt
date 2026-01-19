@@ -1,0 +1,6 @@
+C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\obj\Debug\net48\BiometricMiddleware.csproj.AssemblyReference.cache
+C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\obj\Debug\net48\BiometricMiddleware.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\obj\Debug\net48\BiometricMiddleware.AssemblyInfoInputs.cache
+C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\obj\Debug\net48\BiometricMiddleware.AssemblyInfo.cs
+C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\obj\Debug\net48\BiometricMiddleware.csproj.CoreCompileInputs.cache
+C:\Users\paulx\Documents\GitHub\checador\Desktop\electron\BiometricMiddleware\obj\Debug\net48\BiometricMiddleware.sourcelink.json

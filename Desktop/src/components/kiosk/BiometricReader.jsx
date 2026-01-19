@@ -177,6 +177,56 @@ export default function BiometricReader({
     }
   };
 
+  // Procesar login biométrico después de identificación exitosa
+  const procesarLoginBiometrico = async (empleadoId, matchScore) => {
+    setSavingToDatabase(true);
+    addMessage("🔐 Procesando inicio de sesión...", "info");
+
+    try {
+      const API_URL = "https://9dm7dqf9-3001.usw3.devtunnels.ms/api";
+
+      // Obtener datos del empleado
+      const empleadoResponse = await fetch(`${API_URL}/empleados/${empleadoId}`);
+
+      if (!empleadoResponse.ok) {
+        throw new Error("Error al obtener datos del empleado");
+      }
+
+      const empleado = await empleadoResponse.json();
+      console.log("👤 Empleado identificado:", empleado);
+
+      addMessage(`✅ Bienvenido, ${empleado.nombre || empleado.id_usuario}`, "success");
+
+      // Guardar sesión
+      guardarSesion({
+        ...empleado,
+        matchScore: matchScore,
+        metodoAutenticacion: "HUELLA",
+      });
+
+      // Callback de autenticación exitosa
+      if (onAuthSuccess) {
+        onAuthSuccess({
+          ...empleado,
+          matchScore: matchScore,
+          metodoAutenticacion: "HUELLA",
+        });
+      }
+
+      // Cerrar el modal después de 1.5 segundos
+      setTimeout(() => {
+        if (onClose) onClose();
+      }, 1500);
+    } catch (error) {
+      console.error("Error procesando login biométrico:", error);
+      addMessage(`❌ Error: ${error.message}`, "error");
+    } finally {
+      setSavingToDatabase(false);
+      setCurrentOperation("None");
+      setStatus("ready");
+    }
+  };
+
   const handleServerMessage = (data) => {
     console.log("📨 Mensaje recibido:", data);
 
@@ -218,28 +268,20 @@ export default function BiometricReader({
         break;
 
       case "captureComplete":
+        console.log("📨 captureComplete recibido:", data);
+
         if (data.result === "enrollmentSuccess") {
+          // MODO REGISTRO: Guardar huella en BD
           addMessage(`✅ Captura completada: ${data.userId}`, "success");
 
-          // DEBUG: Ver qué recibimos del middleware
-          console.log("📨 DEBUG captureComplete recibido:");
-          console.log("   - data.userId:", data.userId);
-          console.log("   - data.templateBase64 existe:", !!data.templateBase64);
-          console.log("   - data.templateBase64 length:", data.templateBase64?.length);
-          console.log("   - data completo:", data);
-
-          // Guardar datos del enrollment para enviarlos al backend
           setLastEnrollmentData({
             userId: data.userId,
-            templateBase64: data.templateBase64, // El middleware debe enviar esto
+            templateBase64: data.templateBase64,
             timestamp: data.timestamp,
           });
 
-          // Si el middleware NO envió el template, solicitarlo vía IPC de Electron
           if (!data.templateBase64 && window.electronAPI) {
             addMessage("📄 Leyendo template desde archivo...", "info");
-
-            // Solicitar a Electron que lea el archivo .fpt
             window.electronAPI.readFingerprintTemplate(data.userId).then((templateBase64) => {
               if (templateBase64) {
                 addMessage("✅ Template cargado desde archivo", "success");
@@ -252,13 +294,34 @@ export default function BiometricReader({
               addMessage(`❌ Error leyendo template: ${error.message}`, "error");
             });
           } else if (data.templateBase64) {
-            // Si el middleware SÍ envió el template directamente
             guardarHuellaEnBaseDatos(data.userId, data.templateBase64);
           } else {
             addMessage("⚠️ Template no disponible", "warning");
           }
 
           setEnrollProgress({ collected: 0, required: 4, percentage: 0 });
+          setCurrentOperation("None");
+          setStatus("ready");
+
+        } else if (data.result === "identificationSuccess") {
+          // MODO AUTENTICACIÓN: Usuario identificado por el SDK de DigitalPersona
+          addMessage(`✅ Huella reconocida: ${data.userId}`, "success");
+          addMessage(`🎯 Precisión: ${data.matchScore || 100}%`, "info");
+
+          // Extraer el ID del empleado del userId (formato: emp_ID)
+          const idEmpleadoMatch = data.userId?.match(/emp_(\d+)/);
+          if (idEmpleadoMatch) {
+            const empleadoId = parseInt(idEmpleadoMatch[1]);
+            procesarLoginBiometrico(empleadoId, data.matchScore || 100);
+          } else {
+            addMessage("❌ No se pudo extraer el ID del empleado", "error");
+            setCurrentOperation("None");
+            setStatus("ready");
+          }
+
+        } else if (data.result === "identificationFailed") {
+          // MODO AUTENTICACIÓN: Huella no reconocida
+          addMessage("❌ Huella no reconocida en el sistema", "error");
           setCurrentOperation("None");
           setStatus("ready");
         }
@@ -452,18 +515,24 @@ export default function BiometricReader({
 
     setLastEnrollmentData(null);
     setEnrollProgress({ collected: 0, required: 4, percentage: 0 });
-    setCurrentOperation("Enrollment");
 
-    // Generar automáticamente el User ID basado en el ID del empleado
-    let userId;
     if (mode === "auth") {
-      userId = `auth_${Date.now()}`;
-    } else {
-      const empleadoId = idEmpleado || parseInt(inputIdEmpleado);
-      userId = `emp_${empleadoId}`;
-    }
+      // MODO AUTENTICACIÓN: Usar identificación 1:N con SDK de DigitalPersona
+      setCurrentOperation("Identifying");
+      addMessage("🔍 Cargando huellas registradas...", "info");
 
-    sendCommand("startEnrollment", { userId });
+      // Obtener la URL del API
+      const API_URL = "https://9dm7dqf9-3001.usw3.devtunnels.ms/api";
+
+      // Enviar comando de identificación con la URL del API
+      sendCommand("startIdentification", { apiUrl: API_URL });
+    } else {
+      // MODO REGISTRO: Usar enrollment normal
+      setCurrentOperation("Enrollment");
+      const empleadoId = idEmpleado || parseInt(inputIdEmpleado);
+      const userId = `emp_${empleadoId}`;
+      sendCommand("startEnrollment", { userId });
+    }
   };
 
   const cancelEnrollment = () => {

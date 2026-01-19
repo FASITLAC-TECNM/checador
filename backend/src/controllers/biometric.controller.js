@@ -234,24 +234,36 @@ export const obtenerHuellaParaVerificacion = async (req, res) => {
  */
 export const listarUsuariosConHuella = async (req, res) => {
   try {
-    const result = await pool.query(`
-            SELECT
-                c.id,
-                c.id_empleado,
-                e.id_usuario,
-                u.nombre,
-                u.correo,
-                u.foto,
-                LENGTH(c.dactilar) as template_size,
-                c.fecha_actualizacion
-            FROM credenciales c
-            INNER JOIN empleado e ON c.id_empleado = e.id
-            INNER JOIN usuario u ON e.id_usuario = u.id
-            WHERE c.dactilar IS NOT NULL
-            ORDER BY u.nombre ASC
-        `);
+    // Primero verificar cuántas credenciales tienen dactilar
+    const debugResult = await pool.query(`
+      SELECT id, id_empleado, LENGTH(dactilar) as size
+      FROM credenciales
+      WHERE dactilar IS NOT NULL
+    `);
+    console.log(`[DEBUG] Credenciales con dactilar: ${debugResult.rows.length}`);
+    if (debugResult.rows.length > 0) {
+      console.log(`[DEBUG] IDs empleados con huella:`, debugResult.rows.map(r => r.id_empleado));
+    }
 
-    console.log(` Encontrados ${result.rows.length} usuarios con huella`);
+    // Usar LEFT JOIN para ser más flexible
+    const result = await pool.query(`
+      SELECT
+        c.id,
+        c.id_empleado,
+        e.id_usuario,
+        COALESCE(u.nombre, 'Empleado ' || c.id_empleado::text) as nombre,
+        COALESCE(u.correo, '') as correo,
+        u.foto,
+        LENGTH(c.dactilar) as template_size,
+        c.fecha_actualizacion
+      FROM credenciales c
+      LEFT JOIN empleado e ON c.id_empleado = e.id
+      LEFT JOIN usuario u ON e.id_usuario = u.id
+      WHERE c.dactilar IS NOT NULL
+      ORDER BY COALESCE(u.nombre, 'Empleado ' || c.id_empleado::text) ASC
+    `);
+
+    console.log(`[OK] Encontrados ${result.rows.length} usuarios con huella`);
 
     res.json({
       success: true,

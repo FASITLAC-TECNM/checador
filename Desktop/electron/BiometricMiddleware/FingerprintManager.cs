@@ -194,6 +194,34 @@ namespace BiometricMiddleware
             }
         }
 
+        /// <summary>
+        /// Inicia identificación 1:N con templates externos (de la BD)
+        /// </summary>
+        public async Task StartIdentificationWithTemplates(Dictionary<string, byte[]> templates)
+        {
+            try
+            {
+                if (_reader == null || !_reader.IsConnected)
+                {
+                    throw new Exception("Lector no está conectado");
+                }
+
+                if (templates == null || templates.Count == 0)
+                {
+                    throw new Exception("No hay templates para identificar");
+                }
+
+                Console.WriteLine($"🔎 Iniciando identificación con {templates.Count} templates de BD");
+                await _reader.StartIdentification(templates);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error en StartIdentificationWithTemplates: {ex.Message}");
+                await NotifyStatus("error", ex.Message);
+                throw;
+            }
+        }
+
         public void StopCapture()
         {
             try

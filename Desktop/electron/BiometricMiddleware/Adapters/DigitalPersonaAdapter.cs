@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using DPFP;
@@ -8,37 +7,28 @@ using DPFP.Capture;
 
 namespace BiometricMiddleware.Adapters
 {
-    /// <summary>
-    /// Adaptador para lectores DigitalPersona (U.are.U series)
-    /// Implementa la interfaz IFingerprintReader usando el SDK de DigitalPersona
-    /// </summary>
     public class DigitalPersonaAdapter : IFingerprintReader, DPFP.Capture.EventHandler
     {
-        // Propiedades de IFingerprintReader
         public string ReaderBrand => "DigitalPersona";
         public string DeviceModel { get; private set; }
         public string SerialNumber { get; private set; }
         public bool IsConnected { get; private set; }
         public bool IsCapturing => _currentOperation != OperationType.None;
 
-        // Eventos
         public event Func<string, string, Task> OnStatusChanged;
         public event Func<int, int, Task> OnEnrollProgress;
         public event Func<CaptureResult, Task> OnCaptureComplete;
         public event Func<string, Task> OnFingerDetected;
         public event Func<Task> OnFingerRemoved;
 
-        // Componentes de DigitalPersona
         private DPFP.Capture.Capture _capture;
         private DPFP.Processing.Enrollment _enrollment;
         private DPFP.Verification.Verification _verification;
 
-        // Estado interno
         private OperationType _currentOperation = OperationType.None;
         private string _currentUserId;
         private const int REQUIRED_SAMPLES = 4;
 
-        // Para verificación e identificación
         private byte[] _verificationTemplate;
         private Dictionary<string, byte[]> _identificationTemplates;
 
@@ -48,35 +38,28 @@ namespace BiometricMiddleware.Adapters
             SerialNumber = "Unknown";
         }
 
-        /// <summary>
-        /// Inicializa el adaptador y verifica conectividad
-        /// </summary>
         public async Task<bool> Initialize()
         {
             try
             {
-                Console.WriteLine("[INIT] [DigitalPersona] Inicializando...");
+                Console.WriteLine("[DP] Inicializando...");
 
-                // Detectar lectores
                 var readers = new DPFP.Capture.ReadersCollection();
-                Console.WriteLine($"[INFO] [DigitalPersona] Lectores encontrados: {readers.Count}");
+                Console.WriteLine($"[DP] Lectores encontrados: {readers.Count}");
 
                 if (readers.Count == 0)
                 {
-                    Console.WriteLine("[WARN] [DigitalPersona] No se encontraron lectores");
                     IsConnected = false;
                     return false;
                 }
 
-                // Obtener info del primer lector
                 var reader = readers[0];
                 DeviceModel = reader.ProductName;
                 SerialNumber = reader.SerialNumber;
 
-                Console.WriteLine($"   [OK] Modelo: {DeviceModel}");
-                Console.WriteLine($"   [OK] S/N: {SerialNumber}");
+                Console.WriteLine($"[DP] Modelo: {DeviceModel}");
+                Console.WriteLine($"[DP] S/N: {SerialNumber}");
 
-                // Inicializar componentes
                 _capture = new DPFP.Capture.Capture(DPFP.Capture.Priority.High);
                 _capture.EventHandler = this;
 
@@ -86,20 +69,17 @@ namespace BiometricMiddleware.Adapters
                 IsConnected = true;
                 await NotifyStatus("ready", "Lector DigitalPersona listo");
 
-                Console.WriteLine("[OK] [DigitalPersona] Inicialización exitosa\n");
+                Console.WriteLine("[DP] Inicializacion exitosa\n");
                 return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] [DigitalPersona] Error inicializando: {ex.Message}");
+                Console.WriteLine($"[DP] Error: {ex.Message}");
                 IsConnected = false;
                 return false;
             }
         }
 
-        /// <summary>
-        /// Libera recursos
-        /// </summary>
         public void Dispose()
         {
             try
@@ -108,129 +88,76 @@ namespace BiometricMiddleware.Adapters
                 _capture?.Dispose();
                 _enrollment?.Clear();
                 IsConnected = false;
-                Console.WriteLine("[INFO] [DigitalPersona] Recursos liberados");
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[WARN] [DigitalPersona] Error en Dispose: {ex.Message}");
-            }
+            catch { }
         }
 
-        /// <summary>
-        /// Inicia enrollment
-        /// </summary>
         public async Task StartEnrollment(string userId)
         {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(userId))
-                    throw new ArgumentException("UserId no puede estar vacío");
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new ArgumentException("UserId requerido");
 
-                if (_currentOperation != OperationType.None)
-                    throw new InvalidOperationException("Ya hay una operación en curso");
+            if (_currentOperation != OperationType.None)
+                throw new InvalidOperationException("Operacion en curso");
 
-                _currentUserId = userId;
-                _currentOperation = OperationType.Enrollment;
-                _enrollment.Clear();
+            _currentUserId = userId;
+            _currentOperation = OperationType.Enrollment;
+            _enrollment.Clear();
 
-                await NotifyStatus("enrolling", $"Iniciando registro para: {userId}");
-                Console.WriteLine($"[USER] [DigitalPersona] Enrollment iniciado: {userId}");
+            await NotifyStatus("enrolling", $"Registro para: {userId}");
+            Console.WriteLine($"[DP] Enrollment: {userId}");
 
-                _capture.StartCapture();
-                await NotifyEnrollProgress(0, REQUIRED_SAMPLES);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[ERROR] [DigitalPersona] Error en StartEnrollment: {ex.Message}");
-                await NotifyStatus("error", ex.Message);
-                _currentOperation = OperationType.None;
-                throw;
-            }
+            _capture.StartCapture();
+            await NotifyEnrollProgress(0, REQUIRED_SAMPLES);
         }
 
-        /// <summary>
-        /// Cancela enrollment
-        /// </summary>
         public void CancelEnrollment()
         {
             StopCapture();
             _enrollment.Clear();
             _currentUserId = null;
-            Console.WriteLine("[INFO] [DigitalPersona] Enrollment cancelado");
+            Console.WriteLine("[DP] Enrollment cancelado");
         }
 
-        /// <summary>
-        /// Inicia verificación 1:1
-        /// </summary>
         public async Task StartVerification(string userId, byte[] template)
         {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(userId))
-                    throw new ArgumentException("UserId no puede estar vacío");
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new ArgumentException("UserId requerido");
 
-                if (template == null || template.Length == 0)
-                    throw new ArgumentException("Template inválido");
+            if (template == null || template.Length == 0)
+                throw new ArgumentException("Template invalido");
 
-                if (_currentOperation != OperationType.None)
-                    throw new InvalidOperationException("Ya hay una operación en curso");
+            if (_currentOperation != OperationType.None)
+                throw new InvalidOperationException("Operacion en curso");
 
-                _currentUserId = userId;
-                _currentOperation = OperationType.Verification;
+            _currentUserId = userId;
+            _currentOperation = OperationType.Verification;
+            _verificationTemplate = template;
 
-                // Deserializar template
-                var dpTemplate = new DPFP.Template();
-                dpTemplate.DeSerialize(template);
-                _verificationTemplate = template;
+            await NotifyStatus("verifying", $"Verificando: {userId}");
+            Console.WriteLine($"[DP] Verificacion: {userId}");
 
-                await NotifyStatus("verifying", $"Verificando identidad de: {userId}");
-                Console.WriteLine($"[SCAN] [DigitalPersona] Verificación iniciada: {userId}");
-
-                _capture.StartCapture();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[ERROR] [DigitalPersona] Error en StartVerification: {ex.Message}");
-                await NotifyStatus("error", ex.Message);
-                _currentOperation = OperationType.None;
-                throw;
-            }
+            _capture.StartCapture();
         }
 
-        /// <summary>
-        /// Inicia identificación 1:N
-        /// </summary>
         public async Task StartIdentification(Dictionary<string, byte[]> templates)
         {
-            try
-            {
-                if (templates == null || templates.Count == 0)
-                    throw new ArgumentException("No hay templates para identificar");
+            if (templates == null || templates.Count == 0)
+                throw new ArgumentException("No hay templates");
 
-                if (_currentOperation != OperationType.None)
-                    throw new InvalidOperationException("Ya hay una operación en curso");
+            if (_currentOperation != OperationType.None)
+                throw new InvalidOperationException("Operacion en curso");
 
-                _currentOperation = OperationType.Identification;
-                _identificationTemplates = templates;
-                _currentUserId = null;
+            _currentOperation = OperationType.Identification;
+            _identificationTemplates = templates;
+            _currentUserId = null;
 
-                await NotifyStatus("identifying", $"Identificando entre {templates.Count} usuarios...");
-                Console.WriteLine($"[SCAN] [DigitalPersona] Identificación iniciada ({templates.Count} templates)");
+            await NotifyStatus("identifying", $"Identificando entre {templates.Count} usuarios...");
+            Console.WriteLine($"[DP] Identificacion: {templates.Count} templates");
 
-                _capture.StartCapture();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[ERROR] [DigitalPersona] Error en StartIdentification: {ex.Message}");
-                await NotifyStatus("error", ex.Message);
-                _currentOperation = OperationType.None;
-                throw;
-            }
+            _capture.StartCapture();
         }
 
-        /// <summary>
-        /// Detiene captura
-        /// </summary>
         public void StopCapture()
         {
             try
@@ -240,23 +167,15 @@ namespace BiometricMiddleware.Adapters
                 _currentUserId = null;
                 _verificationTemplate = null;
                 _identificationTemplates = null;
-                Console.WriteLine("[INFO] [DigitalPersona] Captura detenida");
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[WARN] [DigitalPersona] Error en StopCapture: {ex.Message}");
-            }
+            catch { }
         }
 
-        /// <summary>
-        /// Obtiene cantidad de lectores conectados
-        /// </summary>
         public async Task<int> GetConnectedReadersCount()
         {
             try
             {
-                var readers = new DPFP.Capture.ReadersCollection();
-                return readers.Count;
+                return new DPFP.Capture.ReadersCollection().Count;
             }
             catch
             {
@@ -264,17 +183,12 @@ namespace BiometricMiddleware.Adapters
             }
         }
 
-        /// <summary>
-        /// Obtiene información de lectores
-        /// </summary>
         public async Task<List<ReaderInfo>> GetReadersInfo()
         {
             var list = new List<ReaderInfo>();
-
             try
             {
                 var readers = new DPFP.Capture.ReadersCollection();
-
                 for (int i = 0; i < readers.Count; i++)
                 {
                     list.Add(new ReaderInfo
@@ -282,28 +196,22 @@ namespace BiometricMiddleware.Adapters
                         Brand = "DigitalPersona",
                         Model = readers[i].ProductName,
                         SerialNumber = readers[i].SerialNumber,
-                        Version = readers[i].HardwareVersion.ToString(),
                         IsAvailable = true
                     });
                 }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[WARN] [DigitalPersona] Error obteniendo info: {ex.Message}");
-            }
-
+            catch { }
             return list;
         }
 
-        // ===== EVENTOS DE DPFP.Capture.EventHandler =====
-
+        // DPFP Event Handlers
         public void OnComplete(object Capture, string ReaderSerialNumber, Sample Sample)
         {
             Task.Run(async () =>
             {
                 try
                 {
-                    Console.WriteLine($"[OK] [DigitalPersona] Muestra capturada ({Sample.Bytes.Length} bytes)");
+                    Console.WriteLine($"[DP] Muestra capturada: {Sample.Bytes.Length} bytes");
 
                     var purpose = _currentOperation == OperationType.Enrollment
                         ? DPFP.Processing.DataPurpose.Enrollment
@@ -322,11 +230,9 @@ namespace BiometricMiddleware.Adapters
                         case OperationType.Enrollment:
                             await ProcessEnrollment(features);
                             break;
-
                         case OperationType.Verification:
                             await ProcessVerification(features);
                             break;
-
                         case OperationType.Identification:
                             await ProcessIdentification(features);
                             break;
@@ -334,8 +240,8 @@ namespace BiometricMiddleware.Adapters
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[ERROR] [DigitalPersona] Error procesando: {ex.Message}");
-                    await NotifyStatus("error", $"Error: {ex.Message}");
+                    Console.WriteLine($"[DP] Error: {ex.Message}");
+                    await NotifyStatus("error", ex.Message);
                     _currentOperation = OperationType.None;
                 }
             });
@@ -343,173 +249,144 @@ namespace BiometricMiddleware.Adapters
 
         public void OnFingerTouch(object Capture, string ReaderSerialNumber)
         {
-            Console.WriteLine("[FINGER] [DigitalPersona] Dedo detectado");
+            Console.WriteLine("[DP] Dedo detectado");
             OnFingerDetected?.Invoke("Dedo detectado");
         }
 
         public void OnFingerGone(object Capture, string ReaderSerialNumber)
         {
-            Console.WriteLine("[INFO] [DigitalPersona] Dedo removido");
             OnFingerRemoved?.Invoke();
         }
 
         public void OnReaderConnect(object Capture, string ReaderSerialNumber)
         {
-            Console.WriteLine($"[CONN] [DigitalPersona] Lector conectado: {ReaderSerialNumber}");
+            Console.WriteLine($"[DP] Lector conectado: {ReaderSerialNumber}");
             IsConnected = true;
         }
 
         public void OnReaderDisconnect(object Capture, string ReaderSerialNumber)
         {
-            Console.WriteLine($"[CONN][ERROR] [DigitalPersona] Lector desconectado: {ReaderSerialNumber}");
+            Console.WriteLine($"[DP] Lector desconectado");
             IsConnected = false;
         }
 
         public void OnSampleQuality(object Capture, string ReaderSerialNumber, CaptureFeedback CaptureFeedback)
         {
-            Console.WriteLine($"[INFO] [DigitalPersona] Calidad: {CaptureFeedback}");
+            if (CaptureFeedback != CaptureFeedback.Good)
+                Console.WriteLine($"[DP] Calidad: {CaptureFeedback}");
         }
 
-        // ===== MÉTODOS PRIVADOS =====
-
+        // Private Methods
         private async Task ProcessEnrollment(DPFP.FeatureSet features)
         {
-            try
+            _enrollment.AddFeatures(features);
+
+            int collected = REQUIRED_SAMPLES - (int)_enrollment.FeaturesNeeded;
+            await NotifyEnrollProgress(collected, REQUIRED_SAMPLES);
+            Console.WriteLine($"[DP] Progreso: {collected}/{REQUIRED_SAMPLES}");
+
+            if (_enrollment.TemplateStatus == DPFP.Processing.Enrollment.Status.Ready)
             {
-                _enrollment.AddFeatures(features);
+                var template = _enrollment.Template;
+                var bytes = template.Bytes;
 
-                int collected = REQUIRED_SAMPLES - (int)_enrollment.FeaturesNeeded;
-                await NotifyEnrollProgress(collected, REQUIRED_SAMPLES);
+                Console.WriteLine($"[DP] Enrollment completado: {bytes.Length} bytes");
 
-                Console.WriteLine($"   [INFO] [DigitalPersona] Progreso: {collected}/{REQUIRED_SAMPLES}");
-
-                if (_enrollment.TemplateStatus == DPFP.Processing.Enrollment.Status.Ready)
+                var result = new CaptureResult
                 {
-                    var template = _enrollment.Template;
-                    var bytes = template.Bytes;
+                    ResultType = CaptureResultType.EnrollmentSuccess,
+                    UserId = _currentUserId,
+                    Template = bytes,
+                    Message = "Registro completado"
+                };
 
-                    // MOSTRAR BYTEA
-                    DisplayByteaFormat(bytes);
-
-                    var result = new CaptureResult
-                    {
-                        ResultType = CaptureResultType.EnrollmentSuccess,
-                        UserId = _currentUserId,
-                        Template = bytes,
-                        Message = "Enrollment completado exitosamente"
-                    };
-
-                    Console.WriteLine($"[OK] [DigitalPersona] Enrollment completado: {_currentUserId}");
-                    await NotifyCaptureComplete(result);
-
-                    StopCapture();
-                    _enrollment.Clear();
-                }
-                else if (_enrollment.TemplateStatus == DPFP.Processing.Enrollment.Status.Failed)
-                {
-                    var result = new CaptureResult
-                    {
-                        ResultType = CaptureResultType.EnrollmentFailed,
-                        UserId = _currentUserId,
-                        Message = "Enrollment falló, reintente"
-                    };
-
-                    await NotifyCaptureComplete(result);
-                    _enrollment.Clear();
-                    StopCapture();
-                }
+                await NotifyCaptureComplete(result);
+                StopCapture();
+                _enrollment.Clear();
             }
-            catch (Exception ex)
+            else if (_enrollment.TemplateStatus == DPFP.Processing.Enrollment.Status.Failed)
             {
-                Console.WriteLine($"[ERROR] [DigitalPersona] Error en ProcessEnrollment: {ex.Message}");
-                throw;
+                var result = new CaptureResult
+                {
+                    ResultType = CaptureResultType.EnrollmentFailed,
+                    UserId = _currentUserId,
+                    Message = "Registro fallido"
+                };
+
+                await NotifyCaptureComplete(result);
+                _enrollment.Clear();
+                StopCapture();
             }
         }
 
         private async Task ProcessVerification(DPFP.FeatureSet features)
         {
-            try
+            var dpTemplate = new DPFP.Template();
+            dpTemplate.DeSerialize(_verificationTemplate);
+
+            var result = new DPFP.Verification.Verification.Result();
+            _verification.Verify(features, dpTemplate, ref result);
+
+            int score = result.Verified ? (int)((1.0 - result.FARAchieved) * 100) : 0;
+
+            var captureResult = new CaptureResult
             {
-                var dpTemplate = new DPFP.Template();
-                dpTemplate.DeSerialize(_verificationTemplate);
+                ResultType = result.Verified ? CaptureResultType.VerificationSuccess : CaptureResultType.VerificationFailed,
+                UserId = _currentUserId,
+                MatchScore = score,
+                Message = result.Verified ? "Verificacion exitosa" : "Verificacion fallida"
+            };
 
-                var result = new DPFP.Verification.Verification.Result();
-                _verification.Verify(features, dpTemplate, ref result);
-
-                int score = (int)(result.FARAchieved * 100);
-                Console.WriteLine($"   [INFO] [DigitalPersona] Verificación - FAR: {result.FARAchieved}, Verificado: {result.Verified}");
-
-                var captureResult = new CaptureResult
-                {
-                    ResultType = result.Verified ? CaptureResultType.VerificationSuccess : CaptureResultType.VerificationFailed,
-                    UserId = _currentUserId,
-                    MatchScore = score,
-                    Message = result.Verified ? "Verificación exitosa" : "Verificación fallida"
-                };
-
-                await NotifyCaptureComplete(captureResult);
-                StopCapture();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[ERROR] [DigitalPersona] Error en ProcessVerification: {ex.Message}");
-                throw;
-            }
+            await NotifyCaptureComplete(captureResult);
+            StopCapture();
         }
 
         private async Task ProcessIdentification(DPFP.FeatureSet features)
         {
-            try
+            string identifiedUser = null;
+            int bestScore = 0;
+
+            Console.WriteLine($"[DP] Comparando con {_identificationTemplates.Count} templates...");
+
+            foreach (var kvp in _identificationTemplates)
             {
-                string identifiedUser = null;
-                int bestScore = 0;
-
-                Console.WriteLine($"[SCAN] [DigitalPersona] Buscando en {_identificationTemplates.Count} usuarios...");
-
-                foreach (var kvp in _identificationTemplates)
+                try
                 {
-                    try
+                    var dpTemplate = new DPFP.Template();
+                    dpTemplate.DeSerialize(kvp.Value);
+
+                    var result = new DPFP.Verification.Verification.Result();
+                    _verification.Verify(features, dpTemplate, ref result);
+
+                    if (result.Verified)
                     {
-                        var dpTemplate = new DPFP.Template();
-                        dpTemplate.DeSerialize(kvp.Value);
+                        int score = (int)((1.0 - result.FARAchieved) * 100);
+                        Console.WriteLine($"[DP] MATCH: {kvp.Key} ({score}%)");
 
-                        var result = new DPFP.Verification.Verification.Result();
-                        _verification.Verify(features, dpTemplate, ref result);
-
-                        if (result.Verified)
+                        if (score > bestScore || identifiedUser == null)
                         {
-                            int score = (int)(result.FARAchieved * 100);
-                            Console.WriteLine($"   [OK] Match con {kvp.Key}: {score}%");
-
-                            if (score > bestScore)
-                            {
-                                bestScore = score;
-                                identifiedUser = kvp.Key;
-                            }
+                            bestScore = score;
+                            identifiedUser = kvp.Key;
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"   [WARN] Error verificando {kvp.Key}: {ex.Message}");
-                    }
                 }
-
-                var captureResult = new CaptureResult
+                catch (Exception ex)
                 {
-                    ResultType = identifiedUser != null ? CaptureResultType.IdentificationSuccess : CaptureResultType.IdentificationFailed,
-                    UserId = identifiedUser,
-                    MatchScore = identifiedUser != null ? bestScore : 0,
-                    Message = identifiedUser != null ? $"Usuario identificado: {identifiedUser}" : "Usuario no identificado"
-                };
+                    Console.WriteLine($"[DP] Error con {kvp.Key}: {ex.Message}");
+                }
+            }
 
-                await NotifyCaptureComplete(captureResult);
-                StopCapture();
-            }
-            catch (Exception ex)
+            var captureResult = new CaptureResult
             {
-                Console.WriteLine($"[ERROR] [DigitalPersona] Error en ProcessIdentification: {ex.Message}");
-                throw;
-            }
+                ResultType = identifiedUser != null ? CaptureResultType.IdentificationSuccess : CaptureResultType.IdentificationFailed,
+                UserId = identifiedUser,
+                MatchScore = bestScore,
+                Message = identifiedUser != null ? $"Identificado: {identifiedUser}" : "No identificado"
+            };
+
+            Console.WriteLine($"[DP] Resultado: {captureResult.Message}");
+            await NotifyCaptureComplete(captureResult);
+            StopCapture();
         }
 
         private DPFP.FeatureSet ExtractFeatures(Sample sample, DPFP.Processing.DataPurpose purpose)
@@ -522,79 +399,14 @@ namespace BiometricMiddleware.Adapters
 
                 extractor.CreateFeatureSet(sample, purpose, ref feedback, ref features);
 
-                if (feedback == DPFP.Capture.CaptureFeedback.Good)
-                {
-                    Console.WriteLine($"   [OK] Features extraídos correctamente");
-                    return features;
-                }
-                else
-                {
-                    Console.WriteLine($"   [WARN] Calidad: {feedback}");
-                    return null;
-                }
+                return feedback == DPFP.Capture.CaptureFeedback.Good ? features : null;
             }
-            catch (Exception ex)
+            catch
             {
-                Console.WriteLine($"[ERROR] Error extrayendo features: {ex.Message}");
                 return null;
             }
         }
 
-        private void DisplayByteaFormat(byte[] bytes)
-        {
-            try
-            {
-                Console.WriteLine("\n╔═══════════════════════════════════════════════════════════╗");
-                Console.WriteLine("║           FINGERPRINT TEMPLATE - FORMATO BYTEA           ║");
-                Console.WriteLine("╚═══════════════════════════════════════════════════════════╝\n");
-
-                var byteaString = BytesToByteaString(bytes);
-
-                Console.WriteLine($"📏 Tamaño: {bytes.Length} bytes");
-                Console.WriteLine($"🔢 Formato: PostgreSQL BYTEA (hexadecimal)\n");
-
-                Console.WriteLine("📋 BYTEA String (listo para PostgreSQL):");
-                Console.WriteLine("─────────────────────────────────────────────────────────────");
-                Console.WriteLine(FormatByteaForDisplay(byteaString, 80));
-                Console.WriteLine("─────────────────────────────────────────────────────────────\n");
-
-                Console.WriteLine("[SAVE] Ejemplo INSERT:");
-                Console.WriteLine($"INSERT INTO fingerprints (user_id, template_data)");
-                Console.WriteLine($"VALUES ('{_currentUserId}', '{byteaString.Substring(0, Math.Min(100, byteaString.Length))}...');\n");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[ERROR] Error mostrando BYTEA: {ex.Message}");
-            }
-        }
-
-        private string BytesToByteaString(byte[] bytes)
-        {
-            var sb = new StringBuilder(bytes.Length * 2 + 2);
-            sb.Append("\\x");
-            foreach (byte b in bytes)
-            {
-                sb.AppendFormat("{0:x2}", b);
-            }
-            return sb.ToString();
-        }
-
-        private string FormatByteaForDisplay(string bytea, int lineLength = 80)
-        {
-            var sb = new StringBuilder();
-            int pos = 0;
-
-            while (pos < bytea.Length)
-            {
-                int length = Math.Min(lineLength, bytea.Length - pos);
-                sb.AppendLine(bytea.Substring(pos, length));
-                pos += length;
-            }
-
-            return sb.ToString();
-        }
-
-        // Helpers de notificación
         private async Task NotifyStatus(string status, string message)
         {
             if (OnStatusChanged != null)

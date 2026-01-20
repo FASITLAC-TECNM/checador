@@ -1,102 +1,48 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using BiometricMiddleware.Adapters;
 
 namespace BiometricMiddleware
 {
-    /// <summary>
-    /// Orquestador principal del sistema biométrico.
-    /// Gestiona el adaptador activo y almacenamiento de templates.
-    /// </summary>
     public class FingerprintManager
     {
-        // Eventos para notificar al WebSocket
         public event Func<string, string, Task> OnStatusChanged;
         public event Func<int, int, Task> OnEnrollProgress;
-        public event Func<string, string, int?, string, Task> OnCaptureComplete; // ⭐ Agregar string al final
+        public event Func<string, string, int?, string, Task> OnCaptureComplete;
 
-        // Adaptador activo
         private IFingerprintReader _reader;
-        
-        // Almacenamiento de templates
-        private const string TEMPLATES_FOLDER = "FingerprintTemplates";
         private Dictionary<string, byte[]> _enrolledTemplates = new Dictionary<string, byte[]>();
 
         public async Task Initialize()
         {
             try
             {
-                Console.WriteLine("🔧 Inicializando BiometricMiddleware...\n");
+                Console.WriteLine("[INIT] Inicializando BiometricMiddleware...\n");
 
-                // Crear carpeta de templates
-                if (!Directory.Exists(TEMPLATES_FOLDER))
-                {
-                    Directory.CreateDirectory(TEMPLATES_FOLDER);
-                    Console.WriteLine($"📁 Carpeta creada: {TEMPLATES_FOLDER}\n");
-                }
-
-                // Auto-detectar lector
                 _reader = await ReaderFactory.AutoDetectReader();
 
                 if (_reader == null)
                 {
-                    throw new Exception("No se detectó ningún lector biométrico conectado");
+                    throw new Exception("No se detecto ningun lector biometrico conectado");
                 }
 
-                // Suscribirse a eventos del adaptador
                 _reader.OnStatusChanged += NotifyStatus;
                 _reader.OnEnrollProgress += NotifyEnrollProgress;
                 _reader.OnCaptureComplete += HandleCaptureComplete;
                 _reader.OnFingerDetected += HandleFingerDetected;
-                _reader.OnFingerRemoved += HandleFingerRemoved;
 
-                // Cargar templates existentes
-                await LoadExistingTemplates();
-
-                Console.WriteLine("✅ Sistema inicializado correctamente");
-                Console.WriteLine($"   Lector: {_reader.ReaderBrand} {_reader.DeviceModel}");
-                Console.WriteLine($"   Templates cargados: {_enrolledTemplates.Count}\n");
+                Console.WriteLine("[OK] Sistema inicializado");
+                Console.WriteLine($"    Lector: {_reader.ReaderBrand} {_reader.DeviceModel}\n");
 
                 await NotifyStatus("ready", $"Sistema listo - {_reader.ReaderBrand}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error en inicialización: {ex.Message}");
-                await NotifyStatus("error", $"Error: {ex.Message}");
+                Console.WriteLine($"[ERROR] Inicializacion: {ex.Message}");
+                await NotifyStatus("error", ex.Message);
                 throw;
-            }
-        }
-
-        private async Task LoadExistingTemplates()
-        {
-            try
-            {
-                var files = Directory.GetFiles(TEMPLATES_FOLDER, "*.fpt");
-
-                foreach (var file in files)
-                {
-                    try
-                    {
-                        var userId = Path.GetFileNameWithoutExtension(file);
-                        var bytes = File.ReadAllBytes(file);
-
-                        _enrolledTemplates[userId] = bytes;
-                        Console.WriteLine($"   📄 Template cargado: {userId}");
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"   ⚠️ Error cargando {file}: {ex.Message}");
-                    }
-                }
-
-                Console.WriteLine($"📚 Total templates: {_enrolledTemplates.Count}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"⚠️ Error cargando templates: {ex.Message}");
             }
         }
 
@@ -105,21 +51,17 @@ namespace BiometricMiddleware
             try
             {
                 if (string.IsNullOrWhiteSpace(userId))
-                {
-                    throw new ArgumentException("UserId no puede estar vacío");
-                }
+                    throw new ArgumentException("UserId no puede estar vacio");
 
                 if (_reader == null || !_reader.IsConnected)
-                {
-                    throw new Exception("Lector no está conectado");
-                }
+                    throw new Exception("Lector no esta conectado");
 
-                Console.WriteLine($"👤 Iniciando enrollment para: {userId}");
+                Console.WriteLine($"[ENROLL] Iniciando para: {userId}");
                 await _reader.StartEnrollment(userId);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error en StartEnrollment: {ex.Message}");
+                Console.WriteLine($"[ERROR] StartEnrollment: {ex.Message}");
                 await NotifyStatus("error", ex.Message);
                 throw;
             }
@@ -130,11 +72,11 @@ namespace BiometricMiddleware
             try
             {
                 _reader?.CancelEnrollment();
-                Console.WriteLine("ℹ️ Enrollment cancelado");
+                Console.WriteLine("[INFO] Enrollment cancelado");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"⚠️ Error cancelando: {ex.Message}");
+                Console.WriteLine($"[WARN] Error cancelando: {ex.Message}");
             }
         }
 
@@ -143,80 +85,42 @@ namespace BiometricMiddleware
             try
             {
                 if (string.IsNullOrWhiteSpace(userId))
-                {
-                    throw new ArgumentException("UserId no puede estar vacío");
-                }
+                    throw new ArgumentException("UserId no puede estar vacio");
 
                 if (_reader == null || !_reader.IsConnected)
-                {
-                    throw new Exception("Lector no está conectado");
-                }
+                    throw new Exception("Lector no esta conectado");
 
                 if (!_enrolledTemplates.ContainsKey(userId))
-                {
                     throw new Exception($"Usuario {userId} no tiene huella registrada");
-                }
 
                 var template = _enrolledTemplates[userId];
-                Console.WriteLine($"🔍 Iniciando verificación para: {userId}");
+                Console.WriteLine($"[VERIFY] Iniciando para: {userId}");
                 await _reader.StartVerification(userId, template);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error en StartVerification: {ex.Message}");
+                Console.WriteLine($"[ERROR] StartVerification: {ex.Message}");
                 await NotifyStatus("error", ex.Message);
                 throw;
             }
         }
 
-        public async Task StartIdentification()
-        {
-            try
-            {
-                if (_reader == null || !_reader.IsConnected)
-                {
-                    throw new Exception("Lector no está conectado");
-                }
-
-                if (_enrolledTemplates.Count == 0)
-                {
-                    throw new Exception("No hay usuarios registrados");
-                }
-
-                Console.WriteLine($"🔎 Iniciando identificación ({_enrolledTemplates.Count} usuarios)");
-                await _reader.StartIdentification(_enrolledTemplates);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ Error en StartIdentification: {ex.Message}");
-                await NotifyStatus("error", ex.Message);
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// Inicia identificación 1:N con templates externos (de la BD)
-        /// </summary>
         public async Task StartIdentificationWithTemplates(Dictionary<string, byte[]> templates)
         {
             try
             {
                 if (_reader == null || !_reader.IsConnected)
-                {
-                    throw new Exception("Lector no está conectado");
-                }
+                    throw new Exception("Lector no esta conectado");
 
                 if (templates == null || templates.Count == 0)
-                {
                     throw new Exception("No hay templates para identificar");
-                }
 
-                Console.WriteLine($"🔎 Iniciando identificación con {templates.Count} templates de BD");
+                Console.WriteLine($"[IDENTIFY] Iniciando con {templates.Count} templates de BD");
                 await _reader.StartIdentification(templates);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error en StartIdentificationWithTemplates: {ex.Message}");
+                Console.WriteLine($"[ERROR] StartIdentification: {ex.Message}");
                 await NotifyStatus("error", ex.Message);
                 throw;
             }
@@ -227,134 +131,75 @@ namespace BiometricMiddleware
             try
             {
                 _reader?.StopCapture();
-                Console.WriteLine("ℹ️ Captura detenida");
+                Console.WriteLine("[INFO] Captura detenida");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"⚠️ Error deteniendo: {ex.Message}");
+                Console.WriteLine($"[WARN] Error deteniendo: {ex.Message}");
             }
         }
 
         private async Task HandleCaptureComplete(CaptureResult result)
-{
-    try
-    {
-        Console.WriteLine($"📊 Resultado: {result.ResultType} - {result.Message}");
-
-        // Si es enrollment exitoso, guardar template
-        if (result.ResultType == CaptureResultType.EnrollmentSuccess && result.Template != null)
         {
-            SaveTemplate(result.UserId, result.Template);
-            _enrolledTemplates[result.UserId] = result.Template;
-        }
-
-        // Mapear a formato del WebSocket
-        string resultType = result.ResultType.ToString().ToLower();
-        
-        if (resultType.Contains("enrollment"))
-            resultType = result.ResultType == CaptureResultType.EnrollmentSuccess 
-                ? "enrollmentSuccess" 
-                : "enrollmentFailed";
-        else if (resultType.Contains("verification"))
-            resultType = result.ResultType == CaptureResultType.VerificationSuccess 
-                ? "verificationSuccess" 
-                : "verificationFailed";
-        else if (resultType.Contains("identification"))
-            resultType = result.ResultType == CaptureResultType.IdentificationSuccess 
-                ? "identificationSuccess" 
-                : "identificationFailed";
-
-        // ⭐ PASAR EL TEMPLATE BASE64 AL WEBSOCKET
-        await NotifyCaptureComplete(
-            resultType, 
-            result.UserId, 
-            result.MatchScore,
-            result.TemplateBase64  // ⭐ NUEVO PARÁMETRO
-        );
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"❌ Error manejando resultado: {ex.Message}");
-    }
-}
-
-        private async Task HandleFingerDetected(string message)
-        {
-            Console.WriteLine($"👆 {message}");
-            await NotifyStatus("fingerTouch", message);
-        }
-
-        private async Task HandleFingerRemoved()
-        {
-            Console.WriteLine("👋 Dedo removido");
-        }
-
-        private void SaveTemplate(string userId, byte[] template)
-        {
-            // NO GUARDAR EN ARCHIVO - Solo mostrar en consola
             try
             {
-                // Convertir a Base64 para mostrar
-                string templateBase64 = Convert.ToBase64String(template);
+                Console.WriteLine($"[RESULT] {result.ResultType} - {result.Message}");
 
-                Console.WriteLine("\n" + new string('=', 70));
-                Console.WriteLine(" TEMPLATE CAPTURADO (NO SE GUARDA EN ARCHIVO)");
-                Console.WriteLine(new string('=', 70));
-                Console.WriteLine($" User ID: {userId}");
-                Console.WriteLine($" Tamanio: {template.Length} bytes");
-                Console.WriteLine(new string('-', 70));
-                Console.WriteLine(" BASE64 (primeros 100 chars):");
-                Console.WriteLine($" {templateBase64.Substring(0, Math.Min(100, templateBase64.Length))}...");
-                Console.WriteLine(new string('-', 70));
-                Console.WriteLine(" BYTEA (primeros 50 bytes hex):");
+                if (result.ResultType == CaptureResultType.EnrollmentSuccess && result.Template != null)
+                {
+                    _enrolledTemplates[result.UserId] = result.Template;
+                    Console.WriteLine($"[OK] Template guardado en memoria: {result.Template.Length} bytes");
+                }
 
-                // Mostrar los primeros 50 bytes en formato BYTEA
-                var hexBytes = string.Join("", template.Take(50).Select(b => b.ToString("x2")));
-                Console.WriteLine($" \\x{hexBytes}");
-                Console.WriteLine(new string('-', 70));
-                Console.WriteLine(" FULL BASE64 (copiar para guardar en BD):");
-                Console.WriteLine($" {templateBase64}");
-                Console.WriteLine(new string('=', 70) + "\n");
+                string resultType = MapResultType(result.ResultType);
 
-                // NO guardar en archivo
-                // var filePath = Path.Combine(TEMPLATES_FOLDER, $"{userId}.fpt");
-                // File.WriteAllBytes(filePath, template);
-
-                Console.WriteLine("[OK] Template procesado (NO guardado en disco)");
+                await NotifyCaptureComplete(resultType, result.UserId, result.MatchScore, result.TemplateBase64);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] Error procesando template: {ex.Message}");
+                Console.WriteLine($"[ERROR] HandleCaptureComplete: {ex.Message}");
             }
         }
 
-        public bool IsReaderConnected()
+        private string MapResultType(CaptureResultType type)
         {
-            return _reader != null && _reader.IsConnected;
+            switch (type)
+            {
+                case CaptureResultType.EnrollmentSuccess:
+                    return "enrollmentSuccess";
+                case CaptureResultType.EnrollmentFailed:
+                    return "enrollmentFailed";
+                case CaptureResultType.VerificationSuccess:
+                    return "verificationSuccess";
+                case CaptureResultType.VerificationFailed:
+                    return "verificationFailed";
+                case CaptureResultType.IdentificationSuccess:
+                    return "identificationSuccess";
+                case CaptureResultType.IdentificationFailed:
+                    return "identificationFailed";
+                default:
+                    return type.ToString().ToLower();
+            }
         }
 
-        public string GetCurrentOperation()
+        private async Task HandleFingerDetected(string message)
         {
-            if (_reader == null)
-                return "None";
-
-            return _reader.IsCapturing ? "Capturing" : "None";
+            Console.WriteLine($"[FINGER] {message}");
+            await NotifyStatus("fingerTouch", message);
         }
 
-        public List<string> GetEnrolledUsers()
-        {
-            return _enrolledTemplates.Keys.ToList();
-        }
+        public bool IsReaderConnected() => _reader != null && _reader.IsConnected;
+
+        public string GetCurrentOperation() => _reader?.IsCapturing == true ? "Capturing" : "None";
+
+        public List<string> GetEnrolledUsers() => _enrolledTemplates.Keys.ToList();
 
         public string GetReaderInfo()
         {
-            if (_reader == null)
-                return "No reader";
-
-            return $"{_reader.ReaderBrand} {_reader.DeviceModel} (S/N: {_reader.SerialNumber})";
+            if (_reader == null) return "No reader";
+            return $"{_reader.ReaderBrand} {_reader.DeviceModel}";
         }
 
-        // Helpers de notificación
         private async Task NotifyStatus(string status, string message)
         {
             if (OnStatusChanged != null)
@@ -368,10 +213,10 @@ namespace BiometricMiddleware
         }
 
         private async Task NotifyCaptureComplete(string result, string userId, int? score, string templateBase64)
-{
-    if (OnCaptureComplete != null)
-        await OnCaptureComplete(result, userId, score, templateBase64); // ⭐ Pasar templateBase64
-}
+        {
+            if (OnCaptureComplete != null)
+                await OnCaptureComplete(result, userId, score, templateBase64);
+        }
 
         public void Dispose()
         {

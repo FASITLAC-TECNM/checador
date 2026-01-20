@@ -68,13 +68,14 @@ export default function LoginModal({ onClose, onFacialLogin, onLoginSuccess }) {
     setShowBiometricModal(true);
   };
 
-  const handleBiometricSuccess = (data) => {
-    // Login automático después de verificar la huella
+  const handleBiometricSuccess = (empleadoData) => {
+    console.log("✅ Autenticación biométrica exitosa:", empleadoData);
+
+    // Login automático con los datos del empleado identificado
     if (onLoginSuccess) {
       onLoginSuccess({
-        username: "Usuario Biométrico",
+        ...empleadoData,
         loginMethod: "biometric",
-        fingerprintData: data,
       });
     }
     setShowBiometricModal(false);

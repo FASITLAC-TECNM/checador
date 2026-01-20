@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
@@ -20,12 +20,11 @@ namespace BiometricMiddleware
         static async Task Main(string[] args)
         {
             Console.OutputEncoding = Encoding.UTF8;
-            
+
             PrintBanner();
-            ReaderFactory.ShowAvailableAdapters();
 
             _fingerprintManager = new FingerprintManager();
-            
+
             try
             {
                 await _fingerprintManager.Initialize();
@@ -48,17 +47,10 @@ namespace BiometricMiddleware
 
         static void PrintBanner()
         {
-            Console.WriteLine("=".PadRight(70, '='));
+            Console.WriteLine("======================================================================");
             Console.WriteLine(" BIOMETRIC MIDDLEWARE SERVER v2.0");
-            Console.WriteLine(" Multi-Brand Fingerprint Reader Support");
-            Console.WriteLine(" PostgreSQL Integration (Base64 Templates)");
-            Console.WriteLine("=".PadRight(70, '='));
-            Console.WriteLine(" Soporta:");
-            Console.WriteLine("   [OK] DigitalPersona (U.are.U)");
-            Console.WriteLine("   [ ] SecuGen (Pendiente SDK)");
-            Console.WriteLine("   [ ] ZKTeco (Pendiente)");
-            Console.WriteLine("   [ ] Otros (Extensible)");
-            Console.WriteLine("=".PadRight(70, '=') + "\n");
+            Console.WriteLine(" DigitalPersona U.are.U Support");
+            Console.WriteLine("======================================================================\n");
         }
 
         static async Task StartWebSocketServer()
@@ -70,8 +62,8 @@ namespace BiometricMiddleware
             try
             {
                 _httpListener.Start();
-                Console.WriteLine($"\n[OK] WebSocket Server corriendo en: {url}");
-                Console.WriteLine("Esperando conexiones de clientes...\n");
+                Console.WriteLine($"[OK] WebSocket Server: {url}");
+                Console.WriteLine("Esperando conexiones...\n");
 
                 while (true)
                 {
@@ -87,8 +79,7 @@ namespace BiometricMiddleware
                             _connections.Add(connection);
                         }
 
-                        Console.WriteLine($"[+] Nueva conexion WebSocket (Total: {_connections.Count})");
-
+                        Console.WriteLine($"[+] Nueva conexion (Total: {_connections.Count})");
                         _ = Task.Run(async () => await HandleWebSocketConnection(connection));
                     }
                     else
@@ -165,8 +156,7 @@ namespace BiometricMiddleware
             try
             {
                 var request = JsonConvert.DeserializeObject<WebSocketRequest>(message);
-
-                Console.WriteLine($"[CMD] Comando recibido: {request.Command}");
+                Console.WriteLine($"[CMD] {request.Command}");
 
                 switch (request.Command)
                 {
@@ -183,7 +173,6 @@ namespace BiometricMiddleware
                         break;
 
                     case "startIdentification":
-                        // Cargar templates desde la BD via API y luego iniciar identificación
                         await StartIdentificationWithDbTemplates(request.ApiUrl);
                         break;
 
@@ -210,7 +199,7 @@ namespace BiometricMiddleware
             }
             catch (Exception ex)
             {
-                await SendError($"Error procesando mensaje: {ex.Message}");
+                await SendError($"Error: {ex.Message}");
             }
         }
 
@@ -229,8 +218,8 @@ namespace BiometricMiddleware
             await SendMessage(new
             {
                 type = "status",
-                status = status,
-                message = message,
+                status,
+                message,
                 timestamp = DateTime.Now
             });
         }
@@ -240,32 +229,23 @@ namespace BiometricMiddleware
             await SendMessage(new
             {
                 type = "enrollProgress",
-                samplesCollected = samplesCollected,
-                samplesRequired = samplesRequired,
+                samplesCollected,
+                samplesRequired,
                 percentage = (samplesCollected * 100) / samplesRequired
             });
         }
 
-        // ⭐ MÉTODO MODIFICADO: Ahora recibe templateBase64
         private async Task SendCaptureComplete(string result, string userId, int? matchScore, string templateBase64)
         {
-            var response = new
+            await SendMessage(new
             {
                 type = "captureComplete",
-                result = result,
-                userId = userId,
-                matchScore = matchScore,
-                templateBase64 = templateBase64, // ⭐ AGREGADO
+                result,
+                userId,
+                matchScore,
+                templateBase64,
                 timestamp = DateTime.Now
-            };
-
-            // Log para debug
-            if (!string.IsNullOrEmpty(templateBase64))
-            {
-                Console.WriteLine($"[SEND] Enviando template Base64 ({templateBase64.Length} chars) al cliente React");
-            }
-
-            await SendMessage(response);
+            });
         }
 
         private async Task SendStatus()
@@ -286,7 +266,7 @@ namespace BiometricMiddleware
             await SendMessage(new
             {
                 type = "userList",
-                users = users,
+                users,
                 count = users.Count
             });
         }
@@ -311,9 +291,6 @@ namespace BiometricMiddleware
             });
         }
 
-        /// <summary>
-        /// Carga templates desde la BD via API y luego inicia identificación biométrica
-        /// </summary>
         private async Task StartIdentificationWithDbTemplates(string apiUrl)
         {
             try
@@ -324,44 +301,36 @@ namespace BiometricMiddleware
                     return;
                 }
 
-                Console.WriteLine($"\n[API] Cargando templates desde: {apiUrl}/biometric/users");
+                Console.WriteLine($"[API] Cargando templates desde: {apiUrl}/biometric/users");
                 await SendStatusUpdate("loading", "Cargando huellas registradas...");
 
-                // Obtener lista de usuarios con huella
                 var response = await _httpClient.GetAsync($"{apiUrl}/biometric/users");
-                Console.WriteLine($"[API] Response Status: {response.StatusCode}");
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"[API] Error Response: {errorContent}");
+                    Console.WriteLine($"[API] Error: {response.StatusCode}");
                     await SendError($"Error HTTP: {response.StatusCode}");
                     return;
                 }
 
                 var json = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"[API] Response: {json.Substring(0, Math.Min(200, json.Length))}...");
-
                 var result = JsonConvert.DeserializeObject<BiometricUsersResponse>(json);
 
-                if (result == null || result.Users == null || result.Users.Count == 0)
+                if (result?.Users == null || result.Users.Count == 0)
                 {
-                    Console.WriteLine("[API] No hay usuarios con huella registrada");
+                    Console.WriteLine("[API] No hay usuarios con huella");
                     await SendError("No hay huellas registradas en el sistema");
                     return;
                 }
 
-                Console.WriteLine($"[API] Encontrados {result.Users.Count} usuarios con huella");
+                Console.WriteLine($"[API] {result.Users.Count} usuarios encontrados");
 
-                // Cargar cada template
                 var templates = new Dictionary<string, byte[]>();
 
                 foreach (var user in result.Users)
                 {
                     try
                     {
-                        Console.WriteLine($"   Cargando template de empleado {user.IdEmpleado} ({user.Nombre})...");
-
                         var templateResponse = await _httpClient.GetAsync($"{apiUrl}/biometric/template/{user.IdEmpleado}");
 
                         if (templateResponse.IsSuccessStatusCode)
@@ -372,19 +341,14 @@ namespace BiometricMiddleware
                             if (templateResult?.Data?.TemplateBase64 != null)
                             {
                                 var templateBytes = Convert.FromBase64String(templateResult.Data.TemplateBase64);
-                                // Usar formato "emp_ID" para identificar al empleado
                                 templates[$"emp_{user.IdEmpleado}"] = templateBytes;
-                                Console.WriteLine($"   [OK] Template cargado: {templateBytes.Length} bytes");
+                                Console.WriteLine($"   [OK] emp_{user.IdEmpleado}: {templateBytes.Length} bytes");
                             }
-                        }
-                        else
-                        {
-                            Console.WriteLine($"   [WARN] No se pudo cargar template de {user.IdEmpleado}");
                         }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"   [ERROR] Error cargando template de {user.IdEmpleado}: {ex.Message}");
+                        Console.WriteLine($"   [ERROR] emp_{user.IdEmpleado}: {ex.Message}");
                     }
                 }
 
@@ -394,20 +358,20 @@ namespace BiometricMiddleware
                     return;
                 }
 
-                Console.WriteLine($"\n[OK] {templates.Count} templates cargados. Iniciando identificación biométrica...\n");
+                Console.WriteLine($"[OK] {templates.Count} templates cargados\n");
                 await SendStatusUpdate("identifying", $"Coloca tu dedo en el lector ({templates.Count} usuarios)");
 
-                // Iniciar identificación con los templates cargados usando el SDK de DigitalPersona
                 await _fingerprintManager.StartIdentificationWithTemplates(templates);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] Error en identificación: {ex.Message}");
+                Console.WriteLine($"[ERROR] {ex.Message}");
                 await SendError($"Error cargando huellas: {ex.Message}");
             }
         }
     }
 
+    // DTO Classes
     public class WebSocketRequest
     {
         public string Command { get; set; }
@@ -415,11 +379,8 @@ namespace BiometricMiddleware
 
         [JsonProperty("apiUrl")]
         public string ApiUrl { get; set; }
-
-        public Dictionary<string, object> Parameters { get; set; }
     }
 
-    // Clases para deserializar respuestas de la API
     public class BiometricUsersResponse
     {
         [JsonProperty("success")]
@@ -437,17 +398,8 @@ namespace BiometricMiddleware
         [JsonProperty("id_empleado")]
         public int IdEmpleado { get; set; }
 
-        [JsonProperty("id_usuario")]
-        public int IdUsuario { get; set; }
-
         [JsonProperty("nombre")]
         public string Nombre { get; set; }
-
-        [JsonProperty("correo")]
-        public string Correo { get; set; }
-
-        [JsonProperty("template_size")]
-        public int TemplateSize { get; set; }
     }
 
     public class BiometricTemplateResponse
@@ -461,13 +413,7 @@ namespace BiometricMiddleware
 
     public class BiometricTemplateData
     {
-        [JsonProperty("id_empleado")]
-        public int IdEmpleado { get; set; }
-
         [JsonProperty("template_base64")]
         public string TemplateBase64 { get; set; }
-
-        [JsonProperty("size_bytes")]
-        public int SizeBytes { get; set; }
     }
 }

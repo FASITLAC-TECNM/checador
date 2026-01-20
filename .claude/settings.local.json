@@ -3,7 +3,10 @@
     "allow": [
       "Bash(dotnet build:*)",
       "Bash(dotnet run:*)",
-      "Bash(ping:*)"
+      "Bash(ping:*)",
+      "Bash(del \"c:\\\\Users\\\\paulx\\\\Documents\\\\GitHub\\\\checador\\\\Desktop\\\\electron\\\\BiometricMiddleware\\\\Adapters\\\\SecuGenAdapter.cs\")",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)"
     ]
   }
 }

@@ -31,11 +31,19 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
   const styles = darkMode ? personalInfoStylesDark : personalInfoStyles;
 
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
-  const empleado = userData.empleado || null;
-  const rol = userData.rol || null;
-  const departamento = userData.departamento || null;
-  const permisos = userData.permisos || [];
-  const rolMostrar = empleado ? 'Empleado' : (rol?.nombre_rol || 'Usuario');
+  
+  // Usar los datos que ya vienen en userData desde el login
+  const esEmpleado = userData.es_empleado && userData.empleado_id;
+  const empleadoInfo = userData.empleadoInfo || null;
+  const roles = userData.roles || [];
+  
+  // Determinar el rol a mostrar
+  const rolMostrar = esEmpleado
+    ? 'Empleado'
+    : (roles.length > 0 ? roles[0].nombre : (userData.esAdmin ? 'Administrador' : 'Usuario'));
+
+  // Departamentos (pueden venir en empleadoInfo.departamentos)
+  const departamentos = empleadoInfo?.departamentos || [];
 
   const InfoRow = ({ icon, label, value, valueColor }) => (
     <View style={styles.infoRow}>
@@ -95,27 +103,27 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
                 )}
                 <View style={[
                   styles.statusIndicator,
-                  { backgroundColor: userData.conexion === 'Conectado' ? '#10b981' : '#6b7280' }
+                  { backgroundColor: '#10b981' }
                 ]} />
               </View>
 
               <View style={styles.profileInfo}>
                 <Text style={styles.profileName}>{userData.nombre}</Text>
-                <Text style={styles.profileUsername}>@{userData.username}</Text>
+                <Text style={styles.profileUsername}>@{userData.usuario}</Text>
                 
                 <View style={styles.badgesRow}>
                   <View style={[
                     styles.roleBadge,
-                    userData.empleado && styles.roleBadgeEmployee
+                    esEmpleado && styles.roleBadgeEmployee
                   ]}>
                     <Ionicons 
-                      name={userData.empleado ? "briefcase" : "person"} 
+                      name={esEmpleado ? "briefcase" : "person"} 
                       size={10} 
-                      color={userData.empleado ? '#166534' : '#2563eb'} 
+                      color={esEmpleado ? '#166534' : '#2563eb'} 
                     />
                     <Text style={[
                       styles.roleText,
-                      userData.empleado && styles.roleTextEmployee
+                      esEmpleado && styles.roleTextEmployee
                     ]}>
                       {rolMostrar}
                     </Text>
@@ -136,13 +144,13 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
           <InfoRow
             icon="person-outline"
             label="Usuario"
-            value={userData.username}
+            value={userData.usuario}
           />
 
           <InfoRow
             icon="mail-outline"
             label="Email"
-            value={userData.email}
+            value={userData.correo}
           />
 
           <InfoRow
@@ -159,7 +167,7 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
         </View>
 
         {/* Información de Empleado */}
-        {empleado && (
+        {esEmpleado && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons name="briefcase" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
@@ -169,81 +177,60 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
             <InfoRow
               icon="id-card-outline"
               label="ID Empleado"
-              value={`#${empleado.id_empleado}`}
+              value={userData.empleado_id ? `#${userData.empleado_id}` : 'No disponible'}
             />
 
             <InfoRow
               icon="document-text-outline"
               label="RFC"
-              value={empleado.rfc || 'No registrado'}
+              value={userData.rfc || empleadoInfo?.rfc || 'No registrado'}
             />
 
             <InfoRow
               icon="shield-outline"
               label="NSS"
-              value={empleado.nss || 'No registrado'}
+              value={userData.nss || empleadoInfo?.nss || 'No registrado'}
             />
 
-            {departamento && (
+            {departamentos.length > 0 && (
               <View style={styles.infoRow}>
                 <View style={styles.infoLeft}>
                   <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#581c87' : '#f3e8ff' }]}>
                     <Ionicons name="business-outline" size={18} color={darkMode ? '#d8b4fe' : '#9333ea'} />
                   </View>
-                  <Text style={styles.infoLabel}>Departamento</Text>
+                  <Text style={styles.infoLabel}>Departamentos</Text>
                 </View>
-                <View style={styles.departmentBadge}>
-                  <Text style={styles.departmentText}>
-                    {departamento.nombre_departamento}
-                  </Text>
+                <View style={styles.departmentsContainer}>
+                  {departamentos.map((depto, index) => (
+                    <View key={index} style={styles.departmentBadge}>
+                      <Text style={styles.departmentText}>
+                        {depto.nombre}
+                      </Text>
+                    </View>
+                  ))}
                 </View>
               </View>
             )}
-          </View>
-        )}
 
-        {/* Permisos */}
-        {permisos && permisos.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="key" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
-              <Text style={styles.sectionTitle}>Permisos de Acceso</Text>
-            </View>
-
-            {permisos.map((permiso, index) => (
-              <View key={index} style={styles.permissionCard}>
-                <View style={styles.permissionHeader}>
-                  <Ionicons name="grid-outline" size={16} color={darkMode ? '#93c5fd' : '#2563eb'} />
-                  <Text style={styles.permissionModule}>{permiso.nombre_modulo}</Text>
+            {roles.length > 0 && (
+              <View style={styles.infoRow}>
+                <View style={styles.infoLeft}>
+                  <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#7f1d1d' : '#fee2e2' }]}>
+                    <Ionicons name="shield-checkmark-outline" size={18} color={darkMode ? '#fca5a5' : '#dc2626'} />
+                  </View>
+                  <Text style={styles.infoLabel}>Roles</Text>
                 </View>
-                <View style={styles.permissionActions}>
-                  {permiso.ver && (
-                    <View style={styles.permissionBadge}>
-                      <Ionicons name="eye-outline" size={10} color="#059669" />
-                      <Text style={styles.permissionBadgeText}>Ver</Text>
+                <View style={styles.departmentsContainer}>
+                  {roles.map((rol, index) => (
+                    <View key={index} style={[styles.departmentBadge, { backgroundColor: darkMode ? '#7f1d1d' : '#fee2e2' }]}>
+                      <Text style={[styles.departmentText, { color: darkMode ? '#fca5a5' : '#dc2626' }]}>
+                        {rol.nombre}
+                      </Text>
                     </View>
-                  )}
-                  {permiso.crear && (
-                    <View style={styles.permissionBadge}>
-                      <Ionicons name="add-circle-outline" size={10} color="#059669" />
-                      <Text style={styles.permissionBadgeText}>Crear</Text>
-                    </View>
-                  )}
-                  {permiso.editar && (
-                    <View style={styles.permissionBadge}>
-                      <Ionicons name="create-outline" size={10} color="#059669" />
-                      <Text style={styles.permissionBadgeText}>Editar</Text>
-                    </View>
-                  )}
-                  {permiso.eliminar && (
-                    <View style={styles.permissionBadge}>
-                      <Ionicons name="trash-outline" size={10} color="#dc2626" />
-                      <Text style={[styles.permissionBadgeText, { color: '#dc2626' }]}>Eliminar</Text>
-                    </View>
-                  )}
+                  ))}
                 </View>
               </View>
-            ))}
+            )}
           </View>
         )}
 
@@ -415,11 +402,18 @@ const personalInfoStyles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 12,
     gap: 4,
+    marginBottom: 4,
   },
   departmentText: {
     color: '#6366f1',
     fontSize: 11,
     fontWeight: '600',
+  },
+  departmentsContainer: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 4,
+    maxWidth: '50%',
   },
   section: {
     backgroundColor: '#fff',
@@ -476,42 +470,6 @@ const personalInfoStyles = StyleSheet.create({
     textAlign: 'right',
     maxWidth: '50%',
   },
-  permissionCard: {
-    backgroundColor: darkMode => darkMode ? '#374151' : '#f9fafb',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
-  },
-  permissionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-    gap: 8,
-  },
-  permissionModule: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1f2937',
-  },
-  permissionActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  permissionBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#dcfce7',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    gap: 4,
-  },
-  permissionBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#059669',
-  },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -559,14 +517,6 @@ const personalInfoStylesDark = StyleSheet.create({
   },
   infoValue: {
     ...personalInfoStyles.infoValue,
-    color: '#f9fafb',
-  },
-  permissionCard: {
-    ...personalInfoStyles.permissionCard,
-    backgroundColor: '#374151',
-  },
-  permissionModule: {
-    ...personalInfoStyles.permissionModule,
     color: '#f9fafb',
   },
   actionText: {

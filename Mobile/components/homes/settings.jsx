@@ -43,7 +43,17 @@ export const SettingsScreen = ({
   const styles = darkMode ? settingsStylesDark : settingsStyles;
 
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
-  const rolMostrar = userData.empleado ? 'Empleado' : (userData.rol?.nombre_rol || 'Usuario');
+  
+  // ⭐ CORRECCIÓN: Determinar el rol correctamente
+  const esEmpleado = userData.es_empleado && userData.empleado_id;
+  const rolMostrar = esEmpleado
+    ? 'Empleado'
+    : (userData.roles && userData.roles.length > 0
+        ? userData.roles[0].nombre
+        : (userData.esAdmin ? 'Administrador' : 'Usuario'));
+
+  // ⭐ CORRECCIÓN: Email viene directamente de userData.correo
+  const emailMostrar = userData.correo || email || 'usuario@correo.com';
 
   // Si se está mostrando información personal
   if (showPersonalInfo) {
@@ -72,7 +82,7 @@ export const SettingsScreen = ({
       
       {/* Header con gradiente */}
       <LinearGradient
-        colors={['#2563eb', '#3b82f6']}
+        colors={darkMode ? ['#1e40af', '#2563eb'] : ['#2563eb', '#3b82f6']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
@@ -113,41 +123,32 @@ export const SettingsScreen = ({
                   )}
                   <View style={[
                     styles.statusIndicator,
-                    { backgroundColor: userData.conexion === 'Conectado' ? '#10b981' : '#6b7280' }
+                    { backgroundColor: '#10b981' } // ⭐ Siempre en línea mientras esté logueado
                   ]} />
                 </View>
               </View>
 
               <View style={styles.profileInfo}>
                 <Text style={styles.profileName}>{userData.nombre}</Text>
-                <Text style={styles.profileEmail}>{userData.email || 'usuario@correo.com'}</Text>
+                <Text style={styles.profileEmail}>{emailMostrar}</Text>
                 
                 <View style={styles.badgesContainer}>
                   <View style={[
                     styles.roleBadge,
-                    userData.empleado && styles.roleBadgeEmployee
+                    esEmpleado && styles.roleBadgeEmployee
                   ]}>
                     <Ionicons 
-                      name={userData.empleado ? "briefcase" : "person"} 
+                      name={esEmpleado ? "briefcase" : "person"} 
                       size={12} 
-                      color={userData.empleado ? '#166534' : '#2563eb'} 
+                      color={esEmpleado ? '#166534' : '#2563eb'} 
                     />
                     <Text style={[
                       styles.roleText,
-                      userData.empleado && styles.roleTextEmployee
+                      esEmpleado && styles.roleTextEmployee
                     ]}>
                       {rolMostrar}
                     </Text>
                   </View>
-
-                  {userData.departamento && (
-                    <View style={styles.departmentBadge}>
-                      <Ionicons name="business" size={12} color="#6366f1" />
-                      <Text style={styles.departmentText}>
-                        {userData.departamento.nombre_departamento}
-                      </Text>
-                    </View>
-                  )}
                 </View>
               </View>
             </View>

@@ -126,8 +126,7 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
       
       {/* Header con gradiente - MISMO TAMAÑO QUE SETTINGS */}
       <LinearGradient
-        colors={darkMode ? ['#2563eb', '#3b82f6']['#2563eb', '#3b82f6'] : ['#2563eb', '#3b82f6']}
-        start={{ x: 0, y: 0 }}
+        colors={darkMode ? ['#1e40af', '#2563eb'] : ['#2563eb', '#3b82f6']}        start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
       >

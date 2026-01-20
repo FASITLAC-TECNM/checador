@@ -470,27 +470,38 @@ namespace BiometricMiddleware.Adapters
                 {
                     try
                     {
+                        Console.WriteLine($"\n   Comparando con {kvp.Key} (template: {kvp.Value.Length} bytes)...");
+
                         var dpTemplate = new DPFP.Template();
                         dpTemplate.DeSerialize(kvp.Value);
+                        Console.WriteLine($"   [OK] Template deserializado correctamente");
 
                         var result = new DPFP.Verification.Verification.Result();
                         _verification.Verify(features, dpTemplate, ref result);
 
+                        // Mostrar resultado SIEMPRE (no solo cuando hay match)
+                        int score = result.Verified ? (int)((1.0 - result.FARAchieved) * 100) : 0;
+                        Console.WriteLine($"   Resultado: Verified={result.Verified}, FARAchieved={result.FARAchieved}, Score={score}%");
+
                         if (result.Verified)
                         {
-                            int score = (int)(result.FARAchieved * 100);
-                            Console.WriteLine($"   [OK] Match con {kvp.Key}: {score}%");
+                            Console.WriteLine($"   [OK] *** MATCH ENCONTRADO con {kvp.Key}: {score}% ***");
 
-                            if (score > bestScore)
+                            if (score > bestScore || identifiedUser == null)
                             {
                                 bestScore = score;
                                 identifiedUser = kvp.Key;
                             }
                         }
+                        else
+                        {
+                            Console.WriteLine($"   [--] No match con {kvp.Key}");
+                        }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"   [WARN] Error verificando {kvp.Key}: {ex.Message}");
+                        Console.WriteLine($"   [ERROR] Error verificando {kvp.Key}: {ex.Message}");
+                        Console.WriteLine($"   [ERROR] Stack: {ex.StackTrace}");
                     }
                 }
 

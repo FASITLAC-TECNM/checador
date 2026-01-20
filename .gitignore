@@ -8,6 +8,12 @@ build/
 **/dist/
 **/build/
 
+# .NET build artifacts
+**/bin/
+**/obj/
+*.user
+*.suo
+
 # Environment variables
 .env
 .env.local

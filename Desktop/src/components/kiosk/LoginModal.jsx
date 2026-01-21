@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import BiometricReader from "./BiometricReader";
 
 function LoginModal({ isOpen = true, onClose, onFacialLogin, onLoginSuccess }) {
-    const { login, loading, error: authError, user } = useAuth();
+    const { loginByPin, loginByFingerprint, loading, error: authError } = useAuth();
     const [formData, setFormData] = useState({
         usuario: '',
         contrasena: '',
@@ -13,6 +13,7 @@ function LoginModal({ isOpen = true, onClose, onFacialLogin, onLoginSuccess }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [loginSuccess, setLoginSuccess] = useState(false);
     const [showBiometricModal, setShowBiometricModal] = useState(false);
+    const [loggedInUser, setLoggedInUser] = useState(null);
 
     if (!isOpen) return null;
 
@@ -47,14 +48,16 @@ function LoginModal({ isOpen = true, onClose, onFacialLogin, onLoginSuccess }) {
         setError('');
 
         try {
-            const result = await login(formData.usuario, formData.contrasena);
+            // Usar loginByPin para autenticar con usuario y PIN
+            const result = await loginByPin(formData.usuario, formData.contrasena);
 
             if (result.success) {
+                setLoggedInUser(result.usuario);
                 setLoginSuccess(true);
                 setTimeout(() => {
                     setLoginSuccess(false);
                     if (onLoginSuccess) {
-                        onLoginSuccess(user);
+                        onLoginSuccess(result.usuario);
                     }
                     onClose();
                 }, 2000);
@@ -78,20 +81,26 @@ function LoginModal({ isOpen = true, onClose, onFacialLogin, onLoginSuccess }) {
         setShowBiometricModal(true);
     };
 
-    const handleBiometricSuccess = (empleadoData) => {
+    const handleBiometricSuccess = async (empleadoData) => {
         console.log("✅ Autenticación biométrica exitosa:", empleadoData);
-        setLoginSuccess(true);
-        setTimeout(() => {
-            setLoginSuccess(false);
-            if (onLoginSuccess) {
-                onLoginSuccess({
-                    ...empleadoData,
-                    loginMethod: "biometric",
-                });
-            }
-            setShowBiometricModal(false);
-            onClose();
-        }, 2000);
+
+        // Usar loginByFingerprint para guardar la sesión correctamente en el contexto
+        const result = await loginByFingerprint(empleadoData);
+
+        if (result.success) {
+            setLoggedInUser(result.usuario);
+            setLoginSuccess(true);
+            setTimeout(() => {
+                setLoginSuccess(false);
+                if (onLoginSuccess) {
+                    onLoginSuccess(result.usuario);
+                }
+                setShowBiometricModal(false);
+                onClose();
+            }, 2000);
+        } else {
+            console.error("Error en login biométrico:", result.message);
+        }
     };
 
     return (
@@ -134,7 +143,7 @@ function LoginModal({ isOpen = true, onClose, onFacialLogin, onLoginSuccess }) {
                                     Bienvenido!
                                 </h2>
                                 <p className="text-green-400 text-base mb-0.5">
-                                    {user?.nombre || 'Usuario'}
+                                    {loggedInUser?.nombre || 'Usuario'}
                                 </p>
                                 <p className="text-gray-400 text-xs">
                                     Sesion iniciada correctamente

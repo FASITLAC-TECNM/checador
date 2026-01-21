@@ -301,10 +301,11 @@ namespace BiometricMiddleware
                     return;
                 }
 
-                Console.WriteLine($"[API] Cargando templates desde: {apiUrl}/biometric/users");
+                // Usar el endpoint de credenciales existente
+                Console.WriteLine($"[API] Cargando templates desde: {apiUrl}/credenciales");
                 await SendStatusUpdate("loading", "Cargando huellas registradas...");
 
-                var response = await _httpClient.GetAsync($"{apiUrl}/biometric/users");
+                var response = await _httpClient.GetAsync($"{apiUrl}/credenciales");
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -314,41 +315,52 @@ namespace BiometricMiddleware
                 }
 
                 var json = await response.Content.ReadAsStringAsync();
-                var result = JsonConvert.DeserializeObject<BiometricUsersResponse>(json);
+                var result = JsonConvert.DeserializeObject<CredencialesResponse>(json);
 
-                if (result?.Users == null || result.Users.Count == 0)
+                if (result?.Data == null || result.Data.Count == 0)
                 {
-                    Console.WriteLine("[API] No hay usuarios con huella");
+                    Console.WriteLine("[API] No hay credenciales registradas");
                     await SendError("No hay huellas registradas en el sistema");
                     return;
                 }
 
-                Console.WriteLine($"[API] {result.Users.Count} usuarios encontrados");
+                // Filtrar solo los que tienen huella dactilar
+                var usuariosConHuella = result.Data.FindAll(c => c.TieneDactilar);
+
+                if (usuariosConHuella.Count == 0)
+                {
+                    Console.WriteLine("[API] No hay usuarios con huella dactilar");
+                    await SendError("No hay huellas dactilares registradas en el sistema");
+                    return;
+                }
+
+                Console.WriteLine($"[API] {usuariosConHuella.Count} usuarios con huella encontrados");
 
                 var templates = new Dictionary<string, byte[]>();
 
-                foreach (var user in result.Users)
+                foreach (var credencial in usuariosConHuella)
                 {
                     try
                     {
-                        var templateResponse = await _httpClient.GetAsync($"{apiUrl}/biometric/template/{user.IdEmpleado}");
+                        // Obtener el template del empleado
+                        var templateResponse = await _httpClient.GetAsync($"{apiUrl}/credenciales/empleado/{credencial.EmpleadoId}/dactilar");
 
                         if (templateResponse.IsSuccessStatusCode)
                         {
                             var templateJson = await templateResponse.Content.ReadAsStringAsync();
-                            var templateResult = JsonConvert.DeserializeObject<BiometricTemplateResponse>(templateJson);
+                            var templateResult = JsonConvert.DeserializeObject<DactilarResponse>(templateJson);
 
-                            if (templateResult?.Data?.TemplateBase64 != null)
+                            if (templateResult?.Success == true && templateResult?.Data?.Dactilar != null)
                             {
-                                var templateBytes = Convert.FromBase64String(templateResult.Data.TemplateBase64);
-                                templates[$"emp_{user.IdEmpleado}"] = templateBytes;
-                                Console.WriteLine($"   [OK] emp_{user.IdEmpleado}: {templateBytes.Length} bytes");
+                                var templateBytes = Convert.FromBase64String(templateResult.Data.Dactilar);
+                                templates[$"emp_{credencial.EmpleadoId}"] = templateBytes;
+                                Console.WriteLine($"   [OK] emp_{credencial.EmpleadoId}: {templateBytes.Length} bytes");
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"   [ERROR] emp_{user.IdEmpleado}: {ex.Message}");
+                        Console.WriteLine($"   [ERROR] emp_{credencial.EmpleadoId}: {ex.Message}");
                     }
                 }
 
@@ -381,39 +393,50 @@ namespace BiometricMiddleware
         public string ApiUrl { get; set; }
     }
 
-    public class BiometricUsersResponse
-    {
-        [JsonProperty("success")]
-        public bool Success { get; set; }
-
-        [JsonProperty("count")]
-        public int Count { get; set; }
-
-        [JsonProperty("users")]
-        public List<BiometricUser> Users { get; set; }
-    }
-
-    public class BiometricUser
-    {
-        [JsonProperty("id_empleado")]
-        public int IdEmpleado { get; set; }
-
-        [JsonProperty("nombre")]
-        public string Nombre { get; set; }
-    }
-
-    public class BiometricTemplateResponse
+    // Respuesta del endpoint GET /api/credenciales
+    public class CredencialesResponse
     {
         [JsonProperty("success")]
         public bool Success { get; set; }
 
         [JsonProperty("data")]
-        public BiometricTemplateData Data { get; set; }
+        public List<Credencial> Data { get; set; }
     }
 
-    public class BiometricTemplateData
+    public class Credencial
     {
-        [JsonProperty("template_base64")]
-        public string TemplateBase64 { get; set; }
+        [JsonProperty("id")]
+        public string Id { get; set; }
+
+        [JsonProperty("empleado_id")]
+        public string EmpleadoId { get; set; }
+
+        [JsonProperty("tiene_dactilar")]
+        public bool TieneDactilar { get; set; }
+
+        [JsonProperty("tiene_facial")]
+        public bool TieneFacial { get; set; }
+
+        [JsonProperty("tiene_pin")]
+        public bool TienePin { get; set; }
+
+        [JsonProperty("empleado_nombre")]
+        public string EmpleadoNombre { get; set; }
+    }
+
+    // Respuesta del endpoint GET /api/credenciales/empleado/:id/dactilar
+    public class DactilarResponse
+    {
+        [JsonProperty("success")]
+        public bool Success { get; set; }
+
+        [JsonProperty("data")]
+        public DactilarData Data { get; set; }
+    }
+
+    public class DactilarData
+    {
+        [JsonProperty("dactilar")]
+        public string Dactilar { get; set; }
     }
 }

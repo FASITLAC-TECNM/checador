@@ -1,6 +1,9 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { API_CONFIG } from '../config/apiEndPoint';
+import { loginUsuario } from '../services/authService';
+import { getEmpleadoConHorario } from '../services/empleadoService';
 
-const API_URL = 'https://9dm7dqf9-3002.usw3.devtunnels.ms';
+const API_URL = API_CONFIG.BASE_URL;
 
 const AuthContext = createContext(null);
 
@@ -109,16 +112,119 @@ export const AuthProvider = ({ children }) => {
         return user?.esAdmin || false;
     };
 
+    // Login por PIN (para empleados)
+    const loginByPin = async (username, pin) => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            const result = await loginUsuario(username, pin);
+
+            if (!result.success) {
+                throw new Error(result.error || 'Error al iniciar sesión');
+            }
+
+            const usuario = result.usuario;
+
+            // Obtener datos completos del empleado con horario (si es empleado)
+            let empleadoCompleto = usuario;
+            try {
+                if (usuario.es_empleado && usuario.empleado_id) {
+                    // Pasar el objeto completo para que use empleado_id y horario_id
+                    const datosCompletos = await getEmpleadoConHorario(usuario);
+                    if (datosCompletos) {
+                        empleadoCompleto = { ...usuario, ...datosCompletos };
+                    }
+                }
+            } catch (err) {
+                console.warn('⚠️ No se pudieron obtener datos completos del empleado:', err);
+            }
+
+            localStorage.setItem('user_data', JSON.stringify(empleadoCompleto));
+
+            setUser(empleadoCompleto);
+            return { success: true, usuario: empleadoCompleto };
+        } catch (error) {
+            console.error('Error en loginByPin:', error);
+            setError(error.message);
+            return {
+                success: false,
+                message: error.message,
+            };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Actualizar datos del empleado en el contexto
+    const updateEmpleadoData = async (empleadoId) => {
+        try {
+            const datosCompletos = await getEmpleadoConHorario(empleadoId);
+            const updatedUser = { ...user, ...datosCompletos };
+            setUser(updatedUser);
+            localStorage.setItem('user_data', JSON.stringify(updatedUser));
+            return updatedUser;
+        } catch (error) {
+            console.error('Error actualizando datos del empleado:', error);
+            throw error;
+        }
+    };
+
+    // Login por huella dactilar (para empleados)
+    const loginByFingerprint = async (empleadoData) => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            // empleadoData viene del BiometricReader con los datos del empleado
+            const usuario = {
+                ...empleadoData,
+                metodoAutenticacion: 'HUELLA',
+            };
+
+            // Obtener datos completos del empleado con horario
+            let empleadoCompleto = usuario;
+            try {
+                if (usuario.empleado_id || usuario.id) {
+                    const datosCompletos = await getEmpleadoConHorario(usuario.empleado_id || usuario.id);
+                    if (datosCompletos) {
+                        empleadoCompleto = { ...usuario, ...datosCompletos };
+                    }
+                }
+            } catch (err) {
+                console.warn('⚠️ No se pudieron obtener datos completos del empleado:', err);
+            }
+
+            // Guardar en localStorage (sin token ya que es autenticación biométrica)
+            localStorage.setItem('user_data', JSON.stringify(empleadoCompleto));
+
+            setUser(empleadoCompleto);
+            return { success: true, usuario: empleadoCompleto };
+        } catch (error) {
+            console.error('Error en loginByFingerprint:', error);
+            setError(error.message);
+            return {
+                success: false,
+                message: error.message,
+            };
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const value = {
         user,
         loading,
         error,
         login,
+        loginByPin,
+        loginByFingerprint,
         logout,
         isAuthenticated: !!user,
         hasPermission,
         isAdmin,
         checkAuth,
+        updateEmpleadoData,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

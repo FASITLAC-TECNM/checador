@@ -80,63 +80,59 @@ export const BottomNavigation = ({ currentScreen, onScreenChange, darkMode }) =>
   ];
 
   return (
-    <>
-      {/* Fondo que cubre el safe area */}
-      <View style={[
-        styles.safeAreaBackground,
-        { height: Math.max(insets.bottom, 0) }
-      ]} />
+    <View 
+      style={[
+        styles.container,
+        { 
+          paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 6) : insets.bottom,
+        }
+      ]}
+    >
+      {/* Sombra superior sutil */}
+      <View style={styles.shadow} />
       
-      {/* Nav Bar */}
-      <View 
-        style={[
-          styles.container,
-          { 
-            paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 6) : insets.bottom,
-          }
-        ]}
-      >
-        <View style={styles.navBar}>
-          {navItems.map((item) => {
-            const isActive = currentScreen === item.id;
-            
-            return (
-              <NavItem
-                key={item.id}
-                item={item}
-                isActive={isActive}
-                onPress={() => onScreenChange(item.id)}
-                darkMode={darkMode}
-                navStyles={styles}
-              />
-            );
-          })}
-        </View>
+      <View style={styles.navBar}>
+        {navItems.map((item) => {
+          const isActive = currentScreen === item.id;
+          
+          return (
+            <NavItem
+              key={item.id}
+              item={item}
+              isActive={isActive}
+              onPress={() => onScreenChange(item.id)}
+              darkMode={darkMode}
+              navStyles={styles}
+            />
+          );
+        })}
       </View>
-    </>
+    </View>
   );
 };
 
 const navStyles = StyleSheet.create({
-  safeAreaBackground: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff',
-  },
   container: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'transparent',
+    backgroundColor: '#fff',
+    borderTopWidth: 0, // ⭐ Sin borde
+  },
+  shadow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: '#e5e7eb',
   },
   navBar: {
     flexDirection: 'row',
     backgroundColor: '#fff',
     paddingHorizontal: 4,
-    paddingTop: 6,
+    paddingTop: 8,
     paddingBottom: 4,
   },
   navItem: {
@@ -148,9 +144,9 @@ const navStyles = StyleSheet.create({
   },
   activeIndicator: {
     position: 'absolute',
-    top: -2,
+    top: -4,
     width: 24,
-    height: 2.5,
+    height: 3,
     backgroundColor: '#2563eb',
     borderRadius: 2,
   },
@@ -181,12 +177,14 @@ const navStyles = StyleSheet.create({
 });
 
 const navStylesDark = StyleSheet.create({
-  safeAreaBackground: {
-    ...navStyles.safeAreaBackground,
+  container: {
+    ...navStyles.container,
     backgroundColor: '#1f2937',
-    borderTopColor: '#374151',
   },
-  container: navStyles.container,
+  shadow: {
+    ...navStyles.shadow,
+    backgroundColor: '#374151',
+  },
   navBar: {
     ...navStyles.navBar,
     backgroundColor: '#1f2937',

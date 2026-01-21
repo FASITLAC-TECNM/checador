@@ -87,8 +87,22 @@ const extraerCoordenadas = (ubicacion) => {
         // 2. Extraer coordenadas según la estructura
         let coordenadas = null;
 
+        // ⭐ CASO NUEVO: Objeto con propiedad 'zonas' (array de zonas)
+        if (parsed.zonas && Array.isArray(parsed.zonas) && parsed.zonas.length > 0) {
+            console.log('✅ Estructura: Objeto con propiedad zonas');
+            console.log('📊 Número de zonas:', parsed.zonas.length);
+            
+            // Tomar la primera zona (puedes modificar esto si necesitas manejar múltiples zonas)
+            const primeraZona = parsed.zonas[0];
+            console.log('📍 Primera zona tipo:', primeraZona.type);
+            
+            if (primeraZona.coordinates && Array.isArray(primeraZona.coordinates)) {
+                coordenadas = primeraZona.coordinates;
+                console.log('✅ Coordenadas extraídas de zona');
+            }
+        }
         // Caso A: Objeto con propiedad 'coordenadas'
-        if (parsed.coordenadas && Array.isArray(parsed.coordenadas)) {
+        else if (parsed.coordenadas && Array.isArray(parsed.coordenadas)) {
             console.log('✅ Estructura: Objeto con propiedad coordenadas');
             coordenadas = parsed.coordenadas;
         }

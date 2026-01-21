@@ -9,13 +9,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { validarUbicacionPermitida, formatearCoordenadas, isPointInPolygon, extraerCoordenadas } from '../../services/ubicacionService';
+import { isPointInPolygon, extraerCoordenadas } from '../../services/ubicacionService';
 import { getApiEndpoint } from '../../config/api';
 
 const API_URL = getApiEndpoint('/api');
 
 /**
- * Componente de botón de registro con validación de ubicación y biometría
+ * Componente de botón de registro con validación de ubicación
  */
 export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [ubicacionActual, setUbicacionActual] = useState(null);
@@ -31,7 +31,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
   // ==================== OBTENER ID DEL EMPLEADO ====================
   const getEmpleadoId = () => {
-    // La nueva API retorna empleado_id directamente en userData
     return userData?.empleado_id || null;
   };
 
@@ -46,7 +45,13 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         }
 
         const response = await fetch(
-          `${API_URL}/asistencia/empleado/${empleadoId}/ultimo`
+          `${API_URL}/asistencia/empleado/${empleadoId}/ultimo`,
+          {
+            headers: {
+              'Authorization': `Bearer ${userData.token}`,
+              'Content-Type': 'application/json'
+            }
+          }
         );
 
         if (!response.ok) {
@@ -94,7 +99,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           lng: location.coords.longitude
         };
 
-        console.log('📍 Ubicación actual obtenida:', formatearCoordenadas(coords));
+        console.log('📍 Ubicación actual obtenida:', coords);
         setUbicacionActual(coords);
 
         locationSubscription = await Location.watchPositionAsync(
@@ -129,87 +134,118 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     };
   }, []);
 
-  // ==================== VALIDAR UBICACIÓN CUANDO CAMBIE ====================
-  useEffect(() => {
-    const validarUbicacion = async () => {
-      try {
-        if (!ubicacionActual) {
-          console.log('⏳ Esperando ubicación del usuario...');
-          return;
-        }
+  // ==================== VALIDAR UBICACIÓN ====================
+ useEffect(() => {
+  const validarUbicacion = async () => {
+    try {
+      if (!ubicacionActual) {
+        console.log('⏳ Esperando ubicación del usuario...');
+        return;
+      }
 
-        console.log('═══════════════════════════════════════');
-        console.log('🔍 INICIANDO VALIDACIÓN DE UBICACIÓN');
-        console.log('═══════════════════════════════════════');
+      console.log('═══════════════════════════════════════');
+      console.log('🔍 INICIANDO VALIDACIÓN DE UBICACIÓN');
+      console.log('═══════════════════════════════════════');
 
-        // Obtener ID de departamento desde empleadoInfo
-        let departamentoId = null;
-        let departamentoData = null;
+      // ⭐ OPCIÓN 1: Usar departamento si ya viene completo
+      let departamentoData = userData?.empleadoInfo?.departamento;
 
-        if (userData?.empleadoInfo?.id_departamento) {
-          departamentoId = userData.empleadoInfo.id_departamento;
-          console.log('📋 ID de departamento obtenido de empleadoInfo:', departamentoId);
-        }
+      // ⭐ OPCIÓN 2: Si no viene completo, obtenerlo del API
+      if (!departamentoData && userData?.empleadoInfo?.departamentos?.length > 0) {
+        console.log('📥 Departamento no viene completo, obteniendo del API...');
+        
+        const deptoId = userData.empleadoInfo.departamentos[0].id;
+        console.log('🏢 Departamento ID:', deptoId);
 
-        if (!departamentoId) {
-          console.error('❌ NO SE ENCONTRÓ ID DE DEPARTAMENTO');
-          setError('No tienes un departamento asignado.');
+        try {
+          const deptoResponse = await fetch(
+            `${API_URL}/departamentos/${deptoId}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${userData.token}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+
+          console.log('📥 Status departamento:', deptoResponse.status);
+
+          if (deptoResponse.ok) {
+            const deptoResult = await deptoResponse.json();
+            departamentoData = deptoResult.data || deptoResult;
+            console.log('✅ Departamento obtenido:', departamentoData.nombre);
+            console.log('📍 Tiene ubicación:', departamentoData.ubicacion ? 'SÍ' : 'NO');
+          } else {
+            const errorText = await deptoResponse.text();
+            console.error('❌ Error obteniendo departamento:', errorText);
+            setError('No se pudo obtener la configuración del departamento.');
+            setEstadoBoton('error');
+            setLoading(false);
+            return;
+          }
+        } catch (fetchError) {
+          console.error('❌ Error en fetch departamento:', fetchError);
+          setError('Error al obtener departamento.');
           setEstadoBoton('error');
           setLoading(false);
           return;
         }
+      }
 
-        // Si ya tenemos los datos del departamento en empleadoInfo
-        if (userData?.empleadoInfo?.departamento?.ubicacion) {
-          console.log('✅ Usando datos de departamento del empleadoInfo');
-          departamentoData = userData.empleadoInfo.departamento;
-
-          const coordenadas = extraerCoordenadas(departamentoData.ubicacion);
-
-          if (coordenadas && coordenadas.length >= 3) {
-            const dentroDelArea = isPointInPolygon(ubicacionActual, coordenadas);
-
-            setDentroDelArea(dentroDelArea);
-            setDepartamento({
-              ...departamentoData,
-              nombre: departamentoData.nombre_departamento || departamentoData.nombre
-            });
-            setEstadoBoton(dentroDelArea ? 'disponible' : 'fuera');
-            setError(null);
-            setLoading(false);
-            return;
-          }
-        }
-
-        // Si no, hacer fetch del departamento desde API
-        console.log('🌐 Haciendo fetch del departamento desde API...');
-        const resultado = await validarUbicacionPermitida(
-          ubicacionActual,
-          departamentoId
-        );
-
-        if (resultado.error) {
-          setError(resultado.error);
-          setEstadoBoton('error');
-          setDepartamento(resultado.departamento);
-        } else {
-          setDentroDelArea(resultado.dentroDelArea);
-          setDepartamento(resultado.departamento);
-          setEstadoBoton(resultado.dentroDelArea ? 'disponible' : 'fuera');
-          setError(null);
-        }
-
-        setLoading(false);
-      } catch (err) {
-        console.error('❌ Error validando ubicación:', err);
-        setError('Error al validar ubicación');
+      // ⭐ VALIDAR QUE TENGAMOS DEPARTAMENTO
+      if (!departamentoData) {
+        console.error('❌ NO SE ENCONTRÓ DEPARTAMENTO');
+        console.log('📊 userData.empleadoInfo:', userData?.empleadoInfo);
+        setError('No tienes un departamento asignado.');
         setEstadoBoton('error');
         setLoading(false);
+        return;
       }
-    };
 
-    validarUbicacion();
-  }, [ubicacionActual, userData]);
+      console.log('✅ Departamento:', departamentoData.nombre);
+      console.log('📍 Ubicación:', departamentoData.ubicacion);
+
+      // ⭐ VALIDAR UBICACIÓN
+      if (!departamentoData.ubicacion) {
+        console.error('❌ El departamento no tiene ubicación configurada');
+        setError('El departamento no tiene ubicación configurada.');
+        setEstadoBoton('error');
+        setLoading(false);
+        return;
+      }
+
+      const coordenadas = extraerCoordenadas(departamentoData.ubicacion);
+      console.log('📐 Coordenadas extraídas:', coordenadas?.length || 0, 'puntos');
+
+      if (!coordenadas || coordenadas.length < 3) {
+        console.error('❌ Coordenadas inválidas');
+        setError('Configuración de ubicación inválida.');
+        setEstadoBoton('error');
+        setLoading(false);
+        return;
+      }
+
+      const dentroDelArea = isPointInPolygon(ubicacionActual, coordenadas);
+      console.log('🎯 Dentro del área:', dentroDelArea ? 'SÍ ✅' : 'NO ❌');
+
+      setDentroDelArea(dentroDelArea);
+      setDepartamento(departamentoData);
+      setEstadoBoton(dentroDelArea ? 'disponible' : 'fuera');
+      setError(null);
+      setLoading(false);
+
+      console.log('═══════════════════════════════════════');
+
+    } catch (err) {
+      console.error('❌ Error validando ubicación:', err);
+      setError('Error al validar ubicación');
+      setEstadoBoton('error');
+      setLoading(false);
+    }
+  };
+
+  validarUbicacion();
+}, [ubicacionActual, userData]);
 
   // ==================== MANEJAR REGISTRO ====================
   const handleRegistro = async () => {
@@ -247,7 +283,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
               setRegistrando(true);
 
               try {
-                // Generar placeholder de huella
                 const huellaPlaceholder = 'HUELLA_PLACEHOLDER_' + Date.now();
 
                 console.log('📤 Enviando registro de asistencia:', {
@@ -260,6 +295,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${userData.token}`,
                   },
                   body: JSON.stringify({
                     id_empleado: empleadoId,
@@ -346,7 +382,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       case 'fuera':
         return 'Fuera del área';
       case 'error':
-        return 'Sin conexión';
+        return error || 'Sin conexión';
       case 'cargando':
       default:
         return 'Verificando...';
@@ -448,7 +484,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   );
 };
 
-// ==================== ESTILOS ====================
+// ==================== ESTILOS (sin cambios) ====================
 const registerStyles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
@@ -507,17 +543,6 @@ const registerStyles = StyleSheet.create({
     fontSize: 13,
     color: '#6b7280',
     fontWeight: '500',
-  },
-  biometricInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 6,
-  },
-  biometricText: {
-    fontSize: 12,
-    fontWeight: '600',
   },
   registerButton: {
     flexDirection: 'row',

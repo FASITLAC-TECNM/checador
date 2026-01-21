@@ -58,28 +58,37 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     try {
       const response = await login(usuario, password);
 
-      if (response && response.success && response.usuario) {
-        const datosCompletos = {
-          id: response.usuario.id,
-          usuario: response.usuario.usuario,
-          correo: response.usuario.correo,
-          nombre: response.usuario.nombre,
-          telefono: response.usuario.telefono,
-          foto: response.usuario.foto,
-          es_empleado: response.usuario.es_empleado,
-          empleado_id: response.usuario.empleado_id,
-          rfc: response.usuario.rfc,
-          nss: response.usuario.nss,
-          empleadoInfo: response.empleadoInfo || null,
-          roles: response.roles || [],
-          permisos: response.permisos || '0',
-          esAdmin: response.esAdmin || false,
-          token: response.token || null
-        };
+      // En LoginScreen.js - handleLogin
 
-        console.log('✅ Datos enviados a App:', datosCompletos);
-        onLoginSuccess(datosCompletos);
-      }
+if (response && response.success && response.usuario) {
+  const datosCompletos = {
+    id: response.usuario.id,
+    usuario: response.usuario.usuario,
+    correo: response.usuario.correo,
+    nombre: response.usuario.nombre,
+    telefono: response.usuario.telefono,
+    foto: response.usuario.foto,
+    es_empleado: response.usuario.es_empleado,
+    empleado_id: response.usuario.empleado_id,
+    rfc: response.usuario.rfc,
+    nss: response.usuario.nss,
+    
+    // ⭐ IMPORTANTE: empleadoInfo ahora incluye departamento completo
+    empleadoInfo: response.empleadoInfo || null,
+    
+    roles: response.roles || [],
+    permisos: response.permisos || '0',
+    esAdmin: response.esAdmin || false,
+    token: response.token || null
+  };
+
+  console.log('✅ Datos enviados a App:', {
+    ...datosCompletos,
+    empleadoInfo: datosCompletos.empleadoInfo ? '✅ INCLUYE DEPARTAMENTO' : '❌ SIN INFO'
+  });
+
+  onLoginSuccess(datosCompletos);
+}
     } catch (error) {
       console.error('❌ Error en login:', error);
 

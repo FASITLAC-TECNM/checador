@@ -1,178 +1,138 @@
 // src/services/authService.js
 // Servicio de autenticación con API remota
 
-import { getApiEndpoint } from "../config/apiEndPoint";
+import { getApiEndpoint, API_CONFIG } from "../config/apiEndPoint";
 import { agregarEvento } from "./bitacoraService";
 
 // Usar la configuración centralizada
-const API_URL = getApiEndpoint("/api");
+const API_URL = API_CONFIG.BASE_URL;
 console.log("🔗 API URL:", API_URL); // Para debug
 
 /**
- * Autenticar usuario
- * @param {string} username - Nombre de usuario
- * @param {string} pin - PIN del usuario
+ * Autenticar usuario por usuario/correo y PIN usando el endpoint de autenticación
+ * @param {string} usuarioOCorreo - Nombre de usuario o correo
+ * @param {string} pin - PIN del usuario (contraseña)
  * @returns {Promise<Object>} - Usuario autenticado o error
  */
-export const loginUsuario = async (username, pin) => {
+export const loginUsuario = async (usuarioOCorreo, pin) => {
   try {
-    console.log("🔐 Iniciando login para:", username);
+    console.log("🔐 Iniciando login para:", usuarioOCorreo);
 
-    // Obtener todos los usuarios
-    const response = await fetch(`${API_URL}/empleados`);
+    // 1. Autenticar con el endpoint /api/auth/login
+    const loginResponse = await fetch(`${API_URL}${API_CONFIG.ENDPOINTS.AUTH}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        usuario: usuarioOCorreo,
+        contraseña: pin,
+      }),
+    });
 
-    if (!response.ok) {
-      throw new Error("Error al conectar con el servidor");
+    if (!loginResponse.ok) {
+      const errorData = await loginResponse.json().catch(() => ({}));
+      throw new Error(errorData.message || "Credenciales inválidas");
     }
 
-    const usuarios = await response.json();
-    console.log("👥 Usuarios obtenidos:", usuarios.length);
+    const loginData = await loginResponse.json();
+    console.log("✅ Respuesta de login:", JSON.stringify(loginData, null, 2));
 
-    // Buscar usuario por username
-    const usuarioEncontrado = usuarios.find(
-      (user) => user.username === username
-    );
-
-    if (!usuarioEncontrado) {
-      // Registrar intento de login fallido - usuario no encontrado
-      const eventoError = agregarEvento({
-        user: username,
-        action: `Intento de login fallido - Usuario no encontrado`,
-        type: "error",
-      });
-      console.log("❌ Evento de error registrado en bitácora:", eventoError);
-      throw new Error("Usuario no encontrado");
+    if (!loginData.success) {
+      throw new Error(loginData.message || "Error en la autenticación");
     }
 
-    console.log("👤 Usuario encontrado:", usuarioEncontrado);
+    // Extraer datos - el backend puede enviar la data en diferentes formatos
+    const responseData = loginData.data || loginData;
 
-    // Verificar PIN desde la API de credenciales
-    try {
-      // Usar el id del empleado (no id_usuario)
-      const credencialesResponse = await fetch(
-        `${API_URL}/credenciales/empleado/${usuarioEncontrado.id}`
-      );
+    // Guardar el token para futuras peticiones
+    const token = responseData.token;
+    if (token) {
+      localStorage.setItem('auth_token', token);
+      console.log("🔑 Token guardado");
+    }
 
-      if (!credencialesResponse.ok) {
-        throw new Error("No se pudieron obtener las credenciales");
-      }
+    // El usuario puede venir directamente en data o en data.usuario
+    const usuarioData = responseData.usuario || responseData;
 
-      const credenciales = await credencialesResponse.json();
-      console.log("🔑 Credenciales obtenidas:", {
-        id_empleado: credenciales.id_empleado,
-        tiene_pin: !!credenciales.pin,
-      });
-
-      // Verificar que el PIN exista
-      if (!credenciales.pin) {
-        throw new Error("Este empleado no tiene PIN configurado");
-      }
-
-      // Verificar que el PIN coincida
-      const pinIngresado = parseInt(pin);
-      const pinRegistrado = parseInt(credenciales.pin);
-
-      console.log(`🔐 Comparando PINs - Ingresado: ${pinIngresado}, Registrado: ${pinRegistrado}`);
-
-      if (pinIngresado !== pinRegistrado) {
-        // Registrar intento de login fallido - PIN incorrecto
-        const eventoError = agregarEvento({
-          user: username,
-          action: `Intento de login fallido por PIN - PIN incorrecto`,
-          type: "error",
+    // 2. Obtener datos adicionales del empleado si es necesario
+    let empleadoData = null;
+    if (usuarioData.es_empleado && token) {
+      try {
+        const empleadosResponse = await fetch(`${API_URL}${API_CONFIG.ENDPOINTS.EMPLEADOS}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
         });
-        console.log("❌ Evento de PIN incorrecto registrado en bitácora:", eventoError);
-        throw new Error("PIN incorrecto");
-      }
+        if (empleadosResponse.ok) {
+          const empleados = await empleadosResponse.json();
+          empleadoData = empleados.find(emp => emp.usuario_id === usuarioData.id);
 
-      console.log("✅ PIN verificado correctamente");
-    } catch (error) {
-      console.error("❌ Error al verificar PIN:", error);
-      // Si el error no es de PIN incorrecto, registrar el error
-      if (!error.message.includes("PIN incorrecto")) {
-        agregarEvento({
-          user: username,
-          action: `Error al verificar credenciales - ${error.message}`,
-          type: "error",
-        });
+          if (empleadoData) {
+            console.log("✅ Datos de empleado encontrados:", {
+              id: empleadoData.id,
+              rfc: empleadoData.rfc,
+              nss: empleadoData.nss,
+              horario_id: empleadoData.horario_id
+            });
+          }
+        }
+      } catch (error) {
+        console.warn("⚠️ No se pudieron obtener datos del empleado:", error);
       }
-      throw new Error(error.message || "Usuario o PIN incorrectos");
     }
 
-    // Obtener datos completos del empleado desde el endpoint específico
-    try {
-      console.log(`📋 Obteniendo datos completos del empleado ID ${usuarioEncontrado.id}...`);
-      const empleadoResponse = await fetch(
-        `${API_URL}/empleados/${usuarioEncontrado.id}`
-      );
+    // 3. Combinar datos de usuario y empleado
+    // Los datos del empleado pueden venir directamente en usuarioData (desde el login)
+    // o en empleadoData (si se hizo la petición adicional)
+    const datosCompletos = {
+      // Datos del usuario desde la respuesta de login
+      id: usuarioData.id,
+      usuario: usuarioData.usuario,
+      username: usuarioData.usuario,
+      correo: usuarioData.correo,
+      email: usuarioData.correo,
+      nombre: usuarioData.nombre,
+      foto: usuarioData.foto,
+      telefono: usuarioData.telefono,
+      estado_cuenta: usuarioData.estado_cuenta,
+      activo: usuarioData.estado_cuenta,
+      es_empleado: usuarioData.es_empleado,
+      esAdmin: usuarioData.esAdmin,
+      fecha_registro: usuarioData.fecha_registro,
+      estado: "CONECTADO",
+      token: token,
+      // Datos del empleado - primero intentar desde usuarioData (respuesta de login)
+      // luego desde empleadoData (petición adicional)
+      empleado_id: usuarioData.empleado_id || empleadoData?.id,
+      rfc: usuarioData.rfc || empleadoData?.rfc,
+      nss: usuarioData.nss || empleadoData?.nss,
+      horario_id: usuarioData.horario_id || empleadoData?.horario_id,
+      roles: usuarioData.roles,
+      permisos: usuarioData.permisos,
+    };
 
-      if (empleadoResponse.ok) {
-        const empleadoCompleto = await empleadoResponse.json();
-        console.log("✅ Datos completos del empleado obtenidos:", {
-          id: empleadoCompleto.id,
-          nombre: empleadoCompleto.nombre,
-          tiene_rfc: !!empleadoCompleto.rfc,
-          tiene_nss: !!empleadoCompleto.nss,
-        });
-
-        // Usar los datos completos del empleado
-        usuarioEncontrado.rfc = empleadoCompleto.rfc;
-        usuarioEncontrado.nss = empleadoCompleto.nss;
-        usuarioEncontrado.departamento = empleadoCompleto.departamento;
-        usuarioEncontrado.horario_inicio = empleadoCompleto.horario_inicio;
-        usuarioEncontrado.horario_fin = empleadoCompleto.horario_fin;
-      }
-    } catch (error) {
-      console.warn("⚠️ No se pudieron obtener datos completos del empleado:", error);
-    }
-
-    // Actualizar estado a CONECTADO
-    try {
-      console.log(
-        `🔄 Intentando actualizar estado del usuario ${usuarioEncontrado.id_usuario} a CONECTADO...`
-      );
-      const usuarioActualizado = await actualizarEstadoUsuario(
-        usuarioEncontrado.id_usuario,
-        "CONECTADO"
-      );
-      console.log("✅ Estado actualizado en API:", usuarioActualizado);
-
-      // Usar el usuario actualizado de la respuesta si está disponible
-      if (usuarioActualizado && usuarioActualizado.estado) {
-        // Combinar datos del empleado con estado actualizado
-        return {
-          success: true,
-          usuario: { ...usuarioEncontrado, estado: "CONECTADO" },
-        };
-      }
-
-      // Si no viene actualizado, actualizar manualmente
-      usuarioEncontrado.estado = "CONECTADO";
-    } catch (error) {
-      console.error("⚠️ No se pudo actualizar el estado a CONECTADO:", error);
-      // Continuar con el login aunque falle la actualización
-      usuarioEncontrado.estado = "CONECTADO";
-    }
-
-    // Registrar login exitoso en la bitácora ANTES de retornar
-    const eventoRegistrado = agregarEvento({
-      user: usuarioEncontrado.nombre || username,
-      action: `Inicio de sesión exitoso por PIN`,
+    // 4. Registrar login exitoso
+    agregarEvento({
+      user: datosCompletos.nombre || usuarioOCorreo,
+      action: `Inicio de sesión exitoso`,
       type: "success",
     });
 
-    console.log("✅ Evento de login exitoso registrado en bitácora:", eventoRegistrado);
-
-    // Verificar que se guardó correctamente
-    const bitacoraActual = localStorage.getItem('eventLog');
-    console.log("📋 Bitácora actual en localStorage:", bitacoraActual ? JSON.parse(bitacoraActual).length + " eventos" : "vacía");
+    console.log("✅ Login exitoso:", datosCompletos);
 
     return {
       success: true,
-      usuario: usuarioEncontrado,
+      usuario: datosCompletos,
     };
   } catch (error) {
     console.error("❌ Error en login:", error);
+    agregarEvento({
+      user: usuarioOCorreo,
+      action: `Intento de login fallido - ${error.message}`,
+      type: "error",
+    });
     return {
       success: false,
       error: error.message,

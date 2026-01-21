@@ -152,29 +152,44 @@ export const registrarHuella = async (idEmpleado, templateBase64, userId) => {
   try {
     console.log(`💾 Registrando huella para empleado ${idEmpleado}...`);
 
-    const response = await fetch(`${API_URL}/biometric/enroll`, {
+    // Obtener token de autenticación
+    const token = localStorage.getItem("auth_token");
+
+    // Usar el endpoint de credenciales para guardar la huella dactilar
+    const response = await fetch(`${API_URL}/credenciales/dactilar`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
       },
       body: JSON.stringify({
-        id_empleado: idEmpleado,
-        template_base64: templateBase64,
-        userId: userId,
+        empleado_id: idEmpleado,
+        dactilar: templateBase64,
       }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || `Error HTTP: ${response.status}`);
+      const errorText = await response.text();
+      let errorMessage = `Error HTTP: ${response.status}`;
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.error || errorData.message || errorMessage;
+      } catch {
+        errorMessage = errorText || errorMessage;
+      }
+      throw new Error(errorMessage);
     }
 
     const result = await response.json();
-    console.log("✅ Huella registrada exitosamente");
+    console.log("✅ Huella registrada exitosamente:", result);
 
     return {
       success: true,
-      data: result.data,
+      data: {
+        id_credencial: result.id,
+        template_size: templateBase64.length,
+        timestamp: new Date().toISOString(),
+      },
     };
   } catch (error) {
     console.error("❌ Error registrando huella:", error);

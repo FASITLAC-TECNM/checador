@@ -3,9 +3,9 @@ import { X, UserPlus, CheckCircle, XCircle, Eye } from "lucide-react";
 import { useFaceDetection } from "../../hooks/useFaceDetection";
 import * as faceapi from 'face-api.js';
 
-export default function RegisterFaceModal({ onClose }) {
-  const [empleadoId, setEmpleadoId] = useState("");
-  const [step, setStep] = useState("input"); // input, capturing, success, error
+export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId = null }) {
+  const [empleadoId, setEmpleadoId] = useState(propEmpleadoId || "");
+  const [step, setStep] = useState(propEmpleadoId ? "capturing" : "input"); // input, capturing, success, error
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [stream, setStream] = useState(null);
@@ -27,7 +27,26 @@ export default function RegisterFaceModal({ onClose }) {
   useEffect(() => {
     console.log("📦 RegisterFaceModal montado");
     loadModels();
-  }, [loadModels]);
+
+    // Si viene con empleadoId, iniciar cámara automáticamente
+    if (propEmpleadoId && step === "capturing") {
+      navigator.mediaDevices
+        .getUserMedia({ video: true })
+        .then((mediaStream) => {
+          console.log("✅ Cámara iniciada automáticamente");
+          setStream(mediaStream);
+          const video = document.getElementById("registerVideo");
+          if (video) {
+            video.srcObject = mediaStream;
+          }
+        })
+        .catch((err) => {
+          console.error("❌ Error al acceder a la cámara:", err);
+          setErrorMessage("No se pudo acceder a la cámara");
+          setStep("input");
+        });
+    }
+  }, [loadModels, propEmpleadoId]);
 
   const handleStartCapture = () => {
     if (!empleadoId.trim()) {

@@ -1,8 +1,48 @@
 import React from "react";
-import { Clock, AlertCircle } from "lucide-react";
+import { Clock, AlertCircle, CheckCircle, User } from "lucide-react";
 import { formatTime, formatDateShort, formatDay } from "../../utils/dateHelpers";
 
-export default function EmployeeInfo({ time }) {
+export default function EmployeeInfo({ time, empleado, horario, loading }) {
+  // Calcular estado basado en horario
+  const calcularEstado = () => {
+    if (!horario?.hora_entrada) return { estado: "Sin horario", color: "gray", diferencia: null };
+
+    const ahora = new Date();
+    const [horaEntrada, minEntrada] = horario.hora_entrada.split(":").map(Number);
+    const entradaProgramada = new Date(ahora);
+    entradaProgramada.setHours(horaEntrada, minEntrada, 0, 0);
+
+    const diffMinutos = Math.round((ahora - entradaProgramada) / 60000);
+
+    if (diffMinutos < -15) {
+      return { estado: "Temprano", color: "blue", diferencia: null };
+    } else if (diffMinutos <= 0) {
+      return { estado: "A tiempo", color: "green", diferencia: null };
+    } else if (diffMinutos <= 15) {
+      return { estado: "Retardo menor", color: "amber", diferencia: `+${diffMinutos} min` };
+    } else {
+      return { estado: "Retardo", color: "red", diferencia: `+${diffMinutos} min` };
+    }
+  };
+
+  const estadoActual = calcularEstado();
+
+  const colorClasses = {
+    green: "border-green-500 text-green-600",
+    amber: "border-amber-500 text-amber-600",
+    red: "border-red-500 text-red-600",
+    blue: "border-blue-500 text-blue-600",
+    gray: "border-gray-500 text-gray-600",
+  };
+
+  const iconColor = {
+    green: "text-green-600",
+    amber: "text-amber-600",
+    red: "text-red-600",
+    blue: "text-blue-600",
+    gray: "text-gray-600",
+  };
+
   return (
     <>
       {/* Estado Actual */}
@@ -24,43 +64,51 @@ export default function EmployeeInfo({ time }) {
           </p>
         </div>
 
-        {/* Estado - Retardo */}
-        <div className="bg-bg-secondary border-l-4 border-amber-500 rounded-lg p-2 mb-3">
+        {/* Estado del empleado */}
+        <div className={`bg-bg-secondary border-l-4 ${colorClasses[estadoActual.color]} rounded-lg p-2 mb-3`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-600" />
+              {estadoActual.color === "green" ? (
+                <CheckCircle className={`w-4 h-4 ${iconColor[estadoActual.color]}`} />
+              ) : (
+                <AlertCircle className={`w-4 h-4 ${iconColor[estadoActual.color]}`} />
+              )}
               <span className="font-bold text-text-primary text-sm">
-                Estado: Retardo
+                Estado: {estadoActual.estado}
               </span>
             </div>
-            <span className="text-amber-600 font-bold text-sm">
-              +5 min
-            </span>
+            {estadoActual.diferencia && (
+              <span className={`font-bold text-sm ${iconColor[estadoActual.color]}`}>
+                {estadoActual.diferencia}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Grid con ÚLTIMO y PRÓXIMO */}
+        {/* Grid con horario de entrada y salida */}
         <div className="grid grid-cols-2 gap-2">
-          {/* Último registro */}
+          {/* Hora de entrada */}
           <div className="bg-bg-secondary border-l-4 border-green-500 rounded-xl p-3">
             <div className="flex items-center gap-1 text-green-500 mb-1">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-xs font-bold">ÚLTIMO</span>
+              <span className="text-xs font-bold">ENTRADA</span>
             </div>
-            <p className="text-3xl font-bold text-text-primary">08:05</p>
-            <p className="text-xs text-green-500 mt-1">Entrada</p>
-            <p className="text-xs text-text-tertiary">02/11/2025</p>
+            <p className="text-3xl font-bold text-text-primary">
+              {horario?.hora_entrada || "--:--"}
+            </p>
+            <p className="text-xs text-green-500 mt-1">Programada</p>
           </div>
 
-          {/* Próximo registro */}
+          {/* Hora de salida */}
           <div className="bg-bg-secondary border-l-4 border-red-500 rounded-xl p-3">
             <div className="flex items-center gap-1 text-red-500 mb-1">
               <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-              <span className="text-xs font-bold">PRÓXIMO</span>
+              <span className="text-xs font-bold">SALIDA</span>
             </div>
-            <p className="text-3xl font-bold text-text-primary">13:00</p>
-            <p className="text-xs text-red-500 mt-1">Comida</p>
-            <p className="text-xs text-text-tertiary">02/11/2025</p>
+            <p className="text-3xl font-bold text-text-primary">
+              {horario?.hora_salida || "--:--"}
+            </p>
+            <p className="text-xs text-red-500 mt-1">Programada</p>
           </div>
         </div>
       </div>

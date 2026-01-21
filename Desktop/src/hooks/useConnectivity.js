@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
+import API_CONFIG from '../config/apiEndPoint';
 
 const HEARTBEAT_INTERVAL = 3000; // 3 segundos (latido de fondo)
 const ELECTRON_VERIFY_TIMEOUT = 5000; // Timeout para verificación Electron
@@ -75,24 +76,35 @@ const verifyInternetConnectivity = async () => {
  */
 const verifyDatabaseConnectivity = async () => {
   try {
-    const API_URL = import.meta.env.VITE_API_URL || 'https://9dm7dqf9-3001.usw3.devtunnels.ms';
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    const response = await fetch(`${API_URL}`, {
+    // Usar el endpoint de health check o la raíz del API
+    const response = await fetch(`${API_CONFIG.BASE_URL}/api/health`, {
       method: 'GET',
       signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
 
     clearTimeout(timeoutId);
 
     if (!response.ok) {
+      // Si /api/health no existe, intentar con la raíz
+      const fallbackResponse = await fetch(`${API_CONFIG.BASE_URL}`, {
+        method: 'GET',
+        signal: controller.signal,
+      });
+
+      if (fallbackResponse.ok) {
+        return true;
+      }
       return false;
     }
 
     const data = await response.json();
-    return data.status === 'OK' || data.database === 'connected';
+    return data.status === 'OK' || data.success === true || data.database === 'connected';
   } catch (error) {
     console.error('Error verificando base de datos:', error);
     return false;

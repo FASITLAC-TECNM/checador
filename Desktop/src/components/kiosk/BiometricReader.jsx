@@ -183,10 +183,11 @@ export default function BiometricReader({
     addMessage("🔐 Procesando inicio de sesión...", "info");
 
     try {
-      const API_URL = "https://9dm7dqf9-3001.usw3.devtunnels.ms/api";
+      // Usar la misma URL que el servicio de autenticación
+      const API_BASE = "https://9dm7dqf9-3002.usw3.devtunnels.ms/api";
 
       // Obtener datos del empleado
-      const empleadoResponse = await fetch(`${API_URL}/empleados/${empleadoId}`);
+      const empleadoResponse = await fetch(`${API_BASE}/empleados/${empleadoId}`);
 
       if (!empleadoResponse.ok) {
         throw new Error("Error al obtener datos del empleado");
@@ -308,10 +309,11 @@ export default function BiometricReader({
           addMessage(`✅ Huella reconocida: ${data.userId}`, "success");
           addMessage(`🎯 Precisión: ${data.matchScore || 100}%`, "info");
 
-          // Extraer el ID del empleado del userId (formato: emp_ID)
-          const idEmpleadoMatch = data.userId?.match(/emp_(\d+)/);
+          // Extraer el ID del empleado del userId (formato: emp_EMP00003)
+          // El ID es CHAR(8) como "EMP00003"
+          const idEmpleadoMatch = data.userId?.match(/emp_([A-Z0-9]+)/i);
           if (idEmpleadoMatch) {
-            const empleadoId = parseInt(idEmpleadoMatch[1]);
+            const empleadoId = idEmpleadoMatch[1]; // String como "EMP00003"
             procesarLoginBiometrico(empleadoId, data.matchScore || 100);
           } else {
             addMessage("❌ No se pudo extraer el ID del empleado", "error");
@@ -344,7 +346,8 @@ export default function BiometricReader({
       // Modo Registro: Guardar huella para un empleado específico
       // Usar la ref para obtener el valor actualizado (evita problemas de closure)
       const inputValue = inputIdEmpleadoRef.current;
-      const empleadoId = idEmpleado || parseInt(inputValue);
+      // El empleado_id puede ser string (CHAR(8) como "EMP00003") o número
+      const empleadoId = idEmpleado || inputValue;
 
       // DEBUG: Log de valores
       console.log("🔍 DEBUG guardarHuellaEnBaseDatos:");
@@ -354,7 +357,7 @@ export default function BiometricReader({
       console.log("   - templateBase64 existe:", !!templateBase64);
       console.log("   - templateBase64 length:", templateBase64?.length);
 
-      if (!empleadoId || isNaN(empleadoId)) {
+      if (!empleadoId) {
         addMessage("❌ No hay ID de empleado configurado", "error");
         console.error("❌ Error: ID de empleado inválido", {
           empleadoId,
@@ -500,9 +503,10 @@ export default function BiometricReader({
   const startEnrollment = () => {
     if (mode === "enroll") {
       // Validaciones para modo registro
-      const empleadoId = idEmpleado || parseInt(inputIdEmpleado);
+      // El ID ahora es CHAR(8) como "EMP00003", ya no es un número
+      const empleadoId = idEmpleado || inputIdEmpleado?.trim();
 
-      if (!empleadoId || isNaN(empleadoId)) {
+      if (!empleadoId || empleadoId.length === 0) {
         addMessage("⚠️ Ingrese un ID de empleado válido", "warning");
         return;
       }
@@ -521,15 +525,15 @@ export default function BiometricReader({
       setCurrentOperation("Identifying");
       addMessage("🔍 Cargando huellas registradas...", "info");
 
-      // Obtener la URL del API
-      const API_URL = "https://9dm7dqf9-3001.usw3.devtunnels.ms/api";
+      // Obtener la URL del API (puerto 3002)
+      const API_URL = "https://9dm7dqf9-3002.usw3.devtunnels.ms/api";
 
       // Enviar comando de identificación con la URL del API
       sendCommand("startIdentification", { apiUrl: API_URL });
     } else {
       // MODO REGISTRO: Usar enrollment normal
       setCurrentOperation("Enrollment");
-      const empleadoId = idEmpleado || parseInt(inputIdEmpleado);
+      const empleadoId = idEmpleado || inputIdEmpleado?.trim();
       const userId = `emp_${empleadoId}`;
       sendCommand("startEnrollment", { userId });
     }
@@ -664,16 +668,17 @@ export default function BiometricReader({
                           ID del Empleado <span className="text-red-500">*</span>
                         </label>
                         <input
-                          type="number"
+                          type="text"
                           value={inputIdEmpleado}
-                          onChange={(e) => setInputIdEmpleado(e.target.value)}
-                          placeholder="Ej: 1, 2, 3..."
+                          onChange={(e) => setInputIdEmpleado(e.target.value.toUpperCase())}
+                          placeholder="Ej: EMP00001, EMP00002..."
+                          maxLength={8}
                           disabled={isProcessing}
                           className="w-full px-4 py-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
                           autoFocus
                         />
                         <p className="text-gray-500 dark:text-gray-400 text-xs mt-1">
-                          La huella se guardará para este empleado
+                          ID de 8 caracteres (CHAR8)
                         </p>
                       </div>
                     )}

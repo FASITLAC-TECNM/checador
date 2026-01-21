@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Camera, User, ClipboardList, Bell, UserPlus, Fingerprint } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Camera, User, ClipboardList, Bell } from "lucide-react";
 import { formatTime, formatDate, formatDay } from "../utils/dateHelpers";
 import { notices } from "../constants/notices";
 import CameraModal from "../components/kiosk/CameraModal";
@@ -7,8 +7,6 @@ import PinModal from "../components/kiosk/PinModal";
 import LoginModal from "../components/kiosk/LoginModal";
 import BitacoraModal from "../components/kiosk/BitacoraModal";
 import NoticeDetailModal from "../components/kiosk/NoticeDetailModal";
-import RegisterFaceModal from "../components/kiosk/RegisterFaceModal";
-import BiometricReader from "../components/kiosk/BiometricReader";
 import SessionScreen from "./SessionScreen";
 import { agregarEvento } from "../services/bitacoraService";
 import { useConnectivity } from "../hooks/useConnectivity";
@@ -35,8 +33,6 @@ export default function KioskScreen() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showBitacora, setShowBitacora] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
-  const [showRegisterFace, setShowRegisterFace] = useState(false);
-  const [showBiometricReader, setShowBiometricReader] = useState(false);
   const [cameraMode, setCameraMode] = useState("asistencia");
   const [stream, setStream] = useState(null);
   const [captureProgress, setCaptureProgress] = useState(0);
@@ -247,17 +243,6 @@ export default function KioskScreen() {
     setUsuarioActual(null);
   };
 
-  // Manejar registro de huella exitoso
-  const handleEnrollmentSuccess = (data) => {
-    console.log("✅ Huella registrada exitosamente:", data);
-    alert(
-      `✅ Huella registrada para empleado ${data.idEmpleado}\n\n` +
-      `ID Credencial: ${data.idCredencial}\n` +
-      `User ID: ${data.userId}`
-    );
-    setShowBiometricReader(false);
-  };
-
   // Si está logueado, mostrar SessionScreen
   if (isLoggedIn) {
     return <SessionScreen onLogout={handleLogout} usuario={usuarioActual} />;
@@ -281,24 +266,6 @@ export default function KioskScreen() {
         >
           <ClipboardList className="w-5 h-5" />
           <span className="text-xs font-semibold">Bitácora</span>
-        </button>
-
-        <button
-          onClick={() => setShowRegisterFace(true)}
-          className="flex flex-col items-center gap-1 text-purple-600 hover:bg-bg-secondary p-2 rounded-lg transition-all w-16"
-          title="Registrar rostro (Pruebas)"
-        >
-          <UserPlus className="w-5 h-5" />
-          <span className="text-xs font-semibold">Registrar</span>
-        </button>
-
-        <button
-          onClick={() => setShowBiometricReader(true)}
-          className="flex flex-col items-center gap-1 text-green-600 hover:bg-bg-secondary p-2 rounded-lg transition-all w-16"
-          title="Registrar huella digital"
-        >
-          <Fingerprint className="w-5 h-5" />
-          <span className="text-xs font-semibold text-center">Registrar Huella</span>
         </button>
 
         <div className="flex-1"></div>
@@ -426,20 +393,6 @@ export default function KioskScreen() {
       )}
 
       {showBitacora && <BitacoraModal onClose={() => setShowBitacora(false)} />}
-
-      {showRegisterFace && (
-        <RegisterFaceModal onClose={() => setShowRegisterFace(false)} />
-      )}
-
-      {/* Modal de BiometricReader para registro de huella */}
-      {showBiometricReader && (
-        <BiometricReader
-          isOpen={showBiometricReader}
-          onClose={() => setShowBiometricReader(false)}
-          onEnrollmentSuccess={handleEnrollmentSuccess}
-          mode="enroll"
-        />
-      )}
     </div>
   );
 }

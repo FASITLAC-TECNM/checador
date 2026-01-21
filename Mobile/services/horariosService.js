@@ -51,23 +51,26 @@ const parsearHorarioNuevo = (configuracionSemanal) => {
 };
 
 /**
- * Obtener horario de un empleado por su ID
+ * ⭐ NUEVA FUNCIÓN: Obtener horario de un empleado por su ID
+ * Usa la ruta: /api/empleados/:empleadoId/horario
  * @param {string} empleadoId - ID del empleado
- * @param {string} token - Token de autenticación (opcional, se puede pasar desde fuera)
+ * @param {string} token - Token de autenticación
  * @returns {Promise<Object>} Datos del horario
  */
 export const getHorarioPorEmpleado = async (empleadoId, token = null) => {
     try {
-        const url = `${API_URL}/horarios/empleado/${empleadoId}`;
+        const url = `${API_URL}/empleados/${empleadoId}/horario`;
+        console.log('═══════════════════════════════════════');
+        console.log('📅 OBTENIENDO HORARIO DEL EMPLEADO');
+        console.log('═══════════════════════════════════════');
+        console.log('📋 Empleado ID:', empleadoId);
         console.log('📅 URL completa:', url);
-        console.log('📅 Obteniendo horario del empleado:', empleadoId);
         console.log('🔑 Token:', token ? token.substring(0, 20) + '...' : 'NO HAY TOKEN');
 
         const headers = {
             'Content-Type': 'application/json'
         };
 
-        // ⭐ AGREGAR TOKEN SI EXISTE
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
         }
@@ -97,28 +100,28 @@ export const getHorarioPorEmpleado = async (empleadoId, token = null) => {
             throw new Error(`Respuesta inválida del servidor: ${responseText.substring(0, 100)}`);
         }
 
-        console.log('✅ Horario obtenido:', data);
+        console.log('✅ Horario obtenido del servidor');
 
-        // ⭐ IMPORTANTE: El backend puede devolver data.data o data directamente
-        const horario = data.data || data;
+        // El horario puede venir en diferentes estructuras
+        const horario = data.data || data.horario || data;
 
         // Verificar que tengamos configuracion
-        if (!horario.configuracion && !horario.config_excep) {
-            console.warn('⚠️ No hay configuracion ni config_excep en la respuesta');
+        if (!horario.configuracion) {
+            console.warn('⚠️ No hay configuracion en la respuesta');
             console.log('📊 Estructura recibida:', JSON.stringify(horario, null, 2));
             throw new Error('El horario no tiene configuración válida');
         }
 
-        // Normalizar: El backend devuelve "configuracion", pero internamente lo usamos como "config_excep"
-        if (horario.configuracion && !horario.config_excep) {
-            horario.config_excep = horario.configuracion;
-        }
+        console.log('✅ Configuración encontrada');
+        console.log('📊 Tipo de configuración:', typeof horario.configuracion);
+        console.log('═══════════════════════════════════════');
 
         return horario;
     } catch (error) {
         console.error('❌ Error completo:', error);
         console.error('❌ Error message:', error.message);
         console.error('❌ Error stack:', error.stack);
+        console.log('═══════════════════════════════════════');
         throw error;
     }
 };
@@ -170,7 +173,7 @@ export const getHorarioById = async (id, token = null) => {
 };
 
 /**
- * Parsear configuración de horario del JSON config_excep
+ * Parsear configuración de horario del JSON config_excep o configuracion
  * @param {Object} horario - Objeto horario con config_excep o configuracion
  * @returns {Array} Array de días con su configuración
  */
@@ -183,8 +186,8 @@ export const parsearHorario = (horario) => {
             return obtenerHorarioVacio();
         }
 
-        // ⭐ Soportar tanto config_excep como configuracion
-        const configRaw = horario.config_excep || horario.configuracion;
+        // Soportar tanto config_excep como configuracion
+        const configRaw = horario.configuracion || horario.config_excep;
 
         if (!configRaw) {
             console.warn('⚠️ No hay config_excep ni configuracion en horario');

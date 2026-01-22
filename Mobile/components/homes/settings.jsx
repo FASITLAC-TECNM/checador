@@ -25,7 +25,7 @@ const obtenerUrlFotoPerfil = (foto) => {
     return foto;
   }
   
-  const BASE_URL = 'https://9dm7dqf9-3001.usw3.devtunnels.ms';
+  const BASE_URL = 'https://9dm7dqf9-3002.usw3.devtunnels.ms/';
   const url = `${BASE_URL}${foto.startsWith('/') ? '' : '/'}${foto}`;
   console.log('✅ URL construida:', url);
   return url;

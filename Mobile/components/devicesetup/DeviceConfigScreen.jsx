@@ -12,12 +12,14 @@ import {
   Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Device from 'expo-device';
-import NetInfo from '@react-native-community/netinfo';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import config from '../../config/onboardingConfig.json';
-import { crearSolicitudMovil } from '../../services/solicitudMovilService';
+import { crearSolicitudMovil, reabrirSolicitudMovil } from '../../services/solicitudMovilService';
+import { detectDeviceInfo } from '../../services/deviceUtils';
 
-export const DeviceConfigScreen = ({ onNext, onPrevious }) => {
+export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPrevious }) => {
+  const insets = useSafeAreaInsets();
   const { deviceConfig } = config;
   const [formData, setFormData] = useState({
     email: '',
@@ -29,66 +31,63 @@ export const DeviceConfigScreen = ({ onNext, onPrevious }) => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isDetecting, setIsDetecting] = useState(true);
+  const [solicitudExistente, setSolicitudExistente] = useState(null);
 
   useEffect(() => {
-    detectDeviceInfo();
+    checkExistingSolicitud();
   }, []);
 
-  const detectDeviceInfo = async () => {
+  const checkExistingSolicitud = async () => {
     try {
       setIsDetecting(true);
-
-      // Obtener información del dispositivo
-      const deviceModel = Device.modelName || (Platform.OS === 'ios' ? 'iPhone' : 'Android Device');
-      const osVersion = Device.osVersion || Platform.Version;
-      const os = Platform.OS === 'ios' ? `iOS ${osVersion}` : `Android ${osVersion}`;
-
-      // Obtener información de red
-      let ipAddress = '192.168.1.0';
-      try {
-        const netInfo = await NetInfo.fetch();
-        ipAddress = netInfo.details?.ipAddress || `192.168.1.${Math.floor(Math.random() * 255)}`;
-      } catch (error) {
-        console.log('No se pudo obtener IP real, usando simulada');
+      
+      // Verificar si hay una solicitud rechazada guardada para reintentar
+      const solicitudRechazadaId = await AsyncStorage.getItem('@solicitud_rechazada_id');
+      const solicitudRechazadaToken = await AsyncStorage.getItem('@solicitud_rechazada_token');
+      
+      if (solicitudRechazadaId && solicitudRechazadaToken) {
+        console.log('🔄 Modo reintento - Se reabrirá solicitud:', solicitudRechazadaId);
+        setSolicitudExistente({ id: solicitudRechazadaId, token: solicitudRechazadaToken });
       }
+      
+      // Detectar info del dispositivo
+      await detectDevice();
+    } catch (error) {
+      console.error('❌ Error verificando solicitud existente:', error);
+      await detectDevice();
+    }
+  };
 
-      // Generar MAC simulada
-      const macAddress = generateMacAddress();
+  const detectDevice = async () => {
+    try {
+      console.log('🔍 Detectando información del dispositivo...');
 
-      // Fecha actual
-      const today = new Date();
-      const registrationDate = today.toISOString().split('T')[0];
+      const deviceData = await detectDeviceInfo();
+
+      if (!deviceData) {
+        throw new Error('No se pudo detectar la información del dispositivo');
+      }
 
       setFormData(prev => ({
         ...prev,
-        registrationDate,
-        macAddress,
-        ipAddress,
-        deviceModel,
-        os,
+        registrationDate: deviceData.registrationDate,
+        macAddress: deviceData.macAddress,
+        ipAddress: deviceData.ipAddress,
+        deviceModel: deviceData.deviceInfo.model,
+        os: deviceData.deviceInfo.os,
       }));
 
-      setIsDetecting(false);
-    } catch (error) {
-      console.error('Error detectando información del dispositivo:', error);
-      Alert.alert('Error', 'No se pudo detectar la información del dispositivo');
-      setIsDetecting(false);
-    }
-  };
+      console.log('✅ Información detectada:', deviceData);
 
-  const generateMacAddress = () => {
-    const hex = '0123456789ABCDEF';
-    let mac = '';
-    for (let i = 0; i < 6; i++) {
-      if (i > 0) mac += ':';
-      mac += hex.charAt(Math.floor(Math.random() * 16));
-      mac += hex.charAt(Math.floor(Math.random() * 16));
+    } catch (error) {
+      console.error('❌ Error detectando dispositivo:', error);
+      Alert.alert('Error', 'No se pudo detectar la información del dispositivo');
+    } finally {
+      setIsDetecting(false);
     }
-    return mac;
   };
 
   const handleNext = async () => {
-    // Validaciones
     if (!formData.email) {
       Alert.alert('Error', 'Por favor ingresa tu correo electrónico');
       return;
@@ -98,52 +97,80 @@ export const DeviceConfigScreen = ({ onNext, onPrevious }) => {
       return;
     }
 
+    if (!empresaId) {
+      Alert.alert('Error', 'No se encontró el ID de la empresa');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      console.log('📱 Enviando solicitud de dispositivo móvil...');
+      let response;
 
-      // Preparar datos para el servidor
-      const solicitudData = {
-        nombre: formData.deviceModel,
-        correo: formData.email,
-        descripcion: `Dispositivo ${Platform.OS === 'ios' ? 'iOS' : 'Android'} - ${formData.deviceModel}`,
-        ip: formData.ipAddress,
-        mac: formData.macAddress,
-        sistema_operativo: Platform.OS === 'ios' ? 'iOS' : 'Android',
-        observaciones: `Registro desde app móvil el ${formData.registrationDate}. SO: ${formData.os}`
-      };
+      // Si hay una solicitud existente (rechazada), reabrirla
+      if (solicitudExistente?.id) {
+        console.log('🔄 Reabriendo solicitud rechazada:', solicitudExistente.id);
+        
+        const observaciones = `Reintento desde app móvil el ${formData.registrationDate}. Email: ${formData.email}, SO: ${formData.os}`;
+        response = await reabrirSolicitudMovil(solicitudExistente.id, observaciones);
+        
+        // Si se reabrió exitosamente, usar el ID y token existente
+        response.id = solicitudExistente.id;
+        response.token_solicitud = solicitudExistente.token;
+        
+        // Limpiar los datos de la solicitud rechazada
+        await AsyncStorage.removeItem('@solicitud_rechazada_id');
+        await AsyncStorage.removeItem('@solicitud_rechazada_token');
+        console.log('🧹 Datos de solicitud rechazada limpiados');
+        
+      } else {
+        // Crear nueva solicitud
+        console.log('📱 Enviando solicitud de dispositivo móvil...');
+        
+        const solicitudData = {
+          nombre: formData.deviceModel,
+          correo: formData.email,
+          descripcion: `Dispositivo ${Platform.OS === 'ios' ? 'iOS' : 'Android'} - ${formData.deviceModel}`,
+          ip: formData.ipAddress,
+          mac: formData.macAddress,
+          sistema_operativo: Platform.OS === 'ios' ? 'iOS' : 'Android',
+          observaciones: `Registro desde app móvil el ${formData.registrationDate}. SO: ${formData.os}`,
+          empresa_id: empresaId
+        };
 
-      console.log('📤 Datos a enviar:', solicitudData);
-
-      // Enviar solicitud al servidor
-      const response = await crearSolicitudMovil(solicitudData);
+        response = await crearSolicitudMovil(solicitudData);
+      }
 
       console.log('✅ Respuesta del servidor:', response);
 
-      // Verificar que se recibió un token
       if (!response.token_solicitud) {
         throw new Error('No se recibió token de solicitud del servidor');
       }
 
       Alert.alert(
-        '¡Solicitud Enviada!',
-        'Tu solicitud ha sido enviada correctamente. Recibirás una notificación cuando sea aprobada.',
-        [{ text: 'Continuar', onPress: () => {
-          // Pasar los datos completos incluyendo el token
-          onNext({
-            email: formData.email,
-            deviceInfo: {
-              model: formData.deviceModel,
-              os: formData.os,
-              ip: formData.ipAddress,
-              mac: formData.macAddress,
-              registrationDate: formData.registrationDate
-            },
-            tokenSolicitud: response.token_solicitud,
-            idSolicitud: response.id
-          });
-        }}]
+        solicitudExistente?.id ? '¡Solicitud Reabierta!' : '¡Solicitud Enviada!',
+        solicitudExistente?.id 
+          ? 'Tu solicitud ha sido reabierta y está pendiente de aprobación nuevamente.'
+          : 'Tu solicitud ha sido enviada correctamente. Recibirás una notificación cuando sea aprobada.',
+        [{ 
+          text: 'Continuar', 
+          onPress: () => {
+            onNext({
+              email: formData.email,
+              empresaId: empresaId,
+              empresaNombre: empresaNombre,
+              deviceInfo: {
+                model: formData.deviceModel,
+                os: formData.os,
+                ip: formData.ipAddress,
+                mac: formData.macAddress,
+                registrationDate: formData.registrationDate
+              },
+              tokenSolicitud: response.token_solicitud,
+              idSolicitud: response.id
+            });
+          }
+        }]
       );
 
     } catch (error) {
@@ -152,14 +179,8 @@ export const DeviceConfigScreen = ({ onNext, onPrevious }) => {
         'Error al Enviar',
         error.message || 'No se pudo enviar la solicitud. Por favor intenta nuevamente.',
         [
-          {
-            text: 'Reintentar',
-            onPress: handleNext
-          },
-          {
-            text: 'Cancelar',
-            style: 'cancel'
-          }
+          { text: 'Reintentar', onPress: handleNext },
+          { text: 'Cancelar', style: 'cancel' }
         ]
       );
     } finally {
@@ -190,7 +211,7 @@ export const DeviceConfigScreen = ({ onNext, onPrevious }) => {
             onChangeText={(text) => setFormData(prev => ({ ...prev, [field.id]: text }))}
             keyboardType={field.type === 'email' ? 'email-address' : 'default'}
             autoCapitalize={field.type === 'email' ? 'none' : 'sentences'}
-            editable={!isReadonly}
+            editable={!isReadonly && !isLoading}
           />
           {isReadonly && (
             <Ionicons name="checkmark-circle" size={16} color="#10b981" />
@@ -217,18 +238,50 @@ export const DeviceConfigScreen = ({ onNext, onPrevious }) => {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Header */}
-      <View style={styles.header}>
+      {/* Header con Stepper */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.headerTitle}>{deviceConfig.title}</Text>
         <Text style={styles.headerSubtitle}>{deviceConfig.subtitle}</Text>
+        
+        {/* Stepper en el Header */}
+        <View style={styles.stepperContainer}>
+          <View style={styles.stepComplete}>
+            <Ionicons name="checkmark" size={12} color="#fff" />
+          </View>
+          <View style={styles.stepLine} />
+          <View style={styles.stepComplete}>
+            <Ionicons name="checkmark" size={12} color="#fff" />
+          </View>
+          <View style={styles.stepLine} />
+          <View style={styles.stepActive}>
+            <Text style={styles.stepActiveText}>3</Text>
+          </View>
+        </View>
       </View>
 
       {/* Form */}
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Platform.OS === 'android' ? 100 : 80 }]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Modo reintento badge */}
+        {solicitudExistente && (
+          <View style={styles.retryBadge}>
+            <Ionicons name="refresh-circle" size={20} color="#f59e0b" />
+            <Text style={styles.retryText}>Reintentando solicitud anterior</Text>
+          </View>
+        )}
+
+        {/* Empresa Info Card */}
+        <View style={styles.empresaCard}>
+          <Ionicons name="business" size={20} color="#2563eb" />
+          <View style={styles.empresaInfo}>
+            <Text style={styles.empresaLabel}>Empresa:</Text>
+            <Text style={styles.empresaNombre}>{empresaNombre || empresaId}</Text>
+          </View>
+        </View>
+
         <View style={styles.formCard}>
           {deviceConfig.fields.map(renderField)}
         </View>
@@ -259,40 +312,42 @@ export const DeviceConfigScreen = ({ onNext, onPrevious }) => {
         </View>
       </ScrollView>
 
-      {/* Footer with Stepper */}
-      <View style={styles.footer}>
-        <View style={styles.stepper}>
-          <View style={styles.stepActive}>
-            <Text style={styles.stepActiveText}>1</Text>
-          </View>
-          <View style={styles.stepLine} />
-          <View style={styles.stepInactive}>
-            <Text style={styles.stepInactiveText}>2</Text>
-          </View>
-          <View style={styles.stepLineInactive} />
-          <View style={styles.stepInactive}>
-            <Text style={styles.stepInactiveText}>3</Text>
-          </View>
-        </View>
+      {/* Footer - Solo botones, sin stepper */}
+      <View style={[styles.footer, { paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 8) : insets.bottom }]}>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={onPrevious}
+            activeOpacity={0.8}
+            disabled={isLoading}
+          >
+            <Ionicons name="arrow-back" size={18} color="#6b7280" />
+            <Text style={styles.backButtonText}>Anterior</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.nextButton, (!formData.email || isLoading) && styles.nextButtonDisabled]}
-          onPress={handleNext}
-          disabled={!formData.email || isLoading}
-          activeOpacity={0.8}
-        >
-          {isLoading ? (
-            <>
-              <ActivityIndicator color="#fff" size="small" />
-              <Text style={[styles.nextButtonText, { marginLeft: 8 }]}>Enviando...</Text>
-            </>
-          ) : (
-            <>
-              <Text style={styles.nextButtonText}>Enviar Solicitud</Text>
-              <Ionicons name="send" size={16} color="#fff" />
-            </>
-          )}
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.nextButton, (!formData.email || isLoading) && styles.nextButtonDisabled]}
+            onPress={handleNext}
+            disabled={!formData.email || isLoading}
+            activeOpacity={0.8}
+          >
+                          {isLoading ? (
+              <>
+                <ActivityIndicator color="#fff" size="small" />
+                <Text style={[styles.nextButtonText, { marginLeft: 8 }]}>
+                  {solicitudExistente ? 'Reabriendo...' : 'Enviando...'}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.nextButtonText}>
+                  {solicitudExistente ? 'Reabrir Solicitud' : 'Enviar Solicitud'}
+                </Text>
+                <Ionicons name="send" size={16} color="#fff" />
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -314,42 +369,122 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#fff',
-    padding: 12,
-    paddingTop: 40,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#1f2937',
     marginBottom: 2,
   },
   headerSubtitle: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#6b7280',
+    marginBottom: 12,
+  },
+  stepperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
+  stepComplete: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#10b981',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepActive: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#2563eb',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepActiveText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  stepLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: '#10b981',
+    marginHorizontal: 6,
+    maxWidth: 80,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 12,
-    paddingBottom: 90,
+    padding: 16,
+  },
+  retryBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef3c7',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  retryText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#92400e',
+    marginLeft: 8,
+    fontWeight: '600',
+  },
+  empresaCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+  },
+  empresaInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  empresaLabel: {
+    fontSize: 11,
+    color: '#6b7280',
+    marginBottom: 2,
+  },
+  empresaNombre: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1e40af',
   },
   formCard: {
     backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
   fieldContainer: {
-    marginBottom: 10,
+    marginBottom: 12,
   },
   label: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   required: {
     color: '#ef4444',
@@ -361,60 +496,60 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
   },
   inputWrapperReadonly: {
     backgroundColor: '#f3f4f6',
     borderColor: '#d1d5db',
   },
   inputIcon: {
-    marginRight: 6,
+    marginRight: 8,
   },
   input: {
     flex: 1,
-    height: 36,
-    fontSize: 13,
+    height: 42,
+    fontSize: 14,
     color: '#374151',
   },
   inputReadonly: {
     color: '#6b7280',
   },
   helpText: {
-    fontSize: 9,
+    fontSize: 10,
     color: '#6b7280',
-    marginTop: 2,
+    marginTop: 4,
     marginLeft: 2,
   },
   infoCard: {
     backgroundColor: '#eff6ff',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 8,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
   },
   infoTitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     color: '#1f2937',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   infoLabel: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#6b7280',
   },
   infoValue: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     color: '#1f2937',
   },
   warningCard: {
     backgroundColor: '#fef3c7',
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: 12,
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'flex-start',
     borderWidth: 1,
@@ -422,71 +557,49 @@ const styles = StyleSheet.create({
   },
   warningText: {
     flex: 1,
-    fontSize: 11,
+    fontSize: 12,
     color: '#92400e',
-    marginLeft: 8,
-    lineHeight: 16,
+    marginLeft: 10,
+    lineHeight: 18,
   },
   footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: '#fff',
-    padding: 10,
+    paddingHorizontal: 16,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
   },
-  stepper: {
+  buttonRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    gap: 12,
     marginBottom: 8,
   },
-  stepActive: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#2563eb',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  stepActiveText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  stepInactive: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#e5e7eb',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  stepInactiveText: {
-    color: '#9ca3af',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  stepLine: {
+  backButton: {
     flex: 1,
-    height: 2,
-    backgroundColor: '#2563eb',
-    marginHorizontal: 4,
-  },
-  stepLineInactive: {
-    flex: 1,
-    height: 2,
-    backgroundColor: '#e5e7eb',
-    marginHorizontal: 4,
-  },
-  nextButton: {
-    backgroundColor: '#2563eb',
-    borderRadius: 8,
-    padding: 10,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 10,
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
+  },
+  backButtonText: {
+    color: '#6b7280',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  nextButton: {
+    flex: 2,
+    backgroundColor: '#2563eb',
+    borderRadius: 10,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   nextButtonDisabled: {
     backgroundColor: '#9ca3af',
@@ -494,8 +607,7 @@ const styles = StyleSheet.create({
   },
   nextButtonText: {
     color: '#fff',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: 'bold',
-    marginRight: 6,
   },
 });

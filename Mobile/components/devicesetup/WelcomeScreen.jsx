@@ -5,67 +5,75 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  StatusBar
+  StatusBar,
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import config from '../../config/onboardingConfig.json';
 
 export const WelcomeScreen = ({ onNext }) => {
+  const insets = useSafeAreaInsets();
   const { welcome } = config;
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
-      <LinearGradient
-        colors={['#1e40af', '#2563eb']}
-        style={styles.gradient}
+      <StatusBar barStyle="dark-content" />
+      
+      {/* Header Blanco */}
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+        <View style={styles.logoContainer}>
+          <Ionicons name="shield-checkmark" size={48} color="#2563eb" />
+        </View>
+        <Text style={styles.title}>{welcome.title}</Text>
+        <Text style={styles.subtitle}>{welcome.subtitle}</Text>
+      </View>
+
+      {/* Content */}
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Logo y Título */}
-          <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <Ionicons name="shield-checkmark" size={36} color="#2563eb" />
+        {/* Steps Cards */}
+        {welcome.steps.map((step) => (
+          <View key={step.number} style={styles.stepCard}>
+            <View style={[styles.iconCircle, { backgroundColor: `${step.color}15` }]}>
+              <Ionicons name={step.icon} size={28} color={step.color} />
             </View>
-            <Text style={styles.title}>{welcome.title}</Text>
-            <Text style={styles.subtitle}>{welcome.subtitle}</Text>
-          </View>
-
-          {/* Pasos */}
-          <View style={styles.stepsContainer}>
-            {welcome.steps.map((step) => (
-              <View key={step.number} style={styles.stepRow}>
-                <View style={styles.stepNumber}>
-                  <Text style={styles.stepNumberText}>{step.number}</Text>
+            
+            <View style={styles.stepContent}>
+              <View style={styles.stepTitleRow}>
+                <View style={[styles.stepBadge, { backgroundColor: step.color }]}>
+                  <Text style={styles.stepBadgeText}>{step.number}</Text>
                 </View>
-                <View style={styles.stepContent}>
-                  <View style={styles.stepHeader}>
-                    <Ionicons name={step.icon} size={18} color="#fff" />
-                    <Text style={styles.stepTitle}>{step.title}</Text>
-                  </View>
-                  <Text style={styles.stepDescription}>{step.description}</Text>
-                </View>
+                <Text style={styles.stepTitle}>{step.title}</Text>
               </View>
-            ))}
+              <Text style={styles.stepDescription}>{step.description}</Text>
+            </View>
           </View>
+        ))}
 
-          {/* Nota */}
-          <View style={styles.noteCard}>
-            <Ionicons name="information-circle" size={16} color="#60a5fa" />
-            <Text style={styles.noteText}>{welcome.note}</Text>
+        {/* Info Alert */}
+        <View style={styles.alertCard}>
+          <View style={styles.alertIconContainer}>
+            <Ionicons name="information-circle" size={22} color="#2563eb" />
           </View>
-        </ScrollView>
+          <Text style={styles.alertText}>{welcome.note}</Text>
+        </View>
+      </ScrollView>
 
-        {/* Botón */}
-        <TouchableOpacity
+      {/* Footer Button */}
+      <View style={[styles.footer, { paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 16) : insets.bottom + 16 }]}>
+        <TouchableOpacity 
           style={styles.startButton}
           onPress={onNext}
-          activeOpacity={0.9}
+          activeOpacity={0.8}
         >
-          <Text style={styles.startButtonText}>Comenzar</Text>
-          <Ionicons name="arrow-forward" size={18} color="#fff" />
+          <Text style={styles.startButtonText}>Comenzar Configuración</Text>
+          <Ionicons name="arrow-forward" size={22} color="#fff" />
         </TouchableOpacity>
-      </LinearGradient>
+      </View>
     </View>
   );
 };
@@ -73,126 +81,144 @@ export const WelcomeScreen = ({ onNext }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#f9fafb',
   },
-  gradient: {
+  header: {
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 28,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  logoContainer: {
+    width: 88,
+    height: 88,
+    backgroundColor: '#eff6ff',
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: '#dbeafe',
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: '#6b7280',
+    textAlign: 'center',
+  },
+  scrollView: {
     flex: 1,
   },
   scrollContent: {
     padding: 20,
     paddingBottom: 100,
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  logoContainer: {
-    width: 64,
-    height: 64,
+  stepCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
+    padding: 18,
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     elevation: 3,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 6,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: '#93c5fd',
-    textAlign: 'center',
-  },
-  stepsContainer: {
-    marginBottom: 20,
-  },
-  stepRow: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: '#f3f4f6',
   },
-  stepNumber: {
-    width: 32,
-    height: 32,
+  iconCircle: {
+    width: 56,
+    height: 56,
     borderRadius: 16,
-    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
-  },
-  stepNumberText: {
-    color: '#2563eb',
-    fontSize: 16,
-    fontWeight: 'bold',
+    marginRight: 16,
   },
   stepContent: {
     flex: 1,
   },
-  stepHeader: {
+  stepTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 8,
+    gap: 10,
+  },
+  stepBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   stepTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
-    marginLeft: 6,
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#111827',
+    flex: 1,
   },
   stepDescription: {
-    fontSize: 11,
-    color: '#93c5fd',
-    lineHeight: 16,
+    fontSize: 14,
+    color: '#6b7280',
+    lineHeight: 20,
   },
-  noteCard: {
-    backgroundColor: 'rgba(96, 165, 250, 0.2)',
-    borderRadius: 10,
-    padding: 12,
+  alertCard: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 14,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'flex-start',
+    gap: 12,
     borderWidth: 1,
-    borderColor: 'rgba(96, 165, 250, 0.3)',
+    borderColor: '#dbeafe',
   },
-  noteText: {
+  alertIconContainer: {
+    marginTop: 1,
+  },
+  alertText: {
     flex: 1,
-    fontSize: 11,
-    color: '#fff',
-    marginLeft: 8,
-    lineHeight: 16,
+    fontSize: 13,
+    color: '#1e40af',
+    lineHeight: 19,
+  },
+  footer: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
   },
   startButton: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-    backgroundColor: '#1e3a8a',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#2563eb',
+    borderRadius: 14,
+    padding: 18,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
+    gap: 10,
+    shadowColor: '#2563eb',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 8,
+    elevation: 6,
   },
   startButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
-    marginRight: 8,
   },
 });

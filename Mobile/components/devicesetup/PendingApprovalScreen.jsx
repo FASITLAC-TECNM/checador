@@ -1,4 +1,3 @@
-// PendingApprovalScreen.js - MEJORADO
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -6,15 +5,18 @@ import {
   StyleSheet,
   StatusBar,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import config from '../../config/onboardingConfig.json';
 import { getSolicitudPorToken } from '../../services/solicitudMovilService';
 
 export const PendingApprovalScreen = ({ tokenSolicitud, idSolicitud, onApproved, onRejected }) => {
+  const insets = useSafeAreaInsets();
   const { pending } = config;
-  const [solicitudStatus, setSolicitudStatus] = useState('Pendiente');
+  const [solicitudStatus, setSolicitudStatus] = useState('pendiente');
   const intervalRef = useRef(null);
   const onApprovedRef = useRef(onApproved);
   const onRejectedRef = useRef(onRejected);
@@ -24,20 +26,16 @@ export const PendingApprovalScreen = ({ tokenSolicitud, idSolicitud, onApproved,
     onRejectedRef.current = onRejected;
   }, [onApproved, onRejected]);
 
-  // Verificar estado cada 5 segundos
   useEffect(() => {
     const checkStatus = async () => {
       try {
-        console.log('🔍 Verificando estado de solicitud...');
-
         const response = await getSolicitudPorToken(tokenSolicitud);
         
-        console.log('📥 Estado actual:', response.estado);
-        setSolicitudStatus(response.estado);
+        const estadoLower = response.estado?.toLowerCase();
+        setSolicitudStatus(estadoLower);
 
-        // Si fue aceptada, navegar a pantalla de aprobación
-        if (response.estado === 'Aceptado') {
-          console.log('✅ Solicitud ACEPTADA');
+        // Si fue aceptada (comparar en minúsculas)
+        if (estadoLower === 'aceptado') {
           if (intervalRef.current) {
             clearInterval(intervalRef.current);
           }
@@ -50,40 +48,23 @@ export const PendingApprovalScreen = ({ tokenSolicitud, idSolicitud, onApproved,
           }, 500);
         }
 
-        // Si fue rechazada, mostrar alerta
-        if (response.estado === 'Rechazado') {
-          console.log('❌ Solicitud RECHAZADA');
+        // Si fue rechazada
+        if (estadoLower === 'rechazado') {
           if (intervalRef.current) {
             clearInterval(intervalRef.current);
           }
-          Alert.alert(
-            'Solicitud Rechazada',
-            response.motivo_rechazo || 'Tu solicitud ha sido rechazada por el administrador.',
-            [
-              {
-                text: 'Entendido',
-                onPress: () => {
-                  if (onRejectedRef.current) {
-                    onRejectedRef.current(response);
-                  }
-                }
-              }
-            ]
-          );
+          setTimeout(() => {
+            onRejectedRef.current(response);
+          }, 500);
         }
       } catch (error) {
         console.error('❌ Error verificando estado:', error);
-        // No mostrar alerta para no interrumpir el flujo
       }
     };
 
-    // Primera verificación inmediata
     checkStatus();
-
-    // Verificar cada 5 segundos
     intervalRef.current = setInterval(checkStatus, 5000);
 
-    // Limpiar intervalo al desmontar
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -95,31 +76,42 @@ export const PendingApprovalScreen = ({ tokenSolicitud, idSolicitud, onApproved,
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Header */}
-      <View style={styles.header}>
+      {/* Header con Stepper */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.headerTitle}>Solicitud Enviada</Text>
         <Text style={styles.headerSubtitle}>Esperando aprobación del administrador</Text>
+        
+        {/* Stepper en el Header */}
+        <View style={styles.stepperContainer}>
+          <View style={styles.stepComplete}>
+            <Ionicons name="checkmark" size={12} color="#fff" />
+          </View>
+          <View style={styles.stepLine} />
+          <View style={styles.stepComplete}>
+            <Ionicons name="checkmark" size={12} color="#fff" />
+          </View>
+          <View style={styles.stepLine} />
+          <View style={styles.stepActive}>
+            <ActivityIndicator size="small" color="#fff" />
+          </View>
+        </View>
       </View>
 
       {/* Content */}
       <View style={styles.content}>
         <View style={styles.waitingCard}>
-          {/* Spinner animado continuamente */}
           <View style={styles.spinnerContainer}>
             <ActivityIndicator size="large" color="#2563eb" />
           </View>
 
-          {/* Mensaje principal */}
           <Text style={styles.mainMessage}>
             Esperando Aprobación
           </Text>
 
-          {/* Descripción */}
           <Text style={styles.description}>
             Tu solicitud ha sido enviada correctamente. Un administrador la revisará pronto.
           </Text>
 
-          {/* Info Box */}
           <View style={styles.infoBox}>
             <Ionicons name="time-outline" size={20} color="#2563eb" />
             <View style={styles.infoContent}>
@@ -132,25 +124,11 @@ export const PendingApprovalScreen = ({ tokenSolicitud, idSolicitud, onApproved,
             </View>
           </View>
 
-          {/* Warning Box */}
           <View style={styles.warningBox}>
             <Ionicons name="information-circle" size={18} color="#f59e0b" />
             <Text style={styles.warningText}>
               Esta pantalla se actualizará automáticamente cuando tu solicitud sea procesada.
             </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Footer */}
-      <View style={styles.footer}>
-        <View style={styles.stepper}>
-          <View style={styles.stepComplete}>
-            <Ionicons name="checkmark" size={16} color="#fff" />
-          </View>
-          <View style={styles.stepLine} />
-          <View style={styles.stepActive}>
-            <ActivityIndicator size="small" color="#fff" />
           </View>
         </View>
       </View>
@@ -165,20 +143,50 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#fff',
-    padding: 20,
-    paddingTop: 50,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#1f2937',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#6b7280',
+    marginBottom: 12,
+  },
+  stepperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
+  stepComplete: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#10b981',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepActive: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#2563eb',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: '#10b981',
+    marginHorizontal: 6,
+    maxWidth: 80,
   },
   content: {
     flex: 1,
@@ -260,38 +268,5 @@ const styles = StyleSheet.create({
     color: '#92400e',
     marginLeft: 8,
     lineHeight: 16,
-  },
-  footer: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
-  stepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepComplete: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#10b981',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  stepActive: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#2563eb',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  stepLine: {
-    width: 60,
-    height: 2,
-    backgroundColor: '#10b981',
-    marginHorizontal: 8,
   },
 });

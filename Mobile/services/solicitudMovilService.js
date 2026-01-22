@@ -1,379 +1,306 @@
 // services/solicitudMovilService.js
-// Servicio para gestión de solicitudes de dispositivos móviles
+import axios from 'axios';
+import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import getApiEndpoint from '../config/api';
 
-import { getApiEndpoint } from '../config/api.js';
+// Configuración del API usando tu configuración centralizada
+const API_BASE_URL = getApiEndpoint('/api');
 
-const API_URL = getApiEndpoint('/api');
+console.log('🔧 API Base URL configurada:', API_BASE_URL);
 
-console.log('📱 Solicitudes Móviles API URL:', API_URL);
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 15000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
-// NOTA: La ruta en el backend es /api/solicitudes-movil (sin 'es' al final)
-
-/**
- * Obtener todas las solicitudes móviles
- * @returns {Promise<Array>} Lista de todas las solicitudes
- */
-export const getSolicitudesMoviles = async () => {
+// Interceptor para agregar token de autenticación si existe
+api.interceptors.request.use(
+  async (config) => {
     try {
-        const response = await fetch(`${API_URL}/solicitudes-movil`);
-        if (!response.ok) throw new Error('Error al obtener solicitudes móviles');
-        return await response.json();
+      const token = await AsyncStorage.getItem('@auth_token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     } catch (error) {
-        console.error('Error:', error);
-        throw error;
+      console.log('No hay token de autenticación');
     }
-};
-
-/**
- * Obtener todas las solicitudes pendientes
- * @returns {Promise<Array>} Lista de solicitudes pendientes
- */
-export const getSolicitudesPendientes = async () => {
-    try {
-        const response = await fetch(`${API_URL}/solicitudes-movil/pendientes`);
-        if (!response.ok) throw new Error('Error al obtener solicitudes pendientes');
-        return await response.json();
-    } catch (error) {
-        console.error('Error:', error);
-        throw error;
-    }
-};
-
-/**
- * Obtener estadísticas de solicitudes móviles
- * @returns {Promise<Object>} Estadísticas generales
- */
-export const getEstadisticas = async () => {
-    try {
-        const response = await fetch(`${API_URL}/solicitudes-movil/stats`);
-        if (!response.ok) throw new Error('Error al obtener estadísticas');
-        return await response.json();
-    } catch (error) {
-        console.error('Error:', error);
-        throw error;
-    }
-};
-
-/**
- * Obtener una solicitud por ID
- * @param {number} id - ID de la solicitud
- * @returns {Promise<Object>} Datos de la solicitud
- */
-export const getSolicitudMovil = async (id) => {
-    try {
-        const response = await fetch(`${API_URL}/solicitudes-movil/${id}`);
-        if (!response.ok) throw new Error('Error al obtener solicitud móvil');
-        return await response.json();
-    } catch (error) {
-        console.error('Error:', error);
-        throw error;
-    }
-};
-
-/**
- * Obtener una solicitud por token
- * @param {string} token - Token de la solicitud
- * @returns {Promise<Object>} Datos de la solicitud
- */
-export const getSolicitudPorToken = async (token) => {
-    try {
-        const url = `${API_URL}/solicitudes-movil/token/${token}`;
-        console.log('🔍 Consultando solicitud por token:', url);
-
-        const response = await fetch(url);
-        
-        console.log('📥 Status:', response.status);
-
-        // Obtener texto primero para debugging
-        const responseText = await response.text();
-        
-        // Intentar parsear como JSON
-        let data;
-        try {
-            data = responseText ? JSON.parse(responseText) : {};
-        } catch (parseError) {
-            console.error('❌ Error al parsear respuesta:', parseError);
-            console.error('📄 Respuesta:', responseText.substring(0, 200));
-            throw new Error('Respuesta inválida del servidor');
-        }
-
-        if (!response.ok) {
-            throw new Error(data.error || 'Error al obtener solicitud por token');
-        }
-
-        return data;
-    } catch (error) {
-        console.error('Error:', error);
-        throw error;
-    }
-};
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 /**
  * Crear una nueva solicitud de dispositivo móvil
- * @param {Object} solicitud - Datos de la solicitud
- * @param {string} solicitud.nombre - Nombre del dispositivo
- * @param {string} solicitud.correo - Correo del solicitante
- * @param {string} solicitud.descripcion - Descripción del dispositivo
- * @param {string} solicitud.ip - Dirección IP del dispositivo
- * @param {string} solicitud.mac - Dirección MAC del dispositivo
- * @param {string} solicitud.sistema_operativo - SO del dispositivo (iOS/Android)
- * @param {string} solicitud.observaciones - Observaciones adicionales (opcional)
- * @returns {Promise<Object>} Solicitud creada con token
  */
-export const crearSolicitudMovil = async (solicitud) => {
-    try {
-        // Validaciones
-        if (!solicitud.nombre || solicitud.nombre.trim() === '') {
-            throw new Error('El nombre del dispositivo es obligatorio');
-        }
-        if (!solicitud.correo || solicitud.correo.trim() === '') {
-            throw new Error('El correo es obligatorio');
-        }
-        if (!solicitud.ip || solicitud.ip.trim() === '') {
-            throw new Error('La dirección IP es obligatoria');
-        }
-        if (!solicitud.mac || solicitud.mac.trim() === '') {
-            throw new Error('La dirección MAC es obligatoria');
-        }
-        if (!solicitud.sistema_operativo) {
-            throw new Error('El sistema operativo es obligatorio');
-        }
+export const crearSolicitudMovil = async (data) => {
+  try {
+    const payload = {
+      tipo: 'movil',
+      nombre: data.nombre,
+      descripcion: data.descripcion,
+      correo: data.correo,
+      ip: data.ip,
+      mac: data.mac,
+      sistema_operativo: data.sistema_operativo,
+      observaciones: data.observaciones,
+      empresa_id: data.empresa_id
+    };
 
-        // Validar formato de correo
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(solicitud.correo)) {
-            throw new Error('El formato del correo no es válido');
-        }
+    const response = await api.post('/solicitudes', payload);
 
-        // Validar sistema operativo
-        const sistemasValidos = ['iOS', 'Android'];
-        if (!sistemasValidos.includes(solicitud.sistema_operativo)) {
-            throw new Error('Sistema operativo no válido. Debe ser iOS o Android');
-        }
+    console.log('✅ Respuesta exitosa:', response.data);
 
-        const solicitudDB = {
-            nombre: solicitud.nombre.trim(),
-            correo: solicitud.correo.toLowerCase().trim(),
-            descripcion: solicitud.descripcion?.trim() || '',
-            ip: solicitud.ip.trim(),
-            mac: solicitud.mac.trim().toUpperCase(),
-            sistema_operativo: solicitud.sistema_operativo,
-            observaciones: solicitud.observaciones?.trim() || ''
+    return {
+      id: response.data.data.id,
+      token_solicitud: response.data.data.token,
+      estado: response.data.data.estado
+    };
+
+  } catch (error) {
+    console.error('❌ Error en crearSolicitudMovil:', error);
+    console.error('❌ Error detalles:', {
+      message: error.message,
+      code: error.code,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    
+    if (error.response) {
+      // Error de respuesta del servidor
+      throw new Error(error.response.data.message || 'Error al crear solicitud');
+    } else if (error.request) {
+      // No se recibió respuesta
+      throw new Error(`No se pudo conectar con el servidor en ${API_BASE_URL}. Verifica tu conexión y que el backend esté corriendo.`);
+    } else {
+      // Error en la configuración
+      throw new Error('Error al configurar la solicitud');
+    }
+  }
+};
+
+/**
+ * Reabrir una solicitud rechazada cambiando su estado a pendiente
+ */
+export const reabrirSolicitudMovil = async (solicitudId, observaciones) => {
+  try {
+    const payload = {
+      observaciones: observaciones || 'Solicitud reabierta desde dispositivo móvil'
+    };
+
+    console.log('🔄 Reabriendo solicitud:', solicitudId);
+
+    const response = await api.patch(`/solicitudes/${solicitudId}/pendiente`, payload);
+
+    console.log('✅ Solicitud reabierta:', response.data);
+
+    return {
+      id: response.data.data.id,
+      token_solicitud: response.data.data.token,
+      estado: response.data.data.estado
+    };
+
+  } catch (error) {
+    console.error('❌ Error en reabrirSolicitudMovil:', error);
+    console.error('❌ Error detalles:', {
+      message: error.message,
+      code: error.code,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    
+    if (error.response) {
+      // Si ya está pendiente
+      if (error.response.status === 400 && error.response.data?.message?.includes('ya está en estado pendiente')) {
+        return {
+          id: solicitudId,
+          estado: 'pendiente',
+          yaEstabaPendiente: true
         };
-
-        const url = `${API_URL}/solicitudes-movil`;
-        console.log('📡 URL completa:', url);
-        console.log('📡 Enviando solicitud móvil:', solicitudDB);
-
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(solicitudDB),
-        });
-
-        console.log('📥 Status de respuesta:', response.status, response.statusText);
-
-        // Obtener el texto de la respuesta primero para debugging
-        const responseText = await response.text();
-        console.log('📄 Respuesta del servidor (primeros 500 chars):', responseText.substring(0, 500));
-
-        // Intentar parsear como JSON
-        let data;
-        try {
-            data = responseText ? JSON.parse(responseText) : {};
-        } catch (parseError) {
-            console.error('❌ Error al parsear JSON:', parseError);
-            console.error('📄 Respuesta completa:', responseText);
-            throw new Error(`El servidor respondió con un formato inválido (${response.status}). Verifica que la ruta /api/solicitudes-moviles existe en el backend.`);
-        }
-
-        if (!response.ok) {
-            throw new Error(data.error || data.message || `Error del servidor (${response.status})`);
-        }
-
-        console.log('✅ Solicitud móvil creada exitosamente:', data);
-
-        return data;
-    } catch (error) {
-        console.error('❌ Error al crear solicitud móvil:', error);
-        throw error;
+      }
+      throw new Error(error.response.data.message || 'Error al reabrir solicitud');
+    } else if (error.request) {
+      throw new Error(`No se pudo conectar con el servidor en ${API_BASE_URL}`);
+    } else {
+      throw new Error('Error al configurar la solicitud');
     }
+  }
 };
 
 /**
- * Aceptar una solicitud de dispositivo móvil
- * @param {number} id - ID de la solicitud
- * @param {number} idUsuarioAprobador - ID del usuario que aprueba
- * @param {string} observaciones - Observaciones de la aprobación (opcional)
- * @returns {Promise<Object>} Resultado de la aprobación
+ * Obtener estado de solicitud por token
  */
-export const aceptarSolicitudMovil = async (id, idUsuarioAprobador, observaciones = '') => {
-    try {
-        if (!idUsuarioAprobador) {
-            throw new Error('El ID del usuario aprobador es obligatorio');
-        }
+export const getSolicitudPorToken = async (token) => {
+  try {
+    console.log('🔍 Verificando solicitud con token:', token);
 
-        const data = {
-            id_usuario_aprobador: idUsuarioAprobador,
-            observaciones: observaciones.trim()
+    const response = await api.get(`/solicitudes/verificar/${token}`);
+
+    console.log('📥 Estado recibido:', response.data);
+
+    return response.data.data;
+
+  } catch (error) {
+    console.error('❌ Error en getSolicitudPorToken:', error);
+    
+    if (error.response?.status === 404) {
+      throw new Error('Solicitud no encontrada');
+    }
+    
+    throw new Error('Error al verificar el estado de la solicitud');
+  }
+};
+
+/**
+ * Verificar si una empresa existe por su ID
+ * Esta función asume que NO tienes autenticación aún durante el onboarding
+ * Por lo tanto, simplemente valida el formato del código
+ */
+export const verificarEmpresa = async (empresaId) => {
+  try {
+    console.log('🏢 Verificando empresa:', empresaId);
+
+    // Validación básica del formato
+    if (!empresaId || empresaId.trim().length < 3) {
+      return {
+        existe: false,
+        mensaje: 'Código de empresa inválido'
+      };
+    }
+
+    // Intenta hacer la consulta al servidor
+    try {
+      const response = await api.get(`/empresas/${empresaId}`);
+      
+      console.log('✅ Empresa verificada:', response.data);
+
+      return {
+        existe: true,
+        nombre: response.data.data.nombre,
+        activa: response.data.data.es_activo
+      };
+    } catch (error) {
+      // Si es 401 o 403 (sin autenticación), asumimos que la empresa existe
+      // El backend validará el ID cuando se envíe la solicitud
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        console.log('⚠️ Ruta protegida, se validará al enviar solicitud');
+        return {
+          existe: true,
+          nombre: empresaId,
+          activa: true,
+          pendienteValidacion: true
         };
+      }
 
-        console.log('✅ Aceptando solicitud móvil:', id);
-
-        const response = await fetch(`${API_URL}/solicitudes-movil/${id}/aceptar`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data),
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Error al aceptar solicitud móvil');
-        }
-
-        const resultado = await response.json();
-        console.log('✅ Solicitud móvil aceptada exitosamente');
-
-        return resultado;
-    } catch (error) {
-        console.error('❌ Error al aceptar solicitud móvil:', error);
-        throw error;
-    }
-};
-
-/**
- * Rechazar una solicitud de dispositivo móvil
- * @param {number} id - ID de la solicitud
- * @param {number} idUsuarioAprobador - ID del usuario que rechaza
- * @param {string} motivoRechazo - Motivo del rechazo
- * @param {string} observaciones - Observaciones adicionales (opcional)
- * @returns {Promise<Object>} Resultado del rechazo
- */
-export const rechazarSolicitudMovil = async (id, idUsuarioAprobador, motivoRechazo, observaciones = '') => {
-    try {
-        if (!idUsuarioAprobador) {
-            throw new Error('El ID del usuario aprobador es obligatorio');
-        }
-        if (!motivoRechazo || motivoRechazo.trim() === '') {
-            throw new Error('El motivo del rechazo es obligatorio');
-        }
-
-        const data = {
-            id_usuario_aprobador: idUsuarioAprobador,
-            motivo_rechazo: motivoRechazo.trim(),
-            observaciones: observaciones.trim()
+      // Si es 404, la empresa no existe
+      if (error.response?.status === 404) {
+        return {
+          existe: false,
+          mensaje: 'Empresa no encontrada'
         };
+      }
 
-        console.log('❌ Rechazando solicitud móvil:', id);
-
-        const response = await fetch(`${API_URL}/solicitudes-movil/${id}/rechazar`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data),
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Error al rechazar solicitud móvil');
-        }
-
-        const resultado = await response.json();
-        console.log('✅ Solicitud móvil rechazada exitosamente');
-
-        return resultado;
-    } catch (error) {
-        console.error('❌ Error al rechazar solicitud móvil:', error);
-        throw error;
+      // Otros errores
+      throw error;
     }
+
+  } catch (error) {
+    console.error('❌ Error verificando empresa:', error);
+    
+    // En caso de error de red u otro, permitimos continuar
+    // La validación real se hará en el backend al crear la solicitud
+    console.log('⚠️ No se pudo verificar, se validará al enviar solicitud');
+    return {
+      existe: true,
+      nombre: empresaId,
+      activa: true,
+      pendienteValidacion: true
+    };
+  }
 };
 
 /**
- * Eliminar una solicitud de dispositivo móvil
- * @param {number} id - ID de la solicitud a eliminar
- * @returns {Promise<Object>} Resultado de la eliminación
+ * Guardar token de autenticación (si lo tienes)
  */
-export const eliminarSolicitudMovil = async (id) => {
-    try {
-        console.log('🗑️ Eliminando solicitud móvil:', id);
-
-        const response = await fetch(`${API_URL}/solicitudes-movil/${id}`, {
-            method: 'DELETE',
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Error al eliminar solicitud móvil');
-        }
-
-        const resultado = await response.json();
-        console.log('✅ Solicitud móvil eliminada exitosamente');
-
-        return resultado;
-    } catch (error) {
-        console.error('❌ Error al eliminar solicitud móvil:', error);
-        throw error;
-    }
+export const guardarToken = async (token) => {
+  try {
+    await AsyncStorage.setItem('@auth_token', token);
+    console.log('✅ Token guardado');
+  } catch (error) {
+    console.error('❌ Error guardando token:', error);
+  }
 };
 
 /**
- * Filtrar solicitudes por estado
- * @param {string} estado - Estado a filtrar (Pendiente/Aceptado/Rechazado)
- * @returns {Promise<Array>} Lista de solicitudes filtradas
+ * Verificar si un dispositivo móvil existe y está activo
  */
-export const filtrarPorEstado = async (estado) => {
-    try {
-        const estadosValidos = ['Pendiente', 'Aceptado', 'Rechazado'];
-        if (!estadosValidos.includes(estado)) {
-            throw new Error('Estado no válido');
-        }
+export const verificarDispositivoActivo = async (solicitudId) => {
+  try {
+    console.log('🔍 Verificando dispositivo con solicitud:', solicitudId);
 
-        const response = await fetch(`${API_URL}/solicitudes-movil?estado=${estado}`);
-        if (!response.ok) throw new Error('Error al filtrar solicitudes');
-        return await response.json();
-    } catch (error) {
-        console.error('Error:', error);
-        throw error;
+    const response = await api.get(`/solicitudes/${solicitudId}`);
+
+    console.log('📥 Estado de solicitud:', response.data);
+
+    // Verificar que la solicitud existe y está aceptada
+    if (response.data.success && response.data.data) {
+      const solicitud = response.data.data;
+      
+      if (solicitud.estado?.toLowerCase() === 'aceptado') {
+        return {
+          valido: true,
+          solicitud: solicitud
+        };
+      } else {
+        return {
+          valido: false,
+          motivo: `Solicitud en estado: ${solicitud.estado}`,
+          estado: solicitud.estado
+        };
+      }
     }
+
+    return {
+      valido: false,
+      motivo: 'Solicitud no encontrada'
+    };
+
+  } catch (error) {
+    console.error('❌ Error verificando dispositivo:', error);
+    
+    if (error.response?.status === 404) {
+      return {
+        valido: false,
+        motivo: 'Solicitud eliminada o no existe'
+      };
+    }
+
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      // Si requiere autenticación, intentar con el token
+      return {
+        valido: false,
+        motivo: 'Requiere autenticación',
+        requiereLogin: true
+      };
+    }
+
+    throw error;
+  }
 };
 
 /**
- * Filtrar solicitudes por sistema operativo
- * @param {string} sistemaOperativo - SO a filtrar (iOS/Android)
- * @returns {Promise<Array>} Lista de solicitudes filtradas
+ * Limpiar token de autenticación
  */
-export const filtrarPorSistemaOperativo = async (sistemaOperativo) => {
-    try {
-        const sistemasValidos = ['iOS', 'Android'];
-        if (!sistemasValidos.includes(sistemaOperativo)) {
-            throw new Error('Sistema operativo no válido');
-        }
-
-        const response = await fetch(`${API_URL}/solicitudes-movil?sistema_operativo=${sistemaOperativo}`);
-        if (!response.ok) throw new Error('Error al filtrar solicitudes');
-        return await response.json();
-    } catch (error) {
-        console.error('Error:', error);
-        throw error;
-    }
-};
-
-// Exportar todo el servicio como default
-export default {
-    getSolicitudesMoviles,
-    getSolicitudesPendientes,
-    getEstadisticas,
-    getSolicitudMovil,
-    getSolicitudPorToken,
-    crearSolicitudMovil,
-    aceptarSolicitudMovil,
-    rechazarSolicitudMovil,
-    eliminarSolicitudMovil,
-    filtrarPorEstado,
-    filtrarPorSistemaOperativo
+export const limpiarToken = async () => {
+  try {
+    await AsyncStorage.removeItem('@auth_token');
+    console.log('✅ Token eliminado');
+  } catch (error) {
+    console.error('❌ Error eliminando token:', error);
+  }
 };

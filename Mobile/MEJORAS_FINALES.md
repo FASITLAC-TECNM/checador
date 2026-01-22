@@ -296,5 +296,3 @@ La aplicación Mobile ahora tiene:
 - ✅ Modo oscuro perfectamente funcional
 - ✅ Diferenciación clara entre usuarios y empleados
 - ✅ Toda la información de la BD visible
-
-**¿Falta algo más?** Solo que me digas si hay más campos de la BD que quieras mostrar 😊

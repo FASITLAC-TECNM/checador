@@ -8,6 +8,94 @@ const API_URL = getApiEndpoint('/api');
 console.log('📅 Horarios API URL:', API_URL);
 
 /**
+ * ⭐ FUNCIÓN PRINCIPAL: Obtener horario de un empleado por su ID
+ * Usa la ruta: /api/empleados/:empleadoId/horario
+ * @param {string} empleadoId - ID del empleado
+ * @param {string} token - Token de autenticación
+ * @returns {Promise<Object>} Datos del horario
+ */
+export const getHorarioPorEmpleado = async (empleadoId, token = null) => {
+    try {
+        // ⭐ USAR LA RUTA CORRECTA: /api/empleados/:id/horario
+        const url = `${API_URL}/empleados/${empleadoId}/horario`;
+        
+        console.log('═══════════════════════════════════════');
+        console.log('📅 OBTENIENDO HORARIO DEL EMPLEADO');
+        console.log('═══════════════════════════════════════');
+        console.log('📋 Empleado ID:', empleadoId);
+        console.log('📅 URL completa:', url);
+        console.log('🔑 Token:', token ? token.substring(0, 20) + '...' : 'NO HAY TOKEN');
+
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: headers
+        });
+
+        console.log('📥 Status de respuesta:', response.status, response.statusText);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Error del servidor:', errorText);
+            
+            if (response.status === 404) {
+                throw new Error('El empleado no tiene horario asignado');
+            }
+            
+            if (response.status === 401) {
+                throw new Error('No autorizado. Verifica tu sesión.');
+            }
+            
+            throw new Error(`Error del servidor (${response.status}): ${errorText}`);
+        }
+
+        const responseText = await response.text();
+        console.log('📄 Respuesta del servidor (primeros 500 chars):', responseText.substring(0, 500));
+
+        let data;
+        try {
+            data = responseText ? JSON.parse(responseText) : {};
+        } catch (parseError) {
+            console.error('❌ Error al parsear respuesta:', parseError);
+            console.error('📄 Respuesta completa:', responseText);
+            throw new Error(`Respuesta inválida del servidor`);
+        }
+
+        console.log('✅ Respuesta parseada correctamente');
+        console.log('📊 Estructura de la respuesta:', Object.keys(data));
+
+        // La respuesta viene en formato: { success: true, data: {...} }
+        const horario = data.data || data;
+
+        // Verificar que tengamos configuracion
+        if (!horario.configuracion) {
+            console.warn('⚠️ No hay configuracion en la respuesta');
+            console.log('📊 Estructura recibida:', JSON.stringify(horario, null, 2));
+            throw new Error('El horario no tiene configuración válida');
+        }
+
+        console.log('✅ Configuración encontrada');
+        console.log('📊 Tipo de configuración:', typeof horario.configuracion);
+        console.log('═══════════════════════════════════════');
+
+        return horario;
+    } catch (error) {
+        console.error('❌ Error completo:', error);
+        console.error('❌ Error message:', error.message);
+        console.error('❌ Error stack:', error.stack);
+        console.log('═══════════════════════════════════════');
+        throw error;
+    }
+};
+
+/**
  * Parsear horario con estructura nueva (configuracion_semanal)
  * @param {Object} configuracionSemanal - Objeto con días como keys y arrays de turnos
  * @returns {Array} Array de días con su configuración
@@ -48,128 +136,6 @@ const parsearHorarioNuevo = (configuracionSemanal) => {
             tipo: tipo
         };
     });
-};
-
-/**
- * ⭐ NUEVA FUNCIÓN: Obtener horario de un empleado por su ID
- * Usa la ruta: /api/empleados/:empleadoId/horario
- * @param {string} empleadoId - ID del empleado
- * @param {string} token - Token de autenticación
- * @returns {Promise<Object>} Datos del horario
- */
-export const getHorarioPorEmpleado = async (empleadoId, token = null) => {
-    try {
-        const url = `${API_URL}/empleados/${empleadoId}/horario`;
-        console.log('═══════════════════════════════════════');
-        console.log('📅 OBTENIENDO HORARIO DEL EMPLEADO');
-        console.log('═══════════════════════════════════════');
-        console.log('📋 Empleado ID:', empleadoId);
-        console.log('📅 URL completa:', url);
-        console.log('🔑 Token:', token ? token.substring(0, 20) + '...' : 'NO HAY TOKEN');
-
-        const headers = {
-            'Content-Type': 'application/json'
-        };
-
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: headers
-        });
-
-        console.log('📥 Status de respuesta:', response.status, response.statusText);
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('❌ Error del servidor:', errorText);
-            throw new Error(`Error del servidor (${response.status}): ${errorText}`);
-        }
-
-        const responseText = await response.text();
-        console.log('📄 Respuesta del servidor (primeros 500 chars):', responseText.substring(0, 500));
-
-        let data;
-        try {
-            data = responseText ? JSON.parse(responseText) : {};
-        } catch (parseError) {
-            console.error('❌ Error al parsear respuesta:', parseError);
-            console.error('📄 Respuesta completa:', responseText);
-            throw new Error(`Respuesta inválida del servidor: ${responseText.substring(0, 100)}`);
-        }
-
-        console.log('✅ Horario obtenido del servidor');
-
-        // El horario puede venir en diferentes estructuras
-        const horario = data.data || data.horario || data;
-
-        // Verificar que tengamos configuracion
-        if (!horario.configuracion) {
-            console.warn('⚠️ No hay configuracion en la respuesta');
-            console.log('📊 Estructura recibida:', JSON.stringify(horario, null, 2));
-            throw new Error('El horario no tiene configuración válida');
-        }
-
-        console.log('✅ Configuración encontrada');
-        console.log('📊 Tipo de configuración:', typeof horario.configuracion);
-        console.log('═══════════════════════════════════════');
-
-        return horario;
-    } catch (error) {
-        console.error('❌ Error completo:', error);
-        console.error('❌ Error message:', error.message);
-        console.error('❌ Error stack:', error.stack);
-        console.log('═══════════════════════════════════════');
-        throw error;
-    }
-};
-
-/**
- * Obtener horario por ID
- * @param {number} id - ID del horario
- * @param {string} token - Token de autenticación
- * @returns {Promise<Object>} Datos del horario
- */
-export const getHorarioById = async (id, token = null) => {
-    try {
-        const url = `${API_URL}/horarios/${id}`;
-        console.log('📅 Obteniendo horario por ID:', url);
-
-        const headers = {
-            'Content-Type': 'application/json'
-        };
-
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: headers
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Error del servidor (${response.status}): ${errorText}`);
-        }
-
-        const responseText = await response.text();
-        let data;
-
-        try {
-            data = responseText ? JSON.parse(responseText) : {};
-        } catch (parseError) {
-            console.error('❌ Error al parsear respuesta:', parseError);
-            throw new Error('Respuesta inválida del servidor');
-        }
-
-        return data;
-    } catch (error) {
-        console.error('❌ Error:', error);
-        throw error;
-    }
 };
 
 /**
@@ -418,7 +384,6 @@ export const getInfoDiaActual = (horarioParsed) => {
 // Exportar todo el servicio
 export default {
     getHorarioPorEmpleado,
-    getHorarioById,
     parsearHorario,
     calcularResumenSemanal,
     getInfoDiaActual

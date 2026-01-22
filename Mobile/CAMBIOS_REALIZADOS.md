@@ -286,5 +286,3 @@ La aplicación Mobile ahora está **100% integrada** con la estructura de datos 
 - `schedule.jsx` - Necesita endpoint de horarios
 - `history.jsx` - Necesita endpoint de checadas
 - `home.jsx` - Necesita endpoint de checada
-
-Todo lo demás está **listo y funcional** 🚀

@@ -29,17 +29,15 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
   const [error, setError] = useState(null);
   const [fadeAnim] = useState(new Animated.Value(0));
 
-  // ⭐ CORREGIDO: Obtiene empleado_id desde userData directamente
+  // ⭐ Obtener empleado_id desde userData
   const getEmpleadoId = () => {
     console.log('📋 userData completo:', JSON.stringify(userData, null, 2));
     
-    // userData tiene empleado_id directamente en la raíz
     if (userData?.empleado_id) {
       console.log('✅ empleado_id encontrado:', userData.empleado_id);
       return userData.empleado_id;
     }
     
-    // Fallback: Si está en empleadoInfo
     if (userData?.empleadoInfo?.id) {
       console.log('✅ empleado_id encontrado en empleadoInfo:', userData.empleadoInfo.id);
       return userData.empleadoInfo.id;
@@ -93,42 +91,28 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
       setError(null);
 
       console.log('📅 Cargando horario para empleado:', empleadoId);
-      
-      // ⭐ OPCIÓN 1: Usar horario que ya viene en empleadoInfo (más eficiente)
-      if (userData?.empleadoInfo?.horario_config) {
-        console.log('✅ Usando horario desde empleadoInfo (ya cargado en login)');
-        
-        const horario = {
-          id: userData.empleadoInfo.horario_id,
-          config_excep: userData.empleadoInfo.horario_config,
-          fecha_inicio: userData.empleadoInfo.horario_inicio,
-          fecha_fin: userData.empleadoInfo.horario_fin,
-          es_activo: true
-        };
-        
-        const horarioParsed = parsearHorario(horario);
-        console.log('✅ Horario parseado:', horarioParsed.length, 'días');
-        
-        setScheduleData(horarioParsed);
-        setResumen(calcularResumenSemanal(horarioParsed));
-        setInfoHoy(getInfoDiaActual(horarioParsed));
-        
-        return; // ✅ Salir exitosamente
-      }
-      
-      // ⭐ OPCIÓN 2: Si no viene en empleadoInfo, intentar obtenerlo del API
-      // (requiere que la ruta /api/horarios/empleado/:id exista)
-      console.log('⚠️ No hay horario en empleadoInfo, intentando obtener del API...');
-      console.log('🔑 Con token:', userData?.token);
+      console.log('🔑 Con token:', userData?.token ? userData.token.substring(0, 20) + '...' : 'NO HAY TOKEN');
 
+      // ⭐ USAR DIRECTAMENTE LA API
       const horario = await getHorarioPorEmpleado(empleadoId, userData?.token);
-      const horarioParsed = parsearHorario(horario);
       
+      if (!horario) {
+        throw new Error('No se recibió información del horario');
+      }
+
+      console.log('📊 Horario recibido del API:', {
+        id: horario.id,
+        fecha_inicio: horario.fecha_inicio,
+        tiene_configuracion: !!horario.configuracion
+      });
+
+      const horarioParsed = parsearHorario(horario);
       console.log('✅ Horario parseado:', horarioParsed.length, 'días');
       
       setScheduleData(horarioParsed);
       setResumen(calcularResumenSemanal(horarioParsed));
       setInfoHoy(getInfoDiaActual(horarioParsed));
+      
     } catch (error) {
       console.error('❌ Error cargando horario:', error);
       setError(error.message || 'Error desconocido al cargar horario');

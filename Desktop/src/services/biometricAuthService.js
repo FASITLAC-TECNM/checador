@@ -311,3 +311,61 @@ export const cerrarSesion = async (userId) => {
 export const haySesionActiva = () => {
   return obtenerSesion() !== null;
 };
+
+/**
+ * Registrar descriptor facial para un empleado
+ * @param {number|string} idEmpleado - ID del empleado (puede ser CHAR(8) o número)
+ * @param {string} descriptorBase64 - Descriptor facial en Base64
+ * @returns {Promise<Object>} - Resultado del registro
+ */
+export const registrarDescriptorFacial = async (idEmpleado, descriptorBase64) => {
+  try {
+    console.log(`💾 Registrando descriptor facial para empleado ${idEmpleado}...`);
+
+    // Obtener token de autenticación
+    const token = localStorage.getItem("auth_token");
+
+    // Usar el endpoint de credenciales para guardar el descriptor facial
+    const response = await fetch(`${API_URL}/api/credenciales/facial`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify({
+        empleado_id: idEmpleado,
+        facial: descriptorBase64,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `Error HTTP: ${response.status}`;
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.error || errorData.message || errorMessage;
+      } catch {
+        errorMessage = errorText || errorMessage;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    console.log("✅ Descriptor facial registrado exitosamente:", result);
+
+    return {
+      success: true,
+      data: {
+        id_credencial: result.id,
+        descriptor_size: descriptorBase64.length,
+        timestamp: new Date().toISOString(),
+      },
+    };
+  } catch (error) {
+    console.error("❌ Error registrando descriptor facial:", error);
+    return {
+      success: false,
+      error: error.message || "Error al registrar descriptor facial",
+    };
+  }
+};

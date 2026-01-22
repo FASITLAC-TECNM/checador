@@ -47,7 +47,21 @@ export function useFaceDetection() {
 
     try {
       console.log('📦 Iniciando carga de modelos de face-api.js...');
-      const MODEL_URL = '/models';
+
+      // Determinar la ruta base según el entorno
+      // En desarrollo (Vite): usar ruta relativa /models
+      // En producción (Electron): usar la ruta del protocolo file://
+      let MODEL_URL;
+
+      if (window.location.protocol === 'file:') {
+        // Modo producción con Electron - usar ruta absoluta relativa al index.html
+        MODEL_URL = './models';
+      } else {
+        // Modo desarrollo con Vite
+        MODEL_URL = '/models';
+      }
+
+      console.log(`📂 Cargando modelos desde: ${MODEL_URL}`);
 
       // Crear promesa de carga
       loadingPromise = Promise.all([
@@ -63,6 +77,9 @@ export function useFaceDetection() {
       setModelsLoaded(true);
     } catch (error) {
       console.error('❌ Error cargando modelos de face-api.js:', error);
+      console.error('📍 URL intentada:', window.location.protocol === 'file:' ? './models' : '/models');
+      console.error('📍 Protocolo actual:', window.location.protocol);
+      console.error('📍 Detalles del error:', error.message);
       setDetectionError('Error cargando modelos de reconocimiento facial');
       loadingPromise = null; // Resetear para permitir reintentos
     }

@@ -674,7 +674,7 @@ ipcMain.handle('read-fingerprint-template', async (event, userId) => {
 
 /**
  * Registrar descriptor facial para un empleado
- * Convierte el Float32Array a Buffer y lo guarda en la DB como BYTEA
+ * Convierte el descriptor array a Base64 (igual que las huellas) y lo guarda en la DB como BYTEA
  */
 ipcMain.handle('registrar-descriptor-facial', async (event, empleadoId, descriptor) => {
   try {
@@ -690,14 +690,25 @@ ipcMain.handle('registrar-descriptor-facial', async (event, empleadoId, descript
 
     console.log(`[INFO] Descriptor: ${descriptor.length} dimensiones`);
 
-    // Enviar el descriptor al backend para guardarlo
-    const response = await fetch(`${backendUrl}/api/credenciales/descriptor-facial/${empleadoId}`, {
-      method: 'PUT',
+    // Convertir el descriptor array a Float32Array y luego a Base64
+    // Esto es necesario porque el backend espera BYTEA (igual que las huellas)
+    const float32Array = new Float32Array(descriptor);
+    const buffer = Buffer.from(float32Array.buffer);
+    const descriptorBase64 = buffer.toString('base64');
+
+    console.log(`[INFO] Descriptor convertido a Base64: ${descriptorBase64.length} caracteres`);
+
+    // Enviar el descriptor al backend usando el endpoint correcto
+    const response = await fetch(`${backendUrl}/api/credenciales/facial`, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      body: JSON.stringify({ descriptor }),
+      body: JSON.stringify({
+        empleado_id: empleadoId,
+        facial: descriptorBase64,
+      }),
     });
 
     if (!response.ok) {
@@ -712,7 +723,11 @@ ipcMain.handle('registrar-descriptor-facial', async (event, empleadoId, descript
     return {
       success: true,
       message: 'Descriptor facial registrado correctamente',
-      data: result,
+      data: {
+        id_credencial: result.id,
+        descriptor_size: descriptorBase64.length,
+        timestamp: new Date().toISOString(),
+      },
     };
   } catch (error) {
     console.error('[ERROR] Error registrando descriptor facial:', error);

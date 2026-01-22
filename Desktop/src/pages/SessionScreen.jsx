@@ -7,7 +7,6 @@ import {
   AlertCircle,
   Bell,
   X,
-  FileText,
   Settings,
   Briefcase,
   Building2,
@@ -20,10 +19,8 @@ import {
   formatDay,
   getDaysInMonth,
   formatDateKey,
-  calcularDiasTotales,
 } from "../utils/dateHelpers";
 import { notices, registrosPorDia } from "../constants/notices";
-import AusenciaModal from "../components/session/AusenciaModal";
 import HistorialModal from "../components/session/HistorialModal";
 import ConfigModal from "../components/session/ConfigModal";
 import GeneralNodoModal from "../components/session/GeneralNodoModal";
@@ -44,16 +41,12 @@ export default function SessionScreen({ onLogout, usuario }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showHorarioModal, setShowHorarioModal] = useState(false);
   const [showHistorialModal, setShowHistorialModal] = useState(false);
-  const [showAusenciaModal, setShowAusenciaModal] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showGeneralNodoModal, setShowGeneralNodoModal] = useState(false);
   const [showDispositivosModal, setShowDispositivosModal] = useState(false);
   const [showPreferenciasModal, setShowPreferenciasModal] = useState(false);
   const [showBiometricReader, setShowBiometricReader] = useState(false);
   const [showRegisterFace, setShowRegisterFace] = useState(false);
-  const [fechaInicio, setFechaInicio] = useState("");
-  const [fechaFin, setFechaFin] = useState("");
-  const [motivoAusencia, setMotivoAusencia] = useState("");
   const [empleadoData, setEmpleadoData] = useState(null);
   const [loadingEmpleado, setLoadingEmpleado] = useState(false);
 
@@ -133,21 +126,6 @@ export default function SessionScreen({ onLogout, usuario }) {
     return () => clearInterval(timer);
   }, []);
 
-  const handleEnviarSolicitud = () => {
-    console.log({
-      nombre: userName,
-      id: userId,
-      correo: userEmail,
-      fechaInicio,
-      fechaFin,
-      diasTotales: calcularDiasTotales(fechaInicio, fechaFin),
-      motivo: motivoAusencia,
-    });
-    setFechaInicio("");
-    setFechaFin("");
-    setMotivoAusencia("");
-    setShowAusenciaModal(false);
-  };
 
   const handleGuardarConfigNodo = () => {
     console.log({
@@ -287,7 +265,7 @@ export default function SessionScreen({ onLogout, usuario }) {
               />
             </div>
 
-            {/* Columna 2 - Avisos Personales y Registro Biométrico */}
+            {/* Columna 2 - Avisos Personales */}
             <div className="flex flex-col gap-3 min-h-0">
               {/* Avisos Personales */}
               <div className="bg-bg-primary rounded-2xl shadow-lg p-4 flex flex-col flex-1 min-h-0">
@@ -321,35 +299,6 @@ export default function SessionScreen({ onLogout, usuario }) {
                   ))}
                 </div>
               </div>
-
-              {/* Registro Biométrico */}
-              <div className="bg-bg-primary rounded-2xl shadow-lg p-4 flex-shrink-0">
-                <div className="flex items-center gap-2 mb-3">
-                  <Fingerprint className="w-5 h-5 text-green-600" />
-                  <h2 className="text-base font-bold text-text-primary">
-                    Registro Biométrico
-                  </h2>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setShowBiometricReader(true)}
-                    className="flex items-center justify-center gap-2 px-3 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl font-semibold text-sm transition-all"
-                  >
-                    <Fingerprint className="w-5 h-5" />
-                    Registrar Huella
-                  </button>
-                  <button
-                    onClick={() => setShowRegisterFace(true)}
-                    className="flex items-center justify-center gap-2 px-3 py-3 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-xl font-semibold text-sm transition-all"
-                  >
-                    <Camera className="w-5 h-5" />
-                    Registrar Rostro
-                  </button>
-                </div>
-                <p className="text-xs text-text-tertiary mt-2 text-center">
-                  ID Empleado: {datosCompletos?.empleado_id || "N/A"}
-                </p>
-              </div>
             </div>
 
             {/* Columna 3 - Acciones Rápidas */}
@@ -378,15 +327,32 @@ export default function SessionScreen({ onLogout, usuario }) {
                 </p>
               </button>
 
-              {/* Solicitar Ausencia */}
-              <button
-                onClick={() => setShowAusenciaModal(true)}
-                className="w-full bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 dark:from-purple-800 dark:to-purple-900 dark:hover:from-purple-700 dark:hover:to-purple-800 rounded-2xl shadow-lg p-5 text-white transition-all hover:shadow-xl flex-1"
-              >
-                <FileText className="w-12 h-12 mx-auto mb-2" />
-                <h3 className="text-base font-bold mb-1">Solicitar Ausencia</h3>
-                <p className="text-xs text-purple-100">Permisos y vacaciones</p>
-              </button>
+              {/* Registro Biométrico - Grid 2 columnas */}
+              <div className="grid grid-cols-2 gap-3 flex-1">
+                {/* Registro Biométrico - Huella */}
+                <button
+                  onClick={() => setShowBiometricReader(true)}
+                  className="w-full bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 dark:from-orange-800 dark:to-orange-900 dark:hover:from-orange-700 dark:hover:to-orange-800 rounded-2xl shadow-lg p-5 text-white transition-all hover:shadow-xl"
+                >
+                  <Fingerprint className="w-12 h-12 mx-auto mb-2" />
+                  <h3 className="text-base font-bold mb-1">Registrar Huella</h3>
+                  <p className="text-xs text-orange-100">
+                    ID: {datosCompletos?.empleado_id || "N/A"}
+                  </p>
+                </button>
+
+                {/* Registro Biométrico - Rostro */}
+                <button
+                  onClick={() => setShowRegisterFace(true)}
+                  className="w-full bg-gradient-to-br from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 dark:from-cyan-800 dark:to-cyan-900 dark:hover:from-cyan-700 dark:hover:to-cyan-800 rounded-2xl shadow-lg p-5 text-white transition-all hover:shadow-xl"
+                >
+                  <Camera className="w-12 h-12 mx-auto mb-2" />
+                  <h3 className="text-base font-bold mb-1">Registrar Rostro</h3>
+                  <p className="text-xs text-cyan-100">
+                    ID: {datosCompletos?.empleado_id || "N/A"}
+                  </p>
+                </button>
+              </div>
             </div>
           </div>
         ) : (
@@ -403,14 +369,6 @@ export default function SessionScreen({ onLogout, usuario }) {
         <HistorialModal
           onClose={() => setShowHistorialModal(false)}
           usuario={usuario}
-        />
-      )}
-
-      {/* Ausencia Modal */}
-      {showAusenciaModal && (
-        <AusenciaModal
-          onClose={() => setShowAusenciaModal(false)}
-          userName={userName}
         />
       )}
 

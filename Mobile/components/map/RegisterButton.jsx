@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -16,261 +16,409 @@ import MapaZonasPermitidas from './MapaZonasPermitidas';
 
 const API_URL = getApiEndpoint('/api');
 
-/**
- * Componente de botón de registro con validación de ubicación Y horario
- */
 export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
-  const [ubicacionActual, setUbicacionActual] = useState(null);
-  const [dentroDelArea, setDentroDelArea] = useState(false);
-  const [dentroDeHorario, setDentroDeHorario] = useState(false);
-  const [estadoBoton, setEstadoBoton] = useState('cargando');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [registrando, setRegistrando] = useState(false);
-  const [ultimoRegistro, setUltimoRegistro] = useState(null);
+  const [mostrarMapa, setMostrarMapa] = useState(false);
+  const [error, setError] = useState(null);
+  
+  const [ubicacionActual, setUbicacionActual] = useState(null);
   const [departamento, setDepartamento] = useState(null);
   const [horarioInfo, setHorarioInfo] = useState(null);
-  const [mostrarMapa, setMostrarMapa] = useState(false);
+  const [toleranciaInfo, setToleranciaInfo] = useState(null);
+  const [ultimoRegistroHoy, setUltimoRegistroHoy] = useState(null);
+  
+  const [dentroDelArea, setDentroDelArea] = useState(false);
+  const [puedeRegistrar, setPuedeRegistrar] = useState(false);
+  const [tipoSiguienteRegistro, setTipoSiguienteRegistro] = useState('entrada');
+  const [estadoHorario, setEstadoHorario] = useState(null);
+  const [jornadaCompletada, setJornadaCompletada] = useState(false);
 
   const styles = darkMode ? registerStylesDark : registerStyles;
 
-  // ==================== OBTENER ID DEL EMPLEADO ====================
-  const getEmpleadoId = () => {
-    return userData?.empleado_id || null;
+  const getEmpleadoId = () => userData?.empleado_id || null;
+
+  const getDiaSemana = () => {
+    const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+    return dias[new Date().getDay()];
   };
 
-  // ==================== OBTENER ÚLTIMO REGISTRO ====================
-  useEffect(() => {
-    const obtenerUltimo = async () => {
-      try {
-        const empleadoId = getEmpleadoId();
-        if (!empleadoId) {
-          console.warn('⚠️ No se puede obtener último registro sin ID de empleado');
-          return;
-        }
+  const getMinutosDelDia = (fecha = new Date()) => {
+    return fecha.getHours() * 60 + fecha.getMinutes();
+  };
 
-        const response = await fetch(
-          `${API_URL}/asistencias/empleado/${empleadoId}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${userData.token}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-
-        if (!response.ok) {
-          console.warn('⚠️ No se pudo obtener último registro');
-          return;
-        }
-
-        const data = await response.json();
-        console.log('📋 Asistencias obtenidas:', data);
-        
-        // El endpoint devuelve un array de asistencias, tomar la primera (más reciente)
-        if (data.data && Array.isArray(data.data) && data.data.length > 0) {
-          const ultimaAsistencia = data.data[0];
-          setUltimoRegistro({
-            tipo: ultimaAsistencia.estado === 'puntual' || ultimaAsistencia.estado === 'retardo' ? 'Entrada' : 'Salida',
-            hora: new Date(ultimaAsistencia.fecha_registro).toLocaleTimeString('es-MX', { 
-              hour: '2-digit', 
-              minute: '2-digit' 
-            })
-          });
-          console.log('✅ Último registro establecido:', ultimaAsistencia);
-        }
-      } catch (err) {
-        console.error('❌ Error obteniendo último registro:', err);
-      }
-    };
-
-    obtenerUltimo();
-  }, [userData]);
-
-  // ==================== OBTENER HORARIO DEL EMPLEADO ====================
-  useEffect(() => {
-    const obtenerHorario = async () => {
-      try {
-        const empleadoId = getEmpleadoId();
-        if (!empleadoId) {
-          console.warn('⚠️ No se puede obtener horario sin ID de empleado');
-          return;
-        }
-
-        console.log('═══════════════════════════════════════');
-        console.log('📅 OBTENIENDO HORARIO DEL EMPLEADO');
-        console.log('═══════════════════════════════════════');
-        console.log('📋 Empleado ID:', empleadoId);
-        console.log('📅 URL:', `${API_URL}/empleados/${empleadoId}/horario`);
-
-        const response = await fetch(
-          `${API_URL}/empleados/${empleadoId}/horario`,
-          {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${userData.token}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-
-        console.log('📥 Status respuesta:', response.status);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('❌ Error del servidor:', errorText);
-          console.warn('⚠️ No se pudo obtener horario - usando validación solo por zona');
-          return;
-        }
-
-        const responseText = await response.text();
-        console.log('📄 Respuesta (primeros 300 chars):', responseText.substring(0, 300));
-
-        let data;
-        try {
-          data = responseText ? JSON.parse(responseText) : {};
-        } catch (parseError) {
-          console.error('❌ Error al parsear JSON:', parseError);
-          return;
-        }
-
-        console.log('📦 Data parseada:', data);
-
-        // El horario puede venir en diferentes estructuras
-        const horarioData = data.data || data.horario || data;
-        
-        if (!horarioData || !horarioData.configuracion) {
-          console.warn('⚠️ No hay configuración de horario en la respuesta');
-          console.log('📊 Estructura recibida:', JSON.stringify(horarioData, null, 2));
-          return;
-        }
-
-        console.log('✅ Horario obtenido correctamente');
-        console.log('📊 Configuración:', typeof horarioData.configuracion === 'string' 
-          ? horarioData.configuracion.substring(0, 200) 
-          : JSON.stringify(horarioData.configuracion).substring(0, 200));
-
-        // Parsear horario y obtener info del día actual
-        const infoDiaActual = parsearHorarioYObtenerDiaActual(horarioData);
-        console.log('📅 Info día actual parseada:', infoDiaActual);
-        console.log('═══════════════════════════════════════');
-        
-        setHorarioInfo(infoDiaActual);
-
-      } catch (err) {
-        console.error('❌ Error obteniendo horario:', err);
-        console.error('❌ Stack:', err.stack);
-      }
-    };
-
-    obtenerHorario();
-  }, [userData]);
-
-  // ==================== PARSEAR HORARIO Y OBTENER DÍA ACTUAL ====================
-  const parsearHorarioYObtenerDiaActual = (horario) => {
+  const obtenerUltimoRegistro = useCallback(async () => {
     try {
-      const diasSemana = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-      const hoy = new Date().getDay();
-      const diaHoyKey = diasSemana[hoy];
-      
-      console.log('📅 Día actual:', diaHoyKey, '(índice:', hoy, ')');
+      const empleadoId = getEmpleadoId();
+      if (!empleadoId) return null;
 
-      // Extraer configuración
-      let config = horario.configuracion || horario.config_excep;
+      const response = await fetch(
+        `${API_URL}/asistencias/empleado/${empleadoId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) return null;
+
+      const data = await response.json();
       
+      if (!data.data || !Array.isArray(data.data) || data.data.length === 0) {
+        return null;
+      }
+
+      const hoy = new Date().toDateString();
+      const registrosHoy = data.data.filter(registro => {
+        const fechaRegistro = new Date(registro.fecha_registro);
+        return fechaRegistro.toDateString() === hoy;
+      });
+
+      if (registrosHoy.length === 0) return null;
+
+      const ultimo = registrosHoy[0];
+      
+      return {
+        tipo: ultimo.tipo,
+        estado: ultimo.estado,
+        fecha_registro: new Date(ultimo.fecha_registro),
+        hora: new Date(ultimo.fecha_registro).toLocaleTimeString('es-MX', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        })
+      };
+
+    } catch (err) {
+      return null;
+    }
+  }, [userData]);
+
+  const obtenerHorario = useCallback(async () => {
+    try {
+      const empleadoId = getEmpleadoId();
+      if (!empleadoId) return null;
+
+      const response = await fetch(
+        `${API_URL}/empleados/${empleadoId}/horario`,
+        {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      const horario = data.data || data.horario || data;
+      
+      if (!horario?.configuracion) return null;
+
+      let config = horario.configuracion;
       if (typeof config === 'string') {
         config = JSON.parse(config);
       }
 
-      if (!config) {
-        console.warn('⚠️ No hay configuración en horario');
-        return {
-          trabaja: false,
-          entrada: null,
-          salida: null,
-          turnos: []
-        };
-      }
-
-      console.log('📅 Configuración parseada:', config);
-
-      // Verificar si tiene configuracion_semanal (estructura nueva)
+      const diaHoy = getDiaSemana();
       let turnosHoy = [];
-      if (config.configuracion_semanal && config.configuracion_semanal[diaHoyKey]) {
-        turnosHoy = config.configuracion_semanal[diaHoyKey].map(t => ({
+
+      if (config.configuracion_semanal && config.configuracion_semanal[diaHoy]) {
+        turnosHoy = config.configuracion_semanal[diaHoy].map(t => ({
           entrada: t.inicio,
           salida: t.fin
         }));
-        console.log('📅 Usando configuracion_semanal');
-      }
-      // Estructura antigua (dias + turnos)
-      else if (config.dias && config.dias.includes(diaHoyKey)) {
+      } else if (config.dias && config.dias.includes(diaHoy)) {
         turnosHoy = config.turnos || [];
-        console.log('📅 Usando estructura antigua (dias + turnos)');
       }
 
       if (turnosHoy.length === 0) {
-        console.log('📅 No hay turnos para hoy - día de descanso');
-        return {
-          trabaja: false,
-          entrada: null,
-          salida: null,
-          turnos: []
-        };
+        return { trabaja: false, turnos: [] };
       }
-
-      console.log('📅 Turnos de hoy:', turnosHoy);
 
       return {
         trabaja: true,
-        entrada: turnosHoy[0]?.entrada || null,
-        salida: turnosHoy[turnosHoy.length - 1]?.salida || null,
         turnos: turnosHoy,
+        entrada: turnosHoy[0].entrada,
+        salida: turnosHoy[turnosHoy.length - 1].salida,
         tipo: turnosHoy.length > 1 ? 'quebrado' : 'continuo'
       };
 
-    } catch (error) {
-      console.error('❌ Error parseando horario:', error);
+    } catch (err) {
+      return null;
+    }
+  }, [userData]);
+
+  const obtenerTolerancia = useCallback(async () => {
+    try {
+      const rolesResponse = await fetch(
+        `${API_URL}/usuarios/${userData.id}/roles`,
+        {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!rolesResponse.ok) {
+        return {
+          minutos_retardo: 10,
+          minutos_falta: 30,
+          permite_registro_anticipado: true,
+          minutos_anticipado_max: 60
+        };
+      }
+
+      const rolesData = await rolesResponse.json();
+      const roles = rolesData.data || [];
+      const rolConTolerancia = roles
+        .filter(r => r.tolerancia_id)
+        .sort((a, b) => b.posicion - a.posicion)[0];
+
+      if (!rolConTolerancia) {
+        return {
+          minutos_retardo: 10,
+          minutos_falta: 30,
+          permite_registro_anticipado: true,
+          minutos_anticipado_max: 60
+        };
+      }
+
+      const toleranciaResponse = await fetch(
+        `${API_URL}/tolerancias/${rolConTolerancia.tolerancia_id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!toleranciaResponse.ok) {
+        return {
+          minutos_retardo: 10,
+          minutos_falta: 30,
+          permite_registro_anticipado: true,
+          minutos_anticipado_max: 60
+        };
+      }
+
+      const toleranciaData = await toleranciaResponse.json();
+      return toleranciaData.data || toleranciaData;
+
+    } catch (err) {
       return {
-        trabaja: false,
-        entrada: null,
-        salida: null,
-        turnos: []
+        minutos_retardo: 10,
+        minutos_falta: 30,
+        permite_registro_anticipado: true,
+        minutos_anticipado_max: 60
       };
     }
+  }, [userData]);
+
+  const obtenerDepartamento = useCallback(async () => {
+    try {
+      let deptoData = userData?.empleadoInfo?.departamento;
+
+      if (deptoData && deptoData.ubicacion) {
+        return deptoData;
+      }
+
+      if (userData?.empleadoInfo?.departamentos?.length > 0) {
+        const deptoId = userData.empleadoInfo.departamentos[0].id;
+
+        const response = await fetch(
+          `${API_URL}/departamentos/${deptoId}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${userData.token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          return data.data || data;
+        }
+      }
+
+      return null;
+    } catch (err) {
+      return null;
+    }
+  }, [userData]);
+
+  const calcularEstadoRegistro = useCallback((ultimo, horario, tolerancia) => {
+    if (!horario || !horario.trabaja) {
+      return {
+        puedeRegistrar: false,
+        tipoRegistro: 'entrada',
+        estadoHorario: 'fuera_horario',
+        jornadaCompleta: false,
+        mensaje: 'No tienes horario configurado para hoy'
+      };
+    }
+
+    const tipoRegistro = (!ultimo || ultimo.tipo === 'salida') ? 'entrada' : 'salida';
+    
+    if (ultimo && ultimo.tipo === 'salida') {
+      return {
+        puedeRegistrar: false,
+        tipoRegistro: 'entrada',
+        estadoHorario: 'completado',
+        jornadaCompleta: true,
+        mensaje: 'Ya completaste tu jornada de hoy'
+      };
+    }
+
+    const ahora = getMinutosDelDia();
+
+    if (tipoRegistro === 'entrada') {
+      return validarEntrada(horario, tolerancia, ahora);
+    } else {
+      return validarSalida(horario, ahora);
+    }
+  }, []);
+
+  const validarEntrada = (horario, tolerancia, minutosActuales) => {
+    for (const turno of horario.turnos) {
+      const [hE, mE] = turno.entrada.split(':').map(Number);
+      const [hS, mS] = turno.salida.split(':').map(Number);
+      
+      const minEntrada = hE * 60 + mE;
+      const minSalida = hS * 60 + mS;
+      
+      const ventanaInicio = minEntrada - (tolerancia.minutos_anticipado_max || 60);
+      const ventanaRetardo = minEntrada + tolerancia.minutos_retardo;
+      const ventanaFalta = minEntrada + tolerancia.minutos_falta;
+
+      if (minutosActuales >= ventanaInicio && minutosActuales <= ventanaRetardo) {
+        return {
+          puedeRegistrar: true,
+          tipoRegistro: 'entrada',
+          estadoHorario: 'puntual',
+          jornadaCompleta: false,
+          mensaje: 'Puedes registrar tu entrada'
+        };
+      }
+
+      if (minutosActuales > ventanaRetardo && minutosActuales <= ventanaFalta) {
+        return {
+          puedeRegistrar: true,
+          tipoRegistro: 'entrada',
+          estadoHorario: 'retardo',
+          jornadaCompleta: false,
+          mensaje: 'Registro con retardo'
+        };
+      }
+
+      if (minutosActuales > ventanaFalta && minutosActuales <= minSalida) {
+        return {
+          puedeRegistrar: true,
+          tipoRegistro: 'entrada',
+          estadoHorario: 'falta',
+          jornadaCompleta: false,
+          mensaje: 'Fuera de tolerancia (falta)'
+        };
+      }
+    }
+
+    return {
+      puedeRegistrar: false,
+      tipoRegistro: 'entrada',
+      estadoHorario: 'fuera_horario',
+      jornadaCompleta: false,
+      mensaje: 'Fuera de horario'
+    };
   };
 
-  // ==================== OBTENER UBICACIÓN DEL USUARIO ====================
+  const validarSalida = (horario, minutosActuales) => {
+    for (const turno of horario.turnos) {
+      const [hS, mS] = turno.salida.split(':').map(Number);
+      const minSalida = hS * 60 + mS;
+      
+      const ventanaSalida = minSalida - 10;
+
+      if (minutosActuales >= ventanaSalida) {
+        return {
+          puedeRegistrar: true,
+          tipoRegistro: 'salida',
+          estadoHorario: 'puntual',
+          jornadaCompleta: false,
+          mensaje: 'Puedes registrar tu salida'
+        };
+      }
+    }
+
+    return {
+      puedeRegistrar: false,
+      tipoRegistro: 'salida',
+      estadoHorario: 'fuera_horario',
+      jornadaCompleta: false,
+      mensaje: 'Aún no es hora de salida'
+    };
+  };
+
+  useEffect(() => {
+    const cargarDatos = async () => {
+      setLoading(true);
+
+      try {
+        const [ultimo, horario, tolerancia, depto] = await Promise.all([
+          obtenerUltimoRegistro(),
+          obtenerHorario(),
+          obtenerTolerancia(),
+          obtenerDepartamento()
+        ]);
+
+        setUltimoRegistroHoy(ultimo);
+        setHorarioInfo(horario);
+        setToleranciaInfo(tolerancia);
+        setDepartamento(depto);
+
+        if (horario && tolerancia) {
+          const estado = calcularEstadoRegistro(ultimo, horario, tolerancia);
+          
+          setPuedeRegistrar(estado.puedeRegistrar);
+          setTipoSiguienteRegistro(estado.tipoRegistro);
+          setEstadoHorario(estado.estadoHorario);
+          setJornadaCompletada(estado.jornadaCompleta);
+        }
+
+      } catch (err) {
+        setError('Error al cargar información');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    cargarDatos();
+  }, [obtenerUltimoRegistro, obtenerHorario, obtenerTolerancia, obtenerDepartamento, calcularEstadoRegistro]);
+
   useEffect(() => {
     let locationSubscription = null;
 
-    const iniciarRastreoUbicacion = async () => {
+    const iniciarUbicacion = async () => {
       try {
-        console.log('📍 Solicitando permisos de ubicación...');
-
         const { status } = await Location.requestForegroundPermissionsAsync();
 
         if (status !== 'granted') {
-          console.error('❌ Permiso de ubicación denegado');
-          setError('Permiso de ubicación denegado.');
-          setEstadoBoton('error');
-          setLoading(false);
+          setError('Permiso de ubicación denegado');
           return;
         }
-
-        console.log('✅ Permisos de ubicación otorgados');
 
         const location = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.High
         });
 
-        const coords = {
+        setUbicacionActual({
           lat: location.coords.latitude,
           lng: location.coords.longitude
-        };
-
-        console.log('📍 Ubicación actual obtenida:', coords);
-        setUbicacionActual(coords);
+        });
 
         locationSubscription = await Location.watchPositionAsync(
           {
@@ -279,23 +427,19 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             distanceInterval: 10
           },
           (newLocation) => {
-            const newCoords = {
+            setUbicacionActual({
               lat: newLocation.coords.latitude,
               lng: newLocation.coords.longitude
-            };
-            setUbicacionActual(newCoords);
+            });
           }
         );
 
       } catch (err) {
-        console.error('❌ Error obteniendo ubicación:', err);
-        setError('Error al obtener ubicación.');
-        setEstadoBoton('error');
-        setLoading(false);
+        setError('Error al obtener ubicación');
       }
     };
 
-    iniciarRastreoUbicacion();
+    iniciarUbicacion();
 
     return () => {
       if (locationSubscription) {
@@ -304,395 +448,221 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     };
   }, []);
 
-  // ==================== VALIDAR HORARIO ====================
-  const validarHorario = () => {
-    // ⭐ TEMPORAL: Si no hay info de horario, permitir registro (solo validar zona)
-    if (!horarioInfo) {
-      console.log('⚠️ No hay información de horario - permitiendo registro (solo validación de zona)');
-      return true;
-    }
-
-    if (!horarioInfo.trabaja) {
-      console.log('❌ Hoy no es día laboral');
-      return false;
-    }
-
-    const ahora = new Date();
-    const horaActual = ahora.getHours() * 60 + ahora.getMinutes();
-
-    // 🔍 Determinar si es entrada o salida basado en el último registro
-    const esEntrada = !ultimoRegistro || ultimoRegistro.tipo === 'Salida';
-    
-    console.log('🕐 Tipo de registro a validar:', esEntrada ? 'ENTRADA' : 'SALIDA');
-
-    // Validar contra todos los turnos del día
-    const dentroDeAlgunTurno = horarioInfo.turnos.some(turno => {
-      const [horaEntrada, minEntrada] = turno.entrada.split(':').map(Number);
-      const [horaSalida, minSalida] = turno.salida.split(':').map(Number);
-      
-      const minEntradaTurno = horaEntrada * 60 + minEntrada;
-      const minSalidaTurno = horaSalida * 60 + minSalida;
-      
-      let dentroDelTurno = false;
-      
-      if (esEntrada) {
-        // ✅ ENTRADA: 30 minutos antes hasta la hora de entrada
-        const toleranciaAntes = 30;
-        dentroDelTurno = horaActual >= (minEntradaTurno - toleranciaAntes) && 
-                        horaActual <= minSalidaTurno;
-        console.log(`🕐 ENTRADA - Turno ${turno.entrada}-${turno.salida}: Rango permitido ${horaEntrada - Math.floor(toleranciaAntes/60)}:${String((minEntrada - (toleranciaAntes % 60) + 60) % 60).padStart(2, '0')} - ${turno.salida}`);
-      } else {
-        // ⭐ SALIDA: Solo últimos 10 minutos antes de la salida o después
-        const toleranciaSalida = 10;
-        dentroDelTurno = horaActual >= (minSalidaTurno - toleranciaSalida);
-        console.log(`🕐 SALIDA - Turno ${turno.entrada}-${turno.salida}: Rango permitido desde ${Math.floor((minSalidaTurno - toleranciaSalida) / 60)}:${String((minSalidaTurno - toleranciaSalida) % 60).padStart(2, '0')} en adelante`);
-      }
-      
-      console.log(`   Hora actual: ${Math.floor(horaActual / 60)}:${String(horaActual % 60).padStart(2, '0')} → ${dentroDelTurno ? '✅ VÁLIDO' : '❌ FUERA DE RANGO'}`);
-      return dentroDelTurno;
-    });
-
-    console.log(`🕐 Dentro de horario: ${dentroDeAlgunTurno ? 'SÍ ✅' : 'NO ❌'}`);
-    return dentroDeAlgunTurno;
-  };
-
-  // ==================== VALIDAR UBICACIÓN ====================
   useEffect(() => {
-    const validarUbicacion = async () => {
-      try {
-        if (!ubicacionActual) {
-          console.log('⏳ Esperando ubicación del usuario...');
-          return;
-        }
+    if (!ubicacionActual || !departamento?.ubicacion) {
+      setDentroDelArea(false);
+      return;
+    }
 
-        console.log('═══════════════════════════════════════');
-        console.log('🔍 INICIANDO VALIDACIÓN DE UBICACIÓN');
-        console.log('═══════════════════════════════════════');
-
-        let departamentoData = userData?.empleadoInfo?.departamento;
-
-        if (!departamentoData && userData?.empleadoInfo?.departamentos?.length > 0) {
-          console.log('📥 Departamento no viene completo, obteniendo del API...');
-          
-          const deptoId = userData.empleadoInfo.departamentos[0].id;
-          console.log('🏢 Departamento ID:', deptoId);
-
-          try {
-            const deptoResponse = await fetch(
-              `${API_URL}/departamentos/${deptoId}`,
-              {
-                headers: {
-                  'Authorization': `Bearer ${userData.token}`,
-                  'Content-Type': 'application/json'
-                }
-              }
-            );
-
-            console.log('📥 Status departamento:', deptoResponse.status);
-
-            if (deptoResponse.ok) {
-              const deptoResult = await deptoResponse.json();
-              departamentoData = deptoResult.data || deptoResult;
-              console.log('✅ Departamento obtenido:', departamentoData.nombre);
-            } else {
-              const errorText = await deptoResponse.text();
-              console.error('❌ Error obteniendo departamento:', errorText);
-              setError('No se pudo obtener la configuración del departamento.');
-              setEstadoBoton('error');
-              setLoading(false);
-              return;
-            }
-          } catch (fetchError) {
-            console.error('❌ Error en fetch departamento:', fetchError);
-            setError('Error al obtener departamento.');
-            setEstadoBoton('error');
-            setLoading(false);
-            return;
-          }
-        }
-
-        if (!departamentoData) {
-          console.error('❌ NO SE ENCONTRÓ DEPARTAMENTO');
-          setError('No tienes un departamento asignado.');
-          setEstadoBoton('error');
-          setLoading(false);
-          return;
-        }
-
-        console.log('✅ Departamento:', departamentoData.nombre);
-
-        if (!departamentoData.ubicacion) {
-          console.error('❌ El departamento no tiene ubicación configurada');
-          setError('El departamento no tiene ubicación configurada.');
-          setEstadoBoton('error');
-          setLoading(false);
-          return;
-        }
-
-        const coordenadas = extraerCoordenadas(departamentoData.ubicacion);
-        console.log('📐 Coordenadas extraídas:', coordenadas?.length || 0, 'puntos');
-
-        if (!coordenadas || coordenadas.length < 3) {
-          console.error('❌ Coordenadas inválidas');
-          setError('Configuración de ubicación inválida.');
-          setEstadoBoton('error');
-          setLoading(false);
-          return;
-        }
-
-        const dentroZona = isPointInPolygon(ubicacionActual, coordenadas);
-        console.log('🎯 Dentro del área:', dentroZona ? 'SÍ ✅' : 'NO ❌');
-
-        const dentroHorario = validarHorario();
-
-        setDentroDelArea(dentroZona);
-        setDentroDeHorario(dentroHorario);
-        setDepartamento(departamentoData);
-
-        // Determinar estado del botón
-        if (!dentroZona && !dentroHorario) {
-          setEstadoBoton('fuera_zona_horario');
-        } else if (!dentroZona) {
-          setEstadoBoton('fuera_zona');
-        } else if (!dentroHorario) {
-          setEstadoBoton('fuera_horario');
-        } else {
-          setEstadoBoton('disponible');
-        }
-
-        setError(null);
-        setLoading(false);
-
-        console.log('═══════════════════════════════════════');
-
-      } catch (err) {
-        console.error('❌ Error validando ubicación:', err);
-        setError('Error al validar ubicación');
-        setEstadoBoton('error');
-        setLoading(false);
-      }
-    };
-
-    validarUbicacion();
-  }, [ubicacionActual, userData, horarioInfo]);
-
-  // ==================== MANEJAR REGISTRO ====================
-  const handleRegistro = async () => {
     try {
-      if (estadoBoton !== 'disponible') {
-        let mensaje = 'El registro no está disponible en este momento.';
-        
-        if (estadoBoton === 'fuera_zona') {
-          mensaje = 'Debes estar dentro del área permitida para registrar tu asistencia.';
-        } else if (estadoBoton === 'fuera_horario') {
-          const esEntrada = !ultimoRegistro || ultimoRegistro.tipo === 'Salida';
-          
-          if (esEntrada) {
-            mensaje = 'Fuera de horario de entrada. Puedes registrar tu entrada desde 30 minutos antes de tu hora de inicio.';
-          } else {
-            mensaje = 'Fuera de horario de salida. Puedes registrar tu salida únicamente en los últimos 10 minutos antes de tu hora de salida o después.';
-          }
-        } else if (estadoBoton === 'fuera_zona_horario') {
-          mensaje = 'Estás fuera del área permitida y fuera de tu horario laboral.';
-        }
-
-        Alert.alert('No disponible', mensaje, [{ text: 'Entendido' }]);
+      const coordenadas = extraerCoordenadas(departamento.ubicacion);
+      if (!coordenadas || coordenadas.length < 3) {
+        setDentroDelArea(false);
         return;
       }
 
-      const empleadoId = getEmpleadoId();
-      if (!empleadoId) {
-        Alert.alert('Error', 'No se pudo identificar tu información de empleado.');
-        return;
+      const dentro = isPointInPolygon(ubicacionActual, coordenadas);
+      setDentroDelArea(dentro);
+    } catch (err) {
+      setDentroDelArea(false);
+    }
+  }, [ubicacionActual, departamento]);
+
+  const handleRegistro = async () => {
+    if (!horarioInfo) {
+      Alert.alert('Error', 'No tienes un horario configurado. Contacta al administrador.', [{ text: 'OK' }]);
+      return;
+    }
+
+    if (!puedeRegistrar || !dentroDelArea) {
+      let mensaje = 'No puedes registrar en este momento';
+      
+      if (!dentroDelArea) {
+        mensaje = 'Debes estar dentro del área permitida';
+      } else if (jornadaCompletada) {
+        mensaje = 'Ya completaste tu jornada de hoy';
+      } else if (estadoHorario === 'fuera_horario') {
+        mensaje = 'Estás fuera de tu horario laboral';
+      } else if (!horarioInfo.trabaja) {
+        mensaje = 'No tienes horario configurado para hoy';
       }
 
-      const tipoRegistro = ultimoRegistro?.tipo === 'Entrada' ? 'Salida' : 'Entrada';
+      Alert.alert('No disponible', mensaje, [{ text: 'Entendido' }]);
+      return;
+    }
 
-      Alert.alert(
-        `Confirmar ${tipoRegistro}`,
-        `¿Deseas registrar tu ${tipoRegistro.toLowerCase()}?\n\nUbicación: ${departamento?.nombre || 'Desconocida'}\nHora: ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
-        [
-          {
-            text: 'Cancelar',
-            style: 'cancel'
-          },
-          {
-            text: 'Confirmar',
-            onPress: async () => {
-              console.log('═══════════════════════════════════════');
-              console.log('📤 INICIANDO REGISTRO DE ASISTENCIA');
-              console.log('═══════════════════════════════════════');
-              
+    const empleadoId = getEmpleadoId();
+    if (!empleadoId) {
+      Alert.alert('Error', 'No se pudo identificar tu información');
+      return;
+    }
+
+    let estadoMensaje = '';
+    
+    if (tipoSiguienteRegistro === 'salida') {
+      estadoMensaje = '✅ Salida';
+    } else {
+      if (estadoHorario === 'puntual') estadoMensaje = '✅ Puntual';
+      if (estadoHorario === 'retardo') estadoMensaje = '⚠️ Con retardo';
+      if (estadoHorario === 'falta') estadoMensaje = '❌ Fuera de tolerancia';
+    }
+
+    const tipoTexto = tipoSiguienteRegistro === 'entrada' ? 'Entrada' : 'Salida';
+
+    Alert.alert(
+      `Confirmar ${tipoTexto}`,
+      `¿Deseas registrar tu ${tipoTexto.toLowerCase()}?\n\n${estadoMensaje}\n\nUbicación: ${departamento?.nombre || 'Desconocida'}\nHora: ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Confirmar',
+          onPress: async () => {
+            setRegistrando(true);
+
+            try {
               const payload = {
                 empleado_id: empleadoId,
                 dispositivo_origen: 'movil',
                 ubicacion: [ubicacionActual.lat, ubicacionActual.lng]
               };
-              
-              console.log('📋 Empleado ID:', empleadoId);
-              console.log('📍 Ubicación:', payload.ubicacion);
-              console.log('📱 Dispositivo:', payload.dispositivo_origen);
-              console.log('🔑 Token:', userData.token ? userData.token.substring(0, 20) + '...' : 'NO HAY TOKEN');
-              console.log('🌐 URL completa:', `${API_URL}/asistencias/registrar`);
-              console.log('📦 Payload completo:', JSON.stringify(payload, null, 2));
-              
-              setRegistrando(true);
 
-              try {
-                const response = await fetch(`${API_URL}/asistencias/registrar`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${userData.token}`,
-                  },
-                  body: JSON.stringify(payload)
-                });
+              const response = await fetch(`${API_URL}/asistencias/registrar`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${userData.token}`,
+                },
+                body: JSON.stringify(payload)
+              });
 
-                console.log('📥 Status de respuesta:', response.status, response.statusText);
-                console.log('📥 Content-Type:', response.headers.get('content-type'));
+              const responseText = await response.text();
 
-                // Obtener el texto de la respuesta primero
-                const responseText = await response.text();
-                console.log('📄 Tipo de respuesta:', typeof responseText);
-                console.log('📄 Longitud de respuesta:', responseText.length);
-                console.log('📄 Primeros 500 caracteres:', responseText.substring(0, 500));
-                console.log('📄 Últimos 100 caracteres:', responseText.substring(responseText.length - 100));
-
-                // Intentar parsear como JSON
-                let data;
-                try {
-                  data = responseText ? JSON.parse(responseText) : {};
-                  console.log('✅ JSON parseado correctamente');
-                  console.log('📊 Data:', JSON.stringify(data, null, 2));
-                } catch (parseError) {
-                  console.error('═══════════════════════════════════════');
-                  console.error('❌ ERROR AL PARSEAR JSON');
-                  console.error('═══════════════════════════════════════');
-                  console.error('❌ Parse error:', parseError.message);
-                  console.error('❌ Parse error stack:', parseError.stack);
-                  console.error('📄 RESPUESTA COMPLETA DEL SERVIDOR:');
-                  console.error(responseText);
-                  console.error('═══════════════════════════════════════');
-                  throw new Error(`El servidor devolvió HTML en lugar de JSON. Status: ${response.status}`);
-                }
-
-                if (!response.ok) {
-                  console.error('❌ Respuesta no OK. Status:', response.status);
-                  throw new Error(data.message || data.error || `Error del servidor (${response.status})`);
-                }
-
-                console.log('✅ Asistencia registrada exitosamente');
-                console.log('═══════════════════════════════════════');
-
-                // Actualizar último registro
-                if (data.data) {
-                  setUltimoRegistro({
-                    tipo: data.data.estado === 'puntual' || data.data.estado === 'retardo' ? 'Entrada' : 'Salida',
-                    hora: new Date(data.data.fecha_registro).toLocaleTimeString('es-MX', { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
-                    })
-                  });
-                }
-
-                Alert.alert(
-                  '¡Éxito!',
-                  `Asistencia registrada como ${data.data?.estado || 'exitosa'}\nHora: ${new Date(data.data?.fecha_registro).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
-                  [{ text: 'OK' }]
-                );
-
-                if (onRegistroExitoso) {
-                  onRegistroExitoso(data);
-                }
-
-              } catch (err) {
-                console.error('═══════════════════════════════════════');
-                console.error('❌ ERROR REGISTRANDO ASISTENCIA');
-                console.error('═══════════════════════════════════════');
-                console.error('❌ Error message:', err.message);
-                console.error('❌ Error stack:', err.stack);
-                console.error('═══════════════════════════════════════');
-                
-                Alert.alert(
-                  'Error',
-                  err.message || 'No se pudo registrar la asistencia',
-                  [{ text: 'OK' }]
-                );
-              } finally {
-                setRegistrando(false);
+              if (response.status === 502) {
+                throw new Error('El servidor no está disponible en este momento. Por favor intenta de nuevo.');
               }
+
+              if (response.status === 500) {
+                throw new Error('Error interno del servidor. Contacta al administrador.');
+              }
+
+              let data;
+              try {
+                data = responseText ? JSON.parse(responseText) : {};
+              } catch (parseError) {
+                throw new Error('Error del servidor: respuesta inválida');
+              }
+
+              if (!response.ok) {
+                throw new Error(data.message || data.error || `Error del servidor (${response.status})`);
+              }
+
+              const nuevoUltimo = await obtenerUltimoRegistro();
+              setUltimoRegistroHoy(nuevoUltimo);
+
+              if (horarioInfo && toleranciaInfo) {
+                const nuevoEstado = calcularEstadoRegistro(nuevoUltimo, horarioInfo, toleranciaInfo);
+                setPuedeRegistrar(nuevoEstado.puedeRegistrar);
+                setTipoSiguienteRegistro(nuevoEstado.tipoRegistro);
+                setEstadoHorario(nuevoEstado.estadoHorario);
+                setJornadaCompletada(nuevoEstado.jornadaCompleta);
+              }
+
+              let estadoTexto = '';
+              let emoji = '✅';
+
+              if (tipoSiguienteRegistro === 'salida') {
+                estadoTexto = 'salida registrada';
+                emoji = '✅';
+              } else {
+                if (data.data?.estado === 'retardo') {
+                  estadoTexto = 'retardo';
+                  emoji = '⚠️';
+                } else if (data.data?.estado === 'falta') {
+                  estadoTexto = 'falta';
+                  emoji = '❌';
+                } else {
+                  estadoTexto = 'puntual';
+                  emoji = '✅';
+                }
+              }
+
+              Alert.alert(
+                '¡Éxito!',
+                `${emoji} ${tipoSiguienteRegistro === 'entrada' ? 'Entrada' : 'Salida'} registrada como ${estadoTexto}\nHora: ${new Date(data.data?.fecha_registro).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
+                [{ text: 'OK' }]
+              );
+
+              if (onRegistroExitoso) {
+                onRegistroExitoso(data);
+              }
+
+            } catch (err) {
+              Alert.alert('Error', err.message || 'No se pudo registrar', [{ text: 'OK' }]);
+            } finally {
+              setRegistrando(false);
             }
           }
-        ]
-      );
-
-    } catch (err) {
-      console.error('❌ Error en handleRegistro:', err);
-      Alert.alert('Error', 'Ocurrió un error inesperado');
-    }
+        }
+      ]
+    );
   };
 
-  // ==================== OBTENER ESTADO DEL BOTÓN ====================
   const getButtonColor = () => {
-    switch (estadoBoton) {
-      case 'disponible':
-        return '#10b981'; // Verde
-      case 'fuera_zona':
-      case 'fuera_horario':
-      case 'fuera_zona_horario':
-        return '#ef4444'; // Rojo
-      case 'error':
-      case 'cargando':
-      default:
-        return '#6b7280'; // Gris
-    }
+    if (jornadaCompletada) return '#6b7280';
+    if (!dentroDelArea) return '#ef4444';
+    if (!puedeRegistrar) return '#ef4444';
+    
+    if (tipoSiguienteRegistro === 'salida' && puedeRegistrar) return '#10b981';
+    
+    if (estadoHorario === 'puntual') return '#10b981';
+    if (estadoHorario === 'retardo') return '#f59e0b';
+    if (estadoHorario === 'falta') return '#ef4444';
+    
+    return '#6b7280';
   };
 
   const getIcon = () => {
-    switch (estadoBoton) {
-      case 'disponible':
-        return 'checkmark-circle';
-      case 'fuera_zona':
-        return 'location';
-      case 'fuera_horario':
-        return 'time';
-      case 'fuera_zona_horario':
-        return 'alert-circle';
-      case 'error':
-        return 'alert-circle';
-      case 'cargando':
-      default:
-        return 'time';
-    }
+    if (jornadaCompletada) return 'checkmark-done-circle';
+    if (!dentroDelArea) return 'location';
+    if (!puedeRegistrar) return 'time';
+    
+    if (tipoSiguienteRegistro === 'salida') return 'log-out';
+    
+    if (estadoHorario === 'puntual') return 'checkmark-circle';
+    if (estadoHorario === 'retardo') return 'time';
+    if (estadoHorario === 'falta') return 'alert-circle';
+    
+    return 'time';
   };
 
   const getStatusText = () => {
-    switch (estadoBoton) {
-      case 'disponible':
-        return 'Listo para registrar';
-      case 'fuera_zona':
-        return 'Fuera del área';
-      case 'fuera_horario':
-        return 'Fuera de horario';
-      case 'fuera_zona_horario':
-        return 'Fuera de área y horario';
-      case 'error':
-        return error || 'Sin conexión';
-      case 'cargando':
-      default:
-        return 'Verificando...';
+    if (jornadaCompletada) return 'Jornada completada';
+    if (!dentroDelArea) return 'Fuera del área';
+    if (!puedeRegistrar) return 'Fuera de horario';
+    
+    if (tipoSiguienteRegistro === 'salida' && puedeRegistrar) {
+      return 'Listo para salida';
     }
+    
+    if (estadoHorario === 'puntual') return 'Listo para registrar';
+    if (estadoHorario === 'retardo') return 'Registro con retardo';
+    if (estadoHorario === 'falta') return 'Fuera de tolerancia';
+    
+    return 'Verificando...';
   };
 
-  const getTipoRegistro = () => {
-    return ultimoRegistro?.tipo === 'Entrada' ? 'Salida' : 'Entrada';
+  const getButtonText = () => {
+    if (jornadaCompletada) return 'Jornada completada';
+    if (!puedeRegistrar || !dentroDelArea) return 'No disponible';
+    
+    return `Registrar ${tipoSiguienteRegistro === 'entrada' ? 'Entrada' : 'Salida'}`;
   };
 
-  // ==================== RENDER ====================
+  const puedePresionarBoton = puedeRegistrar && dentroDelArea && !jornadaCompletada && !registrando;
+
   return (
     <>
       <View style={styles.container}>
-        {/* Status Badge */}
         <View style={styles.statusContainer}>
           <View style={[styles.statusBadge, { backgroundColor: `${getButtonColor()}15` }]}>
             {loading ? (
@@ -706,9 +676,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           </View>
         </View>
 
-        {/* Main Content */}
         <View style={styles.content}>
-          {/* Time Display */}
           <View style={styles.timeContainer}>
             <Text style={styles.timeLabel}>Hora actual</Text>
             <Text style={styles.timeValue}>
@@ -720,10 +688,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             </Text>
           </View>
 
-          {/* Status Indicators */}
-          {!loading && (
+          {!loading && !jornadaCompletada && (
             <View style={styles.statusIndicators}>
-              {/* Zona */}
               <View style={styles.indicator}>
                 <Ionicons 
                   name={dentroDelArea ? 'checkmark-circle' : 'close-circle'} 
@@ -735,21 +701,44 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                 </Text>
               </View>
 
-              {/* Horario */}
               <View style={styles.indicator}>
                 <Ionicons 
-                  name={dentroDeHorario ? 'checkmark-circle' : 'close-circle'} 
+                  name={
+                    tipoSiguienteRegistro === 'salida' ? 'checkmark-circle' :
+                    estadoHorario === 'puntual' ? 'checkmark-circle' :
+                    estadoHorario === 'retardo' ? 'time' :
+                    estadoHorario === 'falta' ? 'alert-circle' :
+                    'close-circle'
+                  } 
                   size={16} 
-                  color={dentroDeHorario ? '#10b981' : '#ef4444'} 
+                  color={
+                    tipoSiguienteRegistro === 'salida' && puedeRegistrar ? '#10b981' :
+                    estadoHorario === 'puntual' ? '#10b981' :
+                    estadoHorario === 'retardo' ? '#f59e0b' :
+                    estadoHorario === 'falta' ? '#ef4444' :
+                    '#ef4444'
+                  } 
                 />
-                <Text style={[styles.indicatorText, { color: dentroDeHorario ? '#10b981' : '#ef4444' }]}>
-                  {dentroDeHorario ? 'Dentro de horario' : 'Fuera de horario'}
+                <Text style={[
+                  styles.indicatorText, 
+                  { 
+                    color: tipoSiguienteRegistro === 'salida' && puedeRegistrar ? '#10b981' :
+                           estadoHorario === 'puntual' ? '#10b981' :
+                           estadoHorario === 'retardo' ? '#f59e0b' :
+                           estadoHorario === 'falta' ? '#ef4444' :
+                           '#ef4444'
+                  }
+                ]}>
+                  {tipoSiguienteRegistro === 'salida' && puedeRegistrar ? 'Hora de salida' :
+                   estadoHorario === 'puntual' ? 'A tiempo' :
+                   estadoHorario === 'retardo' ? 'Con retardo' :
+                   estadoHorario === 'falta' ? 'Fuera tolerancia' :
+                   'Fuera de horario'}
                 </Text>
               </View>
             </View>
           )}
 
-          {/* Location Info */}
           {!loading && departamento && (
             <TouchableOpacity 
               style={styles.locationInfo}
@@ -764,15 +753,14 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             </TouchableOpacity>
           )}
 
-          {/* Register Button */}
           <TouchableOpacity
             style={[
               styles.registerButton,
               { backgroundColor: getButtonColor() },
-              (estadoBoton !== 'disponible' || registrando) && styles.registerButtonDisabled
+              !puedePresionarBoton && styles.registerButtonDisabled
             ]}
             onPress={handleRegistro}
-            disabled={estadoBoton !== 'disponible' || registrando}
+            disabled={!puedePresionarBoton}
             activeOpacity={0.7}
           >
             {registrando ? (
@@ -783,36 +771,35 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             ) : (
               <>
                 <Ionicons
-                  name={estadoBoton === 'disponible' ? 'finger-print' : 'lock-closed'}
+                  name={puedePresionarBoton ? 'finger-print' : jornadaCompletada ? 'checkmark-done' : 'lock-closed'}
                   size={20}
                   color="#fff"
                 />
                 <Text style={styles.registerButtonText}>
-                  {estadoBoton === 'disponible' ? `Registrar ${getTipoRegistro()}` : 'No disponible'}
+                  {getButtonText()}
                 </Text>
               </>
             )}
           </TouchableOpacity>
 
-          {/* Last Register Info */}
-          {ultimoRegistro && (
+          {ultimoRegistroHoy && (
             <View style={styles.lastRegisterContainer}>
               <View style={styles.lastRegisterIcon}>
                 <Ionicons
-                  name={ultimoRegistro.tipo === 'Entrada' ? 'log-in' : 'log-out'}
+                  name={ultimoRegistroHoy.tipo === 'entrada' ? 'log-in' : 'log-out'}
                   size={12}
                   color="#9ca3af"
                 />
               </View>
               <Text style={styles.lastRegisterText}>
-                Último: {ultimoRegistro.tipo} · {ultimoRegistro.hora}
+                Último: {ultimoRegistroHoy.tipo === 'entrada' ? 'Entrada' : 'Salida'} · {ultimoRegistroHoy.hora}
+                {ultimoRegistroHoy.estado && ` · ${ultimoRegistroHoy.estado}`}
               </Text>
             </View>
           )}
         </View>
       </View>
 
-      {/* Modal del Mapa */}
       <Modal
         visible={mostrarMapa}
         animationType="slide"
@@ -830,7 +817,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   );
 };
 
-// ==================== ESTILOS ====================
 const registerStyles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',

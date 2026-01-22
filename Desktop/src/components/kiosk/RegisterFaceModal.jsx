@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, UserPlus, CheckCircle, XCircle, Eye } from "lucide-react";
 import { useFaceDetection } from "../../hooks/useFaceDetection";
+import { registrarDescriptorFacial } from "../../services/biometricAuthService";
 import * as faceapi from 'face-api.js';
 
 export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId = null }) {
@@ -111,13 +112,21 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
 
               // Guardar directamente
               try {
-                if (!window.electronAPI) {
-                  throw new Error("Esta funcionalidad requiere Electron");
+                // Convertir descriptor a Base64 (igual que las huellas)
+                const float32Array = new Float32Array(descriptor);
+                const buffer = new Uint8Array(float32Array.buffer);
+                let binary = '';
+                for (let i = 0; i < buffer.length; i++) {
+                  binary += String.fromCharCode(buffer[i]);
                 }
+                const descriptorBase64 = btoa(binary);
 
-                const response = await window.electronAPI.registrarDescriptorFacial(
+                console.log(`📦 Descriptor convertido a Base64: ${descriptorBase64.length} caracteres`);
+
+                // Intentar usar el servicio primero (sin Electron)
+                const response = await registrarDescriptorFacial(
                   empleadoId,
-                  descriptor
+                  descriptorBase64
                 );
 
                 if (response.success) {
@@ -127,7 +136,7 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
                     handleClose();
                   }, 3000);
                 } else {
-                  setErrorMessage(response.message || "Error al registrar descriptor");
+                  setErrorMessage(response.error || "Error al registrar descriptor");
                   setStep("error");
                 }
               } catch (error) {
@@ -158,13 +167,25 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
 
           // Registrar el descriptor en la base de datos
           try {
-            if (!window.electronAPI) {
-              throw new Error("Esta funcionalidad requiere Electron");
-            }
+            // Convertir descriptor a Base64 (igual que las huellas)
+            const descriptor = Array.isArray(result.descriptor)
+              ? result.descriptor
+              : Array.from(result.descriptor);
 
-            const response = await window.electronAPI.registrarDescriptorFacial(
+            const float32Array = new Float32Array(descriptor);
+            const buffer = new Uint8Array(float32Array.buffer);
+            let binary = '';
+            for (let i = 0; i < buffer.length; i++) {
+              binary += String.fromCharCode(buffer[i]);
+            }
+            const descriptorBase64 = btoa(binary);
+
+            console.log(`📦 Descriptor convertido a Base64: ${descriptorBase64.length} caracteres`);
+
+            // Usar el servicio para registrar
+            const response = await registrarDescriptorFacial(
               empleadoId,
-              result.descriptor
+              descriptorBase64
             );
 
             if (response.success) {
@@ -176,7 +197,7 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
                 handleClose();
               }, 3000);
             } else {
-              setErrorMessage(response.message || "Error al registrar descriptor");
+              setErrorMessage(response.error || "Error al registrar descriptor");
               setStep("error");
             }
           } catch (error) {

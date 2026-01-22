@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,72 +7,147 @@ import {
   SafeAreaView,
   StatusBar,
   ActivityIndicator,
-  Dimensions
+  ScrollView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { extraerCoordenadas } from '../../services/ubicacionService';
 
-const { width, height } = Dimensions.get('window');
-
 /**
- * Componente para visualizar el mapa con Leaflet y las zonas permitidas
+ * Componente para visualizar el mapa con Leaflet y múltiples zonas permitidas
  */
-const MapaZonasPermitidas = ({ departamento, ubicacionActual, onClose, darkMode }) => {
-  const [coordenadas, setCoordenadas] = useState([]);
-  const [htmlContent, setHtmlContent] = useState('');
+const MapaZonasPermitidas = ({ 
+  departamento, 
+  departamentos = [], 
+  ubicacionActual, 
+  onClose, 
+  onDepartamentoSeleccionado,
+  darkMode 
+}) => {
   const [loading, setLoading] = useState(true);
+  const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState(null);
+  const [zonasData, setZonasData] = useState([]);
+  const webViewRef = useRef(null);
 
   const styles = darkMode ? mapStylesDark : mapStyles;
 
+  // Usar departamentos array o crear array con departamento único
+  const listaDepartamentos = departamentos.length > 0 ? departamentos : (departamento ? [departamento] : []);
+
   useEffect(() => {
-    if (!departamento || !departamento.ubicacion) {
-      console.warn('⚠️ No hay departamento o ubicación para mostrar');
+    // Seleccionar el departamento activo o el primero
+    if (departamento) {
+      console.log('🎯 Departamento activo recibido:', departamento.nombre);
+      setDepartamentoSeleccionado(departamento);
+    } else if (listaDepartamentos.length > 0) {
+      console.log('📍 No hay departamento activo, seleccionando primero:', listaDepartamentos[0].nombre);
+      setDepartamentoSeleccionado(listaDepartamentos[0]);
+    }
+  }, [departamento, listaDepartamentos]);
+
+  useEffect(() => {
+    if (listaDepartamentos.length === 0) {
       setLoading(false);
       return;
     }
 
     try {
-      const coords = extraerCoordenadas(departamento.ubicacion);
-      
-      if (!coords || coords.length < 3) {
-        console.error('❌ No se pudieron extraer coordenadas válidas');
-        setLoading(false);
-        return;
+      // Procesar todas las zonas
+      const zonas = [];
+
+      for (const depto of listaDepartamentos) {
+        if (!depto.ubicacion) continue;
+
+        const coords = extraerCoordenadas(depto.ubicacion);
+        
+        if (!coords || coords.length < 3) continue;
+
+        // Convertir coordenadas a formato [lat, lng] para Leaflet
+        const coordsFormateadas = coords.map(coord => {
+          const lat = coord.lat || coord[0];
+          const lng = coord.lng || coord[1];
+          return [lat, lng];
+        });
+
+        zonas.push({
+          id: depto.id,
+          nombre: depto.nombre,
+          coordenadas: coordsFormateadas,
+          color: depto.color || '#3b82f6'
+        });
+        
+        console.log('🗺️ Zona procesada:', {
+          nombre: depto.nombre,
+          id: depto.id,
+          numCoordenadas: coordsFormateadas.length,
+          primeraCoordenada: coordsFormateadas[0]
+        });
       }
 
-      console.log('🗺️ Coordenadas extraídas para mapa:', coords.length, 'puntos');
-
-      // Convertir coordenadas a formato [lat, lng] para Leaflet
-      const coordsFormateadas = coords.map(coord => {
-        const lat = coord.lat || coord[0];
-        const lng = coord.lng || coord[1];
-        return [lat, lng];
-      });
-
-      setCoordenadas(coordsFormateadas);
-
-      // Calcular centro del polígono
-      const sumLat = coordsFormateadas.reduce((sum, c) => sum + c[0], 0);
-      const sumLng = coordsFormateadas.reduce((sum, c) => sum + c[1], 0);
-      
-      const centerLat = sumLat / coordsFormateadas.length;
-      const centerLng = sumLng / coordsFormateadas.length;
-
-      // Generar HTML con Leaflet
-      const html = generarHTMLLeaflet(coordsFormateadas, centerLat, centerLng, ubicacionActual, departamento.nombre);
-      setHtmlContent(html);
+      console.log('📊 Total zonas procesadas:', zonas.length);
+      setZonasData(zonas);
       setLoading(false);
 
     } catch (error) {
-      console.error('❌ Error procesando coordenadas:', error);
+      console.error('Error procesando coordenadas:', error);
       setLoading(false);
     }
-  }, [departamento, ubicacionActual]);
+  }, [listaDepartamentos]);
 
-  const generarHTMLLeaflet = (coords, centerLat, centerLng, userLocation, departmentName) => {
-    const coordsJSON = JSON.stringify(coords);
+  const handleDepartamentoClick = (depto) => {
+    setDepartamentoSeleccionado(depto);
+    if (onDepartamentoSeleccionado) {
+      onDepartamentoSeleccionado(depto);
+    }
+
+    // Encontrar las coordenadas de este departamento
+    const zona = zonasData.find(z => z.id === depto.id);
+    if (zona && webViewRef.current) {
+      // Calcular centro de este departamento
+      const sumLat = zona.coordenadas.reduce((sum, c) => sum + c[0], 0);
+      const sumLng = zona.coordenadas.reduce((sum, c) => sum + c[1], 0);
+      const centerLat = sumLat / zona.coordenadas.length;
+      const centerLng = sumLng / zona.coordenadas.length;
+
+      // Enviar mensaje al WebView para centrar el mapa
+      const message = JSON.stringify({
+        action: 'focusDepartamento',
+        departamentoId: depto.id,
+        center: [centerLat, centerLng]
+      });
+      
+      webViewRef.current.postMessage(message);
+    }
+  };
+
+  const generarHTMLLeaflet = (zonas, userLocation, departamentoSeleccionadoId) => {
+    const zonasJSON = JSON.stringify(zonas);
     const userLocationJSON = userLocation ? JSON.stringify([userLocation.lat, userLocation.lng]) : 'null';
+    
+    // Si hay un departamento seleccionado, usar su ID, sino usar null para mostrar todos
+    const selectedId = departamentoSeleccionadoId ? `"${departamentoSeleccionadoId}"` : 'null';
+
+    console.log('🗺️ Generando HTML con:', {
+      totalZonas: zonas.length,
+      departamentoSeleccionado: departamentoSeleccionadoId,
+      tieneUbicacionUsuario: !!userLocation
+    });
+
+    // Calcular centro global
+    let totalLat = 0;
+    let totalLng = 0;
+    let totalPuntos = 0;
+
+    zonas.forEach(zona => {
+      zona.coordenadas.forEach(coord => {
+        totalLat += coord[0];
+        totalLng += coord[1];
+        totalPuntos++;
+      });
+    });
+
+    const centerLat = totalLat / totalPuntos;
+    const centerLng = totalLng / totalPuntos;
 
     return `
 <!DOCTYPE html>
@@ -80,7 +155,7 @@ const MapaZonasPermitidas = ({ departamento, ubicacionActual, onClose, darkMode 
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Mapa de Zona Permitida</title>
+  <title>Mapa de Zonas Permitidas</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     * {
@@ -128,41 +203,120 @@ const MapaZonasPermitidas = ({ departamento, ubicacionActual, onClose, darkMode 
     const map = L.map('map', {
       zoomControl: true,
       attributionControl: false
-    }).setView([${centerLat}, ${centerLng}], 17);
+    }).setView([${centerLat}, ${centerLng}], 15);
 
     // Agregar capa de tiles (OpenStreetMap)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19
     }).addTo(map);
 
-    // Coordenadas del polígono
-    const polygonCoords = ${coordsJSON};
+    // Zonas permitidas
+    const zonas = ${zonasJSON};
+    let selectedDepartamentoId = ${selectedId};
 
-    // Dibujar polígono de zona permitida
-    const polygon = L.polygon(polygonCoords, {
-      color: '#3b82f6',
-      fillColor: '#3b82f6',
-      fillOpacity: 0.2,
-      weight: 2
-    }).addTo(map);
+    // Almacenar polígonos
+    const polygons = {};
 
-    // Agregar popup al polígono
-    polygon.bindPopup('<b>${departmentName}</b><br>Zona permitida para registro');
+    // Función para actualizar estilos de polígonos
+    function updatePolygonStyles() {
+      zonas.forEach(zona => {
+        const isSelected = zona.id === selectedDepartamentoId;
+        const polygon = polygons[zona.id];
+        
+        if (polygon) {
+          polygon.setStyle({
+            color: isSelected ? '#10b981' : '#3b82f6',
+            fillColor: isSelected ? '#10b981' : '#3b82f6',
+            fillOpacity: 0.3,
+            weight: 3,
+            opacity: 0.8
+          });
+          
+          if (isSelected) {
+            polygon.bringToFront();
+          }
+        }
+      });
+    }
 
-    // Ajustar vista al polígono
-    map.fitBounds(polygon.getBounds(), { padding: [50, 50] });
+    // Grupo para ajustar vista
+    const bounds = [];
+
+    // Dibujar cada zona
+    zonas.forEach((zona, index) => {
+      const isSelected = selectedDepartamentoId === zona.id;
+      
+      console.log(\`🎨 [\${index + 1}/\${zonas.length}] Dibujando:\`, zona.nombre);
+      console.log('   📍 Coordenadas:', zona.coordenadas.length, 'puntos');
+      console.log('   🔍 Primera:', zona.coordenadas[0]);
+      console.log('   🔍 Última:', zona.coordenadas[zona.coordenadas.length - 1]);
+      console.log('   ✨ Seleccionado:', isSelected);
+      
+      const polygon = L.polygon(zona.coordenadas, {
+        color: isSelected ? '#10b981' : '#3b82f6',
+        fillColor: isSelected ? '#10b981' : '#3b82f6',
+        fillOpacity: 0.3,
+        weight: 3,
+        opacity: 0.8
+      }).addTo(map);
+
+      // Guardar referencia
+      polygons[zona.id] = polygon;
+
+      console.log('   ✅ Añadido al mapa');
+      console.log('   📊 Bounds:', polygon.getBounds().toBBoxString());
+
+      // Agregar popup
+      const popupContent = isSelected 
+        ? '<b>' + zona.nombre + '</b><br>📍 Departamento seleccionado<br>Zona permitida para registro'
+        : '<b>' + zona.nombre + '</b><br>Zona permitida para registro';
+      
+      polygon.bindPopup(popupContent);
+
+      // Agregar bounds para ajustar vista
+      polygon.getLatLngs()[0].forEach(latlng => {
+        bounds.push(latlng);
+      });
+    });
+    
+    console.log('✅ Total polígonos dibujados:', Object.keys(polygons).length);
+
+    // Ajustar vista inicial
+    if (bounds.length > 0) {
+      const selectedZona = zonas.find(z => z.id === selectedDepartamentoId);
+      
+      console.log('🔍 Ajustando vista del mapa');
+      console.log('   Total bounds:', bounds.length);
+      console.log('   Departamento seleccionado:', selectedZona?.nombre || 'ninguno');
+      console.log('   Total zonas:', zonas.length);
+      
+      if (selectedZona && selectedDepartamentoId) {
+        // Si hay un departamento seleccionado específico, centrar en él
+        const selectedPolygon = polygons[selectedDepartamentoId];
+        if (selectedPolygon) {
+          console.log('🎯 Centrando mapa en:', selectedZona.nombre);
+          map.fitBounds(selectedPolygon.getBounds(), { padding: [50, 50], maxZoom: 16 });
+        }
+      } else {
+        // Mostrar todas las zonas
+        console.log('🗺️ Mostrando todas las zonas en el mapa');
+        map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
+      }
+    } else {
+      console.warn('⚠️ No hay bounds para ajustar la vista');
+    }
 
     // Marcador de ubicación del usuario
     const userLocation = ${userLocationJSON};
     if (userLocation) {
-      // Crear icono personalizado para el usuario
       const userIcon = L.divIcon({
         className: 'user-marker',
         iconSize: [24, 24]
       });
 
       const userMarker = L.marker(userLocation, {
-        icon: userIcon
+        icon: userIcon,
+        zIndexOffset: 1000
       }).addTo(map);
 
       userMarker.bindPopup('<b>Tu ubicación</b><br>Aquí te encuentras ahora');
@@ -170,6 +324,55 @@ const MapaZonasPermitidas = ({ departamento, ubicacionActual, onClose, darkMode 
 
     // Prevenir zoom con scroll (mejor experiencia móvil)
     map.scrollWheelZoom.disable();
+
+    // Escuchar mensajes de React Native
+    window.addEventListener('message', function(event) {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.action === 'focusDepartamento') {
+          selectedDepartamentoId = data.departamentoId;
+          updatePolygonStyles();
+          
+          // Centrar mapa en el departamento
+          const polygon = polygons[data.departamentoId];
+          if (polygon) {
+            map.fitBounds(polygon.getBounds(), { 
+              padding: [80, 80], 
+              maxZoom: 17,
+              animate: true,
+              duration: 0.5
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing message:', e);
+      }
+    });
+
+    // Para Android
+    document.addEventListener('message', function(event) {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.action === 'focusDepartamento') {
+          selectedDepartamentoId = data.departamentoId;
+          updatePolygonStyles();
+          
+          const polygon = polygons[data.departamentoId];
+          if (polygon) {
+            map.fitBounds(polygon.getBounds(), { 
+              padding: [80, 80], 
+              maxZoom: 17,
+              animate: true,
+              duration: 0.5
+            });
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing message:', e);
+      }
+    });
   </script>
 </body>
 </html>
@@ -185,7 +388,7 @@ const MapaZonasPermitidas = ({ departamento, ubicacionActual, onClose, darkMode 
     );
   }
 
-  if (!htmlContent || coordenadas.length === 0) {
+  if (zonasData.length === 0) {
     return (
       <SafeAreaView style={styles.errorContainer}>
         <Ionicons name="map-outline" size={64} color="#9ca3af" />
@@ -197,6 +400,12 @@ const MapaZonasPermitidas = ({ departamento, ubicacionActual, onClose, darkMode 
     );
   }
 
+  const htmlContent = generarHTMLLeaflet(
+    zonasData, 
+    ubicacionActual, 
+    departamentoSeleccionado?.id
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
@@ -207,8 +416,12 @@ const MapaZonasPermitidas = ({ departamento, ubicacionActual, onClose, darkMode 
           <View style={styles.headerLeft}>
             <Ionicons name="location" size={24} color="#3b82f6" />
             <View>
-              <Text style={styles.headerTitle}>Zona Permitida</Text>
-              <Text style={styles.headerSubtitle}>{departamento.nombre}</Text>
+              <Text style={styles.headerTitle}>
+                {listaDepartamentos.length === 1 ? 'Zona Permitida' : 'Zonas Permitidas'}
+              </Text>
+              <Text style={styles.headerSubtitle}>
+                {departamentoSeleccionado?.nombre || `${listaDepartamentos.length} departamentos`}
+              </Text>
             </View>
           </View>
           
@@ -225,6 +438,7 @@ const MapaZonasPermitidas = ({ departamento, ubicacionActual, onClose, darkMode 
       {/* Map WebView */}
       <View style={styles.mapContainer}>
         <WebView
+          ref={webViewRef}
           source={{ html: htmlContent }}
           style={styles.webview}
           javaScriptEnabled={true}
@@ -238,17 +452,70 @@ const MapaZonasPermitidas = ({ departamento, ubicacionActual, onClose, darkMode 
         />
       </View>
 
+      {/* Lista de departamentos (si hay múltiples) */}
+      {listaDepartamentos.length > 1 && (
+        <View style={styles.departamentosContainer}>
+          <Text style={styles.departamentosTitle}>Selecciona departamento</Text>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.departamentosScroll}
+            contentContainerStyle={styles.departamentosContent}
+          >
+            {listaDepartamentos.map((depto, index) => {
+              const esSeleccionado = departamentoSeleccionado?.id === depto.id;
+              
+              return (
+                <TouchableOpacity
+                  key={depto.id || index}
+                  style={[
+                    styles.departamentoChip,
+                    esSeleccionado && styles.departamentoChipActivo
+                  ]}
+                  onPress={() => handleDepartamentoClick(depto)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons 
+                    name={esSeleccionado ? 'location' : 'location-outline'} 
+                    size={16} 
+                    color={esSeleccionado ? '#10b981' : '#6b7280'} 
+                  />
+                  <Text style={[
+                    styles.departamentoChipText,
+                    esSeleccionado && styles.departamentoChipTextActivo
+                  ]}>
+                    {depto.nombre}
+                  </Text>
+                  {esSeleccionado && (
+                    <View style={styles.activeDot} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
       {/* Legend */}
       <View style={styles.legend}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendColor, { backgroundColor: 'rgba(59, 130, 246, 0.3)', borderColor: '#3b82f6' }]} />
-          <Text style={styles.legendText}>Zona permitida para registro</Text>
+          <View style={[styles.legendColor, { backgroundColor: '#10b981', borderColor: '#059669' }]} />
+          <Text style={styles.legendText}>
+            {departamentoSeleccionado?.nombre || 'Zona seleccionada'}
+          </Text>
         </View>
+        
+        {listaDepartamentos.length > 1 && (
+          <View style={styles.legendItem}>
+            <View style={[styles.legendColor, { backgroundColor: '#3b82f6', borderColor: '#2563eb' }]} />
+            <Text style={styles.legendText}>Otras zonas disponibles</Text>
+          </View>
+        )}
         
         {ubicacionActual && (
           <View style={styles.legendItem}>
             <View style={[styles.legendColor, { backgroundColor: '#ef4444' }]} />
-            <Text style={styles.legendText}>Tu ubicación actual</Text>
+            <Text style={styles.legendText}>Tu ubicación</Text>
           </View>
         )}
       </View>
@@ -258,7 +525,10 @@ const MapaZonasPermitidas = ({ departamento, ubicacionActual, onClose, darkMode 
         <View style={styles.infoRow}>
           <Ionicons name="information-circle" size={20} color="#3b82f6" />
           <Text style={styles.infoText}>
-            Debes estar dentro del área marcada para poder registrar tu asistencia
+            {listaDepartamentos.length > 1 
+              ? 'Toca un departamento arriba para ver su ubicación en el mapa'
+              : 'Debes estar dentro del área marcada para registrar tu asistencia'
+            }
           </Text>
         </View>
       </View>
@@ -350,6 +620,57 @@ const mapStyles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
   },
+  departamentosContainer: {
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    paddingVertical: 12,
+  },
+  departamentosTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6b7280',
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  departamentosScroll: {
+    paddingHorizontal: 16,
+  },
+  departamentosContent: {
+    gap: 8,
+  },
+  departamentoChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  departamentoChipActivo: {
+    backgroundColor: '#d1fae5',
+    borderColor: '#10b981',
+  },
+  departamentoChipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6b7280',
+  },
+  departamentoChipTextActivo: {
+    color: '#059669',
+    fontWeight: '600',
+  },
+  activeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10b981',
+  },
   legend: {
     backgroundColor: '#fff',
     paddingHorizontal: 16,
@@ -434,6 +755,27 @@ const mapStylesDark = StyleSheet.create({
   closeIconButton: {
     ...mapStyles.closeIconButton,
     backgroundColor: '#374151',
+  },
+  departamentosContainer: {
+    ...mapStyles.departamentosContainer,
+    backgroundColor: '#1f2937',
+    borderTopColor: '#374151',
+  },
+  departamentosTitle: {
+    ...mapStyles.departamentosTitle,
+    color: '#9ca3af',
+  },
+  departamentoChip: {
+    ...mapStyles.departamentoChip,
+    backgroundColor: '#374151',
+  },
+  departamentoChipActivo: {
+    ...mapStyles.departamentoChipActivo,
+    backgroundColor: '#1e3a2f',
+  },
+  departamentoChipText: {
+    ...mapStyles.departamentoChipText,
+    color: '#d1d5db',
   },
   legend: {
     ...mapStyles.legend,

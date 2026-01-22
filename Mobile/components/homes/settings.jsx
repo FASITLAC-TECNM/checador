@@ -256,19 +256,6 @@ export const SettingsScreen = ({
             <Ionicons name="apps" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
             <Text style={styles.sectionTitle}>Aplicación</Text>
           </View>
-          
-          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
-            <View style={styles.settingLeft}>
-              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#7f1d1d' : '#fee2e2' }]}>
-                <Ionicons name="location-outline" size={22} color={darkMode ? '#fca5a5' : '#dc2626'} />
-              </View>
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Áreas Permitidas</Text>
-                <Text style={styles.settingSubtitle}>Gestiona ubicaciones</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-          </TouchableOpacity>
 
           <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
             <View style={styles.settingLeft}>

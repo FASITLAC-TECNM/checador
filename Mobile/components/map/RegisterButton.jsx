@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Modal
+  Modal,
+  ScrollView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -20,10 +21,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [loading, setLoading] = useState(true);
   const [registrando, setRegistrando] = useState(false);
   const [mostrarMapa, setMostrarMapa] = useState(false);
-  const [error, setError] = useState(null);
+  const [mostrarDepartamentos, setMostrarDepartamentos] = useState(false);
   
   const [ubicacionActual, setUbicacionActual] = useState(null);
-  const [departamento, setDepartamento] = useState(null);
+  const [departamentos, setDepartamentos] = useState([]); // Array de departamentos
+  const [departamentoActivo, setDepartamentoActivo] = useState(null); // Departamento donde está el usuario
   const [horarioInfo, setHorarioInfo] = useState(null);
   const [toleranciaInfo, setToleranciaInfo] = useState(null);
   const [ultimoRegistroHoy, setUltimoRegistroHoy] = useState(null);
@@ -36,8 +38,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
   const styles = darkMode ? registerStylesDark : registerStyles;
 
-  const getEmpleadoId = () => userData?.empleado_id || null;
-
   const getDiaSemana = () => {
     const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
     return dias[new Date().getDay()];
@@ -49,7 +49,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
   const obtenerUltimoRegistro = useCallback(async () => {
     try {
-      const empleadoId = getEmpleadoId();
+      const empleadoId = userData?.empleado_id;
       if (!empleadoId) return null;
 
       const response = await fetch(
@@ -66,9 +66,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       const data = await response.json();
       
-      if (!data.data || !Array.isArray(data.data) || data.data.length === 0) {
-        return null;
-      }
+      if (!data.data?.length) return null;
 
       const hoy = new Date().toDateString();
       const registrosHoy = data.data.filter(registro => {
@@ -76,7 +74,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         return fechaRegistro.toDateString() === hoy;
       });
 
-      if (registrosHoy.length === 0) return null;
+      if (!registrosHoy.length) return null;
 
       const ultimo = registrosHoy[0];
       
@@ -89,7 +87,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           minute: '2-digit' 
         })
       };
-
     } catch (err) {
       return null;
     }
@@ -97,7 +94,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
   const obtenerHorario = useCallback(async () => {
     try {
-      const empleadoId = getEmpleadoId();
+      const empleadoId = userData?.empleado_id;
       if (!empleadoId) return null;
 
       const response = await fetch(
@@ -117,24 +114,23 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       
       if (!horario?.configuracion) return null;
 
-      let config = horario.configuracion;
-      if (typeof config === 'string') {
-        config = JSON.parse(config);
-      }
+      let config = typeof horario.configuracion === 'string' 
+        ? JSON.parse(horario.configuracion) 
+        : horario.configuracion;
 
       const diaHoy = getDiaSemana();
       let turnosHoy = [];
 
-      if (config.configuracion_semanal && config.configuracion_semanal[diaHoy]) {
+      if (config.configuracion_semanal?.[diaHoy]) {
         turnosHoy = config.configuracion_semanal[diaHoy].map(t => ({
           entrada: t.inicio,
           salida: t.fin
         }));
-      } else if (config.dias && config.dias.includes(diaHoy)) {
+      } else if (config.dias?.includes(diaHoy)) {
         turnosHoy = config.turnos || [];
       }
 
-      if (turnosHoy.length === 0) {
+      if (!turnosHoy.length) {
         return { trabaja: false, turnos: [] };
       }
 
@@ -145,13 +141,19 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         salida: turnosHoy[turnosHoy.length - 1].salida,
         tipo: turnosHoy.length > 1 ? 'quebrado' : 'continuo'
       };
-
     } catch (err) {
       return null;
     }
   }, [userData]);
 
   const obtenerTolerancia = useCallback(async () => {
+    const defaultTolerancia = {
+      minutos_retardo: 10,
+      minutos_falta: 30,
+      permite_registro_anticipado: true,
+      minutos_anticipado_max: 60
+    };
+
     try {
       const rolesResponse = await fetch(
         `${API_URL}/usuarios/${userData.id}/roles`,
@@ -163,14 +165,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         }
       );
 
-      if (!rolesResponse.ok) {
-        return {
-          minutos_retardo: 10,
-          minutos_falta: 30,
-          permite_registro_anticipado: true,
-          minutos_anticipado_max: 60
-        };
-      }
+      if (!rolesResponse.ok) return defaultTolerancia;
 
       const rolesData = await rolesResponse.json();
       const roles = rolesData.data || [];
@@ -178,14 +173,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         .filter(r => r.tolerancia_id)
         .sort((a, b) => b.posicion - a.posicion)[0];
 
-      if (!rolConTolerancia) {
-        return {
-          minutos_retardo: 10,
-          minutos_falta: 30,
-          permite_registro_anticipado: true,
-          minutos_anticipado_max: 60
-        };
-      }
+      if (!rolConTolerancia) return defaultTolerancia;
 
       const toleranciaResponse = await fetch(
         `${API_URL}/tolerancias/${rolConTolerancia.tolerancia_id}`,
@@ -197,92 +185,53 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         }
       );
 
-      if (!toleranciaResponse.ok) {
-        return {
-          minutos_retardo: 10,
-          minutos_falta: 30,
-          permite_registro_anticipado: true,
-          minutos_anticipado_max: 60
-        };
-      }
+      if (!toleranciaResponse.ok) return defaultTolerancia;
 
       const toleranciaData = await toleranciaResponse.json();
       return toleranciaData.data || toleranciaData;
-
     } catch (err) {
-      return {
-        minutos_retardo: 10,
-        minutos_falta: 30,
-        permite_registro_anticipado: true,
-        minutos_anticipado_max: 60
-      };
+      return defaultTolerancia;
     }
   }, [userData]);
 
-  const obtenerDepartamento = useCallback(async () => {
+  const obtenerDepartamentos = useCallback(async () => {
     try {
-      let deptoData = userData?.empleadoInfo?.departamento;
-
-      if (deptoData && deptoData.ubicacion) {
-        return deptoData;
+      const departamentosAsignados = userData?.empleadoInfo?.departamentos;
+      
+      if (!departamentosAsignados || departamentosAsignados.length === 0) {
+        return [];
       }
 
-      if (userData?.empleadoInfo?.departamentos?.length > 0) {
-        const deptoId = userData.empleadoInfo.departamentos[0].id;
-
-        const response = await fetch(
-          `${API_URL}/departamentos/${deptoId}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${userData.token}`,
-              'Content-Type': 'application/json'
+      // Obtener detalles completos de cada departamento
+      const promesas = departamentosAsignados.map(async (depto) => {
+        try {
+          const response = await fetch(
+            `${API_URL}/departamentos/${depto.id}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${userData.token}`,
+                'Content-Type': 'application/json'
+              }
             }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            return data.data || data;
           }
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          return data.data || data;
+          return null;
+        } catch (err) {
+          return null;
         }
-      }
+      });
 
-      return null;
+      const resultados = await Promise.all(promesas);
+      return resultados.filter(depto => depto !== null && depto.ubicacion);
     } catch (err) {
-      return null;
+      console.error('Error obteniendo departamentos:', err);
+      return [];
     }
   }, [userData]);
-
-  const calcularEstadoRegistro = useCallback((ultimo, horario, tolerancia) => {
-    if (!horario || !horario.trabaja) {
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'fuera_horario',
-        jornadaCompleta: false,
-        mensaje: 'No tienes horario configurado para hoy'
-      };
-    }
-
-    const tipoRegistro = (!ultimo || ultimo.tipo === 'salida') ? 'entrada' : 'salida';
-    
-    if (ultimo && ultimo.tipo === 'salida') {
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'completado',
-        jornadaCompleta: true,
-        mensaje: 'Ya completaste tu jornada de hoy'
-      };
-    }
-
-    const ahora = getMinutosDelDia();
-
-    if (tipoRegistro === 'entrada') {
-      return validarEntrada(horario, tolerancia, ahora);
-    } else {
-      return validarSalida(horario, ahora);
-    }
-  }, []);
 
   const validarEntrada = (horario, tolerancia, minutosActuales) => {
     for (const turno of horario.turnos) {
@@ -340,7 +289,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     for (const turno of horario.turnos) {
       const [hS, mS] = turno.salida.split(':').map(Number);
       const minSalida = hS * 60 + mS;
-      
       const ventanaSalida = minSalida - 10;
 
       if (minutosActuales >= ventanaSalida) {
@@ -363,41 +311,69 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     };
   };
 
+  const calcularEstadoRegistro = useCallback((ultimo, horario, tolerancia) => {
+    if (!horario?.trabaja) {
+      return {
+        puedeRegistrar: false,
+        tipoRegistro: 'entrada',
+        estadoHorario: 'fuera_horario',
+        jornadaCompleta: false,
+        mensaje: 'No tienes horario configurado para hoy'
+      };
+    }
+
+    const tipoRegistro = (!ultimo || ultimo.tipo === 'salida') ? 'entrada' : 'salida';
+    
+    if (ultimo?.tipo === 'salida') {
+      return {
+        puedeRegistrar: false,
+        tipoRegistro: 'entrada',
+        estadoHorario: 'completado',
+        jornadaCompleta: true,
+        mensaje: 'Ya completaste tu jornada de hoy'
+      };
+    }
+
+    const ahora = getMinutosDelDia();
+
+    return tipoRegistro === 'entrada' 
+      ? validarEntrada(horario, tolerancia, ahora)
+      : validarSalida(horario, ahora);
+  }, []);
+
   useEffect(() => {
     const cargarDatos = async () => {
       setLoading(true);
 
       try {
-        const [ultimo, horario, tolerancia, depto] = await Promise.all([
+        const [ultimo, horario, tolerancia, deptos] = await Promise.all([
           obtenerUltimoRegistro(),
           obtenerHorario(),
           obtenerTolerancia(),
-          obtenerDepartamento()
+          obtenerDepartamentos()
         ]);
 
         setUltimoRegistroHoy(ultimo);
         setHorarioInfo(horario);
         setToleranciaInfo(tolerancia);
-        setDepartamento(depto);
+        setDepartamentos(deptos);
 
         if (horario && tolerancia) {
           const estado = calcularEstadoRegistro(ultimo, horario, tolerancia);
-          
           setPuedeRegistrar(estado.puedeRegistrar);
           setTipoSiguienteRegistro(estado.tipoRegistro);
           setEstadoHorario(estado.estadoHorario);
           setJornadaCompletada(estado.jornadaCompleta);
         }
-
       } catch (err) {
-        setError('Error al cargar información');
+        console.error('Error cargando datos:', err);
       } finally {
         setLoading(false);
       }
     };
 
     cargarDatos();
-  }, [obtenerUltimoRegistro, obtenerHorario, obtenerTolerancia, obtenerDepartamento, calcularEstadoRegistro]);
+  }, [obtenerUltimoRegistro, obtenerHorario, obtenerTolerancia, obtenerDepartamentos, calcularEstadoRegistro]);
 
   useEffect(() => {
     let locationSubscription = null;
@@ -405,11 +381,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     const iniciarUbicacion = async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
-
-        if (status !== 'granted') {
-          setError('Permiso de ubicación denegado');
-          return;
-        }
+        if (status !== 'granted') return;
 
         const location = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.High
@@ -433,9 +405,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             });
           }
         );
-
       } catch (err) {
-        setError('Error al obtener ubicación');
+        console.error('Error obteniendo ubicación:', err);
       }
     };
 
@@ -448,25 +419,39 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     };
   }, []);
 
+  // Verificar en qué departamento está el usuario
   useEffect(() => {
-    if (!ubicacionActual || !departamento?.ubicacion) {
+    if (!ubicacionActual || !departamentos.length) {
       setDentroDelArea(false);
+      setDepartamentoActivo(null);
       return;
     }
 
-    try {
-      const coordenadas = extraerCoordenadas(departamento.ubicacion);
-      if (!coordenadas || coordenadas.length < 3) {
-        setDentroDelArea(false);
-        return;
-      }
+    let encontrado = false;
 
-      const dentro = isPointInPolygon(ubicacionActual, coordenadas);
-      setDentroDelArea(dentro);
-    } catch (err) {
-      setDentroDelArea(false);
+    for (const depto of departamentos) {
+      try {
+        const coordenadas = extraerCoordenadas(depto.ubicacion);
+        if (!coordenadas || coordenadas.length < 3) continue;
+
+        const dentro = isPointInPolygon(ubicacionActual, coordenadas);
+        
+        if (dentro) {
+          setDentroDelArea(true);
+          setDepartamentoActivo(depto);
+          encontrado = true;
+          break;
+        }
+      } catch (err) {
+        continue;
+      }
     }
-  }, [ubicacionActual, departamento]);
+
+    if (!encontrado) {
+      setDentroDelArea(false);
+      setDepartamentoActivo(null);
+    }
+  }, [ubicacionActual, departamentos]);
 
   const handleRegistro = async () => {
     if (!horarioInfo) {
@@ -478,7 +463,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       let mensaje = 'No puedes registrar en este momento';
       
       if (!dentroDelArea) {
-        mensaje = 'Debes estar dentro del área permitida';
+        mensaje = 'Debes estar dentro de un área permitida';
       } else if (jornadaCompletada) {
         mensaje = 'Ya completaste tu jornada de hoy';
       } else if (estadoHorario === 'fuera_horario') {
@@ -491,7 +476,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       return;
     }
 
-    const empleadoId = getEmpleadoId();
+    const empleadoId = userData?.empleado_id;
     if (!empleadoId) {
       Alert.alert('Error', 'No se pudo identificar tu información');
       return;
@@ -511,7 +496,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
     Alert.alert(
       `Confirmar ${tipoTexto}`,
-      `¿Deseas registrar tu ${tipoTexto.toLowerCase()}?\n\n${estadoMensaje}\n\nUbicación: ${departamento?.nombre || 'Desconocida'}\nHora: ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
+      `¿Deseas registrar tu ${tipoTexto.toLowerCase()}?\n\n${estadoMensaje}\n\nUbicación: ${departamentoActivo?.nombre || 'Desconocida'}\nHora: ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -595,7 +580,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
               if (onRegistroExitoso) {
                 onRegistroExitoso(data);
               }
-
             } catch (err) {
               Alert.alert('Error', err.message || 'No se pudo registrar', [{ text: 'OK' }]);
             } finally {
@@ -609,15 +593,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
   const getButtonColor = () => {
     if (jornadaCompletada) return '#6b7280';
-    if (!dentroDelArea) return '#ef4444';
-    if (!puedeRegistrar) return '#ef4444';
-    
+    if (!dentroDelArea || !puedeRegistrar) return '#ef4444';
     if (tipoSiguienteRegistro === 'salida' && puedeRegistrar) return '#10b981';
-    
     if (estadoHorario === 'puntual') return '#10b981';
     if (estadoHorario === 'retardo') return '#f59e0b';
     if (estadoHorario === 'falta') return '#ef4444';
-    
     return '#6b7280';
   };
 
@@ -625,13 +605,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     if (jornadaCompletada) return 'checkmark-done-circle';
     if (!dentroDelArea) return 'location';
     if (!puedeRegistrar) return 'time';
-    
     if (tipoSiguienteRegistro === 'salida') return 'log-out';
-    
     if (estadoHorario === 'puntual') return 'checkmark-circle';
     if (estadoHorario === 'retardo') return 'time';
     if (estadoHorario === 'falta') return 'alert-circle';
-    
     return 'time';
   };
 
@@ -639,22 +616,16 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     if (jornadaCompletada) return 'Jornada completada';
     if (!dentroDelArea) return 'Fuera del área';
     if (!puedeRegistrar) return 'Fuera de horario';
-    
-    if (tipoSiguienteRegistro === 'salida' && puedeRegistrar) {
-      return 'Listo para salida';
-    }
-    
+    if (tipoSiguienteRegistro === 'salida' && puedeRegistrar) return 'Listo para salida';
     if (estadoHorario === 'puntual') return 'Listo para registrar';
     if (estadoHorario === 'retardo') return 'Registro con retardo';
     if (estadoHorario === 'falta') return 'Fuera de tolerancia';
-    
     return 'Verificando...';
   };
 
   const getButtonText = () => {
     if (jornadaCompletada) return 'Jornada completada';
     if (!puedeRegistrar || !dentroDelArea) return 'No disponible';
-    
     return `Registrar ${tipoSiguienteRegistro === 'entrada' ? 'Entrada' : 'Salida'}`;
   };
 
@@ -739,18 +710,34 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             </View>
           )}
 
-          {!loading && departamento && (
-            <TouchableOpacity 
-              style={styles.locationInfo}
-              onPress={() => setMostrarMapa(true)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="location" size={14} color="#6b7280" />
-              <Text style={styles.locationText} numberOfLines={1}>
-                {departamento.nombre}
-              </Text>
-              <Ionicons name="map" size={14} color="#6b7280" style={{ marginLeft: 4 }} />
-            </TouchableOpacity>
+          {!loading && departamentos.length > 0 && (
+            <>
+              <TouchableOpacity 
+                style={styles.locationInfo}
+                onPress={() => setMostrarDepartamentos(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="location" size={14} color="#6b7280" />
+                <Text style={styles.locationText} numberOfLines={1}>
+                  {departamentoActivo 
+                    ? departamentoActivo.nombre 
+                    : `${departamentos.length} ${departamentos.length === 1 ? 'departamento' : 'departamentos'}`
+                  }
+                </Text>
+                <Ionicons name="chevron-down" size={14} color="#6b7280" style={{ marginLeft: 4 }} />
+              </TouchableOpacity>
+
+              {departamentos.length > 1 && (
+                <TouchableOpacity 
+                  style={styles.viewMapButton}
+                  onPress={() => setMostrarMapa(true)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="map-outline" size={14} color="#3b82f6" />
+                  <Text style={styles.viewMapText}>Ver mapa</Text>
+                </TouchableOpacity>
+              )}
+            </>
           )}
 
           <TouchableOpacity
@@ -800,19 +787,102 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         </View>
       </View>
 
-      <Modal
-        visible={mostrarMapa}
-        animationType="slide"
-        transparent={false}
-        onRequestClose={() => setMostrarMapa(false)}
-      >
-        <MapaZonasPermitidas
-          departamento={departamento}
-          ubicacionActual={ubicacionActual}
-          onClose={() => setMostrarMapa(false)}
-          darkMode={darkMode}
-        />
-      </Modal>
+      {/* Modal de lista de departamentos */}
+      {departamentos.length > 0 && (
+        <Modal
+          visible={mostrarDepartamentos}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setMostrarDepartamentos(false)}
+        >
+          <TouchableOpacity 
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setMostrarDepartamentos(false)}
+          >
+            <TouchableOpacity 
+              activeOpacity={1} 
+              style={styles.modalContent}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Departamentos Asignados</Text>
+                <TouchableOpacity 
+                  onPress={() => setMostrarDepartamentos(false)}
+                  style={styles.modalCloseButton}
+                >
+                  <Ionicons name="close" size={24} color="#6b7280" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.departamentosList}>
+                {departamentos.map((depto, index) => {
+                  const esActivo = departamentoActivo?.id === depto.id;
+                  
+                  return (
+                    <TouchableOpacity
+                      key={depto.id || index}
+                      style={[
+                        styles.departamentoItem,
+                        esActivo && styles.departamentoItemActivo
+                      ]}
+                      onPress={() => {
+                        setMostrarMapa(true);
+                        setMostrarDepartamentos(false);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.departamentoInfo}>
+                        <View style={styles.departamentoHeader}>
+                          <Ionicons 
+                            name={esActivo ? 'location' : 'location-outline'} 
+                            size={20} 
+                            color={esActivo ? '#10b981' : '#6b7280'} 
+                          />
+                          <Text style={[
+                            styles.departamentoNombre,
+                            esActivo && styles.departamentoNombreActivo
+                          ]}>
+                            {depto.nombre}
+                          </Text>
+                        </View>
+                        
+                        {esActivo && (
+                          <View style={styles.departamentoBadge}>
+                            <Ionicons name="checkmark-circle" size={14} color="#10b981" />
+                            <Text style={styles.departamentoBadgeText}>Ubicación actual</Text>
+                          </View>
+                        )}
+                      </View>
+
+                      <Ionicons name="map" size={20} color="#9ca3af" />
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
+      {/* Modal de mapa */}
+      {(departamentoActivo || departamentos.length > 0) && (
+        <Modal
+          visible={mostrarMapa}
+          animationType="slide"
+          transparent={false}
+          onRequestClose={() => setMostrarMapa(false)}
+        >
+          <MapaZonasPermitidas
+            departamento={departamentoActivo}
+            departamentos={departamentos}
+            ubicacionActual={ubicacionActual}
+            onClose={() => setMostrarMapa(false)}
+            onDepartamentoSeleccionado={(depto) => setDepartamentoActivo(depto)}
+            darkMode={darkMode}
+          />
+        </Modal>
+      )}
     </>
   );
 };
@@ -932,6 +1002,102 @@ const registerStyles = StyleSheet.create({
     fontSize: 12,
     color: '#9ca3af',
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  modalCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  departamentosList: {
+    padding: 16,
+  },
+  departamentoItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 14,
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  departamentoItemActivo: {
+    backgroundColor: '#ecfdf5',
+    borderColor: '#10b981',
+  },
+  departamentoInfo: {
+    flex: 1,
+    gap: 6,
+  },
+  departamentoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  departamentoNombre: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1f2937',
+    flex: 1,
+  },
+  departamentoNombreActivo: {
+    color: '#059669',
+  },
+  departamentoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingLeft: 28,
+  },
+  departamentoBadgeText: {
+    fontSize: 12,
+    color: '#10b981',
+    fontWeight: '500',
+  },
+  viewMapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    backgroundColor: '#eff6ff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  viewMapText: {
+    fontSize: 13,
+    color: '#3b82f6',
+    fontWeight: '500',
+  },
 });
 
 const registerStylesDark = StyleSheet.create({
@@ -955,6 +1121,34 @@ const registerStylesDark = StyleSheet.create({
   lastRegisterIcon: {
     ...registerStyles.lastRegisterIcon,
     backgroundColor: '#374151',
+  },
+  modalContent: {
+    ...registerStyles.modalContent,
+    backgroundColor: '#1f2937',
+  },
+  modalHeader: {
+    ...registerStyles.modalHeader,
+    borderBottomColor: '#374151',
+  },
+  modalTitle: {
+    ...registerStyles.modalTitle,
+    color: '#fff',
+  },
+  modalCloseButton: {
+    ...registerStyles.modalCloseButton,
+    backgroundColor: '#374151',
+  },
+  departamentoItem: {
+    ...registerStyles.departamentoItem,
+    backgroundColor: '#374151',
+  },
+  departamentoItemActivo: {
+    ...registerStyles.departamentoItemActivo,
+    backgroundColor: '#1e3a2f',
+  },
+  departamentoNombre: {
+    ...registerStyles.departamentoNombre,
+    color: '#fff',
   },
 });
 

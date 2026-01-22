@@ -24,8 +24,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [mostrarDepartamentos, setMostrarDepartamentos] = useState(false);
   
   const [ubicacionActual, setUbicacionActual] = useState(null);
-  const [departamentos, setDepartamentos] = useState([]); // Array de departamentos
-  const [departamentoActivo, setDepartamentoActivo] = useState(null); // Departamento donde está el usuario
+  const [departamentos, setDepartamentos] = useState([]);
+  const [departamentosDisponibles, setDepartamentosDisponibles] = useState([]); // Departamentos donde está el usuario
+  const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState(null); // Para registro
   const [horarioInfo, setHorarioInfo] = useState(null);
   const [toleranciaInfo, setToleranciaInfo] = useState(null);
   const [ultimoRegistroHoy, setUltimoRegistroHoy] = useState(null);
@@ -202,7 +203,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         return [];
       }
 
-      // Obtener detalles completos de cada departamento
       const promesas = departamentosAsignados.map(async (depto) => {
         try {
           const response = await fetch(
@@ -419,15 +419,16 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     };
   }, []);
 
-  // Verificar en qué departamento está el usuario
+  // Verificar en qué departamentos está el usuario
   useEffect(() => {
     if (!ubicacionActual || !departamentos.length) {
       setDentroDelArea(false);
-      setDepartamentoActivo(null);
+      setDepartamentosDisponibles([]);
+      setDepartamentoSeleccionado(null);
       return;
     }
 
-    let encontrado = false;
+    const deptsDisponibles = [];
 
     for (const depto of departamentos) {
       try {
@@ -437,19 +438,24 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         const dentro = isPointInPolygon(ubicacionActual, coordenadas);
         
         if (dentro) {
-          setDentroDelArea(true);
-          setDepartamentoActivo(depto);
-          encontrado = true;
-          break;
+          deptsDisponibles.push(depto);
         }
       } catch (err) {
         continue;
       }
     }
 
-    if (!encontrado) {
-      setDentroDelArea(false);
-      setDepartamentoActivo(null);
+    setDepartamentosDisponibles(deptsDisponibles);
+    setDentroDelArea(deptsDisponibles.length > 0);
+    
+    // Si hay departamentos disponibles y no hay uno seleccionado, seleccionar el primero
+    if (deptsDisponibles.length > 0 && !departamentoSeleccionado) {
+      setDepartamentoSeleccionado(deptsDisponibles[0]);
+    }
+    
+    // Si el departamento seleccionado ya no está disponible, cambiar al primero disponible
+    if (departamentoSeleccionado && !deptsDisponibles.find(d => d.id === departamentoSeleccionado.id)) {
+      setDepartamentoSeleccionado(deptsDisponibles[0] || null);
     }
   }, [ubicacionActual, departamentos]);
 
@@ -459,11 +465,13 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       return;
     }
 
-    if (!puedeRegistrar || !dentroDelArea) {
+    if (!puedeRegistrar || !dentroDelArea || !departamentoSeleccionado) {
       let mensaje = 'No puedes registrar en este momento';
       
       if (!dentroDelArea) {
         mensaje = 'Debes estar dentro de un área permitida';
+      } else if (!departamentoSeleccionado) {
+        mensaje = 'Selecciona un departamento para registrar';
       } else if (jornadaCompletada) {
         mensaje = 'Ya completaste tu jornada de hoy';
       } else if (estadoHorario === 'fuera_horario') {
@@ -496,7 +504,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
     Alert.alert(
       `Confirmar ${tipoTexto}`,
-      `¿Deseas registrar tu ${tipoTexto.toLowerCase()}?\n\n${estadoMensaje}\n\nUbicación: ${departamentoActivo?.nombre || 'Desconocida'}\nHora: ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
+      `¿Deseas registrar tu ${tipoTexto.toLowerCase()}?\n\n${estadoMensaje}\n\nDepartamento: ${departamentoSeleccionado.nombre}\nHora: ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -508,7 +516,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
               const payload = {
                 empleado_id: empleadoId,
                 dispositivo_origen: 'movil',
-                ubicacion: [ubicacionActual.lat, ubicacionActual.lng]
+                ubicacion: [ubicacionActual.lat, ubicacionActual.lng],
+                departamento_id: departamentoSeleccionado.id
               };
 
               const response = await fetch(`${API_URL}/asistencias/registrar`, {
@@ -573,7 +582,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
               Alert.alert(
                 '¡Éxito!',
-                `${emoji} ${tipoSiguienteRegistro === 'entrada' ? 'Entrada' : 'Salida'} registrada como ${estadoTexto}\nHora: ${new Date(data.data?.fecha_registro).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
+                `${emoji} ${tipoSiguienteRegistro === 'entrada' ? 'Entrada' : 'Salida'} registrada como ${estadoTexto}\nDepartamento: ${departamentoSeleccionado.nombre}\nHora: ${new Date(data.data?.fecha_registro).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
                 [{ text: 'OK' }]
               );
 
@@ -629,7 +638,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     return `Registrar ${tipoSiguienteRegistro === 'entrada' ? 'Entrada' : 'Salida'}`;
   };
 
-  const puedePresionarBoton = puedeRegistrar && dentroDelArea && !jornadaCompletada && !registrando;
+  const puedePresionarBoton = puedeRegistrar && dentroDelArea && !jornadaCompletada && !registrando && departamentoSeleccionado;
 
   return (
     <>
@@ -710,7 +719,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             </View>
           )}
 
-          {!loading && departamentos.length > 0 && (
+          {!loading && departamentosDisponibles.length > 0 && (
             <>
               <TouchableOpacity 
                 style={styles.locationInfo}
@@ -719,12 +728,14 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
               >
                 <Ionicons name="location" size={14} color="#6b7280" />
                 <Text style={styles.locationText} numberOfLines={1}>
-                  {departamentoActivo 
-                    ? departamentoActivo.nombre 
-                    : `${departamentos.length} ${departamentos.length === 1 ? 'departamento' : 'departamentos'}`
+                  {departamentoSeleccionado 
+                    ? departamentoSeleccionado.nombre 
+                    : `${departamentosDisponibles.length} ${departamentosDisponibles.length === 1 ? 'disponible' : 'disponibles'}`
                   }
                 </Text>
-                <Ionicons name="chevron-down" size={14} color="#6b7280" style={{ marginLeft: 4 }} />
+                {departamentosDisponibles.length > 1 && (
+                  <Ionicons name="chevron-down" size={14} color="#6b7280" style={{ marginLeft: 4 }} />
+                )}
               </TouchableOpacity>
 
               {departamentos.length > 1 && (
@@ -787,8 +798,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         </View>
       </View>
 
-      {/* Modal de lista de departamentos */}
-      {departamentos.length > 0 && (
+      {/* Modal de lista de departamentos disponibles */}
+      {departamentosDisponibles.length > 0 && (
         <Modal
           visible={mostrarDepartamentos}
           animationType="slide"
@@ -806,7 +817,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
               onPress={(e) => e.stopPropagation()}
             >
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Departamentos Asignados</Text>
+                <Text style={styles.modalTitle}>Departamentos Disponibles</Text>
                 <TouchableOpacity 
                   onPress={() => setMostrarDepartamentos(false)}
                   style={styles.modalCloseButton}
@@ -816,18 +827,18 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
               </View>
 
               <ScrollView style={styles.departamentosList}>
-                {departamentos.map((depto, index) => {
-                  const esActivo = departamentoActivo?.id === depto.id;
+                {departamentosDisponibles.map((depto, index) => {
+                  const esSeleccionado = departamentoSeleccionado?.id === depto.id;
                   
                   return (
                     <TouchableOpacity
                       key={depto.id || index}
                       style={[
                         styles.departamentoItem,
-                        esActivo && styles.departamentoItemActivo
+                        esSeleccionado && styles.departamentoItemActivo
                       ]}
                       onPress={() => {
-                        setMostrarMapa(true);
+                        setDepartamentoSeleccionado(depto);
                         setMostrarDepartamentos(false);
                       }}
                       activeOpacity={0.7}
@@ -835,38 +846,47 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                       <View style={styles.departamentoInfo}>
                         <View style={styles.departamentoHeader}>
                           <Ionicons 
-                            name={esActivo ? 'location' : 'location-outline'} 
+                            name={esSeleccionado ? 'location' : 'location-outline'} 
                             size={20} 
-                            color={esActivo ? '#10b981' : '#6b7280'} 
+                            color={esSeleccionado ? '#10b981' : '#6b7280'} 
                           />
                           <Text style={[
                             styles.departamentoNombre,
-                            esActivo && styles.departamentoNombreActivo
+                            esSeleccionado && styles.departamentoNombreActivo
                           ]}>
                             {depto.nombre}
                           </Text>
                         </View>
                         
-                        {esActivo && (
+                        {esSeleccionado && (
                           <View style={styles.departamentoBadge}>
                             <Ionicons name="checkmark-circle" size={14} color="#10b981" />
-                            <Text style={styles.departamentoBadgeText}>Ubicación actual</Text>
+                            <Text style={styles.departamentoBadgeText}>Seleccionado para registro</Text>
                           </View>
                         )}
                       </View>
 
-                      <Ionicons name="map" size={20} color="#9ca3af" />
+                      <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
                     </TouchableOpacity>
                   );
                 })}
               </ScrollView>
+
+              <View style={styles.modalFooter}>
+                <View style={styles.infoBox}>
+                  <Ionicons name="information-circle" size={16} color="#3b82f6" />
+                  <Text style={styles.infoBoxText}>
+                    Estás dentro de {departamentosDisponibles.length} {departamentosDisponibles.length === 1 ? 'departamento' : 'departamentos'}. Selecciona uno para registrar.
+                  </Text>
+                </View>
+              </View>
             </TouchableOpacity>
           </TouchableOpacity>
         </Modal>
       )}
 
       {/* Modal de mapa */}
-      {(departamentoActivo || departamentos.length > 0) && (
+      {departamentos.length > 0 && (
         <Modal
           visible={mostrarMapa}
           animationType="slide"
@@ -874,11 +894,16 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           onRequestClose={() => setMostrarMapa(false)}
         >
           <MapaZonasPermitidas
-            departamento={departamentoActivo}
+            departamento={departamentoSeleccionado}
             departamentos={departamentos}
             ubicacionActual={ubicacionActual}
             onClose={() => setMostrarMapa(false)}
-            onDepartamentoSeleccionado={(depto) => setDepartamentoActivo(depto)}
+            onDepartamentoSeleccionado={(depto) => {
+              // Solo permitir seleccionar si está dentro
+              if (departamentosDisponibles.find(d => d.id === depto.id)) {
+                setDepartamentoSeleccionado(depto);
+              }
+            }}
             darkMode={darkMode}
           />
         </Modal>
@@ -1012,7 +1037,6 @@ const registerStyles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '70%',
-    paddingBottom: 20,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1082,6 +1106,27 @@ const registerStyles = StyleSheet.create({
     color: '#10b981',
     fontWeight: '500',
   },
+  modalFooter: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    backgroundColor: '#eff6ff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  infoBoxText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#1e40af',
+    lineHeight: 16,
+  },
   viewMapButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1149,6 +1194,19 @@ const registerStylesDark = StyleSheet.create({
   departamentoNombre: {
     ...registerStyles.departamentoNombre,
     color: '#fff',
+  },
+  modalFooter: {
+    ...registerStyles.modalFooter,
+    borderTopColor: '#374151',
+  },
+  infoBox: {
+    ...registerStyles.infoBox,
+    backgroundColor: '#1e3a5f',
+    borderColor: '#3b82f6',
+  },
+  infoBoxText: {
+    ...registerStyles.infoBoxText,
+    color: '#93c5fd',
   },
 });
 

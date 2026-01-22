@@ -8,7 +8,7 @@ import path from 'path';
 import os from 'os';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -736,5 +736,414 @@ ipcMain.handle('registrar-descriptor-facial', async (event, empleadoId, descript
       message: `Error de conexión: ${error.message}`,
       error: error.toString(),
     };
+  }
+});
+
+// ===== Detección de Dispositivos USB =====
+
+/**
+ * Detectar dispositivos USB conectados al sistema
+ * En Windows usa WMIC, en Linux/Mac usa lsusb o system_profiler
+ */
+ipcMain.handle('detect-usb-devices', async () => {
+  try {
+    console.log('[USB] Detectando dispositivos USB conectados...');
+    const devices = [];
+
+    if (process.platform === 'win32') {
+      // Windows: Usar PowerShell para obtener información detallada de dispositivos USB
+      try {
+        // Obtener dispositivos USB con PowerShell - incluir más clases
+        const psCommand = `
+          Get-PnpDevice -Status OK 2>$null |
+          Where-Object { $_.Class -match 'USB|Biometric|Camera|Image|SmartCard|HID|Sensor|WPD|Media|Ports' -or $_.InstanceId -match 'USB' } |
+          Select-Object Class, FriendlyName, InstanceId, Status |
+          ConvertTo-Json -Compress
+        `;
+
+        const result = execSync(`powershell -Command "${psCommand}"`, {
+          encoding: 'utf8',
+          timeout: 10000,
+          windowsHide: true
+        });
+
+        if (result && result.trim()) {
+          const parsed = JSON.parse(result);
+          const deviceList = Array.isArray(parsed) ? parsed : [parsed];
+
+          console.log(`[USB] Total dispositivos encontrados por PowerShell: ${deviceList.length}`);
+
+          for (const dev of deviceList) {
+            if (!dev.FriendlyName) continue;
+
+            const name = dev.FriendlyName;
+            const nameLower = name.toLowerCase();
+            const classLower = (dev.Class || '').toLowerCase();
+            const instanceLower = (dev.InstanceId || '').toLowerCase();
+
+            // Log para diagnóstico
+            console.log(`[USB] Analizando: "${name}" | Clase: ${dev.Class} | Instance: ${dev.InstanceId?.substring(0, 50)}...`);
+
+            // Detectar tipo de dispositivo basado en nombre y clase
+            let type = 'unknown';
+            let connection = 'USB';
+
+            // Lectores de huella - ampliar detección
+            if (nameLower.includes('fingerprint') ||
+                nameLower.includes('biometric') ||
+                nameLower.includes('huella') ||
+                nameLower.includes('digital persona') ||
+                nameLower.includes('digitalpersona') ||
+                nameLower.includes('u.are.u') ||
+                nameLower.includes('uareu') ||
+                nameLower.includes('eikon') ||
+                nameLower.includes('secugen') ||
+                nameLower.includes('suprema') ||
+                nameLower.includes('zkteco') ||
+                nameLower.includes('zk ') ||
+                nameLower.includes('anviz') ||
+                nameLower.includes('morpho') ||
+                nameLower.includes('crossmatch') ||
+                nameLower.includes('nitgen') ||
+                nameLower.includes('futronic') ||
+                nameLower.includes('sensor') && nameLower.includes('finger') ||
+                classLower === 'biometric' ||
+                classLower.includes('biometric')) {
+              type = 'fingerprint';
+            }
+            // Cámaras
+            else if (nameLower.includes('camera') ||
+                     nameLower.includes('webcam') ||
+                     nameLower.includes('cámara') ||
+                     nameLower.includes('imaging') ||
+                     nameLower.includes('video') ||
+                     nameLower.includes('cam ') ||
+                     nameLower.includes('logitech') && !nameLower.includes('keyboard') && !nameLower.includes('mouse') ||
+                     classLower === 'camera' ||
+                     classLower === 'image' ||
+                     classLower.includes('camera')) {
+              type = 'camera';
+            }
+            // Lectores RFID / Smart Card
+            else if (nameLower.includes('rfid') ||
+                     nameLower.includes('card reader') ||
+                     nameLower.includes('smart card') ||
+                     nameLower.includes('smartcard') ||
+                     nameLower.includes('nfc') ||
+                     nameLower.includes('mifare') ||
+                     nameLower.includes('proximity') ||
+                     nameLower.includes('contactless') ||
+                     classLower === 'smartcardreader' ||
+                     classLower.includes('smartcard')) {
+              type = 'rfid';
+            }
+            // Escáneres
+            else if (nameLower.includes('scanner') ||
+                     nameLower.includes('escáner') ||
+                     nameLower.includes('scan') && !nameLower.includes('keyboard')) {
+              type = 'scanner';
+            }
+
+            // Filtrar dispositivos USB genéricos y hubs
+            const isGenericOrHub = (
+              nameLower.includes('hub') ||
+              nameLower.includes('root') ||
+              nameLower.includes('host controller') ||
+              nameLower.includes('composite device') ||
+              nameLower.includes('generic usb') ||
+              nameLower.includes('usb input device') && !nameLower.includes('biometric') ||
+              nameLower.includes('mass storage') ||
+              nameLower.includes('disk drive') ||
+              nameLower.includes('keyboard') ||
+              nameLower.includes('mouse') ||
+              nameLower.includes('audio') ||
+              nameLower.includes('bluetooth') ||
+              nameLower.includes('wireless')
+            );
+
+            if (isGenericOrHub && type === 'unknown') {
+              continue; // Ignorar hubs y controladores genéricos
+            }
+
+            // Si es un dispositivo USB que no reconocemos pero tiene características interesantes, incluirlo
+            if (type === 'unknown') {
+              // Verificar si está conectado por USB y tiene un nombre interesante
+              if (instanceLower.includes('usb') &&
+                  !isGenericOrHub &&
+                  name.length > 5) {
+                // Podría ser un dispositivo relevante no reconocido
+                console.log(`[USB] Dispositivo USB no clasificado: "${name}"`);
+              }
+              continue;
+            }
+
+            // Agregar dispositivos relevantes
+            devices.push({
+              id: Date.now() + Math.random(),
+              name: name,
+              type: type,
+              connection: connection,
+              ip: '',
+              port: '',
+              deviceClass: dev.Class || 'USB',
+              instanceId: dev.InstanceId || '',
+              detected: true
+            });
+
+            console.log(`[USB] ✓ Dispositivo detectado: "${name}" -> Tipo: ${type}`);
+          }
+        }
+      } catch (psError) {
+        console.error('[USB] Error con PowerShell, intentando WMIC:', psError.message);
+
+        // Fallback a WMIC
+        try {
+          const wmicResult = execSync('wmic path Win32_PnPEntity where "Status=\'OK\'" get Name,DeviceID,PNPClass /format:csv', {
+            encoding: 'utf8',
+            timeout: 10000,
+            windowsHide: true
+          });
+
+          const lines = wmicResult.split('\n').filter(line => line.trim());
+
+          for (const line of lines.slice(1)) { // Skip header
+            const parts = line.split(',');
+            if (parts.length < 4) continue;
+
+            const [, deviceId, name, pnpClass] = parts;
+            if (!name || !deviceId) continue;
+
+            const nameLower = name.toLowerCase();
+            const classLower = (pnpClass || '').toLowerCase();
+
+            // Misma lógica de detección
+            let type = 'unknown';
+
+            if (nameLower.includes('fingerprint') || nameLower.includes('biometric') || classLower === 'biometric') {
+              type = 'fingerprint';
+            } else if (nameLower.includes('camera') || nameLower.includes('webcam') || classLower === 'camera' || classLower === 'image') {
+              type = 'camera';
+            } else if (nameLower.includes('rfid') || nameLower.includes('smart card') || classLower === 'smartcardreader') {
+              type = 'rfid';
+            } else if (nameLower.includes('scanner')) {
+              type = 'scanner';
+            }
+
+            if (type !== 'unknown') {
+              devices.push({
+                id: Date.now() + Math.random(),
+                name: name.trim(),
+                type: type,
+                connection: 'USB',
+                ip: '',
+                port: '',
+                deviceClass: pnpClass || 'USB',
+                instanceId: deviceId || '',
+                detected: true
+              });
+            }
+          }
+        } catch (wmicError) {
+          console.error('[USB] Error con WMIC:', wmicError.message);
+        }
+      }
+    } else if (process.platform === 'darwin') {
+      // macOS: Usar system_profiler
+      try {
+        const result = execSync('system_profiler SPUSBDataType -json', {
+          encoding: 'utf8',
+          timeout: 10000
+        });
+
+        const data = JSON.parse(result);
+        const usbData = data.SPUSBDataType || [];
+
+        const processUSBItems = (items) => {
+          for (const item of items) {
+            const name = item._name || '';
+            const nameLower = name.toLowerCase();
+
+            let type = 'unknown';
+
+            if (nameLower.includes('fingerprint') || nameLower.includes('biometric')) {
+              type = 'fingerprint';
+            } else if (nameLower.includes('camera') || nameLower.includes('facetime')) {
+              type = 'camera';
+            } else if (nameLower.includes('rfid') || nameLower.includes('card reader')) {
+              type = 'rfid';
+            } else if (nameLower.includes('scanner')) {
+              type = 'scanner';
+            }
+
+            if (type !== 'unknown') {
+              devices.push({
+                id: Date.now() + Math.random(),
+                name: name,
+                type: type,
+                connection: 'USB',
+                ip: '',
+                port: '',
+                detected: true
+              });
+            }
+
+            // Procesar dispositivos hijos recursivamente
+            if (item._items) {
+              processUSBItems(item._items);
+            }
+          }
+        };
+
+        processUSBItems(usbData);
+      } catch (macError) {
+        console.error('[USB] Error en macOS:', macError.message);
+      }
+    } else {
+      // Linux: Usar lsusb
+      try {
+        const result = execSync('lsusb -v 2>/dev/null || lsusb', {
+          encoding: 'utf8',
+          timeout: 10000
+        });
+
+        const lines = result.split('\n');
+
+        for (const line of lines) {
+          const nameLower = line.toLowerCase();
+          let type = 'unknown';
+
+          if (nameLower.includes('fingerprint') || nameLower.includes('biometric')) {
+            type = 'fingerprint';
+          } else if (nameLower.includes('camera') || nameLower.includes('webcam')) {
+            type = 'camera';
+          } else if (nameLower.includes('rfid') || nameLower.includes('card reader')) {
+            type = 'rfid';
+          } else if (nameLower.includes('scanner')) {
+            type = 'scanner';
+          }
+
+          if (type !== 'unknown') {
+            // Extraer nombre del dispositivo de la línea lsusb
+            const match = line.match(/ID \w+:\w+ (.+)/);
+            const name = match ? match[1].trim() : line.trim();
+
+            devices.push({
+              id: Date.now() + Math.random(),
+              name: name,
+              type: type,
+              connection: 'USB',
+              ip: '',
+              port: '',
+              detected: true
+            });
+          }
+        }
+      } catch (linuxError) {
+        console.error('[USB] Error en Linux:', linuxError.message);
+      }
+    }
+
+    console.log(`\n[USB] ========== RESUMEN ==========`);
+    console.log(`[USB] Dispositivos detectados: ${devices.length}`);
+    devices.forEach(d => console.log(`  - ${d.name} (${d.type})`));
+    console.log(`[USB] ================================\n`);
+
+    return {
+      success: true,
+      devices: devices,
+      count: devices.length
+    };
+  } catch (error) {
+    console.error('[USB] Error detectando dispositivos:', error);
+    return {
+      success: false,
+      devices: [],
+      error: error.message
+    };
+  }
+});
+
+/**
+ * Listar TODOS los dispositivos USB para diagnóstico
+ */
+ipcMain.handle('list-all-usb-devices', async () => {
+  try {
+    console.log('[USB-DEBUG] Listando TODOS los dispositivos USB...\n');
+
+    if (process.platform === 'win32') {
+      // Obtener todos los dispositivos conectados por USB
+      const psCommand = `
+        Get-PnpDevice -Status OK 2>$null |
+        Where-Object { $_.InstanceId -match 'USB' } |
+        Select-Object Class, FriendlyName, InstanceId |
+        ConvertTo-Json
+      `;
+
+      const result = execSync(`powershell -Command "${psCommand}"`, {
+        encoding: 'utf8',
+        timeout: 15000,
+        windowsHide: true
+      });
+
+      if (result && result.trim()) {
+        const parsed = JSON.parse(result);
+        const deviceList = Array.isArray(parsed) ? parsed : [parsed];
+
+        console.log(`[USB-DEBUG] Total dispositivos USB: ${deviceList.length}\n`);
+
+        deviceList.forEach((dev, i) => {
+          if (dev.FriendlyName) {
+            console.log(`${i + 1}. ${dev.FriendlyName}`);
+            console.log(`   Clase: ${dev.Class || 'N/A'}`);
+            console.log(`   ID: ${dev.InstanceId || 'N/A'}\n`);
+          }
+        });
+
+        return {
+          success: true,
+          devices: deviceList.filter(d => d.FriendlyName).map(d => ({
+            name: d.FriendlyName,
+            class: d.Class,
+            instanceId: d.InstanceId
+          }))
+        };
+      }
+    }
+
+    return { success: true, devices: [] };
+  } catch (error) {
+    console.error('[USB-DEBUG] Error:', error.message);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Verificar si el servidor biométrico está activo
+ */
+ipcMain.handle('check-biometric-server', async () => {
+  try {
+    // Verificar conexión WebSocket al servidor biométrico
+    const WebSocket = (await import('ws')).default;
+
+    return new Promise((resolve) => {
+      const ws = new WebSocket('ws://localhost:8787/');
+      const timeout = setTimeout(() => {
+        ws.close();
+        resolve({ connected: false, message: 'Timeout al conectar' });
+      }, 3000);
+
+      ws.on('open', () => {
+        clearTimeout(timeout);
+        ws.close();
+        resolve({ connected: true, message: 'Servidor biométrico activo' });
+      });
+
+      ws.on('error', (error) => {
+        clearTimeout(timeout);
+        resolve({ connected: false, message: error.message });
+      });
+    });
+  } catch (error) {
+    return { connected: false, message: error.message };
   }
 });

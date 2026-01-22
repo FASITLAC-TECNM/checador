@@ -186,32 +186,50 @@ export default function BiometricReader({
       // Usar la misma URL que el servicio de autenticación
       const API_BASE = "https://9dm7dqf9-3002.usw3.devtunnels.ms/api";
 
-      // Obtener datos del empleado
-      const empleadoResponse = await fetch(`${API_BASE}/empleados/${empleadoId}`);
+      // Usar endpoint de autenticación biométrica (devuelve token + datos)
+      const authResponse = await fetch(`${API_BASE}/auth/biometric`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ empleado_id: empleadoId }),
+      });
 
-      if (!empleadoResponse.ok) {
-        throw new Error("Error al obtener datos del empleado");
+      if (!authResponse.ok) {
+        const errorData = await authResponse.json().catch(() => ({}));
+        throw new Error(errorData.message || "Error al autenticar");
       }
 
-      const empleado = await empleadoResponse.json();
-      console.log("👤 Empleado identificado:", empleado);
+      const result = await authResponse.json();
 
-      addMessage(`✅ Bienvenido, ${empleado.nombre || empleado.id_usuario}`, "success");
+      if (!result.success) {
+        throw new Error(result.message || "Error en autenticación");
+      }
 
-      // Guardar sesión
-      guardarSesion({
+      const empleado = result.data;
+      console.log("👤 Empleado autenticado:", empleado);
+
+      // Guardar token en localStorage
+      if (empleado.token) {
+        localStorage.setItem('auth_token', empleado.token);
+        console.log("🔑 Token guardado");
+      }
+
+      addMessage(`✅ Bienvenido, ${empleado.nombre || empleado.usuario}`, "success");
+
+      // Preparar datos completos del usuario para la sesión
+      const usuarioCompleto = {
         ...empleado,
         matchScore: matchScore,
         metodoAutenticacion: "HUELLA",
-      });
+      };
+
+      // Guardar sesión
+      guardarSesion(usuarioCompleto);
 
       // Callback de autenticación exitosa
       if (onAuthSuccess) {
-        onAuthSuccess({
-          ...empleado,
-          matchScore: matchScore,
-          metodoAutenticacion: "HUELLA",
-        });
+        onAuthSuccess(usuarioCompleto);
       }
 
       // Cerrar el modal después de 1.5 segundos

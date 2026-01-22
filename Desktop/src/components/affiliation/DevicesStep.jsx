@@ -1,4 +1,5 @@
-import { Wifi, Info } from "lucide-react";
+import { useState } from "react";
+import { Wifi, Info, Search, Loader2, Usb, CheckCircle2, AlertCircle } from "lucide-react";
 import StepIndicator from "./StepIndicator";
 
 export default function DevicesStep({
@@ -8,6 +9,9 @@ export default function DevicesStep({
   onPrevious,
   onShowWelcome,
 }) {
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [detectionStatus, setDetectionStatus] = useState(null);
+
   const addDevice = () => {
     setDevices([
       ...devices,
@@ -20,6 +24,70 @@ export default function DevicesStep({
         connection: "USB",
       },
     ]);
+  };
+
+  const detectUSBDevices = async () => {
+    setIsDetecting(true);
+    setDetectionStatus(null);
+
+    try {
+      // Verificar si estamos en Electron
+      if (!window.electronAPI || !window.electronAPI.detectUSBDevices) {
+        setDetectionStatus({
+          type: 'warning',
+          message: 'La detección automática solo está disponible en la aplicación de escritorio'
+        });
+        setIsDetecting(false);
+        return;
+      }
+
+      const result = await window.electronAPI.detectUSBDevices();
+
+      if (result.success && result.devices.length > 0) {
+        // Filtrar dispositivos que ya existen (por nombre)
+        const existingNames = devices.map(d => d.name.toLowerCase());
+        const newDevices = result.devices.filter(
+          d => !existingNames.includes(d.name.toLowerCase())
+        );
+
+        if (newDevices.length > 0) {
+          // Asignar IDs únicos a los nuevos dispositivos
+          const devicesWithIds = newDevices.map((d, index) => ({
+            ...d,
+            id: devices.length + index + 1,
+          }));
+
+          setDevices([...devices, ...devicesWithIds]);
+          setDetectionStatus({
+            type: 'success',
+            message: `Se detectaron ${newDevices.length} dispositivo(s) nuevo(s)`
+          });
+        } else {
+          setDetectionStatus({
+            type: 'info',
+            message: 'No se encontraron dispositivos nuevos. Los detectados ya están en la lista.'
+          });
+        }
+      } else if (result.success && result.devices.length === 0) {
+        setDetectionStatus({
+          type: 'info',
+          message: 'No se detectaron lectores biométricos o cámaras USB conectados'
+        });
+      } else {
+        setDetectionStatus({
+          type: 'error',
+          message: result.error || 'Error al detectar dispositivos'
+        });
+      }
+    } catch (error) {
+      console.error('Error detectando dispositivos:', error);
+      setDetectionStatus({
+        type: 'error',
+        message: 'Error al detectar dispositivos: ' + error.message
+      });
+    } finally {
+      setIsDetecting(false);
+    }
   };
 
   const updateDevice = (id, field, value) => {
@@ -73,20 +141,65 @@ export default function DevicesStep({
                   dispositivos de entrada
                 </p>
               </div>
-              <button
-                onClick={addDevice}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
-              >
-                + Agregar
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={detectUSBDevices}
+                  disabled={isDetecting}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Detectar dispositivos USB conectados"
+                >
+                  {isDetecting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )}
+                  {isDetecting ? 'Detectando...' : 'Detectar USB'}
+                </button>
+                <button
+                  onClick={addDevice}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+                >
+                  + Agregar
+                </button>
+              </div>
             </div>
+
+            {/* Mensaje de estado de detección */}
+            {detectionStatus && (
+              <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${
+                detectionStatus.type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
+                detectionStatus.type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
+                detectionStatus.type === 'warning' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                'bg-blue-100 text-blue-800 border border-blue-200'
+              }`}>
+                {detectionStatus.type === 'success' && <CheckCircle2 className="w-5 h-5" />}
+                {detectionStatus.type === 'error' && <AlertCircle className="w-5 h-5" />}
+                {detectionStatus.type === 'warning' && <AlertCircle className="w-5 h-5" />}
+                {detectionStatus.type === 'info' && <Usb className="w-5 h-5" />}
+                <span className="text-sm">{detectionStatus.message}</span>
+                <button
+                  onClick={() => setDetectionStatus(null)}
+                  className="ml-auto text-current opacity-60 hover:opacity-100"
+                >
+                  &times;
+                </button>
+              </div>
+            )}
 
             <div className="space-y-3">
               {devices.map((device) => (
                 <div
                   key={device.id}
-                  className="bg-bg-primary border-2 border-border-subtle rounded-lg p-4"
+                  className={`bg-bg-primary border-2 rounded-lg p-4 ${
+                    device.detected ? 'border-emerald-300 bg-emerald-50/30' : 'border-border-subtle'
+                  }`}
                 >
+                  {device.detected && (
+                    <div className="flex items-center gap-1 text-emerald-600 text-xs mb-2">
+                      <Usb className="w-3 h-3" />
+                      <span>Detectado automáticamente</span>
+                    </div>
+                  )}
                   <div className="grid grid-cols-5 gap-3">
                     <div className="col-span-2">
                       <label className="block text-xs font-medium text-text-secondary mb-1">
@@ -179,9 +292,10 @@ export default function DevicesStep({
               ))}
               {devices.length === 0 && (
                 <div className="text-center py-8 text-text-tertiary">
+                  <Usb className="w-12 h-12 mx-auto mb-3 opacity-40" />
                   <p className="mb-2">No hay dispositivos configurados</p>
                   <p className="text-sm">
-                    Haga clic en "Agregar" para añadir un dispositivo
+                    Haga clic en "Detectar USB" para buscar dispositivos conectados o "Agregar" para añadir uno manualmente
                   </p>
                 </div>
               )}

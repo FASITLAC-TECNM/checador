@@ -52,15 +52,11 @@ function LoginModal({ isOpen = true, onClose, onFacialLogin, onLoginSuccess }) {
             const result = await loginByPin(formData.usuario, formData.contrasena);
 
             if (result.success) {
-                setLoggedInUser(result.usuario);
-                setLoginSuccess(true);
-                setTimeout(() => {
-                    setLoginSuccess(false);
-                    if (onLoginSuccess) {
-                        onLoginSuccess(result.usuario);
-                    }
-                    onClose();
-                }, 2000);
+                // Cerrar inmediatamente sin mostrar mensaje de confirmación
+                if (onLoginSuccess) {
+                    onLoginSuccess(result.usuario);
+                }
+                onClose();
             } else {
                 setError(result.message || 'Error al iniciar sesion');
             }

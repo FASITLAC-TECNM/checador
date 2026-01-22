@@ -301,11 +301,11 @@ namespace BiometricMiddleware
                     return;
                 }
 
-                // Usar el endpoint de credenciales existente
-                Console.WriteLine($"[API] Cargando templates desde: {apiUrl}/credenciales");
+                // Usar el endpoint público de credenciales
+                Console.WriteLine($"[API] Cargando templates desde: {apiUrl}/credenciales/publico/lista");
                 await SendStatusUpdate("loading", "Cargando huellas registradas...");
 
-                var response = await _httpClient.GetAsync($"{apiUrl}/credenciales");
+                var response = await _httpClient.GetAsync($"{apiUrl}/credenciales/publico/lista");
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -342,8 +342,8 @@ namespace BiometricMiddleware
                 {
                     try
                     {
-                        // Obtener el template del empleado
-                        var templateResponse = await _httpClient.GetAsync($"{apiUrl}/credenciales/empleado/{credencial.EmpleadoId}/dactilar");
+                        // Obtener el template del empleado (ruta pública)
+                        var templateResponse = await _httpClient.GetAsync($"{apiUrl}/credenciales/publico/dactilar/{credencial.EmpleadoId}");
 
                         if (templateResponse.IsSuccessStatusCode)
                         {

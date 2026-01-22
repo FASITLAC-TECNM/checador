@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PersonalInfoScreen } from './personalinfo';
 import { TermsAndConditionsScreen } from './TermsAndConditionsScreen';
+import { SupportScreen } from './SupportScreen'; // <-- IMPORTAR
 
 // Función helper para obtener URL de foto
 const obtenerUrlFotoPerfil = (foto) => {
@@ -40,11 +41,11 @@ export const SettingsScreen = ({
 }) => {
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
+  const [showSupport, setShowSupport] = useState(false); // <-- NUEVO ESTADO
   const styles = darkMode ? settingsStylesDark : settingsStyles;
 
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
   
-  // ⭐ CORRECCIÓN: Determinar el rol correctamente
   const esEmpleado = userData.es_empleado && userData.empleado_id;
   const rolMostrar = esEmpleado
     ? 'Empleado'
@@ -52,7 +53,6 @@ export const SettingsScreen = ({
         ? userData.roles[0].nombre
         : (userData.esAdmin ? 'Administrador' : 'Usuario'));
 
-  // ⭐ CORRECCIÓN: Email viene directamente de userData.correo
   const emailMostrar = userData.correo || email || 'usuario@correo.com';
 
   // Si se está mostrando información personal
@@ -72,6 +72,17 @@ export const SettingsScreen = ({
       <TermsAndConditionsScreen 
         darkMode={darkMode}
         onBack={() => setShowTerms(false)}
+      />
+    );
+  }
+
+  // Si se está mostrando soporte <-- NUEVO
+  if (showSupport) {
+    return (
+      <SupportScreen 
+        userData={userData}
+        darkMode={darkMode}
+        onBack={() => setShowSupport(false)}
       />
     );
   }
@@ -123,7 +134,7 @@ export const SettingsScreen = ({
                   )}
                   <View style={[
                     styles.statusIndicator,
-                    { backgroundColor: '#10b981' } // ⭐ Siempre en línea mientras esté logueado
+                    { backgroundColor: '#10b981' }
                   ]} />
                 </View>
               </View>
@@ -272,7 +283,12 @@ export const SettingsScreen = ({
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+          {/* BOTÓN DE AYUDA Y SOPORTE - ACTUALIZADO */}
+          <TouchableOpacity 
+            style={styles.settingItem} 
+            onPress={() => setShowSupport(true)} // <-- CONECTAR AQUÍ
+            activeOpacity={0.7}
+          >
             <View style={styles.settingLeft}>
               <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#164e63' : '#cffafe' }]}>
                 <Ionicons name="help-circle-outline" size={22} color={darkMode ? '#67e8f9' : '#0891b2'} />
@@ -286,7 +302,7 @@ export const SettingsScreen = ({
           </TouchableOpacity>
         </View>
 
-        {/* Legal Section - NUEVA SECCIÓN */}
+        {/* Legal Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="document-text" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
@@ -326,7 +342,7 @@ export const SettingsScreen = ({
           <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
             <View style={styles.settingLeft}>
               <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#713f12' : '#fed7aa' }]}>
-                <Ionicons name="Reader-outline" size={22} color={darkMode ? '#fbbf24' : '#ea580c'} />
+                <Ionicons name="reader-outline" size={22} color={darkMode ? '#fbbf24' : '#ea580c'} />
               </View>
               <View style={styles.settingTextContainer}>
                 <Text style={styles.settingTitle}>Licencias</Text>
@@ -359,7 +375,7 @@ export const SettingsScreen = ({
               <Ionicons name="calendar" size={18} color="#6b7280" />
               <Text style={styles.infoLabel}>Última actualización</Text>
             </View>
-            <Text style={styles.infoValue}>17/12/2024</Text>
+            <Text style={styles.infoValue}>22/01/2026</Text>
           </View>
         </View>
 

@@ -6,37 +6,49 @@ import { getApiEndpoint } from "../config/apiEndPoint";
 const API_URL = getApiEndpoint("/api");
 
 /**
- * Generar un token único para la solicitud
+ * Generar un token de 6 caracteres para la solicitud
+ * @returns {string} - Token de 6 caracteres alfanuméricos
  */
 const generarToken = () => {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let token = '';
+  for (let i = 0; i < 6; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return token;
 };
 
 /**
  * Crear una solicitud de afiliación
  * @param {Object} datos - Datos de la solicitud
- * @param {string} datos.nombre - Nombre del equipo
- * @param {string} datos.descripcion - Descripción del equipo
- * @param {string} datos.ip - Dirección IP
- * @param {string} datos.mac - Dirección MAC
- * @param {string} datos.sistema_operativo - Sistema operativo
+ * @param {string} datos.nombre - Nombre del equipo (CHAR 55)
+ * @param {string} datos.descripcion - Descripción del equipo (TEXT)
+ * @param {string} datos.correo - Correo electrónico (CHAR 55, opcional)
+ * @param {string} datos.ip - Dirección IP (CHAR 12)
+ * @param {string} datos.mac - Dirección MAC (CHAR 12)
+ * @param {string} datos.sistema_operativo - Sistema operativo (CHAR 55)
+ * @param {string} datos.empresa_id - ID de la empresa (CHAR 8)
  * @returns {Promise<Object>} - Solicitud creada
  */
 export const crearSolicitudAfiliacion = async (datos) => {
   try {
     console.log("📝 Creando solicitud de afiliación:", datos);
 
+    const token = generarToken();
+
     const solicitud = {
-      nombre: datos.nombre,
+      tipo: "escritorio",
+      nombre: datos.nombre?.substring(0, 55) || "",
       descripcion: datos.descripcion || "",
-      ip: datos.ip,
-      mac: datos.mac,
-      sistema_operativo: datos.sistema_operativo || "",
-      token_solicitud: generarToken(),
-      estado: "Pendiente",
+      correo: datos.correo?.substring(0, 55) || null,
+      ip: datos.ip?.substring(0, 12) || "",
+      mac: datos.mac?.substring(0, 12) || "",
+      sistema_operativo: datos.sistema_operativo?.substring(0, 55) || "",
+      token: token,
+      empresa_id: datos.empresa_id?.substring(0, 8) || "",
     };
 
-    const response = await fetch(`${API_URL}/solicitudes-escritorio`, {
+    const response = await fetch(`${API_URL}/solicitudes`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -51,12 +63,30 @@ export const crearSolicitudAfiliacion = async (datos) => {
 
     const resultado = await response.json();
     console.log("✅ Solicitud creada exitosamente:", resultado);
+    console.log("📦 Estructura resultado.data:", resultado.data);
+    console.log("📦 Todos los campos de data:", JSON.stringify(resultado.data, null, 2));
+
+    // El backend devuelve { success, message, data: { id, token, ... } }
+    const solicitudData = resultado.data || resultado;
+    const solicitudId = solicitudData.id || solicitudData.solicitud_id || solicitudData.insertId;
+    // Usar el token que devuelve el backend (convertir a string por si es número)
+    const tokenBackend = solicitudData.token?.toString() || solicitudData.verification_token?.toString() || solicitudData.codigo?.toString();
+    const tokenFinal = tokenBackend || token;
+
+    console.log("🆔 ID extraído:", solicitudId);
+    console.log("🔑 Token del backend:", tokenBackend);
+    console.log("🔑 Token final a guardar:", tokenFinal);
+    console.log("🔍 Token enviado originalmente:", token);
 
     // Guardar el ID y token de la solicitud en localStorage
-    localStorage.setItem("solicitud_id", resultado.id);
-    localStorage.setItem("solicitud_token", resultado.token_solicitud);
+    if (solicitudId) {
+      localStorage.setItem("solicitud_id", solicitudId);
+      localStorage.setItem("solicitud_token", tokenFinal);
+    } else {
+      console.error("⚠️ No se pudo obtener el ID de la solicitud");
+    }
 
-    return resultado;
+    return { ...solicitudData, id: solicitudId, token: tokenFinal };
   } catch (error) {
     console.error("❌ Error al crear solicitud:", error);
     throw error;
@@ -64,22 +94,25 @@ export const crearSolicitudAfiliacion = async (datos) => {
 };
 
 /**
- * Obtener el estado de una solicitud
- * @param {number} solicitudId - ID de la solicitud
+ * Obtener el estado de una solicitud (endpoint público)
+ * @param {string} token - Token de verificación (CHAR 6)
  * @returns {Promise<Object>} - Estado de la solicitud
  */
-export const obtenerEstadoSolicitud = async (solicitudId) => {
+export const obtenerEstadoSolicitud = async (token) => {
   try {
-    const response = await fetch(
-      `${API_URL}/solicitudes-escritorio/${solicitudId}`
-    );
+    console.log("🔍 Consultando estado con token:", token);
+    const url = `${API_URL}/solicitudes/verificar/${token}`;
+    console.log("🔗 URL:", url);
+
+    const response = await fetch(url);
 
     if (!response.ok) {
       throw new Error("Error al obtener el estado de la solicitud");
     }
 
-    const solicitud = await response.json();
-    return solicitud;
+    const resultado = await response.json();
+    console.log("📋 Respuesta del servidor:", resultado);
+    return resultado.data || resultado;
   } catch (error) {
     console.error("❌ Error al obtener estado:", error);
     throw error;
@@ -96,7 +129,7 @@ export const obtenerSolicitudGuardada = () => {
 
   if (solicitudId && token) {
     return {
-      id: parseInt(solicitudId),
+      id: solicitudId,
       token: token,
     };
   }
@@ -114,12 +147,12 @@ export const limpiarSolicitudGuardada = () => {
 
 /**
  * Cancelar una solicitud pendiente
- * @param {number} solicitudId - ID de la solicitud
+ * @param {string} solicitudId - ID de la solicitud (CHAR 8)
  */
 export const cancelarSolicitud = async (solicitudId) => {
   try {
     const response = await fetch(
-      `${API_URL}/solicitudes-escritorio/${solicitudId}`,
+      `${API_URL}/solicitudes/${solicitudId}`,
       {
         method: "DELETE",
       }

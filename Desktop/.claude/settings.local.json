@@ -3,7 +3,8 @@
     "allow": [
       "Bash(ren:*)",
       "Bash(dotnet build:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(start \"\" \"C:\\\\Users\\\\paulx\\\\Documents\\\\GitHub\\\\checador\\\\Desktop\\\\electron\\\\BiometricMiddleware\\\\bin\\\\Release\\\\net48\\\\BiometricMiddleware.exe\")"
     ],
     "deny": [],
     "ask": []

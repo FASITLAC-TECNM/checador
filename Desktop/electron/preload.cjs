@@ -30,6 +30,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Reconocimiento de Huella Dactilar
   readFingerprintTemplate: (userId) => ipcRenderer.invoke('read-fingerprint-template', userId),
 
+  // Detección de dispositivos USB
+  detectUSBDevices: () => ipcRenderer.invoke('detect-usb-devices'),
+  listAllUSBDevices: () => ipcRenderer.invoke('list-all-usb-devices'),
+  checkBiometricServer: () => ipcRenderer.invoke('check-biometric-server'),
+
   // Información del entorno
   isElectron: true,
   platform: process.platform,

@@ -8,9 +8,7 @@ import {
   crearSolicitudAfiliacion,
   obtenerEstadoSolicitud,
   obtenerSolicitudGuardada,
-  cancelarSolicitud,
   limpiarSolicitudGuardada,
-  obtenerInfoSistema,
 } from "../services/affiliationService";
 
 export default function AffiliationRequest({ onComplete }) {
@@ -32,28 +30,33 @@ export default function AffiliationRequest({ onComplete }) {
   ]);
 
   const [companyId, setCompanyId] = useState("");
+  const [solicitudToken, setSolicitudToken] = useState(null);
 
   // Verificar si hay una solicitud guardada al iniciar
   useEffect(() => {
     const solicitudGuardada = obtenerSolicitudGuardada();
     if (solicitudGuardada) {
       setSolicitudId(solicitudGuardada.id);
+      setSolicitudToken(solicitudGuardada.token);
       setStep(4);
-      verificarEstadoSolicitud(solicitudGuardada.id);
+      verificarEstadoSolicitud(solicitudGuardada.token);
     }
   }, []);
 
-  // Verificar el estado de la solicitud
-  const verificarEstadoSolicitud = async (id) => {
+  // Verificar el estado de la solicitud usando el token
+  const verificarEstadoSolicitud = async (token) => {
     try {
-      const solicitud = await obtenerEstadoSolicitud(id);
+      const solicitud = await obtenerEstadoSolicitud(token);
+      console.log("📋 Estado de solicitud recibido:", solicitud);
 
-      if (solicitud.estado === "Aceptado") {
+      const estado = solicitud.estado?.toLowerCase();
+
+      if (estado === "aceptado") {
         setRequestStatus("approved");
         limpiarSolicitudGuardada();
-      } else if (solicitud.estado === "Rechazado") {
+      } else if (estado === "rechazado") {
         setRequestStatus("rejected");
-        setError(solicitud.motivo_rechazo || "Solicitud rechazada por el administrador");
+        setError(solicitud.observaciones || "Solicitud rechazada por el administrador");
       } else {
         setRequestStatus("pending");
       }
@@ -65,14 +68,14 @@ export default function AffiliationRequest({ onComplete }) {
 
   // Polling para verificar estado cada 5 segundos
   useEffect(() => {
-    if (step === 4 && requestStatus === "pending" && solicitudId) {
+    if (step === 4 && requestStatus === "pending" && solicitudToken) {
       const interval = setInterval(() => {
-        verificarEstadoSolicitud(solicitudId);
+        verificarEstadoSolicitud(solicitudToken);
       }, 5000);
 
       return () => clearInterval(interval);
     }
-  }, [step, requestStatus, solicitudId]);
+  }, [step, requestStatus, solicitudToken]);
 
   const handleSubmitRequest = async () => {
     try {
@@ -86,9 +89,13 @@ export default function AffiliationRequest({ onComplete }) {
         ip: nodeConfig.ipAddress || '127.0.0.1',
         mac: nodeConfig.macAddress || '00:00:00:00:00:00',
         sistema_operativo: nodeConfig.operatingSystem || 'Unknown',
+        empresa_id: companyId,
       });
 
       setSolicitudId(solicitud.id);
+      // Obtener el token guardado en localStorage
+      const tokenGuardado = localStorage.getItem("solicitud_token");
+      setSolicitudToken(tokenGuardado);
       setStep(4);
       setRequestStatus("pending");
     } catch (error) {
@@ -97,46 +104,29 @@ export default function AffiliationRequest({ onComplete }) {
     }
   };
 
-  const handleRetryRequest = async () => {
-    // 1. Intentar cancelar la solicitud previa si existe
-    if (solicitudId) {
-      try {
-        console.log('🗑️ Cancelando solicitud anterior antes de reenviar...');
-        await cancelarSolicitud(solicitudId);
-        
-        // IMPORTANTE: Limpiar también del almacenamiento local para evitar
-        // que si recarga la página, vuelva a cargar la solicitud cancelada.
-        limpiarSolicitudGuardada(); 
-        
-      } catch (error) {
-        console.error("Error al cancelar solicitud anterior:", error);
-        // Aunque falle la cancelación (ej. error de red), 
-        // permitimos al usuario continuar para reintentar.
-      }
-    }
+  const handleRetryRequest = () => {
+    // Limpiar datos locales de la solicitud anterior
+    limpiarSolicitudGuardada();
 
-    // 2. Resetear estados para permitir un nuevo envío limpio
+    // Resetear estados para permitir un nuevo envío limpio
     setError(null);
     setSolicitudId(null);
+    setSolicitudToken(null);
     setRequestStatus("pending");
 
-    // 3. Volver al paso de afiliación (Paso 3)
+    // Volver al paso de afiliación (Paso 3)
     setStep(3);
   };
 
-  const handleCancelRequest = async () => {
-    try {
-      if (solicitudId) {
-        await cancelarSolicitud(solicitudId);
-      }
-      setStep(3);
-      setRequestStatus("pending");
-      setError(null);
-      setSolicitudId(null);
-    } catch (error) {
-      console.error("Error al cancelar solicitud:", error);
-      setError("Error al cancelar la solicitud");
-    }
+  const handleCancelRequest = () => {
+    // Limpiar datos locales (no hay endpoint público para eliminar solicitudes)
+    limpiarSolicitudGuardada();
+    setSolicitudId(null);
+    setSolicitudToken(null);
+    setRequestStatus("pending");
+    setError(null);
+    // Volver al paso de afiliación
+    setStep(3);
   };
 
   if (showWelcome) {

@@ -2,13 +2,25 @@ import { getApiEndpoint } from '../config/api.js';
 
 const API_URL = getApiEndpoint('/api');
 
-export const registrarAsistencia = async (empleadoId, ubicacion, token) => {
+/**
+ * Registra asistencia de un empleado
+ * @param {string} empleadoId - ID del empleado
+ * @param {Object} ubicacion - {lat, lng}
+ * @param {string} token - Token de autenticación
+ * @param {string} departamentoId - ID del departamento (opcional, solo para metadata)
+ * @returns {Promise<Object>}
+ */
+export const registrarAsistencia = async (empleadoId, ubicacion, token, departamentoId = null) => {
     try {
+        // ✅ Solo enviamos los campos que la BD espera
         const payload = {
             empleado_id: empleadoId,
             dispositivo_origen: 'movil',
             ubicacion: ubicacion ? [ubicacion.lat, ubicacion.lng] : null
+            // NO enviamos departamento_id porque la tabla asistencias no lo tiene
         };
+
+        console.log('📤 Enviando asistencia:', payload);
 
         const response = await fetch(`${API_URL}/asistencias/registrar`, {
             method: 'POST',
@@ -19,12 +31,27 @@ export const registrarAsistencia = async (empleadoId, ubicacion, token) => {
             body: JSON.stringify(payload)
         });
 
+        const responseText = await response.text();
+        console.log('📥 Respuesta del servidor:', responseText);
+
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
+            let errorData;
+            try {
+                errorData = JSON.parse(responseText);
+            } catch {
+                errorData = { message: responseText };
+            }
+
             throw new Error(errorData.message || `Error del servidor (${response.status})`);
         }
 
-        const data = await response.json();
+        const data = JSON.parse(responseText);
+        
+        // ✅ Si necesitas el departamento, lo agregamos aquí localmente
+        if (departamentoId) {
+            data.departamento_id = departamentoId;
+        }
+
         return data;
     } catch (error) {
         console.error('❌ Error registrando asistencia:', error);

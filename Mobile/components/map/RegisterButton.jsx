@@ -284,32 +284,58 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       mensaje: 'Fuera de horario'
     };
   };
+const validarSalida = (horario, minutosActuales) => {
+  for (const turno of horario.turnos) {
+    const [hS, mS] = turno.salida.split(':').map(Number);
+    const minSalida = hS * 60 + mS;
+    
+    // ✅ Ventana de 10 minutos ANTES de la salida
+    const ventanaSalidaInicio = minSalida - 10;
+    
+    // ✅ Ventana de 5 minutos DESPUÉS de la salida
+    const ventanaSalidaFin = minSalida + 5;
 
-  const validarSalida = (horario, minutosActuales) => {
-    for (const turno of horario.turnos) {
-      const [hS, mS] = turno.salida.split(':').map(Number);
-      const minSalida = hS * 60 + mS;
-      const ventanaSalida = minSalida - 10;
+    console.log('🕐 Validando salida:', {
+      horaSalida: `${hS}:${mS}`,
+      minSalida,
+      minutosActuales,
+      ventanaInicio: ventanaSalidaInicio,
+      ventanaFin: ventanaSalidaFin,
+      dentroVentana: minutosActuales >= ventanaSalidaInicio && minutosActuales <= ventanaSalidaFin
+    });
 
-      if (minutosActuales >= ventanaSalida) {
-        return {
-          puedeRegistrar: true,
-          tipoRegistro: 'salida',
-          estadoHorario: 'puntual',
-          jornadaCompleta: false,
-          mensaje: 'Puedes registrar tu salida'
-        };
-      }
+    // ⏰ Si estás dentro de la ventana permitida (10 min antes, 5 min después)
+    if (minutosActuales >= ventanaSalidaInicio && minutosActuales <= ventanaSalidaFin) {
+      return {
+        puedeRegistrar: true,
+        tipoRegistro: 'salida',
+        estadoHorario: 'puntual',
+        jornadaCompleta: false,
+        mensaje: 'Puedes registrar tu salida'
+      };
     }
 
-    return {
-      puedeRegistrar: false,
-      tipoRegistro: 'salida',
-      estadoHorario: 'fuera_horario',
-      jornadaCompleta: false,
-      mensaje: 'Aún no es hora de salida'
-    };
+    // ⏰ Si ya pasó la ventana de salida (más de 5 min después)
+    if (minutosActuales > ventanaSalidaFin) {
+      return {
+        puedeRegistrar: false,
+        tipoRegistro: 'salida',
+        estadoHorario: 'fuera_horario',
+        jornadaCompleta: false, // ✅ NO está completa, perdiste tu ventana
+        mensaje: 'Tiempo de registro expirado'
+      };
+    }
+  }
+
+  // ⏰ Aún no es hora de salida
+  return {
+    puedeRegistrar: false,
+    tipoRegistro: 'salida',
+    estadoHorario: 'fuera_horario',
+    jornadaCompleta: false,
+    mensaje: 'Aún no es hora de salida'
   };
+};
 
   const calcularEstadoRegistro = useCallback((ultimo, horario, tolerancia) => {
     if (!horario?.trabaja) {
@@ -517,7 +543,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                 empleado_id: empleadoId,
                 dispositivo_origen: 'movil',
                 ubicacion: [ubicacionActual.lat, ubicacionActual.lng],
-                departamento_id: departamentoSeleccionado.id
               };
 
               const response = await fetch(`${API_URL}/asistencias/registrar`, {

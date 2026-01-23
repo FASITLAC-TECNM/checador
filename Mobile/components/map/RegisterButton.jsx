@@ -54,7 +54,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       if (!empleadoId) return null;
 
       const response = await fetch(
-        `${API_URL}/asistencias/empleado/${empleadoId}`,
+        `${API_URL}/asistencia/empleado/${empleadoId}`,
         {
           headers: {
             'Authorization': `Bearer ${userData.token}`,
@@ -539,13 +539,19 @@ const validarSalida = (horario, minutosActuales) => {
             setRegistrando(true);
 
             try {
+              // Payload con los campos que espera el backend
               const payload = {
-                empleado_id: empleadoId,
-                dispositivo_origen: 'movil',
-                ubicacion: [ubicacionActual.lat, ubicacionActual.lng],
+                id_empleado: empleadoId,
+                tipo: 'Movil', // Tipo de dispositivo para registrar-facial
               };
 
-              const response = await fetch(`${API_URL}/asistencias/registrar`, {
+              console.log('📤 Enviando registro:', {
+                endpoint: `${API_URL}/asistencia/registrar-facial`,
+                payload,
+                tipoRegistro: tipoSiguienteRegistro
+              });
+
+              const response = await fetch(`${API_URL}/asistencia/registrar-facial`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -555,6 +561,7 @@ const validarSalida = (horario, minutosActuales) => {
               });
 
               const responseText = await response.text();
+              console.log('📥 Respuesta del servidor:', response.status, responseText);
 
               if (response.status === 502) {
                 throw new Error('El servidor no está disponible en este momento. Por favor intenta de nuevo.');
@@ -568,11 +575,14 @@ const validarSalida = (horario, minutosActuales) => {
               try {
                 data = responseText ? JSON.parse(responseText) : {};
               } catch (parseError) {
+                console.error('Error parseando respuesta:', parseError);
                 throw new Error('Error del servidor: respuesta inválida');
               }
 
               if (!response.ok) {
-                throw new Error(data.message || data.error || `Error del servidor (${response.status})`);
+                const errorMsg = data.message || data.error || `Error del servidor (${response.status})`;
+                console.error('Error en registro:', errorMsg, data);
+                throw new Error(errorMsg);
               }
 
               const nuevoUltimo = await obtenerUltimoRegistro();

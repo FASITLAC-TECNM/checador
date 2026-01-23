@@ -12,17 +12,16 @@ const API_URL = getApiEndpoint('/api');
  */
 export const registrarAsistencia = async (empleadoId, ubicacion, token, departamentoId = null) => {
     try {
-        // ✅ Solo enviamos los campos que la BD espera
+        // Payload con los campos que espera el backend (registrar-facial)
         const payload = {
-            empleado_id: empleadoId,
-            dispositivo_origen: 'movil',
-            ubicacion: ubicacion ? [ubicacion.lat, ubicacion.lng] : null
-            // NO enviamos departamento_id porque la tabla asistencias no lo tiene
+            id_empleado: empleadoId,
+            tipo: 'Movil' // Tipo de dispositivo
         };
 
         console.log('📤 Enviando asistencia:', payload);
 
-        const response = await fetch(`${API_URL}/asistencias/registrar`, {
+        // Usar registrar-facial ya que no requiere huella dactilar
+        const response = await fetch(`${API_URL}/asistencia/registrar-facial`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -65,7 +64,7 @@ export const getAsistenciasEmpleado = async (empleadoId, token, filtros = {}) =>
         if (filtros.fecha_inicio) params.append('fecha_inicio', filtros.fecha_inicio);
         if (filtros.fecha_fin) params.append('fecha_fin', filtros.fecha_fin);
 
-        const url = `${API_URL}/asistencias/empleado/${empleadoId}${params.toString() ? `?${params}` : ''}`;
+        const url = `${API_URL}/asistencia/empleado/${empleadoId}${params.toString() ? `?${params}` : ''}`;
 
         const response = await fetch(url, {
             headers: {
@@ -121,7 +120,7 @@ export const getUltimoRegistroHoy = async (empleadoId, token) => {
 export const getAsistenciasHoy = async (token, departamentoId = null) => {
     try {
         const params = departamentoId ? `?departamento_id=${departamentoId}` : '';
-        const url = `${API_URL}/asistencias/hoy${params}`;
+        const url = `${API_URL}/asistencia/hoy${params}`;
 
         const response = await fetch(url, {
             headers: {

@@ -37,7 +37,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     setGeneralError('');
   };
 
-  const handleLogin = async () => {
+const handleLogin = async () => {
     setUsuarioError('');
     setPasswordError('');
     setGeneralError('');
@@ -58,37 +58,49 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     try {
       const response = await login(usuario, password);
 
-      // En LoginScreen.js - handleLogin
+      console.log('═══════════════════════════════════════');
+      console.log('🔍 DEBUG: RESPUESTA COMPLETA DEL LOGIN');
+      console.log('═══════════════════════════════════════');
+      console.log('response:', JSON.stringify(response, null, 2));
+      console.log('response.success:', response?.success);
+      console.log('response.usuario:', response?.usuario ? 'SÍ ✅' : 'NO ❌');
+      console.log('response.token:', response?.token ? 'SÍ ✅' : 'NO ❌');
+      console.log('Token value:', response?.token);
+      console.log('═══════════════════════════════════════');
 
-if (response && response.success && response.usuario) {
-  const datosCompletos = {
-    id: response.usuario.id,
-    usuario: response.usuario.usuario,
-    correo: response.usuario.correo,
-    nombre: response.usuario.nombre,
-    telefono: response.usuario.telefono,
-    foto: response.usuario.foto,
-    es_empleado: response.usuario.es_empleado,
-    empleado_id: response.usuario.empleado_id,
-    rfc: response.usuario.rfc,
-    nss: response.usuario.nss,
-    
-    // ⭐ IMPORTANTE: empleadoInfo ahora incluye departamento completo
-    empleadoInfo: response.empleadoInfo || null,
-    
-    roles: response.roles || [],
-    permisos: response.permisos || '0',
-    esAdmin: response.esAdmin || false,
-    token: response.token || null
-  };
+      if (response && response.success && response.usuario) {
+        const datosCompletos = {
+          id: response.usuario.id,
+          usuario: response.usuario.usuario,
+          correo: response.usuario.correo,
+          nombre: response.usuario.nombre,
+          telefono: response.usuario.telefono,
+          foto: response.usuario.foto,
+          es_empleado: response.usuario.es_empleado,
+          empleado_id: response.usuario.empleado_id,
+          rfc: response.usuario.rfc,
+          nss: response.usuario.nss,
+          
+          empleadoInfo: response.empleadoInfo || null,
+          
+          roles: response.roles || [],
+          permisos: response.permisos || '0',
+          esAdmin: response.esAdmin || false,
+          token: response.token || null  // ← AQUÍ ESTÁ EL TOKEN
+        };
 
-  console.log('✅ Datos enviados a App:', {
-    ...datosCompletos,
-    empleadoInfo: datosCompletos.empleadoInfo ? '✅ INCLUYE DEPARTAMENTO' : '❌ SIN INFO'
-  });
+        console.log('');
+        console.log('═══════════════════════════════════════');
+        console.log('📦 DATOS QUE SE ENVÍAN A App.js');
+        console.log('═══════════════════════════════════════');
+        console.log('datosCompletos.token:', datosCompletos.token ? 'SÍ ✅' : 'NO ❌');
+        console.log('Token value:', datosCompletos.token);
+        console.log('empleado_id:', datosCompletos.empleado_id);
+        console.log('═══════════════════════════════════════');
 
-  onLoginSuccess(datosCompletos);
-}
+        // Llamar a onLoginSuccess que está en App.js
+        onLoginSuccess(datosCompletos);
+      }
     } catch (error) {
       console.error('❌ Error en login:', error);
 

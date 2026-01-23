@@ -1,3 +1,5 @@
+// SettingsScreen.js - ACTUALIZACIÓN COMPLETA
+
 import React, { useState } from 'react';
 import {
   View,
@@ -14,9 +16,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PersonalInfoScreen } from './personalinfo';
 import { TermsAndConditionsScreen } from './TermsAndConditionsScreen';
-import { SupportScreen } from './SupportScreen'; // <-- IMPORTAR
+import { SupportScreen } from './SupportScreen';
+import { SecurityScreen } from './SecurityScreen';
 
-// Función helper para obtener URL de foto
 const obtenerUrlFotoPerfil = (foto) => {
   if (!foto) {
     return null;
@@ -28,7 +30,6 @@ const obtenerUrlFotoPerfil = (foto) => {
   
   const BASE_URL = 'https://9dm7dqf9-3002.usw3.devtunnels.ms/';
   const url = `${BASE_URL}${foto.startsWith('/') ? '' : '/'}${foto}`;
-  console.log('✅ URL construida:', url);
   return url;
 };
 
@@ -41,7 +42,8 @@ export const SettingsScreen = ({
 }) => {
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
-  const [showSupport, setShowSupport] = useState(false); // <-- NUEVO ESTADO
+  const [showSupport, setShowSupport] = useState(false);
+  const [showSecurity, setShowSecurity] = useState(false);
   const styles = darkMode ? settingsStylesDark : settingsStyles;
 
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
@@ -55,7 +57,6 @@ export const SettingsScreen = ({
 
   const emailMostrar = userData.correo || email || 'usuario@correo.com';
 
-  // Si se está mostrando información personal
   if (showPersonalInfo) {
     return (
       <PersonalInfoScreen 
@@ -66,7 +67,6 @@ export const SettingsScreen = ({
     );
   }
 
-  // Si se están mostrando términos y condiciones
   if (showTerms) {
     return (
       <TermsAndConditionsScreen 
@@ -76,7 +76,6 @@ export const SettingsScreen = ({
     );
   }
 
-  // Si se está mostrando soporte <-- NUEVO
   if (showSupport) {
     return (
       <SupportScreen 
@@ -87,11 +86,20 @@ export const SettingsScreen = ({
     );
   }
 
+  if (showSecurity) {
+    return (
+      <SecurityScreen 
+        darkMode={darkMode}
+        onBack={() => setShowSecurity(false)}
+        userData={userData}  // ← ✅ AGREGADO: Pasar userData
+      />
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#2563eb" translucent={false} />
       
-      {/* Header con gradiente */}
       <LinearGradient
         colors={darkMode ? ['#1e40af', '#2563eb'] : ['#2563eb', '#3b82f6']}
         start={{ x: 0, y: 0 }}
@@ -121,11 +129,6 @@ export const SettingsScreen = ({
                     <Image 
                       source={{ uri: fotoUrl }}
                       style={styles.avatarImage}
-                      onError={(error) => {
-                        console.log('❌ Error cargando imagen en Settings:', error.nativeEvent.error);
-                        console.log('📍 URL que falló:', fotoUrl);
-                      }}
-                      onLoad={() => console.log('✅ Imagen cargada correctamente en Settings')}
                     />
                   ) : (
                     <View style={styles.avatarPlaceholder}>
@@ -236,7 +239,11 @@ export const SettingsScreen = ({
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+          <TouchableOpacity 
+            style={styles.settingItem} 
+            onPress={() => setShowSecurity(true)}
+            activeOpacity={0.7}
+          >
             <View style={styles.settingLeft}>
               <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#78350f' : '#fef3c7' }]}>
                 <Ionicons name="lock-closed-outline" size={22} color={darkMode ? '#fde047' : '#d97706'} />
@@ -270,10 +277,9 @@ export const SettingsScreen = ({
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
 
-          {/* BOTÓN DE AYUDA Y SOPORTE - ACTUALIZADO */}
           <TouchableOpacity 
             style={styles.settingItem} 
-            onPress={() => setShowSupport(true)} // <-- CONECTAR AQUÍ
+            onPress={() => setShowSupport(true)}
             activeOpacity={0.7}
           >
             <View style={styles.settingLeft}>
@@ -499,20 +505,6 @@ const settingsStyles = StyleSheet.create({
   },
   roleTextEmployee: {
     color: '#166534',
-  },
-  departmentBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f3e8ff',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 6,
-  },
-  departmentText: {
-    color: '#6366f1',
-    fontSize: 13,
-    fontWeight: '700',
   },
   section: {
     backgroundColor: '#fff',

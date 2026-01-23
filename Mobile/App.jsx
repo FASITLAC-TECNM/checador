@@ -62,19 +62,40 @@ export default function App() {
     }
   };
 
-  const handleLoginSuccess = (data) => {
-    console.log('🎯 Datos recibidos en App:', data);
+  const handleLoginSuccess = async (data) => {
+    try {
+      console.log('🎯 Datos recibidos en App:', data);
 
-    // Guardar TODOS los datos del usuario que vienen del backend
-    // Incluye: usuario, empleado, rol, permisos, departamento
-    setUserData(data);
-    setIsLoggedIn(true);
+      // ✅ CRÍTICO: Guardar el token en AsyncStorage
+      if (data.token) {
+        await AsyncStorage.setItem('userToken', data.token);
+        console.log('✅ Token guardado en AsyncStorage:', data.token.substring(0, 20) + '...');
+      } else {
+        console.warn('⚠️ No se recibió token en la respuesta de login');
+      }
+
+      // Guardar TODOS los datos del usuario que vienen del backend
+      // Incluye: usuario, empleado, rol, permisos, departamento
+      setUserData(data);
+      setIsLoggedIn(true);
+    } catch (error) {
+      console.error('❌ Error guardando datos de login:', error);
+    }
   };
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setCurrentScreen('home');
-    setUserData(null);
+  const handleLogout = async () => {
+    try {
+      // Limpiar AsyncStorage
+      await AsyncStorage.removeItem('userToken');
+      console.log('✅ Token eliminado de AsyncStorage');
+      
+      // Limpiar estados
+      setIsLoggedIn(false);
+      setCurrentScreen('home');
+      setUserData(null);
+    } catch (error) {
+      console.error('❌ Error en logout:', error);
+    }
   };
 
   // Mostrar pantalla de carga mientras se verifica el estado del onboarding

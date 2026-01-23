@@ -25,13 +25,11 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
 
   const onAccept = () => {
     if (acceptedTerms) {
-      console.log('✅ Términos aceptados');
       onBack();
     }
   };
 
   const onDecline = () => {
-    console.log('❌ Términos rechazados');
     onBack();
   };
 

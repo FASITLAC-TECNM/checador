@@ -4,15 +4,21 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  StatusBar
+  StatusBar,
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Platform } from 'react-native';
-import config from '../../config/onboardingConfig.json';
+
+const APPROVED_CONFIG = {
+  title: "¡Aprobado!",
+  subtitle: "Configuración Completada",
+  icon: "checkmark-circle",
+  message: "Tu dispositivo ha sido aprobado exitosamente. Ya puedes comenzar a usar la aplicación."
+};
 
 export const ApprovedScreen = ({ email, empresaNombre, deviceInfo, onComplete }) => {
-  const { approved } = config;
+  const approved = APPROVED_CONFIG;
 
   const insets = useSafeAreaInsets();
 

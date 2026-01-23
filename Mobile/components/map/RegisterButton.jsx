@@ -228,7 +228,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const resultados = await Promise.all(promesas);
       return resultados.filter(depto => depto !== null && depto.ubicacion);
     } catch (err) {
-      console.error('Error obteniendo departamentos:', err);
       return [];
     }
   }, [userData]);
@@ -288,23 +287,10 @@ const validarSalida = (horario, minutosActuales) => {
   for (const turno of horario.turnos) {
     const [hS, mS] = turno.salida.split(':').map(Number);
     const minSalida = hS * 60 + mS;
-    
-    // ✅ Ventana de 10 minutos ANTES de la salida
+
     const ventanaSalidaInicio = minSalida - 10;
-    
-    // ✅ Ventana de 5 minutos DESPUÉS de la salida
     const ventanaSalidaFin = minSalida + 5;
 
-    console.log('🕐 Validando salida:', {
-      horaSalida: `${hS}:${mS}`,
-      minSalida,
-      minutosActuales,
-      ventanaInicio: ventanaSalidaInicio,
-      ventanaFin: ventanaSalidaFin,
-      dentroVentana: minutosActuales >= ventanaSalidaInicio && minutosActuales <= ventanaSalidaFin
-    });
-
-    // ⏰ Si estás dentro de la ventana permitida (10 min antes, 5 min después)
     if (minutosActuales >= ventanaSalidaInicio && minutosActuales <= ventanaSalidaFin) {
       return {
         puedeRegistrar: true,
@@ -392,7 +378,7 @@ const validarSalida = (horario, minutosActuales) => {
           setJornadaCompletada(estado.jornadaCompleta);
         }
       } catch (err) {
-        console.error('Error cargando datos:', err);
+        // Error silencioso
       } finally {
         setLoading(false);
       }
@@ -432,7 +418,7 @@ const validarSalida = (horario, minutosActuales) => {
           }
         );
       } catch (err) {
-        console.error('Error obteniendo ubicación:', err);
+        // Error de ubicación
       }
     };
 
@@ -539,17 +525,10 @@ const validarSalida = (horario, minutosActuales) => {
             setRegistrando(true);
 
             try {
-              // Payload con los campos que espera el backend
               const payload = {
                 id_empleado: empleadoId,
-                tipo: 'Movil', // Tipo de dispositivo para registrar-facial
+                tipo: 'Movil',
               };
-
-              console.log('📤 Enviando registro:', {
-                endpoint: `${API_URL}/asistencia/registrar-facial`,
-                payload,
-                tipoRegistro: tipoSiguienteRegistro
-              });
 
               const response = await fetch(`${API_URL}/asistencia/registrar-facial`, {
                 method: 'POST',
@@ -561,7 +540,6 @@ const validarSalida = (horario, minutosActuales) => {
               });
 
               const responseText = await response.text();
-              console.log('📥 Respuesta del servidor:', response.status, responseText);
 
               if (response.status === 502) {
                 throw new Error('El servidor no está disponible en este momento. Por favor intenta de nuevo.');
@@ -575,13 +553,11 @@ const validarSalida = (horario, minutosActuales) => {
               try {
                 data = responseText ? JSON.parse(responseText) : {};
               } catch (parseError) {
-                console.error('Error parseando respuesta:', parseError);
                 throw new Error('Error del servidor: respuesta inválida');
               }
 
               if (!response.ok) {
                 const errorMsg = data.message || data.error || `Error del servidor (${response.status})`;
-                console.error('Error en registro:', errorMsg, data);
                 throw new Error(errorMsg);
               }
 

@@ -35,12 +35,9 @@ const MapaZonasPermitidas = ({
   const listaDepartamentos = departamentos.length > 0 ? departamentos : (departamento ? [departamento] : []);
 
   useEffect(() => {
-    // Seleccionar el departamento activo o el primero
     if (departamento) {
-      console.log('🎯 Departamento activo recibido:', departamento.nombre);
       setDepartamentoSeleccionado(departamento);
     } else if (listaDepartamentos.length > 0) {
-      console.log('📍 No hay departamento activo, seleccionando primero:', listaDepartamentos[0].nombre);
       setDepartamentoSeleccionado(listaDepartamentos[0]);
     }
   }, [departamento, listaDepartamentos]);
@@ -75,21 +72,12 @@ const MapaZonasPermitidas = ({
           coordenadas: coordsFormateadas,
           color: depto.color || '#3b82f6'
         });
-        
-        console.log('🗺️ Zona procesada:', {
-          nombre: depto.nombre,
-          id: depto.id,
-          numCoordenadas: coordsFormateadas.length,
-          primeraCoordenada: coordsFormateadas[0]
-        });
       }
 
-      console.log('📊 Total zonas procesadas:', zonas.length);
       setZonasData(zonas);
       setLoading(false);
 
     } catch (error) {
-      console.error('Error procesando coordenadas:', error);
       setLoading(false);
     }
   }, [listaDepartamentos]);
@@ -124,14 +112,7 @@ const MapaZonasPermitidas = ({
     const zonasJSON = JSON.stringify(zonas);
     const userLocationJSON = userLocation ? JSON.stringify([userLocation.lat, userLocation.lng]) : 'null';
     
-    // Si hay un departamento seleccionado, usar su ID, sino usar null para mostrar todos
     const selectedId = departamentoSeleccionadoId ? `"${departamentoSeleccionadoId}"` : 'null';
-
-    console.log('🗺️ Generando HTML con:', {
-      totalZonas: zonas.length,
-      departamentoSeleccionado: departamentoSeleccionadoId,
-      tieneUbicacionUsuario: !!userLocation
-    });
 
     // Calcular centro global
     let totalLat = 0;
@@ -245,13 +226,7 @@ const MapaZonasPermitidas = ({
     // Dibujar cada zona
     zonas.forEach((zona, index) => {
       const isSelected = selectedDepartamentoId === zona.id;
-      
-      console.log(\`🎨 [\${index + 1}/\${zonas.length}] Dibujando:\`, zona.nombre);
-      console.log('   📍 Coordenadas:', zona.coordenadas.length, 'puntos');
-      console.log('   🔍 Primera:', zona.coordenadas[0]);
-      console.log('   🔍 Última:', zona.coordenadas[zona.coordenadas.length - 1]);
-      console.log('   ✨ Seleccionado:', isSelected);
-      
+
       const polygon = L.polygon(zona.coordenadas, {
         color: isSelected ? '#10b981' : '#3b82f6',
         fillColor: isSelected ? '#10b981' : '#3b82f6',
@@ -262,9 +237,6 @@ const MapaZonasPermitidas = ({
 
       // Guardar referencia
       polygons[zona.id] = polygon;
-
-      console.log('   ✅ Añadido al mapa');
-      console.log('   📊 Bounds:', polygon.getBounds().toBBoxString());
 
       // Agregar popup
       const popupContent = isSelected 
@@ -278,32 +250,19 @@ const MapaZonasPermitidas = ({
         bounds.push(latlng);
       });
     });
-    
-    console.log('✅ Total polígonos dibujados:', Object.keys(polygons).length);
 
     // Ajustar vista inicial
     if (bounds.length > 0) {
       const selectedZona = zonas.find(z => z.id === selectedDepartamentoId);
-      
-      console.log('🔍 Ajustando vista del mapa');
-      console.log('   Total bounds:', bounds.length);
-      console.log('   Departamento seleccionado:', selectedZona?.nombre || 'ninguno');
-      console.log('   Total zonas:', zonas.length);
-      
+
       if (selectedZona && selectedDepartamentoId) {
-        // Si hay un departamento seleccionado específico, centrar en él
         const selectedPolygon = polygons[selectedDepartamentoId];
         if (selectedPolygon) {
-          console.log('🎯 Centrando mapa en:', selectedZona.nombre);
           map.fitBounds(selectedPolygon.getBounds(), { padding: [50, 50], maxZoom: 16 });
         }
       } else {
-        // Mostrar todas las zonas
-        console.log('🗺️ Mostrando todas las zonas en el mapa');
         map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
       }
-    } else {
-      console.warn('⚠️ No hay bounds para ajustar la vista');
     }
 
     // Marcador de ubicación del usuario
@@ -345,33 +304,29 @@ const MapaZonasPermitidas = ({
             });
           }
         }
-      } catch (e) {
-        console.error('Error parsing message:', e);
-      }
+      } catch (e) {}
     });
 
     // Para Android
     document.addEventListener('message', function(event) {
       try {
         const data = JSON.parse(event.data);
-        
+
         if (data.action === 'focusDepartamento') {
           selectedDepartamentoId = data.departamentoId;
           updatePolygonStyles();
-          
+
           const polygon = polygons[data.departamentoId];
           if (polygon) {
-            map.fitBounds(polygon.getBounds(), { 
-              padding: [80, 80], 
+            map.fitBounds(polygon.getBounds(), {
+              padding: [80, 80],
               maxZoom: 17,
               animate: true,
               duration: 0.5
             });
           }
         }
-      } catch (e) {
-        console.error('Error parsing message:', e);
-      }
+      } catch (e) {}
     });
   </script>
 </body>

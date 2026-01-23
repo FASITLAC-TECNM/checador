@@ -10,11 +10,39 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import config from '../../config/onboardingConfig.json';
+
+const WELCOME_CONFIG = {
+  title: "Bienvenido al Sistema de Checador",
+  subtitle: "Configura tu dispositivo en 3 simples pasos",
+  steps: [
+    {
+      number: 1,
+      icon: "phone-portrait-outline",
+      title: "Registra tu Dispositivo",
+      description: "Configura la información de tu dispositivo",
+      color: "#2563eb"
+    },
+    {
+      number: 2,
+      icon: "hardware-chip-outline",
+      title: "Haz tu solicitud",
+      description: "Preparate para crear tu solicitud",
+      color: "#2563eb"
+    },
+    {
+      number: 3,
+      icon: "checkmark-circle-outline",
+      title: "Obtén Aprobación",
+      description: "Espera la autorización del administrador",
+      color: "#2563eb"
+    }
+  ],
+  note: "Este proceso es necesario solo la primera vez que uses la aplicación. Asegúrate de tener el código de tu empresa a la mano."
+};
 
 export const WelcomeScreen = ({ onNext }) => {
   const insets = useSafeAreaInsets();
-  const { welcome } = config;
+  const welcome = WELCOME_CONFIG;
 
   return (
     <View style={styles.container}>

@@ -37,8 +37,8 @@ export const HomeScreen = ({ userData, darkMode }) => {
         ? userData.roles[0].nombre
         : (userData.esAdmin ? 'Administrador' : 'Usuario'));
 
-  const handleRegistroExitoso = (data) => {
-    console.log('✅ Registro exitoso:', data);
+  const handleRegistroExitoso = () => {
+    // Registro exitoso
   };
 
   const obtenerSaludo = () => {

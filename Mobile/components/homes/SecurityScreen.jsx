@@ -68,23 +68,17 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
   }, []);
 
   const initializeSecurity = async () => {
-    try {
-      console.log('🔐 Inicializando pantalla de seguridad...');
-      
+    try {      
       // 1. Verificar soporte biométrico del dispositivo
       const support = await checkBiometricSupport();
-      console.log('📱 Soporte biométrico:', support);
       setBiometricSupport(support);
 
       // 2. Obtener empleado_id del usuario
       const empleadoId = userData?.empleado?.id || 
                         userData?.empleado_id || 
                         userData?.id;
-      
-      console.log('🔍 Empleado ID identificado:', empleadoId);
-      
+            
       if (!empleadoId) {
-        console.log('⚠️ No se encontró empleado_id');
         setIsLoadingCredentials(false);
         return;
       }
@@ -92,7 +86,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       // 3. Verificar credenciales existentes en el backend
       const token = await AsyncStorage.getItem('userToken');
       if (!token) {
-        console.log('⚠️ No hay token de autenticación');
         setIsLoadingCredentials(false);
         return;
       }
@@ -100,18 +93,12 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       const credenciales = await getCredencialesByEmpleado(empleadoId, token);
       
       if (credenciales.success && credenciales.data) {
-        console.log('✅ Credenciales encontradas:', {
-          dactilar: credenciales.data.tiene_dactilar,
-          facial: credenciales.data.tiene_facial
-        });
-        
         setHasFingerprint(credenciales.data.tiene_dactilar || false);
         setHasFacial(credenciales.data.tiene_facial || false);
         
         setBiometricEnabled(credenciales.data.tiene_dactilar || false);
         setFaceIdEnabled(credenciales.data.tiene_facial || false);
       } else {
-        console.log('ℹ️ Usuario sin credenciales biométricas registradas (estado inicial normal)');
         setHasFingerprint(false);
         setHasFacial(false);
         setBiometricEnabled(false);
@@ -125,8 +112,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
           'Error',
           'No se pudo cargar la configuración de seguridad'
         );
-      } else {
-        console.log('ℹ️ Estado inicial: sin credenciales biométricas');
       }
     } finally {
       setIsLoadingCredentials(false);
@@ -181,12 +166,8 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
           {
             text: 'Continuar',
             onPress: async () => {
-              try {
-                console.log('👆 Iniciando captura de huella...');
-                
+              try {                
                 const resultado = await capturarHuellaDigital(empleadoId);
-                console.log('✅ Huella capturada exitosamente');
-
                 const token = await AsyncStorage.getItem('userToken');
                 const response = await guardarDactilar(
                   empleadoId,
@@ -197,9 +178,7 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
                 if (response.success) {
                   setBiometricEnabled(true);
                   setHasFingerprint(true);
-                  
-                  console.log('🎉 Huella guardada correctamente en el servidor');
-                  
+                                    
                   Alert.alert(
                     '✅ ¡Éxito!',
                     'Tu huella digital ha sido registrada correctamente'
@@ -255,8 +234,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
 
               setBiometricEnabled(false);
               setHasFingerprint(false);
-
-              console.log('🗑️ Huella eliminada correctamente');
 
               Alert.alert(
                 '✅ Eliminado',
@@ -321,7 +298,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
         return;
       }
 
-      console.log('📸 Abriendo captura facial con cámara...');
       setShowFacialCapture(true);
 
     } catch (error) {
@@ -342,9 +318,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       if (!empleadoId) {
         throw new Error('No se encontró el ID del empleado');
       }
-
-      console.log('📊 Procesando datos faciales capturados...');
-
       // Procesar datos del rostro
       const faceFeatures = processFaceData(captureData.faceData);
       
@@ -360,9 +333,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
         setIsLoadingFace(false);
         return;
       }
-
-      // Generar template facial
-      console.log('🔐 Generando template facial...');
       const resultado = await generateFacialTemplate(
         faceFeatures,
         captureData.photoUri,
@@ -379,10 +349,7 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
 
       if (response.success) {
         setFaceIdEnabled(true);
-        setHasFacial(true);
-        
-        console.log('🎉 Reconocimiento facial guardado correctamente');
-        
+        setHasFacial(true);        
         Alert.alert(
           '✅ ¡Éxito!',
           'Tu reconocimiento facial ha sido registrado correctamente usando la cámara'
@@ -404,7 +371,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
   };
 
   const handleFacialCaptureCancel = () => {
-    console.log('❌ Captura facial cancelada por el usuario');
     setShowFacialCapture(false);
   };
 
@@ -419,12 +385,7 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       if (!empleadoId) {
         throw new Error('No se encontró el ID del empleado');
       }
-
-      console.log('📸 Iniciando captura facial nativa...');
-      
       const resultado = await capturarReconocimientoFacial(empleadoId);
-      console.log('✅ Facial nativo capturado exitosamente');
-
       const token = await AsyncStorage.getItem('userToken');
       const response = await guardarFacial(
         empleadoId,
@@ -435,9 +396,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       if (response.success) {
         setFaceIdEnabled(true);
         setHasFacial(true);
-        
-        console.log('🎉 Reconocimiento facial nativo guardado correctamente');
-        
         Alert.alert(
           '✅ ¡Éxito!',
           'Tu Face ID ha sido registrado correctamente'
@@ -482,12 +440,8 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
               await eliminarCredencial(empleadoId, 'facial', token);
               await limpiarDatosLocales(empleadoId);
               await clearLocalFacialData(empleadoId);
-
               setFaceIdEnabled(false);
               setHasFacial(false);
-
-              console.log('🗑️ Reconocimiento facial eliminado correctamente');
-
               Alert.alert(
                 '✅ Eliminado',
                 'Tu reconocimiento facial ha sido eliminado'

@@ -29,34 +29,21 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
   const [error, setError] = useState(null);
   const [fadeAnim] = useState(new Animated.Value(0));
 
-  // ⭐ Obtener empleado_id desde userData
   const getEmpleadoId = () => {
-    console.log('📋 userData completo:', JSON.stringify(userData, null, 2));
-    
     if (userData?.empleado_id) {
-      console.log('✅ empleado_id encontrado:', userData.empleado_id);
       return userData.empleado_id;
     }
-    
+
     if (userData?.empleadoInfo?.id) {
-      console.log('✅ empleado_id encontrado en empleadoInfo:', userData.empleadoInfo.id);
       return userData.empleadoInfo.id;
     }
-    
-    console.error('❌ No se encontró empleado_id en userData');
+
     return null;
   };
 
   useEffect(() => {
     const empleadoId = getEmpleadoId();
-    
-    console.log('═══════════════════════════════════════');
-    console.log('📅 INICIALIZANDO SCHEDULE SCREEN');
-    console.log('═══════════════════════════════════════');
-    console.log('👤 Usuario:', userData?.nombre);
-    console.log('📋 Empleado ID:', empleadoId);
-    console.log('═══════════════════════════════════════');
-    
+
     if (empleadoId) {
       const timeoutId = setTimeout(() => {
         if (isLoading) {
@@ -90,24 +77,12 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
       setIsLoading(true);
       setError(null);
 
-      console.log('📅 Cargando horario para empleado:', empleadoId);
-      console.log('🔑 Con token:', userData?.token ? userData.token.substring(0, 20) + '...' : 'NO HAY TOKEN');
-
-      // ⭐ USAR DIRECTAMENTE LA API
       const horario = await getHorarioPorEmpleado(empleadoId, userData?.token);
       
       if (!horario) {
         throw new Error('No se recibió información del horario');
       }
-
-      console.log('📊 Horario recibido del API:', {
-        id: horario.id,
-        fecha_inicio: horario.fecha_inicio,
-        tiene_configuracion: !!horario.configuracion
-      });
-
       const horarioParsed = parsearHorario(horario);
-      console.log('✅ Horario parseado:', horarioParsed.length, 'días');
       
       setScheduleData(horarioParsed);
       setResumen(calcularResumenSemanal(horarioParsed));

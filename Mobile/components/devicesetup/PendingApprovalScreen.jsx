@@ -10,12 +10,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import config from '../../config/onboardingConfig.json';
 import { getSolicitudPorToken } from '../../services/solicitudMovilService';
 
 export const PendingApprovalScreen = ({ tokenSolicitud, idSolicitud, onApproved, onRejected }) => {
   const insets = useSafeAreaInsets();
-  const { pending } = config;
   const [solicitudStatus, setSolicitudStatus] = useState('pendiente');
   const intervalRef = useRef(null);
   const onApprovedRef = useRef(onApproved);

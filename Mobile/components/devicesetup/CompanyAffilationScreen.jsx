@@ -14,12 +14,19 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import config from '../../config/onboardingConfig.json';
 import { verificarEmpresa } from '../../services/solicitudMovilService';
+
+const AFFILIATION_CONFIG = {
+  title: "Afiliación a la Empresa",
+  subtitle: "Paso 2 de 3",
+  icon: "business",
+  helpText: "¿No tienes el código?",
+  supportText: "Contacta a tu administrador"
+};
 
 export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
   const insets = useSafeAreaInsets();
-  const { affiliation } = config;
+  const affiliation = AFFILIATION_CONFIG;
   const [companyCode, setCompanyCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 

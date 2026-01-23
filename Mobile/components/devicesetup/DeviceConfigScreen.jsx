@@ -14,13 +14,62 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import config from '../../config/onboardingConfig.json';
 import { crearSolicitudMovil, reabrirSolicitudMovil, verificarCorreoEnEmpresa } from '../../services/solicitudMovilService';
 import { detectDeviceInfo } from '../../services/deviceUtils';
 
+const DEVICE_CONFIG = {
+  title: "Configuración del Dispositivo",
+  subtitle: "Paso 1 de 3",
+  fields: [
+    {
+      id: "email",
+      label: "Correo Electrónico",
+      placeholder: "tu@email.com",
+      icon: "mail-outline",
+      type: "email",
+      required: true,
+      readonly: false,
+      helpText: "Usa tu correo institucional"
+    },
+    {
+      id: "registrationDate",
+      label: "Fecha de Registro",
+      placeholder: "YYYY-MM-DD",
+      icon: "calendar-outline",
+      type: "text",
+      required: true,
+      readonly: true,
+      helpText: "Fecha automática del sistema"
+    },
+    {
+      id: "macAddress",
+      label: "Dirección MAC",
+      placeholder: "00:00:00:00:00:00",
+      icon: "hardware-chip-outline",
+      type: "text",
+      required: true,
+      readonly: true,
+      helpText: "Identificador único del dispositivo"
+    },
+    {
+      id: "ipAddress",
+      label: "Dirección IP",
+      placeholder: "192.168.1.1",
+      icon: "globe-outline",
+      type: "text",
+      required: true,
+      readonly: true,
+      helpText: "IP de la red actual"
+    }
+  ],
+  deviceInfo: {
+    title: "Información del Dispositivo Detectada"
+  }
+};
+
 export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPrevious, initialEmail, userData }) => {
   const insets = useSafeAreaInsets();
-  const { deviceConfig } = config;
+  const deviceConfig = DEVICE_CONFIG;
   
   const [formData, setFormData] = useState({
     email: '',

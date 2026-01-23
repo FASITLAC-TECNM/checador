@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RegisterButton } from '../map/RegisterButton';
 import { NotificacionesModal } from './NotificacionesModal';
 
@@ -23,6 +24,22 @@ const obtenerUrlFotoPerfil = (foto) => {
 
 export const HomeScreen = ({ userData, darkMode }) => {
   const [showNotificaciones, setShowNotificaciones] = useState(false);
+  const [token, setToken] = useState(null);
+
+  // Obtener el token de AsyncStorage al montar el componente
+  useEffect(() => {
+    const obtenerToken = async () => {
+      try {
+        const storedToken = await AsyncStorage.getItem('userToken');
+        if (storedToken) {
+          setToken(storedToken);
+        }
+      } catch (error) {
+        console.error('Error obteniendo token:', error);
+      }
+    };
+    obtenerToken();
+  }, []);
 
   const styles = darkMode ? homeStylesDark : homeStyles;
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
@@ -60,7 +77,8 @@ export const HomeScreen = ({ userData, darkMode }) => {
       <NotificacionesModal
         visible={showNotificaciones}
         onClose={() => setShowNotificaciones(false)}
-        darkMode={darkMode}
+        userData={userData}
+        token={token}
       />
       
       {/* Header mejorado */}

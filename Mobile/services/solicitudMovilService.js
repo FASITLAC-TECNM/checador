@@ -157,9 +157,110 @@ export const getSolicitudPorToken = async (token) => {
 };
 
 /**
+ * Verificar si un correo existe en una empresa específica
+ */
+export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
+  try {
+    console.log('📧 Verificando correo:', correo, 'en empresa:', empresaId);
+
+    // Validación básica
+    if (!correo || !empresaId) {
+      return {
+        existe: false,
+        mensaje: 'Correo o empresa no válidos'
+      };
+    }
+
+    const correoLower = correo.trim().toLowerCase();
+
+    // Intentar verificar en el backend
+    try {
+      const response = await api.get(`/empleados/verificar-correo`, {
+        params: {
+          correo: correoLower,
+          empresa_id: empresaId
+        }
+      });
+
+      console.log('✅ Respuesta verificación:', response.data);
+
+      if (response.data.success && response.data.data) {
+        const empleado = response.data.data;
+        
+        return {
+          existe: true,
+          activo: empleado.es_activo,
+          empleadoId: empleado.id,
+          usuario: {
+            id: empleado.usuario_id,
+            nombre: empleado.nombre,
+            correo: empleado.correo
+          },
+          mensaje: empleado.es_activo 
+            ? `Correo verificado: ${empleado.nombre}` 
+            : 'Usuario inactivo'
+        };
+      }
+
+      return {
+        existe: false,
+        mensaje: 'Correo no encontrado en esta empresa'
+      };
+
+    } catch (error) {
+      // Si es 404, el correo no existe
+      if (error.response?.status === 404) {
+        return {
+          existe: false,
+          mensaje: 'Este correo no está registrado en la empresa'
+        };
+      }
+
+      // Si es 401/403, la ruta está protegida
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        console.log('⚠️ Ruta protegida, permitir continuar');
+        // Permitir continuar si la ruta requiere autenticación
+        // El backend validará al crear la solicitud
+        return {
+          existe: true,
+          activo: true,
+          valido: true,
+          pendienteValidacion: true,
+          empleadoId: null,
+          usuario: {
+            nombre: correoLower.split('@')[0],
+            correo: correoLower
+          },
+          mensaje: 'Se verificará al enviar la solicitud'
+        };
+      }
+
+      // Otro error
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('❌ Error verificando correo:', error);
+    
+    // En caso de error, permitir continuar
+    // La validación real se hará en el backend
+    return {
+      existe: true,
+      activo: true,
+      valido: true,
+      pendienteValidacion: true,
+      empleadoId: null,
+      usuario: {
+        nombre: correo.split('@')[0],
+        correo: correo.trim().toLowerCase()
+      },
+      mensaje: 'No se pudo verificar, se validará al enviar'
+    };
+  }
+};
+
+/**
  * Verificar si una empresa existe por su ID
- * Esta función asume que NO tienes autenticación aún durante el onboarding
- * Por lo tanto, simplemente valida el formato del código
  */
 export const verificarEmpresa = async (empresaId) => {
   try {
@@ -225,7 +326,7 @@ export const verificarEmpresa = async (empresaId) => {
 };
 
 /**
- * Guardar token de autenticación (si lo tienes)
+ * Guardar token de autenticación
  */
 export const guardarToken = async (token) => {
   try {
@@ -281,7 +382,6 @@ export const verificarDispositivoActivo = async (solicitudId) => {
     }
 
     if (error.response?.status === 401 || error.response?.status === 403) {
-      // Si requiere autenticación, intentar con el token
       return {
         valido: false,
         motivo: 'Requiere autenticación',

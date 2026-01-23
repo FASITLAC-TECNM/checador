@@ -15,12 +15,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import config from '../../config/onboardingConfig.json';
-import { crearSolicitudMovil, reabrirSolicitudMovil } from '../../services/solicitudMovilService';
+import { crearSolicitudMovil, reabrirSolicitudMovil, verificarCorreoEnEmpresa } from '../../services/solicitudMovilService';
 import { detectDeviceInfo } from '../../services/deviceUtils';
 
-export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPrevious }) => {
+export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPrevious, initialEmail, userData }) => {
   const insets = useSafeAreaInsets();
   const { deviceConfig } = config;
+  
   const [formData, setFormData] = useState({
     email: '',
     registrationDate: '',
@@ -29,19 +30,41 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
     deviceModel: '',
     os: '',
   });
+  
   const [isLoading, setIsLoading] = useState(false);
   const [isDetecting, setIsDetecting] = useState(true);
   const [solicitudExistente, setSolicitudExistente] = useState(null);
+  
+  // Estados para validación de correo
+  const [isValidatingEmail, setIsValidatingEmail] = useState(false);
+  const [emailValidation, setEmailValidation] = useState({
+    isValid: null,
+    message: '',
+    checked: false,
+    usuario: null,
+    empleadoId: null
+  });
 
+  // Efecto inicial: Detectar dispositivo y auto-llenar email
   useEffect(() => {
-    checkExistingSolicitud();
+    initializeScreen();
   }, []);
 
-  const checkExistingSolicitud = async () => {
+  // Efecto secundario: Auto-validar email si viene pre-llenado
+  useEffect(() => {
+    if (formData.email && !emailValidation.checked && !isDetecting) {
+      const timer = setTimeout(() => {
+        handleEmailBlur();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [formData.email, isDetecting]);
+
+  const initializeScreen = async () => {
     try {
       setIsDetecting(true);
       
-      // Verificar si hay una solicitud rechazada guardada para reintentar
+      // 1. Verificar solicitud rechazada existente
       const solicitudRechazadaId = await AsyncStorage.getItem('@solicitud_rechazada_id');
       const solicitudRechazadaToken = await AsyncStorage.getItem('@solicitud_rechazada_token');
       
@@ -50,11 +73,43 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
         setSolicitudExistente({ id: solicitudRechazadaId, token: solicitudRechazadaToken });
       }
       
-      // Detectar info del dispositivo
+      // 2. Detectar información del dispositivo
       await detectDevice();
+      
+      // 3. Auto-llenar email desde userData, initialEmail o AsyncStorage
+      let emailToUse = '';
+      
+      if (userData?.correo) {
+        emailToUse = userData.correo;
+        console.log('📧 Email desde userData:', emailToUse);
+      } else if (initialEmail) {
+        emailToUse = initialEmail;
+        console.log('📧 Email desde initialEmail:', emailToUse);
+      } else {
+        const savedEmail = await AsyncStorage.getItem('@user_email');
+        if (savedEmail) {
+          emailToUse = savedEmail;
+          console.log('📧 Email desde AsyncStorage:', emailToUse);
+        }
+      }
+      
+      if (emailToUse) {
+        setFormData(prev => ({ ...prev, email: emailToUse }));
+      } else {
+        // ❌ No se encontró email - esto es crítico
+        console.error('❌ No se pudo obtener el correo electrónico del usuario');
+        Alert.alert(
+          'Error de Configuración',
+          'No se pudo obtener tu correo electrónico. Por favor, cierra sesión e intenta nuevamente.',
+          [{ text: 'Entendido' }]
+        );
+      }
+      
     } catch (error) {
-      console.error('❌ Error verificando solicitud existente:', error);
-      await detectDevice();
+      console.error('❌ Error inicializando pantalla:', error);
+      Alert.alert('Error', 'No se pudo inicializar la configuración del dispositivo');
+    } finally {
+      setIsDetecting(false);
     }
   };
 
@@ -82,18 +137,107 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
     } catch (error) {
       console.error('❌ Error detectando dispositivo:', error);
       Alert.alert('Error', 'No se pudo detectar la información del dispositivo');
+    }
+  };
+
+  const isValidEmailFormat = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleEmailBlur = async () => {
+    const emailTrimmed = formData.email.trim();
+    
+    if (!emailTrimmed) {
+      setEmailValidation({
+        isValid: null,
+        message: '',
+        checked: false,
+        usuario: null,
+        empleadoId: null
+      });
+      return;
+    }
+
+    if (!isValidEmailFormat(emailTrimmed)) {
+      setEmailValidation({
+        isValid: false,
+        message: '✗ Formato de correo electrónico inválido',
+        checked: true,
+        usuario: null,
+        empleadoId: null
+      });
+      return;
+    }
+
+    setIsValidatingEmail(true);
+    
+    try {
+      const result = await verificarCorreoEnEmpresa(emailTrimmed, empresaId);
+      
+      console.log('📧 Resultado validación:', result);
+      
+      // Marcar como válido si: existe Y activo Y (tiene usuario O está pendiente de validación)
+      const esValido = result.existe && result.activo && (result.usuario || result.pendienteValidacion);
+      
+      if (esValido) {
+        let mensaje = result.usuario 
+          ? `✓ Correo verificado: ${result.usuario.nombre}`
+          : `⚠️ ${result.mensaje || 'Correo pendiente de verificación'}`;
+        
+        setEmailValidation({
+          isValid: true,
+          message: mensaje,
+          checked: true,
+          usuario: result.usuario || { nombre: emailTrimmed.split('@')[0], correo: emailTrimmed },
+          empleadoId: result.empleadoId
+        });
+      } else if (result.existe && !result.activo) {
+        setEmailValidation({
+          isValid: false,
+          message: '✗ Este usuario está inactivo en la empresa',
+          checked: true,
+          usuario: null,
+          empleadoId: null
+        });
+      } else {
+        setEmailValidation({
+          isValid: false,
+          message: result.mensaje || `✗ Este correo no está registrado en ${empresaNombre}`,
+          checked: true,
+          usuario: null,
+          empleadoId: null
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error validando correo:', error);
+      
+      setEmailValidation({
+        isValid: false,
+        message: '⚠️ No se pudo verificar el correo. Verifica tu conexión a internet.',
+        checked: true,
+        usuario: null,
+        empleadoId: null
+      });
     } finally {
-      setIsDetecting(false);
+      setIsValidatingEmail(false);
     }
   };
 
   const handleNext = async () => {
-    if (!formData.email) {
+    const emailTrimmed = formData.email.trim().toLowerCase();
+    
+    if (!emailTrimmed) {
       Alert.alert('Error', 'Por favor ingresa tu correo electrónico');
       return;
     }
-    if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      Alert.alert('Error', 'Por favor ingresa un correo válido');
+
+    if (!emailValidation.checked || !emailValidation.isValid) {
+      Alert.alert(
+        'Validación Requerida',
+        'Por favor verifica tu correo electrónico antes de continuar',
+        [{ text: 'Validar ahora', onPress: handleEmailBlur }]
+      );
       return;
     }
 
@@ -107,29 +251,25 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
     try {
       let response;
 
-      // Si hay una solicitud existente (rechazada), reabrirla
       if (solicitudExistente?.id) {
         console.log('🔄 Reabriendo solicitud rechazada:', solicitudExistente.id);
         
-        const observaciones = `Reintento desde app móvil el ${formData.registrationDate}. Email: ${formData.email}, SO: ${formData.os}`;
+        const observaciones = `Reintento desde app móvil el ${formData.registrationDate}. Email: ${emailTrimmed}, SO: ${formData.os}`;
         response = await reabrirSolicitudMovil(solicitudExistente.id, observaciones);
         
-        // Si se reabrió exitosamente, usar el ID y token existente
         response.id = solicitudExistente.id;
         response.token_solicitud = solicitudExistente.token;
         
-        // Limpiar los datos de la solicitud rechazada
         await AsyncStorage.removeItem('@solicitud_rechazada_id');
         await AsyncStorage.removeItem('@solicitud_rechazada_token');
         console.log('🧹 Datos de solicitud rechazada limpiados');
         
       } else {
-        // Crear nueva solicitud
         console.log('📱 Enviando solicitud de dispositivo móvil...');
         
         const solicitudData = {
           nombre: formData.deviceModel,
-          correo: formData.email,
+          correo: emailTrimmed,
           descripcion: `Dispositivo ${Platform.OS === 'ios' ? 'iOS' : 'Android'} - ${formData.deviceModel}`,
           ip: formData.ipAddress,
           mac: formData.macAddress,
@@ -156,7 +296,7 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
           text: 'Continuar', 
           onPress: () => {
             onNext({
-              email: formData.email,
+              email: emailTrimmed,
               empresaId: empresaId,
               empresaNombre: empresaNombre,
               deviceInfo: {
@@ -167,7 +307,9 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
                 registrationDate: formData.registrationDate
               },
               tokenSolicitud: response.token_solicitud,
-              idSolicitud: response.id
+              idSolicitud: response.id,
+              nombreUsuario: emailValidation.usuario?.nombre || emailTrimmed.split('@')[0],
+              empleadoId: emailValidation.empleadoId
             });
           }
         }]
@@ -190,34 +332,69 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
 
   const renderField = (field) => {
     const isReadonly = field.readonly;
+    const isEmailField = field.id === 'email';
+    
+    // ✅ El campo de email SIEMPRE es readonly (auto-detectado desde userData)
+    const fieldIsReadonly = isReadonly || isEmailField;
     
     return (
       <View key={field.id} style={styles.fieldContainer}>
         <Text style={styles.label}>
           {field.label} {field.required && <Text style={styles.required}>*</Text>}
         </Text>
-        <View style={[styles.inputWrapper, isReadonly && styles.inputWrapperReadonly]}>
+        <View style={[
+          styles.inputWrapper, 
+          fieldIsReadonly && styles.inputWrapperReadonly,
+          isEmailField && emailValidation.checked && emailValidation.isValid && styles.inputWrapperValid,
+          isEmailField && emailValidation.checked && !emailValidation.isValid && styles.inputWrapperInvalid
+        ]}>
           <Ionicons
             name={field.icon}
             size={16}
-            color={isReadonly ? '#9ca3af' : '#2563eb'}
+            color={fieldIsReadonly ? '#9ca3af' : '#2563eb'}
             style={styles.inputIcon}
           />
           <TextInput
-            style={[styles.input, isReadonly && styles.inputReadonly]}
+            style={[styles.input, fieldIsReadonly && styles.inputReadonly]}
             placeholder={field.placeholder}
             placeholderTextColor="#9ca3af"
             value={formData[field.id]}
             onChangeText={(text) => setFormData(prev => ({ ...prev, [field.id]: text }))}
             keyboardType={field.type === 'email' ? 'email-address' : 'default'}
             autoCapitalize={field.type === 'email' ? 'none' : 'sentences'}
-            editable={!isReadonly && !isLoading}
+            editable={false} // ✅ TODOS los campos bloqueados (auto-detectados)
           />
-          {isReadonly && (
-            <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+          {fieldIsReadonly && (
+            <Ionicons 
+              name="checkmark-circle" 
+              size={16} 
+              color={isEmailField && emailValidation.isValid ? "#10b981" : "#10b981"} 
+            />
+          )}
+          {isEmailField && isValidatingEmail && (
+            <ActivityIndicator size="small" color="#2563eb" style={{ marginLeft: 8 }} />
           )}
         </View>
-        {field.helpText && (
+        
+        {isEmailField && isValidatingEmail && (
+          <Text style={styles.validatingText}>Verificando correo...</Text>
+        )}
+        {isEmailField && emailValidation.checked && emailValidation.message && (
+          <Text style={[
+            styles.validationMessage,
+            emailValidation.isValid ? styles.validMessage : styles.invalidMessage
+          ]}>
+            {emailValidation.message}
+          </Text>
+        )}
+        
+        {isEmailField && !emailValidation.checked && (
+          <Text style={styles.helpText}>
+            ✓ Correo detectado automáticamente desde tu sesión
+          </Text>
+        )}
+        
+        {field.helpText && !isEmailField && (
           <Text style={styles.helpText}>{field.helpText}</Text>
         )}
       </View>
@@ -238,12 +415,10 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Header con Stepper */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.headerTitle}>{deviceConfig.title}</Text>
         <Text style={styles.headerSubtitle}>{deviceConfig.subtitle}</Text>
         
-        {/* Stepper en el Header */}
         <View style={styles.stepperContainer}>
           <View style={styles.stepComplete}>
             <Ionicons name="checkmark" size={12} color="#fff" />
@@ -259,13 +434,12 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
         </View>
       </View>
 
-      {/* Form */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: Platform.OS === 'android' ? 100 : 80 }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        {/* Modo reintento badge */}
         {solicitudExistente && (
           <View style={styles.retryBadge}>
             <Ionicons name="refresh-circle" size={20} color="#f59e0b" />
@@ -273,7 +447,6 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
           </View>
         )}
 
-        {/* Empresa Info Card */}
         <View style={styles.empresaCard}>
           <Ionicons name="business" size={20} color="#2563eb" />
           <View style={styles.empresaInfo}>
@@ -286,7 +459,6 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
           {deviceConfig.fields.map(renderField)}
         </View>
 
-        {/* Device Info Card */}
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>{deviceConfig.deviceInfo.title}</Text>
           <View style={styles.infoRow}>
@@ -303,7 +475,6 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
           </View>
         </View>
 
-        {/* Warning Card */}
         <View style={styles.warningCard}>
           <Ionicons name="information-circle" size={20} color="#f59e0b" />
           <Text style={styles.warningText}>
@@ -312,7 +483,6 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
         </View>
       </ScrollView>
 
-      {/* Footer - Solo botones, sin stepper */}
       <View style={[styles.footer, { paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 8) : insets.bottom }]}>
         <View style={styles.buttonRow}>
           <TouchableOpacity
@@ -326,12 +496,15 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.nextButton, (!formData.email || isLoading) && styles.nextButtonDisabled]}
+            style={[
+              styles.nextButton, 
+              (!emailValidation.isValid || isLoading || isValidatingEmail) && styles.nextButtonDisabled
+            ]}
             onPress={handleNext}
-            disabled={!formData.email || isLoading}
+            disabled={!emailValidation.isValid || isLoading || isValidatingEmail}
             activeOpacity={0.8}
           >
-                          {isLoading ? (
+            {isLoading ? (
               <>
                 <ActivityIndicator color="#fff" size="small" />
                 <Text style={[styles.nextButtonText, { marginLeft: 8 }]}>
@@ -502,6 +675,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
     borderColor: '#d1d5db',
   },
+  inputWrapperValid: {
+    borderColor: '#10b981',
+    borderWidth: 2,
+    backgroundColor: '#f0fdf4',
+  },
+  inputWrapperInvalid: {
+    borderColor: '#ef4444',
+    borderWidth: 2,
+    backgroundColor: '#fef2f2',
+  },
   inputIcon: {
     marginRight: 8,
   },
@@ -519,6 +702,23 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     marginTop: 4,
     marginLeft: 2,
+  },
+  validatingText: {
+    fontSize: 12,
+    color: '#2563eb',
+    marginTop: 6,
+    marginLeft: 2,
+  },
+  validationMessage: {
+    fontSize: 12,
+    marginTop: 6,
+    marginLeft: 2,
+  },
+  validMessage: {
+    color: '#10b981',
+  },
+  invalidMessage: {
+    color: '#ef4444',
   },
   infoCard: {
     backgroundColor: '#eff6ff',

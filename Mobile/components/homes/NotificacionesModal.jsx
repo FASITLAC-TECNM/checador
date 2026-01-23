@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,86 +8,108 @@ import {
   ScrollView,
   Animated,
   Dimensions,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { getNotificaciones } from '../../services/notificacionesService';
 
 const { width } = Dimensions.get('window');
 
-// Datos simulados
-const eventosSimulados = [
-  {
-    id: 1,
-    titulo: "Nueva entrada registrada en Acceso Principal",
-    descripcion: "Se ha registrado una nueva entrada al sistema. El usuario accedió por la puerta principal a las 08:45 AM.",
-    estado: "Entrada",
-    tipo_evento: "notificacion",
-    created_at: new Date(Date.now() - 5 * 60000).toISOString()
-  },
-  {
-    id: 2,
-    titulo: "Mantenimiento programado del sistema",
-    descripcion: "El sistema estará en mantenimiento el próximo domingo de 2:00 AM a 6:00 AM. Durante este tiempo, algunos servicios podrían no estar disponibles.",
-    estado: "Ambos",
-    tipo_evento: "anuncio",
-    created_at: new Date(Date.now() - 2 * 3600000).toISOString()
-  },
-  {
-    id: 3,
-    titulo: "¡Atención! Intento de acceso no autorizado",
-    descripcion: "Se detectó un intento de acceso no autorizado en la puerta trasera. El sistema de seguridad se activó automáticamente y se notificó al personal de seguridad.",
-    estado: "Entrada",
-    tipo_evento: "alerta",
-    created_at: new Date(Date.now() - 6 * 3600000).toISOString()
-  },
-  {
-    id: 4,
-    titulo: "Recordatorio: Revisión de accesos pendiente",
-    descripcion: "Tienes pendiente revisar los logs de acceso de la semana pasada. Por favor, completa esta tarea antes del viernes.",
-    estado: "Ambos",
-    tipo_evento: "recordatorio",
-    created_at: new Date(Date.now() - 24 * 3600000).toISOString()
-  },
-  {
-    id: 5,
-    titulo: "Salida registrada - Zona de estacionamiento",
-    descripcion: "Usuario salió del estacionamiento vehicular. Duración total de estadía: 8 horas 15 minutos.",
-    estado: "Salida",
-    tipo_evento: "notificacion",
-    created_at: new Date(Date.now() - 3 * 24 * 3600000).toISOString()
-  },
-  {
-    id: 6,
-    titulo: "Actualización de políticas de seguridad",
-    descripcion: "Se han actualizado las políticas de seguridad del edificio. Todos los empleados deben revisar y aceptar los nuevos términos en el portal.",
-    estado: "Ambos",
-    tipo_evento: "anuncio",
-    created_at: new Date(Date.now() - 5 * 24 * 3600000).toISOString()
-  },
-  {
-    id: 7,
-    titulo: "Temperatura elevada detectada en Servidor Principal",
-    descripcion: "Los sensores detectaron una temperatura de 45°C en la sala de servidores. Se activó el sistema de enfriamiento de emergencia.",
-    estado: "Ambos",
-    tipo_evento: "alerta",
-    created_at: new Date(Date.now() - 7 * 24 * 3600000).toISOString()
-  }
-];
-
-const estadisticasSimuladas = {
-  total: 7,
-  notificaciones: 2,
-  anuncios: 2,
-  alertas: 2,
-  recordatorios: 1
-};
-
-export const NotificacionesModal = ({ visible = true, onClose = () => {} }) => {
+export const NotificacionesModal = ({
+  visible = false,
+  onClose = () => {},
+  userData = null,
+  token = null
+}) => {
   const [filtroActivo, setFiltroActivo] = useState('todos');
   const [eventoExpandido, setEventoExpandido] = useState(null);
   const [slideAnim] = useState(new Animated.Value(300));
 
-  React.useEffect(() => {
+  // Estados para la API
+  const [eventos, setEventos] = useState([]);
+  const [estadisticas, setEstadisticas] = useState({
+    total: 0,
+    notificaciones: 0,
+    anuncios: 0,
+    alertas: 0,
+    recordatorios: 0
+  });
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Cargar notificaciones desde la API
+  const cargarNotificaciones = useCallback(async (isRefresh = false) => {
+    if (!token) {
+      setError('No hay token de autenticación');
+      return;
+    }
+
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+
+      // Obtener notificaciones - filtramos por empleado_id si existe (notificaciones exclusivas)
+      // o todas las generales disponibles
+      const filtros = {
+        limit: 50
+      };
+
+      // Si el usuario tiene empleado_id, obtener sus notificaciones específicas
+      if (userData?.empleado_id) {
+        filtros.empleado_id = userData.empleado_id;
+      }
+
+      const response = await getNotificaciones(token, filtros);
+
+      if (response.success && response.data) {
+        const notificacionesData = response.data;
+        setEventos(notificacionesData);
+
+        // Calcular estadísticas
+        const stats = {
+          total: notificacionesData.length,
+          notificaciones: notificacionesData.filter(e => e.tipo_evento === 'notificacion').length,
+          anuncios: notificacionesData.filter(e => e.tipo_evento === 'anuncio').length,
+          alertas: notificacionesData.filter(e => e.tipo_evento === 'alerta').length,
+          recordatorios: notificacionesData.filter(e => e.tipo_evento === 'recordatorio').length
+        };
+        setEstadisticas(stats);
+      } else {
+        setEventos([]);
+        setEstadisticas({
+          total: 0,
+          notificaciones: 0,
+          anuncios: 0,
+          alertas: 0,
+          recordatorios: 0
+        });
+      }
+    } catch (err) {
+      console.error('Error al cargar notificaciones:', err);
+      setError('No se pudieron cargar las notificaciones');
+      setEventos([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [token, userData?.empleado_id]);
+
+  // Cargar datos cuando el modal se abre
+  useEffect(() => {
+    if (visible && token) {
+      cargarNotificaciones();
+    }
+  }, [visible, token, cargarNotificaciones]);
+
+  // Animación del modal
+  useEffect(() => {
     if (visible) {
       Animated.spring(slideAnim, {
         toValue: 0,
@@ -100,9 +122,10 @@ export const NotificacionesModal = ({ visible = true, onClose = () => {} }) => {
     }
   }, [visible]);
 
-  const eventos = filtroActivo === 'todos' 
-    ? eventosSimulados 
-    : eventosSimulados.filter(e => e.tipo_evento === filtroActivo);
+  // Filtrar eventos según el filtro activo
+  const eventosFiltrados = filtroActivo === 'todos'
+    ? eventos
+    : eventos.filter(e => e.tipo_evento === filtroActivo);
 
   const getEventoInfo = (tipoEvento) => {
     const configs = {
@@ -110,7 +133,7 @@ export const NotificacionesModal = ({ visible = true, onClose = () => {} }) => {
         icono: 'notifications',
         color: '#3b82f6',
         bg: '#dbeafe',
-        label: 'Notificación',
+        label: 'Notificacion',
         gradient: ['#3b82f6', '#2563eb']
       },
       anuncio: {
@@ -138,11 +161,20 @@ export const NotificacionesModal = ({ visible = true, onClose = () => {} }) => {
     return configs[tipoEvento] || configs.notificacion;
   };
 
+  const getPrioridadInfo = (prioridad) => {
+    const configs = {
+      alta: { color: '#ef4444', label: 'Alta' },
+      media: { color: '#f59e0b', label: 'Media' },
+      baja: { color: '#10b981', label: 'Baja' }
+    };
+    return configs[prioridad] || configs.media;
+  };
+
   const formatearFecha = (fecha) => {
     const date = new Date(fecha);
     const ahora = new Date();
     const diff = ahora - date;
-    
+
     const minutos = Math.floor(diff / 60000);
     const horas = Math.floor(diff / 3600000);
     const dias = Math.floor(diff / 86400000);
@@ -151,9 +183,9 @@ export const NotificacionesModal = ({ visible = true, onClose = () => {} }) => {
     if (minutos < 60) return `Hace ${minutos}m`;
     if (horas < 24) return `Hace ${horas}h`;
     if (dias < 7) return `Hace ${dias}d`;
-    
-    return date.toLocaleDateString('es-MX', { 
-      day: 'numeric', 
+
+    return date.toLocaleDateString('es-MX', {
+      day: 'numeric',
       month: 'short',
       year: 'numeric'
     });
@@ -171,15 +203,11 @@ export const NotificacionesModal = ({ visible = true, onClose = () => {} }) => {
     });
   };
 
-  const getEstadoIcon = (estado) => {
-    if (estado === 'Entrada') return 'log-in-outline';
-    if (estado === 'Salida') return 'log-out-outline';
-    return 'swap-horizontal-outline';
-  };
-
   const renderEvento = (evento) => {
     const info = getEventoInfo(evento.tipo_evento);
+    const prioridadInfo = getPrioridadInfo(evento.prioridad);
     const isExpandido = eventoExpandido === evento.id;
+    const fechaCampo = evento.fecha_registro || evento.created_at;
 
     return (
       <TouchableOpacity
@@ -204,8 +232,8 @@ export const NotificacionesModal = ({ visible = true, onClose = () => {} }) => {
 
           <View style={styles.eventoTextContainer}>
             <View style={styles.eventoHeader}>
-              <Text 
-                style={styles.eventoTitulo} 
+              <Text
+                style={styles.eventoTitulo}
                 numberOfLines={isExpandido ? undefined : 2}
               >
                 {evento.titulo}
@@ -221,14 +249,14 @@ export const NotificacionesModal = ({ visible = true, onClose = () => {} }) => {
               <View style={styles.eventoFechaContainer}>
                 <Ionicons name="time-outline" size={14} color="#9ca3af" />
                 <Text style={styles.eventoFecha}>
-                  {formatearFecha(evento.created_at)}
+                  {formatearFecha(fechaCampo)}
                 </Text>
               </View>
-              
-              <Ionicons 
-                name={isExpandido ? "chevron-up" : "chevron-down"} 
-                size={20} 
-                color="#9ca3af" 
+
+              <Ionicons
+                name={isExpandido ? "chevron-up" : "chevron-down"}
+                size={20}
+                color="#9ca3af"
               />
             </View>
           </View>
@@ -239,12 +267,12 @@ export const NotificacionesModal = ({ visible = true, onClose = () => {} }) => {
           <View style={styles.eventoExpandedContent}>
             <View style={styles.eventoDivider} />
 
-            {/* Descripción */}
+            {/* Descripcion */}
             {evento.descripcion && (
               <View style={styles.descripcionContainer}>
                 <View style={styles.sectionHeader}>
                   <Ionicons name="document-text-outline" size={18} color={info.color} />
-                  <Text style={styles.sectionTitle}>Descripción</Text>
+                  <Text style={styles.sectionTitle}>Descripcion</Text>
                 </View>
                 <Text style={styles.descripcionText}>
                   {evento.descripcion}
@@ -265,18 +293,31 @@ export const NotificacionesModal = ({ visible = true, onClose = () => {} }) => {
                 <View style={styles.detailTextContainer}>
                   <Text style={styles.detailLabel}>Fecha y hora</Text>
                   <Text style={styles.detailValue}>
-                    {formatearFechaCompleta(evento.created_at)}
+                    {formatearFechaCompleta(fechaCampo)}
                   </Text>
                 </View>
               </View>
 
-              {/* Estado */}
-              {evento.estado && (
+              {/* Prioridad */}
+              {evento.prioridad && (
                 <View style={styles.detailRow}>
-                  <Ionicons name={getEstadoIcon(evento.estado)} size={16} color="#6b7280" />
+                  <Ionicons name="flag-outline" size={16} color={prioridadInfo.color} />
                   <View style={styles.detailTextContainer}>
-                    <Text style={styles.detailLabel}>Estado</Text>
-                    <Text style={styles.detailValue}>{evento.estado}</Text>
+                    <Text style={styles.detailLabel}>Prioridad</Text>
+                    <Text style={[styles.detailValue, { color: prioridadInfo.color }]}>
+                      {prioridadInfo.label}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Empleado relacionado */}
+              {evento.empleado_nombre && (
+                <View style={styles.detailRow}>
+                  <Ionicons name="person-outline" size={16} color="#6b7280" />
+                  <View style={styles.detailTextContainer}>
+                    <Text style={styles.detailLabel}>Relacionado con</Text>
+                    <Text style={styles.detailValue}>{evento.empleado_nombre}</Text>
                   </View>
                 </View>
               )}
@@ -305,6 +346,61 @@ export const NotificacionesModal = ({ visible = true, onClose = () => {} }) => {
     );
   };
 
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text style={styles.loadingText}>Cargando notificaciones...</Text>
+        </View>
+      );
+    }
+
+    if (error) {
+      return (
+        <View style={styles.errorContainer}>
+          <View style={styles.errorIconContainer}>
+            <Ionicons name="cloud-offline-outline" size={64} color="#ef4444" />
+          </View>
+          <Text style={styles.errorTitle}>Error de conexion</Text>
+          <Text style={styles.errorSubtitle}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => cargarNotificaciones()}
+          >
+            <Ionicons name="refresh-outline" size={20} color="#fff" />
+            <Text style={styles.retryButtonText}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (eventosFiltrados.length === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIconContainer}>
+            <Ionicons name="notifications-off-outline" size={64} color="#d1d5db" />
+          </View>
+          <Text style={styles.emptyTitle}>No hay eventos</Text>
+          <Text style={styles.emptySubtitle}>
+            {filtroActivo === 'todos'
+              ? 'No tienes notificaciones en este momento'
+              : `No hay ${filtroActivo}s disponibles`}
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <>
+        <Text style={styles.eventosHint}>
+          Toca cualquier evento para ver mas detalles
+        </Text>
+        {eventosFiltrados.map(evento => renderEvento(evento))}
+      </>
+    );
+  };
+
   return (
     <Modal
       visible={visible}
@@ -319,7 +415,7 @@ export const NotificacionesModal = ({ visible = true, onClose = () => {} }) => {
           onPress={onClose}
         />
 
-        <Animated.View 
+        <Animated.View
           style={[
             styles.modalContainer,
             { transform: [{ translateY: slideAnim }] }
@@ -340,7 +436,7 @@ export const NotificacionesModal = ({ visible = true, onClose = () => {} }) => {
                 <View>
                   <Text style={styles.headerTitle}>Notificaciones</Text>
                   <Text style={styles.headerSubtitle}>
-                    {estadisticasSimuladas.total} {estadisticasSimuladas.total === 1 ? 'evento' : 'eventos'}
+                    {estadisticas.total} {estadisticas.total === 1 ? 'evento' : 'eventos'}
                   </Text>
                 </View>
               </View>
@@ -358,11 +454,11 @@ export const NotificacionesModal = ({ visible = true, onClose = () => {} }) => {
               contentContainerStyle={styles.filtrosContainer}
             >
               {[
-                { key: 'todos', label: 'Todos', emoji: '', count: estadisticasSimuladas.total },
-                { key: 'notificacion', label: 'Notificaciones', emoji: '🔔', count: estadisticasSimuladas.notificaciones },
-                { key: 'anuncio', label: 'Anuncios', emoji: '📢', count: estadisticasSimuladas.anuncios },
-                { key: 'alerta', label: 'Alertas', emoji: '⚠️', count: estadisticasSimuladas.alertas },
-                { key: 'recordatorio', label: 'Recordatorios', emoji: '⏰', count: estadisticasSimuladas.recordatorios }
+                { key: 'todos', label: 'Todos', count: estadisticas.total },
+                { key: 'notificacion', label: 'Notificaciones', count: estadisticas.notificaciones },
+                { key: 'anuncio', label: 'Anuncios', count: estadisticas.anuncios },
+                { key: 'alerta', label: 'Alertas', count: estadisticas.alertas },
+                { key: 'recordatorio', label: 'Recordatorios', count: estadisticas.recordatorios }
               ].map(filtro => (
                 <TouchableOpacity
                   key={filtro.key}
@@ -379,7 +475,7 @@ export const NotificacionesModal = ({ visible = true, onClose = () => {} }) => {
                     styles.filtroChipText,
                     filtroActivo === filtro.key && styles.filtroChipTextActive
                   ]}>
-                    {filtro.emoji} {filtro.label}
+                    {filtro.label}
                   </Text>
                   {filtro.count > 0 && (
                     <View style={[
@@ -404,27 +500,16 @@ export const NotificacionesModal = ({ visible = true, onClose = () => {} }) => {
             style={styles.eventosScrollView}
             contentContainerStyle={styles.eventosContent}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => cargarNotificaciones(true)}
+                colors={['#2563eb']}
+                tintColor="#2563eb"
+              />
+            }
           >
-            {eventos.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <View style={styles.emptyIconContainer}>
-                  <Ionicons name="notifications-off-outline" size={64} color="#d1d5db" />
-                </View>
-                <Text style={styles.emptyTitle}>No hay eventos</Text>
-                <Text style={styles.emptySubtitle}>
-                  {filtroActivo === 'todos' 
-                    ? 'No tienes notificaciones en este momento' 
-                    : `No hay ${filtroActivo}s disponibles`}
-                </Text>
-              </View>
-            ) : (
-              <>
-                <Text style={styles.eventosHint}>
-                  👆 Toca cualquier evento para ver más detalles
-                </Text>
-                {eventos.map(evento => renderEvento(evento))}
-              </>
-            )}
+            {renderContent()}
           </ScrollView>
         </Animated.View>
       </View>
@@ -557,6 +642,7 @@ const styles = StyleSheet.create({
   },
   eventosContent: {
     padding: 20,
+    paddingBottom: 40,
   },
   eventosHint: {
     fontSize: 13,
@@ -698,6 +784,60 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     fontWeight: '600',
     textTransform: 'capitalize',
+  },
+  // Estados de carga y error
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 80,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 15,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  errorContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 40,
+  },
+  errorIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#fee2e2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 8,
+  },
+  errorSubtitle: {
+    fontSize: 15,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   emptyContainer: {
     alignItems: 'center',

@@ -50,12 +50,18 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
   }, [loadModels, propEmpleadoId]);
 
   const handleStartCapture = () => {
-    if (!empleadoId.trim()) {
+    const idTrimmed = empleadoId.trim();
+    if (!idTrimmed) {
       setErrorMessage("Por favor ingresa un ID de empleado");
       return;
     }
 
-    console.log("🎥 Iniciando captura para empleado:", empleadoId);
+    if (idTrimmed.length > 8) {
+      setErrorMessage("El ID del empleado debe tener máximo 8 caracteres");
+      return;
+    }
+
+    console.log("🎥 Iniciando captura para empleado:", idTrimmed);
     setErrorMessage("");
     setStep("capturing");
 
@@ -305,9 +311,10 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
                 <input
                   type="text"
                   value={empleadoId}
-                  onChange={(e) => setEmpleadoId(e.target.value)}
-                  placeholder="Ejemplo: 123"
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  onChange={(e) => setEmpleadoId(e.target.value.slice(0, 8))}
+                  placeholder="Ejemplo: EMP00001"
+                  maxLength={8}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 uppercase"
                   autoFocus
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
@@ -346,8 +353,8 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
 
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
                 <p className="text-xs text-yellow-700 dark:text-yellow-400">
-                  ⚠️ <strong>Modo de pruebas:</strong> Este botón registra descriptores faciales directamente en la base de datos.
-                  Asegúrate de que el empleado exista en la tabla de empleados.
+                  ⚠️ <strong>Nota:</strong> El descriptor facial se guardará en la tabla Credenciales, columna Facial (BYTEA).
+                  El ID del empleado es un código de máximo 8 caracteres.
                 </p>
               </div>
             </div>

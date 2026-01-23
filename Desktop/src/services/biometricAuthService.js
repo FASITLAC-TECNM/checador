@@ -314,26 +314,32 @@ export const haySesionActiva = () => {
 
 /**
  * Registrar descriptor facial para un empleado
- * @param {number|string} idEmpleado - ID del empleado (puede ser CHAR(8) o número)
- * @param {string} descriptorBase64 - Descriptor facial en Base64
+ * @param {string} idEmpleado - ID del empleado (CHAR(8))
+ * @param {string} descriptorBase64 - Descriptor facial en Base64 (se guarda como BYTEA)
  * @returns {Promise<Object>} - Resultado del registro
  */
 export const registrarDescriptorFacial = async (idEmpleado, descriptorBase64) => {
   try {
-    console.log(`💾 Registrando descriptor facial para empleado ${idEmpleado}...`);
+    // Asegurar que el ID sea string (CHAR(8))
+    const empleadoIdStr = String(idEmpleado).trim();
+    console.log(`💾 Registrando descriptor facial para empleado ${empleadoIdStr}...`);
 
     // Obtener token de autenticación
     const token = localStorage.getItem("auth_token");
 
-    // Usar el endpoint de credenciales para guardar el descriptor facial
-    const response = await fetch(`${API_URL}/api/credenciales/facial`, {
+    if (!token) {
+      throw new Error("No hay token de autenticación. Por favor inicie sesión.");
+    }
+
+    // Usar el endpoint de credenciales para guardar el descriptor facial en tabla Credenciales, columna Facial (BYTEA)
+    const response = await fetch(`${API_URL}/credenciales/facial`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(token && { Authorization: `Bearer ${token}` }),
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
-        empleado_id: idEmpleado,
+        empleado_id: empleadoIdStr,
         facial: descriptorBase64,
       }),
     });

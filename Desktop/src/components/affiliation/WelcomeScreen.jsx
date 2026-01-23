@@ -7,7 +7,7 @@ export default function WelcomeScreen({ onClose }) {
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-6 text-white">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 bg-bg-primary bg-opacity-20 rounded-full flex items-center justify-center backdrop-blur-sm">
-              <Monitor className="w-7 h-7" />
+              <img src="images/logo.ico" alt="Logo" className="w-7 h-7" />
             </div>
             <div>
               <h2 className="text-3xl font-bold">

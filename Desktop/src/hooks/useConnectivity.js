@@ -6,8 +6,8 @@
  * 3. Latido de fondo para detectar caídas silenciosas
  */
 
-import { useState, useEffect, useRef } from 'react';
-import API_CONFIG from '../config/apiEndPoint';
+import { useState, useEffect, useRef } from "react";
+import API_CONFIG from "../config/apiEndPoint";
 
 const HEARTBEAT_INTERVAL = 3000; // 3 segundos (latido de fondo)
 const ELECTRON_VERIFY_TIMEOUT = 5000; // Timeout para verificación Electron
@@ -21,13 +21,16 @@ const verifyInternetConnectivity = async () => {
     if (window.electronAPI && window.electronAPI.isElectron) {
       // Intentar verificar con Electron
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), ELECTRON_VERIFY_TIMEOUT);
+      const timeoutId = setTimeout(
+        () => controller.abort(),
+        ELECTRON_VERIFY_TIMEOUT,
+      );
 
       try {
-        const response = await fetch('https://www.google.com/favicon.ico', {
-          method: 'HEAD',
-          mode: 'no-cors',
-          cache: 'no-cache',
+        const response = await fetch("https://www.google.com/favicon.ico", {
+          method: "HEAD",
+          mode: "no-cors",
+          cache: "no-cache",
           signal: controller.signal,
         });
         clearTimeout(timeoutId);
@@ -39,8 +42,8 @@ const verifyInternetConnectivity = async () => {
     } else {
       // En navegador, usar múltiples endpoints
       const endpoints = [
-        'https://www.google.com/favicon.ico',
-        'https://www.cloudflare.com/favicon.ico',
+        "https://www.google.com/favicon.ico",
+        "https://www.cloudflare.com/favicon.ico",
       ];
 
       for (const endpoint of endpoints) {
@@ -49,9 +52,9 @@ const verifyInternetConnectivity = async () => {
           const timeoutId = setTimeout(() => controller.abort(), 3000);
 
           await fetch(endpoint, {
-            method: 'HEAD',
-            mode: 'no-cors',
-            cache: 'no-cache',
+            method: "HEAD",
+            mode: "no-cors",
+            cache: "no-cache",
             signal: controller.signal,
           });
 
@@ -66,7 +69,7 @@ const verifyInternetConnectivity = async () => {
       return false;
     }
   } catch (error) {
-    console.error('Error verificando conectividad:', error);
+    console.error("Error verificando conectividad:", error);
     return false;
   }
 };
@@ -79,34 +82,35 @@ const verifyDatabaseConnectivity = async () => {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    // Usar el endpoint de health check o la raíz del API
-    const response = await fetch(`${API_CONFIG.BASE_URL}/api/health`, {
-      method: 'GET',
+    // Ir directo a la raíz ya que /api/health no existe
+    const response = await fetch(`${API_CONFIG.BASE_URL}`, {
+      method: "GET",
       signal: controller.signal,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      // Si /api/health no existe, intentar con la raíz
-      const fallbackResponse = await fetch(`${API_CONFIG.BASE_URL}`, {
-        method: 'GET',
-        signal: controller.signal,
-      });
-
-      if (fallbackResponse.ok) {
-        return true;
-      }
       return false;
     }
 
-    const data = await response.json();
-    return data.status === 'OK' || data.success === true || data.database === 'connected';
+    // Intentar parsear JSON si la respuesta lo contiene
+    try {
+      const data = await response.json();
+      return (
+        data.status === "OK" ||
+        data.success === true ||
+        data.database === "connected"
+      );
+    } catch {
+      // Si no es JSON válido pero response.ok es true, asumir que está conectado
+      return true;
+    }
   } catch (error) {
-    console.error('Error verificando base de datos:', error);
+    console.error("Error verificando base de datos:", error);
     return false;
   }
 };
@@ -116,7 +120,9 @@ const verifyDatabaseConnectivity = async () => {
  */
 export const useConnectivity = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [isInternetConnected, setIsInternetConnected] = useState(navigator.onLine);
+  const [isInternetConnected, setIsInternetConnected] = useState(
+    navigator.onLine,
+  );
   const [isDatabaseConnected, setIsDatabaseConnected] = useState(false);
   const [lastChecked, setLastChecked] = useState(new Date());
 
@@ -147,7 +153,7 @@ export const useConnectivity = () => {
 
       setLastChecked(new Date());
     } catch (error) {
-      console.error('Error en verificación de conectividad:', error);
+      console.error("Error en verificación de conectividad:", error);
       setIsInternetConnected(false);
       setIsDatabaseConnected(false);
     } finally {
@@ -158,7 +164,7 @@ export const useConnectivity = () => {
   useEffect(() => {
     // 1. DETECCIÓN INSTANTÁNEA NATIVA
     const handleOnline = () => {
-      console.log('🟢 Evento ONLINE detectado');
+      console.log("🟢 Evento ONLINE detectado");
       setIsOnline(true);
 
       // 2. VERIFICACIÓN AGRESIVA cuando se reconecta
@@ -167,14 +173,14 @@ export const useConnectivity = () => {
     };
 
     const handleOffline = () => {
-      console.log('🔴 Evento OFFLINE detectado');
+      console.log("🔴 Evento OFFLINE detectado");
       setIsOnline(false);
       setIsInternetConnected(false);
       setIsDatabaseConnected(false);
     };
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
 
     // 3. LATIDO DE FONDO (heartbeat)
     // Mantener intervalo corto para detectar caídas silenciosas
@@ -185,8 +191,8 @@ export const useConnectivity = () => {
     }, HEARTBEAT_INTERVAL);
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
       if (heartbeatRef.current) {
         clearInterval(heartbeatRef.current);
       }

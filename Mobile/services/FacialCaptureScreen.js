@@ -1,4 +1,4 @@
-// FacialCaptureScreen.js - Con validación REAL de imagen
+// FacialCaptureScreen.js - CORREGIDO
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const OVAL_WIDTH = SCREEN_WIDTH * 0.75;
@@ -83,19 +83,15 @@ export const FacialCaptureScreen = ({
       });
 
       // Validaciones básicas pero efectivas:
-      // 1. El archivo debe existir
       if (!fileInfo.exists) {
         throw new Error('No se pudo capturar la imagen');
       }
 
-      // 2. El archivo debe tener un tamaño razonable (no estar vacío ni ser muy pequeño)
-      // Una foto válida debería pesar al menos 50KB
       if (fileInfo.size < 50000) {
         throw new Error('La imagen es demasiado oscura o no se capturó correctamente');
       }
 
-      // 3. La imagen no debe ser demasiado grande (indicaría sobreexposición extrema)
-      if (fileInfo.size > 10000000) { // 10MB
+      if (fileInfo.size > 10000000) {
         throw new Error('La imagen está sobreexpuesta');
       }
 
@@ -120,7 +116,6 @@ export const FacialCaptureScreen = ({
   };
 
   const startCountdown = async () => {
-    // Validar imagen primero
     const isValid = await validateImageBeforeCapture();
     
     if (!isValid) {
@@ -129,7 +124,7 @@ export const FacialCaptureScreen = ({
     }
 
     setCountdown(3);
-    setInstruction('¡Mantén la posición! 😊');
+    setInstruction('Mantén la posición');
     
     const timer = setInterval(() => {
       setCountdown(prev => {
@@ -252,112 +247,114 @@ export const FacialCaptureScreen = ({
     <View style={styles.fullScreen}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
       
+      {/* ✅ CameraView SIN children */}
       <CameraView 
         ref={cameraRef} 
         style={styles.camera} 
         facing="front"
-      >
-        <View style={styles.overlay}>
+      />
+
+      {/* ✅ Overlay con position: absolute FUERA de CameraView */}
+      <View style={styles.overlay} pointerEvents="box-none">
+        
+        {/* Botón cerrar */}
+        <TouchableOpacity
+          style={styles.closeButton}
+          onPress={onCancel}
+          disabled={isProcessing || isValidating}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="close" size={24} color="#fff" />
+        </TouchableOpacity>
+
+        {/* Óvalo guía */}
+        <View style={styles.ovalContainer} pointerEvents="none">
+          <Animated.View
+            style={[
+              styles.oval,
+              {
+                transform: [{ scale: pulseAnim }],
+                borderColor: countdown 
+                  ? '#10b981' 
+                  : isValidating
+                    ? '#f59e0b'
+                    : '#3b82f6',
+              }
+            ]}
+          />
           
-          {/* Botón cerrar */}
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={onCancel}
-            disabled={isProcessing || isValidating}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="close" size={24} color="#fff" />
-          </TouchableOpacity>
-
-          {/* Óvalo guía */}
-          <View style={styles.ovalContainer}>
-            <Animated.View
-              style={[
-                styles.oval,
-                {
-                  transform: [{ scale: pulseAnim }],
-                  borderColor: countdown 
-                    ? '#10b981' 
-                    : isValidating
-                      ? '#f59e0b'
-                      : '#3b82f6',
-                }
-              ]}
-            />
-            
-            {countdown && (
-              <Text style={styles.countdownText}>{countdown}</Text>
-            )}
-
-            {isValidating && (
-              <ActivityIndicator 
-                size="large" 
-                color="#f59e0b" 
-                style={styles.validatingIndicator}
-              />
-            )}
-          </View>
-
-          {/* Instrucción */}
-          <View style={styles.instructionContainer}>
-            <View style={[
-              styles.instructionBadge,
-              countdown && styles.instructionBadgeCountdown,
-              isValidating && styles.instructionBadgeValidating
-            ]}>
-              <Text style={styles.instructionText}>{instruction}</Text>
-            </View>
-          </View>
-
-          {/* Consejos */}
-          {!countdown && !isValidating && (
-            <View style={styles.tipsContainer}>
-              <View style={styles.tipItem}>
-                <Ionicons name="sunny-outline" size={14} color="#fbbf24" />
-                <Text style={styles.tipText}>Busca buena iluminación</Text>
-              </View>
-              <View style={styles.tipItem}>
-                <Ionicons name="eye-outline" size={14} color="#60a5fa" />
-                <Text style={styles.tipText}>Mira a la cámara</Text>
-              </View>
-            </View>
+          {countdown && (
+            <Text style={styles.countdownText}>{countdown}</Text>
           )}
 
-          {/* Botón de captura */}
-          <View style={styles.bottomContainer}>
-            <TouchableOpacity
-              style={[
-                styles.captureButton,
-                (isProcessing || countdown !== null || isValidating) && styles.captureButtonDisabled
-              ]}
-              onPress={startCountdown}
-              disabled={isProcessing || countdown !== null || isValidating}
-              activeOpacity={0.8}
-            >
-              <View style={[
-                styles.captureButtonInner,
-                countdown && styles.captureButtonInnerCountdown
-              ]}>
-                <Ionicons 
-                  name={isProcessing || isValidating ? "hourglass" : "camera"} 
-                  size={28} 
-                  color="#fff" 
-                />
-              </View>
-            </TouchableOpacity>
+          {isValidating && (
+            <ActivityIndicator 
+              size="large" 
+              color="#f59e0b" 
+              style={styles.validatingIndicator}
+            />
+          )}
+        </View>
 
-            <Text style={styles.helpText}>
-              {isProcessing 
-                ? 'Procesando...' 
-                : isValidating
-                  ? 'Validando imagen...'
-                  : countdown 
-                    ? `Capturando en ${countdown}...`
-                    : 'Toca para capturar'}
-            </Text>
+        {/* Instrucción */}
+        <View style={styles.instructionContainer} pointerEvents="none">
+          <View style={[
+            styles.instructionBadge,
+            countdown && styles.instructionBadgeCountdown,
+            isValidating && styles.instructionBadgeValidating
+          ]}>
+            <Text style={styles.instructionText}>{instruction}</Text>
           </View>
         </View>
-      </CameraView>
+
+        {/* Consejos */}
+        {!countdown && !isValidating && (
+          <View style={styles.tipsContainer} pointerEvents="none">
+            <View style={styles.tipItem}>
+              <Ionicons name="sunny-outline" size={14} color="#fbbf24" />
+              <Text style={styles.tipText}>Busca buena iluminación</Text>
+            </View>
+            <View style={styles.tipItem}>
+              <Ionicons name="eye-outline" size={14} color="#60a5fa" />
+              <Text style={styles.tipText}>Mira a la cámara</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Botón de captura */}
+        <View style={styles.bottomContainer}>
+          <TouchableOpacity
+            style={[
+              styles.captureButton,
+              (isProcessing || countdown !== null || isValidating) && styles.captureButtonDisabled
+            ]}
+            onPress={startCountdown}
+            disabled={isProcessing || countdown !== null || isValidating}
+            activeOpacity={0.8}
+          >
+            <View style={[
+              styles.captureButtonInner,
+              countdown && styles.captureButtonInnerCountdown
+            ]}>
+              <Ionicons 
+                name={isProcessing || isValidating ? "hourglass" : "camera"} 
+                size={28} 
+                color="#fff" 
+              />
+            </View>
+          </TouchableOpacity>
+
+          <Text style={styles.helpText}>
+            {isProcessing 
+              ? 'Procesando...' 
+              : isValidating
+                ? 'Validando imagen...'
+                : countdown 
+                  ? `Capturando en ${countdown}...`
+                  : 'Toca para capturar'}
+          </Text>
+        </View>
+      </View>
     </View>
   );
 };
@@ -380,11 +377,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   camera: {
-    flex: 1,
+    position: 'absolute', // ✅ Absolute positioning
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     width: '100%',
+    height: '100%',
   },
   overlay: {
-    flex: 1,
+    position: 'absolute', // ✅ Overlay separado
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   closeButton: {

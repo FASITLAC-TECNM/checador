@@ -33,7 +33,8 @@ export const getCredencialesByEmpleado = async (empleadoId, token) => {
                     message: 'Sin credenciales registradas',
                     data: {
                         tiene_dactilar: false,
-                        tiene_facial: false
+                        tiene_facial: false,
+                        tiene_pin: false
                     }
                 };
             }
@@ -125,6 +126,83 @@ export const guardarFacial = async (empleadoId, facialBase64, token) => {
         
     } catch (error) {
         console.error('[Credenciales Service] ❌ Error al guardar facial:', error);
+        throw error;
+    }
+};
+
+// Guardar PIN de seguridad
+export const guardarPin = async (empleadoId, pin, token) => {
+    try {
+        console.log('[Credenciales Service] Guardando PIN para empleado:', empleadoId);
+        
+        // Validar que el PIN sea de 6 dígitos
+        if (pin.length !== 6 || !/^\d{6}$/.test(pin)) {
+            throw new Error('El PIN debe ser de exactamente 6 dígitos');
+        }
+        
+        const response = await fetch(
+            getApiEndpoint('/api/credenciales/pin'),
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    empleado_id: empleadoId,
+                    pin: pin
+                })
+            }
+        );
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+            console.error('[Credenciales Service] ❌ Error guardando PIN:', data.message);
+            throw new Error(data.message || 'Error al guardar PIN');
+        }
+
+        console.log('[Credenciales Service] ✅ PIN guardado exitosamente');
+        return data;
+        
+    } catch (error) {
+        console.error('[Credenciales Service] ❌ Error al guardar PIN:', error);
+        throw error;
+    }
+};
+
+// Verificar PIN
+export const verificarPin = async (empleadoId, pin, token) => {
+    try {
+        console.log('[Credenciales Service] Verificando PIN para empleado:', empleadoId);
+        
+        const response = await fetch(
+            getApiEndpoint('/api/credenciales/verificar-pin'),
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    empleado_id: empleadoId,
+                    pin: pin
+                })
+            }
+        );
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+            console.error('[Credenciales Service] ❌ Error verificando PIN:', data.message);
+            throw new Error(data.message || 'Error al verificar PIN');
+        }
+
+        console.log('[Credenciales Service] ✅ PIN verificado exitosamente');
+        return data;
+        
+    } catch (error) {
+        console.error('[Credenciales Service] ❌ Error al verificar PIN:', error);
         throw error;
     }
 };

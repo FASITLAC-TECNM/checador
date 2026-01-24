@@ -35,20 +35,23 @@ import {
   getCredencialesByEmpleado,
   guardarDactilar,
   guardarFacial,
+  guardarPin,
   eliminarCredencial,
 } from '../../services/credencialesService';
 
-// Importar componente de captura
+// Importar componentes
 import { FacialCaptureScreen } from '../../services/FacialCaptureScreen';
+import { PinInputModal } from './PinModal';
 
 export const SecurityScreen = ({ darkMode, onBack, userData }) => {
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [faceIdEnabled, setFaceIdEnabled] = useState(false);
-  const [pinEnabled, setPinEnabled] = useState(true);
+  const [pinEnabled, setPinEnabled] = useState(false);
   
   // Estados de carga
   const [isLoadingBiometric, setIsLoadingBiometric] = useState(false);
   const [isLoadingFace, setIsLoadingFace] = useState(false);
+  const [isLoadingPin, setIsLoadingPin] = useState(false);
   const [isLoadingCredentials, setIsLoadingCredentials] = useState(true);
   
   // Soporte de hardware
@@ -57,9 +60,14 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
   // Credenciales existentes
   const [hasFingerprint, setHasFingerprint] = useState(false);
   const [hasFacial, setHasFacial] = useState(false);
+  const [hasPin, setHasPin] = useState(false);
   
   // Estado para mostrar captura facial
   const [showFacialCapture, setShowFacialCapture] = useState(false);
+  
+  // Estado para mostrar modal de PIN
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [isChangingPin, setIsChangingPin] = useState(false);
 
   const styles = darkMode ? securityStylesDark : securityStyles;
 
@@ -93,16 +101,34 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       const credenciales = await getCredencialesByEmpleado(empleadoId, token);
       
       if (credenciales.success && credenciales.data) {
-        setHasFingerprint(credenciales.data.tiene_dactilar || false);
-        setHasFacial(credenciales.data.tiene_facial || false);
+        // Establecer estados basados en las credenciales REALES del backend
+        const tieneDactilar = credenciales.data.tiene_dactilar || false;
+        const tieneFacial = credenciales.data.tiene_facial || false;
+        const tienePin = credenciales.data.tiene_pin || false;
         
-        setBiometricEnabled(credenciales.data.tiene_dactilar || false);
-        setFaceIdEnabled(credenciales.data.tiene_facial || false);
+        setHasFingerprint(tieneDactilar);
+        setHasFacial(tieneFacial);
+        setHasPin(tienePin);
+        
+        setBiometricEnabled(tieneDactilar);
+        setFaceIdEnabled(tieneFacial);
+        setPinEnabled(tienePin); // ✅ Solo activo si tiene PIN en BD
+        
+        console.log('[Security] 📊 Credenciales cargadas:', {
+          dactilar: tieneDactilar,
+          facial: tieneFacial,
+          pin: tienePin
+        });
       } else {
+        // Sin credenciales registradas - TODO DESACTIVADO
         setHasFingerprint(false);
         setHasFacial(false);
+        setHasPin(false);
         setBiometricEnabled(false);
         setFaceIdEnabled(false);
+        setPinEnabled(false); // ✅ Desactivado por defecto
+        
+        console.log('[Security] ℹ️ Usuario sin credenciales registradas');
       }
 
     } catch (error) {
@@ -460,6 +486,115 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
     );
   };
 
+  const handlePinToggle = async (value) => {
+    if (value) {
+      // Configurar nuevo PIN
+      setIsChangingPin(false);
+      setShowPinModal(true);
+    } else {
+      await removePin();
+    }
+  };
+
+  const handlePinConfirm = async (pin) => {
+    setIsLoadingPin(true);
+    
+    try {
+      const empleadoId = userData?.empleado?.id || 
+                        userData?.empleado_id || 
+                        userData?.id;
+      
+      if (!empleadoId) {
+        throw new Error('No se encontró el ID del empleado');
+      }
+
+      const token = await AsyncStorage.getItem('userToken');
+      const response = await guardarPin(empleadoId, pin, token);
+
+      if (response.success) {
+        // ✅ Actualizar estados SOLO si el guardado fue exitoso
+        setPinEnabled(true);
+        setHasPin(true);
+        
+        console.log('[Security] ✅ PIN guardado exitosamente');
+        
+        Alert.alert(
+          '✅ ¡Éxito!',
+          isChangingPin ? 'Tu PIN ha sido actualizado correctamente' : 'Tu PIN ha sido configurado correctamente'
+        );
+      } else {
+        throw new Error(response.message);
+      }
+
+    } catch (error) {
+      console.error('❌ Error guardando PIN:', error);
+      // ✅ Asegurar que el estado se mantenga desactivado si hubo error
+      setPinEnabled(false);
+      setHasPin(false);
+      throw error; // El modal manejará el error
+    } finally {
+      setIsLoadingPin(false);
+    }
+  };
+
+  const handleChangePin = () => {
+    setIsChangingPin(true);
+    setShowPinModal(true);
+  };
+
+  const removePin = async () => {
+    Alert.alert(
+      '⚠️ Eliminar PIN',
+      '¿Estás seguro de que deseas eliminar tu PIN de seguridad?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            setIsLoadingPin(true);
+            
+            try {
+              const empleadoId = userData?.empleado?.id || 
+                                userData?.empleado_id || 
+                                userData?.id;
+              const token = await AsyncStorage.getItem('userToken');
+
+              const response = await eliminarCredencial(empleadoId, 'pin', token);
+
+              if (response.success) {
+                // ✅ Actualizar estados SOLO si la eliminación fue exitosa
+                setPinEnabled(false);
+                setHasPin(false);
+                
+                console.log('[Security] ✅ PIN eliminado exitosamente');
+
+                Alert.alert(
+                  '✅ Eliminado',
+                  'Tu PIN ha sido eliminado'
+                );
+              } else {
+                throw new Error(response.message);
+              }
+
+            } catch (error) {
+              console.error('❌ Error eliminando PIN:', error);
+              Alert.alert('Error', 'No se pudo eliminar el PIN');
+              // ✅ Mantener el estado actual si hubo error
+              setPinEnabled(true);
+              setHasPin(true);
+            } finally {
+              setIsLoadingPin(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // Si está mostrando la captura facial, renderizar solo esa pantalla
   if (showFacialCapture) {
     return (
@@ -681,31 +816,39 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
                 <View style={styles.methodInfo}>
                   <Text style={styles.methodTitle}>PIN de Seguridad</Text>
                   <Text style={styles.methodSubtitle}>
-                    Código de 4-6 dígitos
+                    {hasPin ? 'PIN configurado ✓' : 'Código de 6 dígitos'}
                   </Text>
                 </View>
               </View>
-              <Switch
-                value={pinEnabled}
-                onValueChange={setPinEnabled}
-                trackColor={{ false: '#d1d5db', true: '#d97706' }}
-                thumbColor={pinEnabled ? '#fff' : '#f3f4f6'}
-                ios_backgroundColor="#d1d5db"
-              />
+              {isLoadingPin ? (
+                <ActivityIndicator size="small" color="#d97706" />
+              ) : (
+                <Switch
+                  value={pinEnabled}
+                  onValueChange={handlePinToggle}
+                  trackColor={{ false: '#d1d5db', true: '#d97706' }}
+                  thumbColor={pinEnabled ? '#fff' : '#f3f4f6'}
+                  ios_backgroundColor="#d1d5db"
+                />
+              )}
             </View>
             {pinEnabled && (
               <View style={styles.methodDetails}>
                 <View style={styles.detailRow}>
                   <Ionicons name="checkmark-circle" size={18} color="#10b981" />
-                  <Text style={styles.detailText}>Actualmente activo</Text>
+                  <Text style={styles.detailText}>PIN de 6 dígitos configurado</Text>
                 </View>
                 <View style={styles.detailRow}>
                   <Ionicons name="information-circle" size={18} color="#3b82f6" />
                   <Text style={styles.detailText}>
-                    Método principal de autenticación
+                    Usa tu PIN para acceder rápidamente
                   </Text>
                 </View>
-                <TouchableOpacity style={styles.changePinButton} activeOpacity={0.7}>
+                <TouchableOpacity 
+                  style={styles.changePinButton} 
+                  activeOpacity={0.7}
+                  onPress={handleChangePin}
+                >
                   <Text style={styles.changePinText}>Cambiar PIN</Text>
                   <Ionicons name="chevron-forward" size={18} color="#6366f1" />
                 </TouchableOpacity>
@@ -804,6 +947,18 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
           </View>
         </View>
       </ScrollView>
+
+      {/* Modal de PIN */}
+      <PinInputModal
+        visible={showPinModal}
+        onClose={() => setShowPinModal(false)}
+        onConfirm={handlePinConfirm}
+        title={isChangingPin ? "Cambiar PIN" : "Configurar PIN"}
+        subtitle="Ingresa un PIN de 6 dígitos"
+        darkMode={darkMode}
+        requireConfirmation={true}
+        isChanging={isChangingPin}
+      />
     </View>
   );
 };

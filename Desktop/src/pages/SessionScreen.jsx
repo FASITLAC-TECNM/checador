@@ -26,6 +26,7 @@ import ConfigModal from "../components/session/ConfigModal";
 import GeneralNodoModal from "../components/session/GeneralNodoModal";
 import DispositivosModal from "../components/session/DispositivosModal";
 import PreferenciasModal from "../components/session/PreferenciasModal";
+import HorarioModal from "../components/session/HorarioModal";
 import EmployeeInfo from "../components/session/EmployeeInfo";
 import NoEmployeeInfo from "../components/session/NoEmployeeInfo";
 import BiometricReader from "../components/kiosk/BiometricReader";
@@ -52,7 +53,7 @@ export default function SessionScreen({ onLogout, usuario }) {
 
   const [nombreNodo, setNombreNodo] = useState("Entrada Principal");
   const [descripcionNodo, setDescripcionNodo] = useState(
-    "Control de acceso principal del edificio A"
+    "Control de acceso principal del edificio A",
   );
   const [ipComputadora, setIpComputadora] = useState("192.168.1.100");
   const [direccionMAC, setDireccionMAC] = useState("00:1A:2B:3C:4D:5E");
@@ -112,7 +113,8 @@ export default function SessionScreen({ onLogout, usuario }) {
   const userUsername = datosCompletos?.username || "N/A";
   const userRFC = datosCompletos?.rfc;
   const userNSS = datosCompletos?.nss;
-  const userDepartamento = datosCompletos?.departamento || datosCompletos?.departamento_nombre;
+  const userDepartamento =
+    datosCompletos?.departamento || datosCompletos?.departamento_nombre;
   const userHorario = datosCompletos?.horario;
   const userFechaRegistro = datosCompletos?.fecha_registro;
 
@@ -125,7 +127,6 @@ export default function SessionScreen({ onLogout, usuario }) {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
-
 
   const handleGuardarConfigNodo = () => {
     console.log({
@@ -156,7 +157,7 @@ export default function SessionScreen({ onLogout, usuario }) {
 
   const handleActualizarDispositivo = (id, campo, valor) => {
     setDispositivos(
-      dispositivos.map((d) => (d.id === id ? { ...d, [campo]: valor } : d))
+      dispositivos.map((d) => (d.id === id ? { ...d, [campo]: valor } : d)),
     );
   };
 
@@ -207,14 +208,14 @@ export default function SessionScreen({ onLogout, usuario }) {
                   {userDepartamento && (
                     <div className="flex items-center gap-1">
                       <Building2 className="w-3 h-3" />
-                      <span className="font-medium">Depto:</span> {userDepartamento}
+                      <span className="font-medium">Depto:</span>{" "}
+                      {userDepartamento}
                     </div>
                   )}
                 </div>
                 {isEmployee && (
                   <div className="grid grid-cols-3 gap-x-4 gap-y-0.5 mt-1 text-xs text-text-secondary">
                     <div className="flex items-center gap-1">
-                      <Briefcase className="w-3 h-3" />
                       <span className="font-medium">RFC:</span> {userRFC}
                     </div>
                     <div>
@@ -336,7 +337,7 @@ export default function SessionScreen({ onLogout, usuario }) {
                   <Fingerprint className="w-12 h-12 mx-auto mb-2" />
                   <h3 className="text-base font-bold mb-1">Registrar Huella</h3>
                   <p className="text-xs text-orange-100">
-                    ID: {datosCompletos?.empleado_id || "N/A"}
+                    Vincular huella digital
                   </p>
                 </button>
 
@@ -348,7 +349,7 @@ export default function SessionScreen({ onLogout, usuario }) {
                   <Camera className="w-12 h-12 mx-auto mb-2" />
                   <h3 className="text-base font-bold mb-1">Registrar Rostro</h3>
                   <p className="text-xs text-cyan-100">
-                    ID: {datosCompletos?.empleado_id || "N/A"}
+                    Vincular reconocimiento facial
                   </p>
                 </button>
               </div>
@@ -518,78 +519,11 @@ export default function SessionScreen({ onLogout, usuario }) {
 
       {/* HORARIO MODAL */}
       {showHorarioModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-md w-full">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-500 dark:from-blue-800 dark:to-blue-900 p-6">
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-bold text-white">Mi Horario</h3>
-                <button
-                  onClick={() => setShowHorarioModal(false)}
-                  className="text-white hover:bg-white/20 dark:hover:bg-white/10 rounded-lg p-2"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-            </div>
-            <div className="p-6">
-              {loadingEmpleado ? (
-                <div className="text-center py-4">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
-                  <p className="text-text-secondary mt-2">Cargando horario...</p>
-                </div>
-              ) : userHorario ? (
-                <div className="space-y-3">
-                  <div className="bg-bg-secondary rounded-lg p-4">
-                    <p className="text-sm font-semibold text-text-secondary mb-2">
-                      {userHorario.nombre || "HORARIO ASIGNADO"}
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-text-secondary">Entrada:</span>
-                        <span className="font-bold text-text-primary">
-                          {userHorario.hora_entrada || "N/A"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-text-secondary">Salida:</span>
-                        <span className="font-bold text-text-primary">
-                          {userHorario.hora_salida || "N/A"}
-                        </span>
-                      </div>
-                      {userHorario.hora_comida_inicio && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-text-secondary">Comida:</span>
-                          <span className="font-bold text-text-primary">
-                            {userHorario.hora_comida_inicio} - {userHorario.hora_comida_fin}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  {userHorario.descripcion && (
-                    <div className="bg-bg-secondary rounded-lg p-4">
-                      <p className="text-sm text-text-secondary">
-                        {userHorario.descripcion}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="bg-bg-secondary rounded-lg p-4 text-center">
-                  <p className="text-text-secondary">
-                    No hay horario asignado
-                  </p>
-                </div>
-              )}
-              <button
-                onClick={() => setShowHorarioModal(false)}
-                className="w-full mt-4 py-3 bg-gradient-to-r from-blue-600 to-blue-500 dark:from-blue-700 dark:to-blue-800 hover:from-blue-700 hover:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 text-white rounded-xl font-bold transition-all"
-              >
-                CERRAR
-              </button>
-            </div>
-          </div>
-        </div>
+        <HorarioModal
+          onClose={() => setShowHorarioModal(false)}
+          horario={userHorario}
+          loading={loadingEmpleado}
+        />
       )}
     </div>
   );

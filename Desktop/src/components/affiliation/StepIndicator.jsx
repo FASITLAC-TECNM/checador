@@ -2,39 +2,40 @@ import { CheckCircle } from "lucide-react";
 
 export default function StepIndicator({ currentStep }) {
   const steps = [
-    { number: 1, label: "Configurar Nodo" },
+    { number: 1, label: "Configurar\nNodo" },
     { number: 2, label: "Dispositivos" },
     { number: 3, label: "Afiliación" },
     { number: 4, label: "Aprobación" },
   ];
 
   return (
-    <div className="mb-12">
-      <div className="flex items-center justify-between max-w-3xl mx-auto">
+    <div className="w-full max-w-2xl mx-auto">
+      <div className="flex items-start">
         {steps.map((stepItem, index) => (
           <div key={stepItem.number} className="flex items-center flex-1">
-            <div className="flex flex-col items-center flex-1">
+            {/* Step circle and label */}
+            <div className="flex flex-col items-center w-20">
               <div
                 className={`
-                  relative w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300
+                  w-10 h-10 rounded-full flex items-center justify-center font-bold text-base transition-all duration-300
                   ${
                     currentStep > stepItem.number
-                      ? "bg-green-500 text-white shadow-lg"
+                      ? "bg-green-500 text-white shadow-md"
                       : currentStep === stepItem.number
-                      ? "bg-blue-600 text-white ring-4 ring-blue-300 shadow-lg animate-pulse"
+                      ? "bg-blue-600 text-white ring-4 ring-blue-200 shadow-md"
                       : "bg-bg-primary text-text-disabled border-2 border-border-subtle"
                   }
                 `}
               >
                 {currentStep > stepItem.number ? (
-                  <CheckCircle className="w-6 h-6" />
+                  <CheckCircle className="w-5 h-5" />
                 ) : (
                   <span>{stepItem.number}</span>
                 )}
               </div>
               <span
                 className={`
-                  mt-2 text-xs font-medium text-center
+                  mt-2 text-xs font-medium text-center whitespace-pre-line leading-tight
                   ${
                     currentStep >= stepItem.number
                       ? "text-text-primary"
@@ -45,17 +46,21 @@ export default function StepIndicator({ currentStep }) {
                 {stepItem.label}
               </span>
             </div>
+
+            {/* Connector line */}
             {index < steps.length - 1 && (
-              <div
-                className={`
-                  h-1 flex-1 mx-2 transition-all duration-300 rounded
-                  ${
-                    currentStep > stepItem.number
-                      ? "bg-green-500"
-                      : "bg-border-subtle"
-                  }
-                `}
-              />
+              <div className="flex-1 h-1 -mt-4 mx-1">
+                <div
+                  className={`
+                    h-full rounded transition-all duration-300
+                    ${
+                      currentStep > stepItem.number
+                        ? "bg-green-500"
+                        : "bg-border-subtle"
+                    }
+                  `}
+                />
+              </div>
             )}
           </div>
         ))}

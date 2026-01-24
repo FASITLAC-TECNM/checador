@@ -48,7 +48,7 @@ export default function NodeConfigStep({
   return (
     <div className="h-screen w-screen bg-bg-primary flex flex-col overflow-hidden">
       {/* Barra de progreso fija */}
-      <div className="bg-bg-secondary border-b border-border-subtle py-4 px-8">
+      <div className="bg-bg-secondary border-b border-border-subtle py-4 px-8 flex-shrink-0">
         <StepIndicator currentStep={1} totalSteps={4} />
       </div>
 
@@ -71,7 +71,7 @@ export default function NodeConfigStep({
             </p>
           </div>
 
-          <div className="space-y-3 mb-4">
+          <div className="space-y-3">
             <div className="bg-bg-secondary border-2 border-blue-200 rounded-xl p-4">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
@@ -197,33 +197,36 @@ export default function NodeConfigStep({
               </p>
             </div>
           </div>
+        </div>
+      </div>
 
-          <div className="flex justify-end mt-4">
-            <button
-              onClick={onNext}
-              disabled={!isFormValid()}
-              className={`px-6 py-2.5 rounded-lg font-medium transition-all shadow-sm flex items-center gap-2 ${
-                isFormValid()
-                  ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:shadow-md cursor-pointer"
-                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
-              }`}
+      {/* Footer fijo con botón */}
+      <div className="bg-bg-secondary border-t border-border-subtle px-6 py-4 flex-shrink-0">
+        <div className="max-w-4xl mx-auto flex justify-end">
+          <button
+            onClick={onNext}
+            disabled={!isFormValid()}
+            className={`px-6 py-2.5 rounded-lg font-medium transition-all shadow-sm flex items-center gap-2 ${
+              isFormValid()
+                ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:shadow-md cursor-pointer"
+                : "bg-gray-300 text-gray-500 cursor-not-allowed"
+            }`}
+          >
+            Siguiente
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              Siguiente
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
-          </div>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </button>
         </div>
       </div>
     </div>

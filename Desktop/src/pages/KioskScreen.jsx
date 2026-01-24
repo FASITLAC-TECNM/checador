@@ -62,7 +62,6 @@ export default function KioskScreen() {
   const [isClosing, setIsClosing] = useState(false);
   const hasProcessedCapture = useRef(false);
   const [showBiometricReader, setShowBiometricReader] = useState(false);
-  const [modalKey, setModalKey] = useState(Date.now());
 
   // Obtener métodos activos ordenados
   const getActiveMethods = () => {
@@ -81,35 +80,48 @@ export default function KioskScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  // Escuchar cambios en localStorage para actualizar métodos de checado
+  // Recargar preferencias cuando el usuario cierra sesión (isLoggedIn cambia a false)
   useEffect(() => {
-    const handleStorageChange = () => {
+    if (!isLoggedIn) {
       const savedPreferences = localStorage.getItem("userPreferences");
       if (savedPreferences) {
         try {
           const parsed = JSON.parse(savedPreferences);
           if (parsed.checkMethods) {
             setCheckMethods(parsed.checkMethods);
-            // Actualizar key de modales para forzar re-montaje y evitar problemas de estado
-            setModalKey(Date.now());
           }
         } catch (error) {
-          console.error("Error al actualizar métodos de checado:", error);
+          console.error("Error al cargar métodos de checado:", error);
+        }
+      }
+    }
+  }, [isLoggedIn]);
+
+  // Escuchar cambios desde otras ventanas/pestañas
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      // Solo responder a cambios de userPreferences desde otras ventanas
+      if (e.key === "userPreferences" && !isLoggedIn) {
+        const savedPreferences = e.newValue;
+        if (savedPreferences) {
+          try {
+            const parsed = JSON.parse(savedPreferences);
+            if (parsed.checkMethods) {
+              setCheckMethods(parsed.checkMethods);
+            }
+          } catch (error) {
+            console.error("Error al actualizar métodos de checado:", error);
+          }
         }
       }
     };
 
-    // Escuchar cambios en localStorage
     window.addEventListener("storage", handleStorageChange);
-
-    // También escuchar evento personalizado para cambios en la misma ventana
-    window.addEventListener("preferencesUpdated", handleStorageChange);
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("preferencesUpdated", handleStorageChange);
     };
-  }, []);
+  }, [isLoggedIn]);
 
   // Atajo para resetear configuración: Ctrl+Shift+R
   useEffect(() => {
@@ -541,7 +553,6 @@ export default function KioskScreen() {
 
       {showPinModal && (
         <PinModal
-          key={`pin-${modalKey}`}
           employeeId={employeeId}
           setEmployeeId={setEmployeeId}
           employeePin={employeePin}
@@ -554,7 +565,6 @@ export default function KioskScreen() {
 
       {showLoginModal && (
         <LoginModal
-          key={`login-${modalKey}`}
           onClose={() => setShowLoginModal(false)}
           onFacialLogin={() => {
             setShowLoginModal(false);
@@ -567,7 +577,6 @@ export default function KioskScreen() {
 
       {showCamera && (
         <CameraModal
-          key={`camera-${modalKey}`}
           cameraMode={cameraMode}
           captureProgress={captureProgress}
           captureSuccess={captureSuccess}
@@ -583,12 +592,11 @@ export default function KioskScreen() {
         />
       )}
 
-      {showBitacora && <BitacoraModal key={`bitacora-${modalKey}`} onClose={() => setShowBitacora(false)} />}
+      {showBitacora && <BitacoraModal onClose={() => setShowBitacora(false)} />}
 
       {/* Modal de BiometricReader para registro de asistencia con huella */}
       {showBiometricReader && (
         <BiometricReader
-          key={`biometric-${modalKey}`}
           isOpen={showBiometricReader}
           onClose={() => setShowBiometricReader(false)}
           onAuthSuccess={handleFingerprintSuccess}

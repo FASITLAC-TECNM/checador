@@ -85,10 +85,6 @@ export default function PreferenciasModal({ onClose, onBack }) {
   const handleSave = () => {
     console.log("Preferencias guardadas:", preferences);
     localStorage.setItem("userPreferences", JSON.stringify(preferences));
-
-    // Disparar evento personalizado para notificar cambios en la misma ventana
-    window.dispatchEvent(new Event("preferencesUpdated"));
-
     alert("Preferencias guardadas exitosamente");
     onClose();
   };

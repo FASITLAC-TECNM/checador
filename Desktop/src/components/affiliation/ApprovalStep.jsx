@@ -14,7 +14,7 @@ export default function ApprovalStep({
     return (
       <div className="h-screen w-screen bg-bg-primary flex flex-col overflow-hidden">
         {/* Barra de progreso fija */}
-        <div className="bg-bg-secondary border-b border-border-subtle py-4 px-8">
+        <div className="bg-bg-secondary border-b border-border-subtle py-4 px-8 flex-shrink-0">
           <StepIndicator currentStep={4} totalSteps={4} />
         </div>
 
@@ -29,10 +29,10 @@ export default function ApprovalStep({
 
         {/* Contenido scrollable */}
         <div className="flex-1 overflow-y-auto flex items-center justify-center">
-          <div className="max-w-2xl w-full p-8">
-            <div className="bg-bg-secondary border-2 border-green-400 rounded-2xl p-8">
-              <div className="mb-6">
-                <h1 className="text-2xl font-bold text-text-primary mb-2 text-center">
+          <div className="max-w-2xl w-full p-6">
+            <div className="bg-bg-secondary border-2 border-green-400 rounded-2xl p-6">
+              <div className="mb-4">
+                <h1 className="text-xl font-bold text-text-primary mb-1 text-center">
                   ¡Solicitud Aceptada!
                 </h1>
                 <p className="text-text-secondary text-sm text-center">
@@ -40,42 +40,45 @@ export default function ApprovalStep({
                 </p>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-20 h-20 mb-3">
-                    <CheckCircle className="w-20 h-20 text-green-500" />
+                  <div className="inline-flex items-center justify-center w-16 h-16 mb-2">
+                    <CheckCircle className="w-16 h-16 text-green-500" />
                   </div>
                 </div>
 
-                <div className="bg-bg-primary border border-green-500 rounded-lg p-4">
+                <div className="bg-bg-primary border border-green-500 rounded-lg p-3">
                   <p className="text-sm text-text-secondary text-center">
                     Ya puede iniciar sesión para comenzar a utilizar el sistema.
                   </p>
                 </div>
               </div>
-
-              <div className="flex justify-end mt-6">
-                <button
-                  onClick={onGoToLogin}
-                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium transition-all shadow-sm hover:shadow-md flex items-center gap-2"
-                >
-                  Ir al Inicio de Sesión
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
-                </button>
-              </div>
             </div>
+          </div>
+        </div>
+
+        {/* Footer fijo con botón */}
+        <div className="bg-bg-secondary border-t border-border-subtle px-6 py-4 flex-shrink-0">
+          <div className="max-w-2xl mx-auto flex justify-end">
+            <button
+              onClick={onGoToLogin}
+              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium transition-all shadow-sm hover:shadow-md flex items-center gap-2"
+            >
+              Ir al Inicio de Sesión
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -86,7 +89,7 @@ export default function ApprovalStep({
     return (
       <div className="h-screen w-screen bg-bg-primary flex flex-col overflow-hidden">
         {/* Barra de progreso fija */}
-        <div className="bg-bg-secondary border-b border-border-subtle py-4 px-8">
+        <div className="bg-bg-secondary border-b border-border-subtle py-4 px-8 flex-shrink-0">
           <StepIndicator currentStep={4} totalSteps={4} />
         </div>
 
@@ -101,10 +104,10 @@ export default function ApprovalStep({
 
         {/* Contenido scrollable */}
         <div className="flex-1 overflow-y-auto flex items-center justify-center">
-          <div className="max-w-2xl w-full p-8">
-            <div className="bg-bg-secondary border-2 border-red-400 rounded-2xl p-8">
-              <div className="mb-6">
-                <h1 className="text-2xl font-bold text-text-primary mb-2 text-center">
+          <div className="max-w-2xl w-full p-6">
+            <div className="bg-bg-secondary border-2 border-red-400 rounded-2xl p-6">
+              <div className="mb-4">
+                <h1 className="text-xl font-bold text-text-primary mb-1 text-center">
                   Solicitud Rechazada
                 </h1>
                 <p className="text-text-secondary text-sm text-center">
@@ -112,37 +115,40 @@ export default function ApprovalStep({
                 </p>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-20 h-20 mb-3">
-                    <XCircle className="w-20 h-20 text-red-500" />
+                  <div className="inline-flex items-center justify-center w-16 h-16 mb-2">
+                    <XCircle className="w-16 h-16 text-red-500" />
                   </div>
                 </div>
 
                 {error && (
-                  <div className="bg-red-50 border border-red-500 rounded-lg p-4">
+                  <div className="bg-red-50 border border-red-500 rounded-lg p-3">
                     <p className="text-sm text-red-700 text-center font-medium">
                       {error}
                     </p>
                   </div>
                 )}
 
-                <div className="bg-bg-primary border border-red-200 rounded-lg p-4">
+                <div className="bg-bg-primary border border-red-200 rounded-lg p-3">
                   <p className="text-sm text-text-secondary text-center">
                     Puede intentar nuevamente o contactar al administrador para más información.
                   </p>
                 </div>
               </div>
-
-              <div className="flex justify-center gap-3 mt-6">
-                <button
-                  onClick={onRetry}
-                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium transition-all shadow-sm hover:shadow-md"
-                >
-                  Intentar Nuevamente
-                </button>
-              </div>
             </div>
+          </div>
+        </div>
+
+        {/* Footer fijo con botón */}
+        <div className="bg-bg-secondary border-t border-border-subtle px-6 py-4 flex-shrink-0">
+          <div className="max-w-2xl mx-auto flex justify-center">
+            <button
+              onClick={onRetry}
+              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium transition-all shadow-sm hover:shadow-md"
+            >
+              Intentar Nuevamente
+            </button>
           </div>
         </div>
       </div>
@@ -152,7 +158,7 @@ export default function ApprovalStep({
   return (
     <div className="h-screen w-screen bg-bg-primary flex flex-col overflow-hidden">
       {/* Barra de progreso fija */}
-      <div className="bg-bg-secondary border-b border-border-subtle py-4 px-8">
+      <div className="bg-bg-secondary border-b border-border-subtle py-4 px-8 flex-shrink-0">
         <StepIndicator currentStep={4} totalSteps={4} />
       </div>
 
@@ -167,9 +173,9 @@ export default function ApprovalStep({
 
       {/* Contenido scrollable */}
       <div className="flex-1 overflow-y-auto flex items-center justify-center">
-        <div className="max-w-2xl w-full p-8">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-text-primary mb-2">
+        <div className="max-w-2xl w-full p-6">
+          <div className="mb-4">
+            <h1 className="text-xl font-bold text-text-primary mb-1">
               Solicitud Pendiente
             </h1>
             <p className="text-text-secondary text-sm">
@@ -177,12 +183,12 @@ export default function ApprovalStep({
             </p>
           </div>
 
-          <div className="bg-bg-secondary border-2 border-amber-400 rounded-xl p-6 space-y-4">
+          <div className="bg-bg-secondary border-2 border-amber-400 rounded-xl p-5 space-y-3">
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 mb-3">
+              <div className="inline-flex items-center justify-center w-14 h-14 mb-2">
                 <div className="relative">
-                  <Clock className="w-16 h-16 text-amber-500 animate-pulse" />
-                  <Lock className="w-6 h-6 text-amber-600 absolute bottom-0 right-0" />
+                  <Clock className="w-14 h-14 text-amber-500 animate-pulse" />
+                  <Lock className="w-5 h-5 text-amber-600 absolute bottom-0 right-0" />
                 </div>
               </div>
 

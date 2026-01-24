@@ -185,9 +185,6 @@ export default function SessionScreen({ onLogout, usuario }) {
                   <h1 className="text-xl font-bold text-text-primary">
                     {userName}
                   </h1>
-                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded">
-                    {datosCompletos?.activo === "ACTIVO" ? "Activo" : "Inactivo"}
-                  </span>
                   <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-bold rounded">
                     {datosCompletos?.estado || "Conectado"}
                   </span>
@@ -234,13 +231,15 @@ export default function SessionScreen({ onLogout, usuario }) {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowConfigModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-bg-secondary hover:bg-bg-tertiary text-text-primary rounded-xl font-semibold transition-all border-2 border-border-subtle text-sm"
-              >
-                <Settings className="w-4 h-4" />
-                Configuración
-              </button>
+              {!isEmployee && (
+                <button
+                  onClick={() => setShowConfigModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-bg-secondary hover:bg-bg-tertiary text-text-primary rounded-xl font-semibold transition-all border-2 border-border-subtle text-sm"
+                >
+                  <Settings className="w-4 h-4" />
+                  Configuración
+                </button>
+              )}
               <button
                 onClick={onLogout}
                 className="flex items-center gap-2 px-4 py-2 bg-bg-secondary hover:bg-bg-tertiary text-text-primary rounded-xl font-semibold transition-all border-2 border-border-subtle text-sm"

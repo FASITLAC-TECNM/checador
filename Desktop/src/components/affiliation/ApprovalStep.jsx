@@ -129,7 +129,8 @@ export default function ApprovalStep({
 
                 <div className="bg-bg-primary border border-red-200 rounded-lg p-4">
                   <p className="text-sm text-text-secondary text-center">
-                    Puede intentar nuevamente o contactar al administrador para más información.
+                    Puede intentar nuevamente o contactar al administrador para
+                    más información.
                   </p>
                 </div>
               </div>
@@ -188,13 +189,11 @@ export default function ApprovalStep({
 
               <div className="bg-bg-primary border border-amber-200 rounded-lg p-3 space-y-2 mb-3">
                 <p className="text-sm text-text-secondary">
-                  <strong>ID de la Empresa:</strong> {companyId || "No especificado"}
+                  <strong>ID de la Empresa:</strong>{" "}
+                  {companyId || "No especificado"}
                 </p>
                 <p className="text-sm text-text-secondary">
                   <strong>Estado:</strong> En Revisión por el Administrador
-                </p>
-                <p className="text-base font-bold text-amber-600">
-                  Verificando cada 5 segundos...
                 </p>
               </div>
 
@@ -205,7 +204,8 @@ export default function ApprovalStep({
               )}
 
               <p className="text-sm text-text-secondary mb-3">
-                La solicitud será procesada por el administrador. El sistema verificará automáticamente el estado.
+                La solicitud será procesada por el administrador. El sistema
+                verificará automáticamente el estado.
               </p>
 
               <div className="space-y-2">

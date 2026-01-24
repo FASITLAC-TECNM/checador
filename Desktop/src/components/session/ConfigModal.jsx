@@ -9,8 +9,8 @@ export default function ConfigModal({ onClose, onSelectOption }) {
       description: "Configuración general del sistema y nodo de trabajo",
       icon: Settings,
       bgColor: "bg-bg-secondary",
-      iconBg: "bg-blue-500",
-      borderColor: "border-blue-200",
+      iconBg: "bg-blue-500 dark:bg-blue-700",
+      borderColor: "border-blue-200 dark:border-blue-800",
     },
     {
       id: "dispositivos",
@@ -18,8 +18,8 @@ export default function ConfigModal({ onClose, onSelectOption }) {
       description: "Gestiona los dispositivos vinculados a tu cuenta",
       icon: Smartphone,
       bgColor: "bg-bg-secondary",
-      iconBg: "bg-green-500",
-      borderColor: "border-green-200",
+      iconBg: "bg-green-500 dark:bg-green-700",
+      borderColor: "border-green-200 dark:border-green-800",
     },
     {
       id: "preferencias",
@@ -27,8 +27,8 @@ export default function ConfigModal({ onClose, onSelectOption }) {
       description: "Personaliza tu experiencia y ajustes del usuario",
       icon: Sliders,
       bgColor: "bg-bg-secondary",
-      iconBg: "bg-purple-500",
-      borderColor: "border-purple-200",
+      iconBg: "bg-purple-500 dark:bg-purple-700",
+      borderColor: "border-purple-200 dark:border-purple-800",
     },
   ];
 
@@ -40,20 +40,20 @@ export default function ConfigModal({ onClose, onSelectOption }) {
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-6">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-500 dark:from-blue-800 dark:to-blue-900 p-6">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <Settings className="w-8 h-8 text-white" />
               <div>
                 <h3 className="text-2xl font-bold text-white">Configuración</h3>
-                <p className="text-blue-100 text-sm mt-1">
+                <p className="text-blue-100 dark:text-blue-200 text-sm mt-1">
                   Gestiona la configuración del sistema
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
+              className="text-white hover:bg-white/20 dark:hover:bg-white/10 rounded-lg p-2 transition-colors"
             >
               <X className="w-6 h-6" />
             </button>

@@ -54,24 +54,24 @@ export default function DispositivosModal({ onClose, onBack, initialDevices = []
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-green-600 to-green-500 p-6 flex-shrink-0">
+        <div className="bg-gradient-to-r from-green-600 to-green-500 dark:from-green-800 dark:to-green-900 p-6 flex-shrink-0">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-bg-primary/20 rounded-xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-white/20 dark:bg-white/10 rounded-xl flex items-center justify-center">
                 <Smartphone className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h3 className="text-2xl font-bold text-white">
                   Dispositivos Conectados
                 </h3>
-                <p className="text-green-100 text-sm mt-1">
+                <p className="text-green-100 dark:text-green-200 text-sm mt-1">
                   Gestiona los dispositivos vinculados a tu cuenta
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="text-white hover:bg-bg-primary/20 rounded-lg p-2 transition-colors"
+              className="text-white hover:bg-white/20 dark:hover:bg-white/10 rounded-lg p-2 transition-colors"
             >
               <X className="w-6 h-6" />
             </button>
@@ -84,16 +84,16 @@ export default function DispositivosModal({ onClose, onBack, initialDevices = []
             {devices.map((device) => (
               <div
                 key={device.id}
-                className="bg-bg-secondary border-2 border-green-500 rounded-xl p-4"
+                className="bg-bg-secondary border-2 border-green-500 dark:border-green-800 rounded-xl p-4"
               >
                 <div className="flex items-start justify-between mb-4">
                   <h4 className="font-bold text-text-primary flex items-center gap-2">
-                    <Smartphone className="w-5 h-5 text-green-600" />
+                    <Smartphone className="w-5 h-5 text-green-600 dark:text-green-400" />
                     Dispositivo #{device.id}
                   </h4>
                   <button
                     onClick={() => removeDevice(device.id)}
-                    className="text-red-500 hover:bg-red-100 p-2 rounded-lg transition-colors"
+                    className="text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 p-2 rounded-lg transition-colors"
                   >
                     <Trash2 className="w-5 h-5" />
                   </button>
@@ -169,7 +169,7 @@ export default function DispositivosModal({ onClose, onBack, initialDevices = []
 
           <button
             onClick={addDevice}
-            className="w-full py-3 bg-green-100 hover:bg-green-200 text-green-700 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 border-2 border-green-300 border-dashed"
+            className="w-full py-3 bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 text-green-700 dark:text-green-300 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 border-2 border-green-300 dark:border-green-700 border-dashed"
           >
             <Plus className="w-5 h-5" />
             Agregar Nuevo Dispositivo
@@ -187,7 +187,7 @@ export default function DispositivosModal({ onClose, onBack, initialDevices = []
             </button>
             <button
               onClick={handleSave}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white rounded-xl font-bold hover:from-green-700 hover:to-green-600 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-green-500 dark:from-green-700 dark:to-green-800 text-white rounded-xl font-bold hover:from-green-700 hover:to-green-600 dark:hover:from-green-600 dark:hover:to-green-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
             >
               <Save className="w-5 h-5" />
               Guardar Dispositivos

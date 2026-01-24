@@ -443,7 +443,7 @@ export default function SessionScreen({ onLogout, usuario }) {
       {selectedNotice && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-6">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-500 dark:from-blue-800 dark:to-blue-900 p-6">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <Bell className="w-6 h-6 text-white" />
@@ -453,15 +453,15 @@ export default function SessionScreen({ onLogout, usuario }) {
                 </div>
                 <button
                   onClick={() => setSelectedNotice(null)}
-                  className="text-white hover:bg-bg-primary/20 rounded-lg p-2"
+                  className="text-white hover:bg-white/20 dark:hover:bg-white/10 rounded-lg p-2"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
             </div>
             <div className="p-6 space-y-4">
-              <div className="bg-bg-secondary border-l-4 border-blue-500 rounded-lg p-4">
-                <h4 className="font-bold text-lg text-blue-800 mb-2">
+              <div className="bg-bg-secondary border-l-4 border-blue-500 dark:border-blue-600 rounded-lg p-4">
+                <h4 className="font-bold text-lg text-blue-800 dark:text-blue-300 mb-2">
                   {selectedNotice.subject}
                 </h4>
                 <p className="text-text-secondary">{selectedNotice.detail}</p>
@@ -486,7 +486,7 @@ export default function SessionScreen({ onLogout, usuario }) {
               </div>
               <button
                 onClick={() => setSelectedNotice(null)}
-                className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl font-bold"
+                className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-500 dark:from-blue-700 dark:to-blue-800 hover:from-blue-700 hover:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 text-white rounded-xl font-bold transition-all"
               >
                 CERRAR
               </button>
@@ -521,12 +521,12 @@ export default function SessionScreen({ onLogout, usuario }) {
       {showHorarioModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-md w-full">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-6">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-500 dark:from-blue-800 dark:to-blue-900 p-6">
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold text-white">Mi Horario</h3>
                 <button
                   onClick={() => setShowHorarioModal(false)}
-                  className="text-white hover:bg-bg-primary/20 rounded-lg p-2"
+                  className="text-white hover:bg-white/20 dark:hover:bg-white/10 rounded-lg p-2"
                 >
                   <X className="w-6 h-6" />
                 </button>
@@ -535,7 +535,7 @@ export default function SessionScreen({ onLogout, usuario }) {
             <div className="p-6">
               {loadingEmpleado ? (
                 <div className="text-center py-4">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
                   <p className="text-text-secondary mt-2">Cargando horario...</p>
                 </div>
               ) : userHorario ? (
@@ -584,7 +584,7 @@ export default function SessionScreen({ onLogout, usuario }) {
               )}
               <button
                 onClick={() => setShowHorarioModal(false)}
-                className="w-full mt-4 py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-xl font-bold"
+                className="w-full mt-4 py-3 bg-gradient-to-r from-blue-600 to-blue-500 dark:from-blue-700 dark:to-blue-800 hover:from-blue-700 hover:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 text-white rounded-xl font-bold transition-all"
               >
                 CERRAR
               </button>

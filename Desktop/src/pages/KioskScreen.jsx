@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Camera, User, ClipboardList, Bell } from "lucide-react";
+import { Camera, User, ClipboardList, Bell, Fingerprint } from "lucide-react";
 import { formatTime, formatDate, formatDay } from "../utils/dateHelpers";
 import { notices } from "../constants/notices";
 import CameraModal from "../components/kiosk/CameraModal";
@@ -11,13 +11,34 @@ import SessionScreen from "./SessionScreen";
 import { agregarEvento } from "../services/bitacoraService";
 import { useConnectivity } from "../hooks/useConnectivity";
 import { ConnectionStatusPanel } from "../components/common/ConnectionStatus";
+import BiometricReader from "../components/kiosk/BiometricReader";
 
 export default function KioskScreen() {
-  const methodsEnabled = {
-    facial: true,
-    fingerprint: false,
-    pin: false,
-  };
+  // Leer configuración de métodos de checado
+  const [checkMethods, setCheckMethods] = useState(() => {
+    const savedPreferences = localStorage.getItem("userPreferences");
+    if (savedPreferences) {
+      try {
+        const parsed = JSON.parse(savedPreferences);
+        return parsed.checkMethods || {
+          facial: { enabled: true, order: 1 },
+          fingerprint: { enabled: false, order: 2 },
+          userLogin: { enabled: false, order: 3 },
+        };
+      } catch (error) {
+        return {
+          facial: { enabled: true, order: 1 },
+          fingerprint: { enabled: false, order: 2 },
+          userLogin: { enabled: false, order: 3 },
+        };
+      }
+    }
+    return {
+      facial: { enabled: true, order: 1 },
+      fingerprint: { enabled: false, order: 2 },
+      userLogin: { enabled: false, order: 3 },
+    };
+  });
 
   // Hook de conectividad
   const { isInternetConnected, isDatabaseConnected } = useConnectivity();
@@ -40,12 +61,54 @@ export default function KioskScreen() {
   const [captureFailed, setCaptureFailed] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const hasProcessedCapture = useRef(false);
+  const [showBiometricReader, setShowBiometricReader] = useState(false);
+  const [modalKey, setModalKey] = useState(Date.now());
+
+  // Obtener métodos activos ordenados
+  const getActiveMethods = () => {
+    return Object.entries(checkMethods)
+      .filter(([, config]) => config.enabled)
+      .sort(([, a], [, b]) => a.order - b.order)
+      .map(([key]) => key);
+  };
+
+  const activeMethods = getActiveMethods();
 
   useEffect(() => {
     const timer = setInterval(() => {
       setTime(new Date());
     }, 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Escuchar cambios en localStorage para actualizar métodos de checado
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const savedPreferences = localStorage.getItem("userPreferences");
+      if (savedPreferences) {
+        try {
+          const parsed = JSON.parse(savedPreferences);
+          if (parsed.checkMethods) {
+            setCheckMethods(parsed.checkMethods);
+            // Actualizar key de modales para forzar re-montaje y evitar problemas de estado
+            setModalKey(Date.now());
+          }
+        } catch (error) {
+          console.error("Error al actualizar métodos de checado:", error);
+        }
+      }
+    };
+
+    // Escuchar cambios en localStorage
+    window.addEventListener("storage", handleStorageChange);
+
+    // También escuchar evento personalizado para cambios en la misma ventana
+    window.addEventListener("preferencesUpdated", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("preferencesUpdated", handleStorageChange);
+    };
   }, []);
 
   // Atajo para resetear configuración: Ctrl+Shift+R
@@ -243,6 +306,69 @@ export default function KioskScreen() {
     setUsuarioActual(null);
   };
 
+  // Manejadores para cada método de checado
+  const handleFacialCheck = () => {
+    setCameraMode("asistencia");
+    setShowCamera(true);
+  };
+
+  const handleFingerprintCheck = () => {
+    setShowBiometricReader(true);
+  };
+
+  const handleUserLoginCheck = () => {
+    setShowPinModal(true);
+  };
+
+  // Manejar registro exitoso de huella
+  const handleFingerprintSuccess = async (data) => {
+    console.log("✅ Asistencia registrada con huella:", data);
+
+    agregarEvento({
+      user: data.nombre || "Empleado",
+      action: "Registro de asistencia exitoso - Huella digital",
+      type: "success",
+    });
+
+    const successMessage = `Registro exitoso, ${data.nombre || "Empleado"}`;
+    const utterance = new SpeechSynthesisUtterance(successMessage);
+    utterance.lang = "es-MX";
+    utterance.rate = 0.9;
+    window.speechSynthesis.speak(utterance);
+
+    setTimeout(() => {
+      setShowBiometricReader(false);
+    }, 2000);
+  };
+
+  // Obtener información del método
+  const getMethodInfo = (methodKey) => {
+    const info = {
+      facial: {
+        icon: Camera,
+        label: "Reconocimiento Facial",
+        color: "from-blue-500 to-blue-600 dark:from-slate-700 dark:to-slate-800",
+        hoverColor: "hover:from-blue-600 hover:to-blue-700 dark:hover:from-slate-600 dark:hover:to-slate-700",
+        handler: handleFacialCheck,
+      },
+      fingerprint: {
+        icon: Fingerprint,
+        label: "Huella Digital",
+        color: "from-blue-500 to-blue-600 dark:from-slate-700 dark:to-slate-800",
+        hoverColor: "hover:from-blue-600 hover:to-blue-700 dark:hover:from-slate-600 dark:hover:to-slate-700",
+        handler: handleFingerprintCheck,
+      },
+      userLogin: {
+        icon: User,
+        label: "Usuario/Correo",
+        color: "from-blue-500 to-blue-600 dark:from-slate-700 dark:to-slate-800",
+        hoverColor: "hover:from-blue-600 hover:to-blue-700 dark:hover:from-slate-600 dark:hover:to-slate-700",
+        handler: handleUserLoginCheck,
+      },
+    };
+    return info[methodKey];
+  };
+
   // Si está logueado, mostrar SessionScreen
   if (isLoggedIn) {
     return <SessionScreen onLogout={handleLogout} usuario={usuarioActual} />;
@@ -278,39 +404,101 @@ export default function KioskScreen() {
 
       {/* Contenido principal */}
       <div className="flex-1 flex flex-col p-4 overflow-hidden">
-        {/* Tarjeta principal de registro - Más grande */}
+        {/* Tarjeta principal de registro - Dinámico según métodos activos */}
         <div className="mb-4 flex-shrink-0" style={{ height: "68%" }}>
-          <div
-            onClick={() => {
-              setCameraMode("asistencia");
-              setShowCamera(true);
-            }}
-            className="bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 dark:from-slate-700 dark:to-slate-800 dark:hover:from-slate-600 dark:hover:to-slate-700 rounded-3xl shadow-2xl h-full text-white text-center cursor-pointer hover:shadow-3xl transition-all hover:scale-[1.01] flex flex-col items-center justify-center p-8"
-          >
-            <h2 className="text-3xl font-bold mb-4">Registrar Asistencia</h2>
-
-            <div className="flex justify-center mb-4">
-              <Camera className="w-32 h-32 text-white" strokeWidth={1.5} />
+          {activeMethods.length === 0 ? (
+            /* Sin métodos activos */
+            <div className="bg-bg-primary rounded-3xl shadow-2xl h-full flex flex-col items-center justify-center p-8 border border-border-subtle">
+              <h2 className="text-2xl font-bold text-text-primary mb-4">
+                No hay métodos de checado configurados
+              </h2>
+              <p className="text-text-secondary text-center">
+                Configura al menos un método de checado en Configuración → Preferencias
+              </p>
             </div>
+          ) : activeMethods.length === 1 ? (
+            /* Un solo método - Botón grande */
+            (() => {
+              const method = getMethodInfo(activeMethods[0]);
+              const Icon = method.icon;
+              return (
+                <div
+                  onClick={method.handler}
+                  className={`bg-gradient-to-br ${method.color} ${method.hoverColor} rounded-3xl shadow-2xl h-full text-white text-center cursor-pointer hover:shadow-3xl transition-all hover:scale-[1.01] flex flex-col items-center justify-center p-8`}
+                >
+                  <h2 className="text-3xl font-bold mb-4">Registrar Asistencia</h2>
 
-            <div className="mb-3">
-              <div
-                className="text-7xl font-bold mb-2 tracking-wider"
-                style={{ letterSpacing: "0.1em" }}
-              >
-                {formatTime(time).replace(/\s/g, "\u00A0")}
+                  <div className="flex justify-center mb-4">
+                    <Icon className="w-32 h-32 text-white" strokeWidth={1.5} />
+                  </div>
+
+                  <div className="mb-3">
+                    <div
+                      className="text-7xl font-bold mb-2 tracking-wider"
+                      style={{ letterSpacing: "0.1em" }}
+                    >
+                      {formatTime(time).replace(/\s/g, "\u00A0")}
+                    </div>
+                  </div>
+
+                  <div className="text-xl">
+                    <div className="font-semibold text-2xl mb-1">
+                      {formatDate(time)}
+                    </div>
+                    <div className="text-white/80 capitalize text-lg">
+                      {formatDay(time)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()
+          ) : (
+            /* Múltiples métodos - Botón grande con mini-botones dentro */
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 dark:from-slate-700 dark:to-slate-800 rounded-3xl shadow-2xl h-full text-white text-center flex flex-col items-center justify-center p-8">
+              <h2 className="text-3xl font-bold mb-6">Registrar Asistencia</h2>
+
+              {/* Mini-botones con fondo blur */}
+              <div className="flex gap-4 w-full max-w-2xl mb-6">
+                {activeMethods.map((methodKey) => {
+                  const method = getMethodInfo(methodKey);
+                  const Icon = method.icon;
+                  return (
+                    <button
+                      key={methodKey}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        method.handler();
+                      }}
+                      className="flex-1 backdrop-blur-md bg-white/20 dark:bg-white/10 hover:bg-white/30 dark:hover:bg-white/20 border border-white/30 dark:border-white/20 rounded-2xl shadow-lg hover:shadow-xl transition-all hover:scale-105 flex flex-col items-center justify-center p-6 cursor-pointer"
+                    >
+                      <Icon className="w-16 h-16 mb-2 text-white" strokeWidth={1.5} />
+                      <span className="text-sm font-bold text-white">
+                        {method.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mb-3">
+                <div
+                  className="text-7xl font-bold mb-2 tracking-wider"
+                  style={{ letterSpacing: "0.1em" }}
+                >
+                  {formatTime(time).replace(/\s/g, "\u00A0")}
+                </div>
+              </div>
+
+              <div className="text-xl">
+                <div className="font-semibold text-2xl mb-1">
+                  {formatDate(time)}
+                </div>
+                <div className="text-white/80 dark:text-white/70 capitalize text-lg">
+                  {formatDay(time)}
+                </div>
               </div>
             </div>
-
-            <div className="text-xl">
-              <div className="font-semibold text-2xl mb-1">
-                {formatDate(time)}
-              </div>
-              <div className="text-blue-100 capitalize text-lg">
-                {formatDay(time)}
-              </div>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Sección de avisos - Compacta */}
@@ -353,6 +541,7 @@ export default function KioskScreen() {
 
       {showPinModal && (
         <PinModal
+          key={`pin-${modalKey}`}
           employeeId={employeeId}
           setEmployeeId={setEmployeeId}
           employeePin={employeePin}
@@ -365,6 +554,7 @@ export default function KioskScreen() {
 
       {showLoginModal && (
         <LoginModal
+          key={`login-${modalKey}`}
           onClose={() => setShowLoginModal(false)}
           onFacialLogin={() => {
             setShowLoginModal(false);
@@ -377,6 +567,7 @@ export default function KioskScreen() {
 
       {showCamera && (
         <CameraModal
+          key={`camera-${modalKey}`}
           cameraMode={cameraMode}
           captureProgress={captureProgress}
           captureSuccess={captureSuccess}
@@ -392,7 +583,18 @@ export default function KioskScreen() {
         />
       )}
 
-      {showBitacora && <BitacoraModal onClose={() => setShowBitacora(false)} />}
+      {showBitacora && <BitacoraModal key={`bitacora-${modalKey}`} onClose={() => setShowBitacora(false)} />}
+
+      {/* Modal de BiometricReader para registro de asistencia con huella */}
+      {showBiometricReader && (
+        <BiometricReader
+          key={`biometric-${modalKey}`}
+          isOpen={showBiometricReader}
+          onClose={() => setShowBiometricReader(false)}
+          onAuthSuccess={handleFingerprintSuccess}
+          mode="auth"
+        />
+      )}
     </div>
   );
 }

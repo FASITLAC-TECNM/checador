@@ -754,16 +754,13 @@ ipcMain.handle('detect-usb-devices', async () => {
       // Windows: Usar PowerShell para obtener información detallada de dispositivos USB
       try {
         // Obtener dispositivos USB con PowerShell - incluir más clases
-        const psCommand = `
-          Get-PnpDevice -Status OK 2>$null |
-          Where-Object { $_.Class -match 'USB|Biometric|Camera|Image|SmartCard|HID|Sensor|WPD|Media|Ports' -or $_.InstanceId -match 'USB' } |
-          Select-Object Class, FriendlyName, InstanceId, Status |
-          ConvertTo-Json -Compress
-        `;
+        // Usar Base64 para evitar problemas de escape
+        const psScript = `Get-PnpDevice -Status OK | Where-Object { $_.Class -match 'USB|Biometric|Camera|Image|SmartCard|HID|Sensor|WPD|Media|Ports|Authentication' -or $_.InstanceId -like 'USB*' } | Select-Object Class, FriendlyName, InstanceId, Status | ConvertTo-Json -Compress`;
+        const encodedCommand = Buffer.from(psScript, 'utf16le').toString('base64');
 
-        const result = execSync(`powershell -Command "${psCommand}"`, {
+        const result = execSync(`powershell -NoProfile -EncodedCommand ${encodedCommand}`, {
           encoding: 'utf8',
-          timeout: 10000,
+          timeout: 15000,
           windowsHide: true
         });
 
@@ -776,7 +773,12 @@ ipcMain.handle('detect-usb-devices', async () => {
           for (const dev of deviceList) {
             if (!dev.FriendlyName) continue;
 
-            const name = dev.FriendlyName;
+            // Limpiar caracteres especiales del nombre (®, ™, etc.)
+            const rawName = dev.FriendlyName;
+            const name = rawName
+              .replace(/[®™©�´┐¢\uFFFD]/g, '')  // Remover símbolos de marca y caracteres inválidos
+              .replace(/\s+/g, ' ')              // Normalizar espacios
+              .trim();
             const nameLower = name.toLowerCase();
             const classLower = (dev.Class || '').toLowerCase();
             const instanceLower = (dev.InstanceId || '').toLowerCase();
@@ -788,6 +790,11 @@ ipcMain.handle('detect-usb-devices', async () => {
             let type = 'unknown';
             let connection = 'USB';
 
+            // Vendor IDs conocidos de lectores biométricos
+            const isDigitalPersonaVID = instanceLower.includes('vid_05ba'); // DigitalPersona
+            const isSecuGenVID = instanceLower.includes('vid_1162'); // SecuGen
+            const isZKTecoVID = instanceLower.includes('vid_1b55'); // ZKTeco
+
             // Lectores de huella - ampliar detección
             if (nameLower.includes('fingerprint') ||
                 nameLower.includes('biometric') ||
@@ -796,32 +803,64 @@ ipcMain.handle('detect-usb-devices', async () => {
                 nameLower.includes('digitalpersona') ||
                 nameLower.includes('u.are.u') ||
                 nameLower.includes('uareu') ||
+                nameLower.includes('uru') ||
+                nameLower.includes('4500') || // U.are.U 4500
+                nameLower.includes('5100') || // U.are.U 5100
+                nameLower.includes('5160') || // U.are.U 5160
+                nameLower.includes('5300') || // U.are.U 5300
                 nameLower.includes('eikon') ||
                 nameLower.includes('secugen') ||
+                nameLower.includes('hamster') ||
                 nameLower.includes('suprema') ||
                 nameLower.includes('zkteco') ||
                 nameLower.includes('zk ') ||
+                nameLower.includes('zk4500') ||
+                nameLower.includes('live20r') ||
                 nameLower.includes('anviz') ||
                 nameLower.includes('morpho') ||
                 nameLower.includes('crossmatch') ||
                 nameLower.includes('nitgen') ||
                 nameLower.includes('futronic') ||
-                nameLower.includes('sensor') && nameLower.includes('finger') ||
+                (nameLower.includes('sensor') && nameLower.includes('finger')) ||
                 classLower === 'biometric' ||
-                classLower.includes('biometric')) {
+                classLower.includes('biometric') ||
+                classLower.includes('authentication') ||
+                isDigitalPersonaVID ||
+                isSecuGenVID ||
+                isZKTecoVID) {
               type = 'fingerprint';
             }
-            // Cámaras
-            else if (nameLower.includes('camera') ||
+            // Cámaras (filtrar virtuales)
+            else if ((nameLower.includes('camera') ||
                      nameLower.includes('webcam') ||
                      nameLower.includes('cámara') ||
                      nameLower.includes('imaging') ||
                      nameLower.includes('video') ||
                      nameLower.includes('cam ') ||
-                     nameLower.includes('logitech') && !nameLower.includes('keyboard') && !nameLower.includes('mouse') ||
+                     (nameLower.includes('logitech') && !nameLower.includes('keyboard') && !nameLower.includes('mouse')) ||
                      classLower === 'camera' ||
                      classLower === 'image' ||
-                     classLower.includes('camera')) {
+                     classLower.includes('camera')) &&
+                     // Filtrar cámaras virtuales
+                     !nameLower.includes('obs') &&
+                     !nameLower.includes('virtual') &&
+                     !nameLower.includes('manycam') &&
+                     !nameLower.includes('xsplit') &&
+                     !nameLower.includes('snap camera') &&
+                     !nameLower.includes('droidcam') &&
+                     !nameLower.includes('iriun') &&
+                     !nameLower.includes('epoccam') &&
+                     !nameLower.includes('ndi') &&
+                     !nameLower.includes('newtek') &&
+                     !nameLower.includes('camtwist') &&
+                     !nameLower.includes('sparkocam') &&
+                     !nameLower.includes('splitcam') &&
+                     !nameLower.includes('youcam') &&
+                     !nameLower.includes('cyberlink') &&
+                     !nameLower.includes('avatarify') &&
+                     !nameLower.includes('chromacam') &&
+                     !nameLower.includes('vcam') &&
+                     !nameLower.includes('fake')) {
               type = 'camera';
             }
             // Lectores RFID / Smart Card
@@ -844,14 +883,17 @@ ipcMain.handle('detect-usb-devices', async () => {
               type = 'scanner';
             }
 
-            // Filtrar dispositivos USB genéricos y hubs
+            // Verificar si es un dispositivo biométrico por VID
+            const isBiometricVID = isDigitalPersonaVID || isSecuGenVID || isZKTecoVID;
+
+            // Filtrar dispositivos USB genéricos y hubs (excepto biométricos)
             const isGenericOrHub = (
               nameLower.includes('hub') ||
               nameLower.includes('root') ||
               nameLower.includes('host controller') ||
               nameLower.includes('composite device') ||
               nameLower.includes('generic usb') ||
-              nameLower.includes('usb input device') && !nameLower.includes('biometric') ||
+              (nameLower.includes('usb input device') && !nameLower.includes('biometric') && !isBiometricVID) ||
               nameLower.includes('mass storage') ||
               nameLower.includes('disk drive') ||
               nameLower.includes('keyboard') ||
@@ -1071,15 +1113,11 @@ ipcMain.handle('list-all-usb-devices', async () => {
     console.log('[USB-DEBUG] Listando TODOS los dispositivos USB...\n');
 
     if (process.platform === 'win32') {
-      // Obtener todos los dispositivos conectados por USB
-      const psCommand = `
-        Get-PnpDevice -Status OK 2>$null |
-        Where-Object { $_.InstanceId -match 'USB' } |
-        Select-Object Class, FriendlyName, InstanceId |
-        ConvertTo-Json
-      `;
+      // Obtener todos los dispositivos conectados por USB o biométricos
+      const psScript = `Get-PnpDevice -Status OK | Where-Object { $_.InstanceId -like 'USB*' -or $_.Class -like '*Biometric*' -or $_.Class -like '*Authentication*' } | Select-Object Class, FriendlyName, InstanceId | ConvertTo-Json`;
+      const encodedCommand = Buffer.from(psScript, 'utf16le').toString('base64');
 
-      const result = execSync(`powershell -Command "${psCommand}"`, {
+      const result = execSync(`powershell -NoProfile -EncodedCommand ${encodedCommand}`, {
         encoding: 'utf8',
         timeout: 15000,
         windowsHide: true

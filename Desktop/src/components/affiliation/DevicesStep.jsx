@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Wifi, Info, Search, Loader2, Usb, CheckCircle2, AlertCircle } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Wifi, Info, Search, Loader2, Usb, CheckCircle2, AlertCircle, Camera } from "lucide-react";
 import StepIndicator from "./StepIndicator";
 
 export default function DevicesStep({
@@ -11,6 +11,163 @@ export default function DevicesStep({
 }) {
   const [isDetecting, setIsDetecting] = useState(false);
   const [detectionStatus, setDetectionStatus] = useState(null);
+  const hasDetectedOnMount = useRef(false);
+
+  // Lista de cámaras virtuales a filtrar
+  const virtualCameraPatterns = [
+    'obs', 'virtual', 'manycam', 'xsplit', 'snap camera', 'snapcamera',
+    'droidcam', 'iriun', 'epoccam', 'ndi', 'newtek', 'camtwist',
+    'sparkocam', 'splitcam', 'youcam', 'cyberlink', 'avatarify',
+    'chromacam', 'vcam', 'fake', 'screen capture', 'game capture'
+  ];
+
+  // Verificar si es una cámara virtual
+  const isVirtualCamera = (name) => {
+    const nameLower = name.toLowerCase();
+    return virtualCameraPatterns.some(pattern => nameLower.includes(pattern));
+  };
+
+  // Detectar cámaras web usando la API del navegador (funciona sin Electron)
+  const detectWebcams = async () => {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        return [];
+      }
+
+      const mediaDevices = await navigator.mediaDevices.enumerateDevices();
+      const cameras = mediaDevices
+        .filter(device => device.kind === 'videoinput')
+        .filter(device => !isVirtualCamera(device.label || '')) // Filtrar cámaras virtuales
+        .map((device, index) => ({
+          id: Date.now() + index,
+          name: device.label || `Cámara ${index + 1}`,
+          type: 'camera',
+          connection: 'USB',
+          ip: '',
+          port: '',
+          deviceId: device.deviceId,
+          detected: true,
+        }));
+
+      return cameras;
+    } catch (error) {
+      console.error('Error detectando cámaras web:', error);
+      return [];
+    }
+  };
+
+  // Función para detectar todos los dispositivos disponibles
+  const detectAllDevices = async (showStatus = true) => {
+    setIsDetecting(true);
+    if (showStatus) {
+      setDetectionStatus(null);
+    }
+
+    try {
+      let detectedDevices = [];
+
+      // 1. Detectar dispositivos USB vía Electron API
+      if (window.electronAPI && window.electronAPI.detectUSBDevices) {
+        const result = await window.electronAPI.detectUSBDevices();
+        if (result.success && result.devices.length > 0) {
+          detectedDevices = [...result.devices];
+        }
+      }
+
+      // 2. Detectar cámaras web usando la API del navegador (complementa la detección de Electron)
+      const webcams = await detectWebcams();
+
+      // Agregar cámaras que no estén ya detectadas por Electron
+      for (const webcam of webcams) {
+        const alreadyExists = detectedDevices.some(d =>
+          d.type === 'camera' &&
+          (d.name.toLowerCase().includes(webcam.name.toLowerCase()) ||
+           webcam.name.toLowerCase().includes(d.name.toLowerCase()))
+        );
+
+        if (!alreadyExists && webcam.name) {
+          detectedDevices.push(webcam);
+        }
+      }
+
+      // 3. Filtrar dispositivos que ya existen en la lista actual
+      const existingNames = devices.map(d => d.name.toLowerCase());
+      const newDevices = detectedDevices.filter(
+        d => d.name && !existingNames.includes(d.name.toLowerCase())
+      );
+
+      if (newDevices.length > 0) {
+        // Asignar IDs únicos
+        const devicesWithIds = newDevices.map((d, index) => ({
+          ...d,
+          id: devices.length + index + 1,
+        }));
+
+        setDevices([...devices, ...devicesWithIds]);
+
+        if (showStatus) {
+          setDetectionStatus({
+            type: 'success',
+            message: `Se detectaron ${newDevices.length} dispositivo(s) nuevo(s)`
+          });
+        }
+      } else if (detectedDevices.length > 0 && showStatus) {
+        setDetectionStatus({
+          type: 'info',
+          message: 'Los dispositivos detectados ya están en la lista'
+        });
+      } else if (showStatus) {
+        // Si no se detectó nada con Electron, mostrar mensaje apropiado
+        if (!window.electronAPI || !window.electronAPI.detectUSBDevices) {
+          setDetectionStatus({
+            type: 'info',
+            message: webcams.length === 0
+              ? 'No se detectaron cámaras. Conecte un dispositivo o agregue uno manualmente.'
+              : 'Detección limitada en modo web. Para detectar todos los dispositivos, use la aplicación de escritorio.'
+          });
+        } else {
+          setDetectionStatus({
+            type: 'info',
+            message: 'No se detectaron dispositivos conectados'
+          });
+        }
+      }
+
+      return detectedDevices;
+    } catch (error) {
+      console.error('Error detectando dispositivos:', error);
+      if (showStatus) {
+        setDetectionStatus({
+          type: 'error',
+          message: 'Error al detectar dispositivos: ' + error.message
+        });
+      }
+      return [];
+    } finally {
+      setIsDetecting(false);
+    }
+  };
+
+  // Detectar dispositivos automáticamente al montar el componente
+  useEffect(() => {
+    if (!hasDetectedOnMount.current) {
+      hasDetectedOnMount.current = true;
+
+      // Pequeño delay para que el componente se renderice primero
+      const timer = setTimeout(() => {
+        detectAllDevices(false).then(detected => {
+          if (detected.length > 0) {
+            setDetectionStatus({
+              type: 'success',
+              message: `Se detectaron automáticamente ${detected.length} dispositivo(s)`
+            });
+          }
+        });
+      }, 500);
+
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   const addDevice = () => {
     setDevices([
@@ -24,70 +181,6 @@ export default function DevicesStep({
         connection: "USB",
       },
     ]);
-  };
-
-  const detectUSBDevices = async () => {
-    setIsDetecting(true);
-    setDetectionStatus(null);
-
-    try {
-      // Verificar si estamos en Electron
-      if (!window.electronAPI || !window.electronAPI.detectUSBDevices) {
-        setDetectionStatus({
-          type: 'warning',
-          message: 'La detección automática solo está disponible en la aplicación de escritorio'
-        });
-        setIsDetecting(false);
-        return;
-      }
-
-      const result = await window.electronAPI.detectUSBDevices();
-
-      if (result.success && result.devices.length > 0) {
-        // Filtrar dispositivos que ya existen (por nombre)
-        const existingNames = devices.map(d => d.name.toLowerCase());
-        const newDevices = result.devices.filter(
-          d => !existingNames.includes(d.name.toLowerCase())
-        );
-
-        if (newDevices.length > 0) {
-          // Asignar IDs únicos a los nuevos dispositivos
-          const devicesWithIds = newDevices.map((d, index) => ({
-            ...d,
-            id: devices.length + index + 1,
-          }));
-
-          setDevices([...devices, ...devicesWithIds]);
-          setDetectionStatus({
-            type: 'success',
-            message: `Se detectaron ${newDevices.length} dispositivo(s) nuevo(s)`
-          });
-        } else {
-          setDetectionStatus({
-            type: 'info',
-            message: 'No se encontraron dispositivos nuevos. Los detectados ya están en la lista.'
-          });
-        }
-      } else if (result.success && result.devices.length === 0) {
-        setDetectionStatus({
-          type: 'info',
-          message: 'No se detectaron lectores biométricos o cámaras USB conectados'
-        });
-      } else {
-        setDetectionStatus({
-          type: 'error',
-          message: result.error || 'Error al detectar dispositivos'
-        });
-      }
-    } catch (error) {
-      console.error('Error detectando dispositivos:', error);
-      setDetectionStatus({
-        type: 'error',
-        message: 'Error al detectar dispositivos: ' + error.message
-      });
-    } finally {
-      setIsDetecting(false);
-    }
   };
 
   const updateDevice = (id, field, value) => {
@@ -143,17 +236,17 @@ export default function DevicesStep({
               </div>
               <div className="flex gap-2">
                 <button
-                  onClick={detectUSBDevices}
+                  onClick={() => detectAllDevices(true)}
                   disabled={isDetecting}
                   className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Detectar dispositivos USB conectados"
+                  title="Detectar cámaras y dispositivos conectados"
                 >
                   {isDetecting ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <Search className="w-4 h-4" />
                   )}
-                  {isDetecting ? 'Detectando...' : 'Detectar USB'}
+                  {isDetecting ? 'Detectando...' : 'Detectar'}
                 </button>
                 <button
                   onClick={addDevice}

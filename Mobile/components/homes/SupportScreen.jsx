@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+// components/homes/SupportScreen.jsx - CÓDIGO COMPLETO CORREGIDO
+
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,16 +10,83 @@ import {
   Linking,
   Alert,
   StatusBar,
-  Platform
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getEmpresaById } from '../../services/empresaService';
 
 export const SupportScreen = ({ darkMode, onBack, userData }) => {
   const [expandedFaq, setExpandedFaq] = useState(null);
+  const [empresaData, setEmpresaData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const styles = darkMode ? supportStylesDark : supportStyles;
 
-  // FAQs estáticas
+  useEffect(() => {
+    cargarDatosEmpresa();
+  }, []);
+
+  const cargarDatosEmpresa = async () => {
+    try {
+      setIsLoading(true);
+      
+      // ✅ Intentar múltiples formas de obtener empresa_id
+      const empresaId = userData?.empresa_id || 
+                        userData?.empresa?.id || 
+                        userData?.empleado?.empresa_id ||
+                        null;
+      
+      console.log('[Support] 🔍 userData recibido:', {
+        tiene_empresa_id: !!userData?.empresa_id,
+        tiene_empresa: !!userData?.empresa,
+        tiene_empleado: !!userData?.empleado,
+        empresaId_final: empresaId
+      });
+      
+      if (!empresaId) {
+        console.warn('[Support] ⚠️ No se encontró empresa_id en userData');
+        setIsLoading(false);
+        return;
+      }
+
+      const token = await AsyncStorage.getItem('userToken');
+      
+      if (!token) {
+        console.warn('[Support] ⚠️ No hay token disponible');
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('[Support] 🔍 Cargando datos de empresa:', empresaId);
+
+      const response = await getEmpresaById(empresaId, token);
+
+      if (response.success && response.data) {
+        setEmpresaData(response.data);
+        console.log('[Support] ✅ Datos de empresa cargados:', {
+          nombre: response.data.nombre,
+          telefono: response.data.telefono,
+          correo: response.data.correo
+        });
+      } else {
+        console.error('[Support] ❌ Error en respuesta:', response.message);
+      }
+
+    } catch (error) {
+      console.error('[Support] ❌ Error cargando datos de empresa:', error);
+      if (error.message !== 'Empresa no encontrada') {
+        Alert.alert(
+          'Error',
+          'No se pudo cargar la información de contacto. Por favor, intenta de nuevo más tarde.'
+        );
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const faqs = [
     {
       id: 1,
@@ -57,68 +126,133 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
     }
   ];
 
-  const contactOptions = [
-    {
-      id: 1,
-      title: "WhatsApp",
-      subtitle: "Chat directo con soporte",
-      icon: "logo-whatsapp",
-      color: "#25D366",
-      action: () => {
-        const phone = "521234567890"; // Cambiar por el número real
-        const message = `Hola, soy ${userData?.nombre || 'Usuario'}, necesito ayuda con la App de Asistencia.`;
-        const url = `whatsapp://send?phone=${phone}&text=${encodeURIComponent(message)}`;
-        Linking.openURL(url).catch(() => 
-          Alert.alert("Error", "WhatsApp no está instalado en tu dispositivo")
-        );
-      }
-    },
-    {
-      id: 2,
-      title: "Correo Electrónico",
-      subtitle: "soporte@empresa.com",
-      icon: "mail",
-      color: "#2563eb",
-      action: () => {
-        const email = "soporte@empresa.com";
-        const subject = "Solicitud de Soporte - App Asistencia";
-        const body = `Hola,\n\nSoy ${userData?.nombre || 'Usuario'} (${userData?.correo || 'correo@ejemplo.com'}).\n\nNecesito ayuda con:\n\n`;
-        const url = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        Linking.openURL(url);
-      }
-    },
-    {
-      id: 3,
-      title: "Teléfono",
-      subtitle: "+52 123 456 7890",
-      icon: "call",
-      color: "#059669",
-      action: () => {
-        const phone = "+521234567890";
-        Alert.alert(
-          "Llamar a Soporte",
-          `¿Deseas llamar a ${phone}?`,
-          [
-            { text: "Cancelar", style: "cancel" },
-            { 
-              text: "Llamar", 
-              onPress: () => Linking.openURL(`tel:${phone}`)
-            }
-          ]
-        );
-      }
+  const getContactOptions = () => {
+    const options = [];
+
+    if (empresaData?.telefono) {
+      const phoneClean = empresaData.telefono.replace(/[\s()-]/g, '');
+      
+      options.push({
+        id: 1,
+        title: "WhatsApp",
+        subtitle: `Chat con ${empresaData.nombre || 'Soporte'}`,
+        displayPhone: empresaData.telefono,
+        icon: "logo-whatsapp",
+        color: "#25D366",
+        action: () => {
+          const message = `Hola, soy ${userData?.nombre || 'Usuario'}, necesito ayuda con la App de Asistencia.`;
+          const url = `whatsapp://send?phone=${phoneClean}&text=${encodeURIComponent(message)}`;
+          
+          Linking.canOpenURL(url)
+            .then((supported) => {
+              if (supported) {
+                return Linking.openURL(url);
+              } else {
+                Alert.alert(
+                  "WhatsApp no disponible", 
+                  "WhatsApp no está instalado en tu dispositivo"
+                );
+              }
+            })
+            .catch((err) => {
+              console.error('[Support] Error abriendo WhatsApp:', err);
+              Alert.alert("Error", "No se pudo abrir WhatsApp");
+            });
+        }
+      });
     }
-  ];
+
+    if (empresaData?.correo) {
+      options.push({
+        id: 2,
+        title: "Correo Electrónico",
+        subtitle: empresaData.correo,
+        icon: "mail",
+        color: "#2563eb",
+        action: () => {
+          const subject = `Solicitud de Soporte - ${empresaData.nombre || 'App Asistencia'}`;
+          const body = `Hola,\n\nSoy ${userData?.nombre || 'Usuario'} (${userData?.correo || 'correo@ejemplo.com'}).\n\nNecesito ayuda con:\n\n`;
+          const url = `mailto:${empresaData.correo}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+          
+          Linking.openURL(url).catch((err) => {
+            console.error('[Support] Error abriendo correo:', err);
+            Alert.alert("Error", "No se pudo abrir el cliente de correo");
+          });
+        }
+      });
+    }
+
+    if (empresaData?.telefono) {
+      const phoneClean = empresaData.telefono.replace(/[\s()-]/g, '');
+      
+      options.push({
+        id: 3,
+        title: "Teléfono",
+        subtitle: empresaData.telefono,
+        icon: "call",
+        color: "#059669",
+        action: () => {
+          Alert.alert(
+            "Llamar a Soporte",
+            `¿Deseas llamar a ${empresaData.telefono}?`,
+            [
+              { text: "Cancelar", style: "cancel" },
+              { 
+                text: "Llamar", 
+                onPress: () => {
+                  Linking.openURL(`tel:${phoneClean}`).catch((err) => {
+                    console.error('[Support] Error realizando llamada:', err);
+                    Alert.alert("Error", "No se pudo realizar la llamada");
+                  });
+                }
+              }
+            ]
+          );
+        }
+      });
+    }
+
+    return options;
+  };
+
+  const contactOptions = getContactOptions();
 
   const toggleFaq = (id) => {
     setExpandedFaq(expandedFaq === id ? null : id);
   };
 
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
+        
+        <LinearGradient
+          colors={darkMode ? ['#1e40af', '#2563eb'] : ['#2563eb', '#3b82f6']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
+        >
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <View style={styles.headerContent}>
+            <Text style={styles.headerTitle}>Ayuda y Soporte</Text>
+            <Text style={styles.headerSubtitle}>Cargando...</Text>
+          </View>
+        </LinearGradient>
+
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text style={styles.loadingText}>Cargando información de contacto...</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
       
-      {/* Header */}
       <LinearGradient
         colors={darkMode ? ['#1e40af', '#2563eb'] : ['#2563eb', '#3b82f6']}
         start={{ x: 0, y: 0 }}
@@ -130,7 +264,9 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
         </TouchableOpacity>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Ayuda y Soporte</Text>
-          <Text style={styles.headerSubtitle}>Estamos aquí para ayudarte</Text>
+          <Text style={styles.headerSubtitle}>
+            {empresaData?.nombre || 'Estamos aquí para ayudarte'}
+          </Text>
         </View>
       </LinearGradient>
 
@@ -138,7 +274,6 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Quick Help Card */}
         <View style={styles.quickHelpCard}>
           <LinearGradient
             colors={darkMode ? ['#1e3a8a', '#2563eb'] : ['#dbeafe', '#eff6ff']}
@@ -162,37 +297,50 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
           </LinearGradient>
         </View>
 
-        {/* Contact Options */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons 
-              name="chatbubbles" 
-              size={18} 
-              color={darkMode ? '#818cf8' : '#6366f1'} 
-            />
-            <Text style={styles.sectionTitle}>Contáctanos</Text>
+        {contactOptions.length > 0 ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons 
+                name="chatbubbles" 
+                size={18} 
+                color={darkMode ? '#818cf8' : '#6366f1'} 
+              />
+              <Text style={styles.sectionTitle}>Contáctanos</Text>
+            </View>
+
+            {contactOptions.map((option, index) => (
+              <TouchableOpacity
+                key={option.id}
+                style={[
+                  styles.contactOption,
+                  index === contactOptions.length - 1 && styles.contactOptionLast
+                ]}
+                onPress={option.action}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.contactIconCircle, { backgroundColor: `${option.color}15` }]}>
+                  <Ionicons name={option.icon} size={24} color={option.color} />
+                </View>
+                <View style={styles.contactTextContainer}>
+                  <Text style={styles.contactTitle}>{option.title}</Text>
+                  <Text style={styles.contactSubtitle}>{option.subtitle}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+              </TouchableOpacity>
+            ))}
           </View>
+        ) : (
+          <View style={styles.noContactCard}>
+            <Ionicons name="information-circle" size={48} color="#f59e0b" />
+            <Text style={styles.noContactTitle}>
+              Información de contacto no disponible
+            </Text>
+            <Text style={styles.noContactText}>
+              Consulta las preguntas frecuentes o contacta a tu administrador.
+            </Text>
+          </View>
+        )}
 
-          {contactOptions.map((option) => (
-            <TouchableOpacity
-              key={option.id}
-              style={styles.contactOption}
-              onPress={option.action}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.contactIconCircle, { backgroundColor: `${option.color}15` }]}>
-                <Ionicons name={option.icon} size={24} color={option.color} />
-              </View>
-              <View style={styles.contactTextContainer}>
-                <Text style={styles.contactTitle}>{option.title}</Text>
-                <Text style={styles.contactSubtitle}>{option.subtitle}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* FAQs */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons 
@@ -239,7 +387,6 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
           ))}
         </View>
 
-        {/* App Info */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons 
@@ -265,7 +412,19 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
               <Ionicons name="construct" size={18} color="#6b7280" />
               <Text style={styles.infoLabel}>Build</Text>
             </View>
-            <Text style={styles.infoValue}>2024.01.22</Text>
+            <Text style={styles.infoValue}>2024.01.23</Text>
+          </View>
+
+          <View style={styles.infoDivider} />
+          
+          <View style={styles.infoRow}>
+            <View style={styles.infoLeft}>
+              <Ionicons name="business" size={18} color="#6b7280" />
+              <Text style={styles.infoLabel}>Empresa</Text>
+            </View>
+            <Text style={styles.infoValue} numberOfLines={1}>
+              {empresaData?.nombre || 'N/A'}
+            </Text>
           </View>
 
           <View style={styles.infoDivider} />
@@ -282,7 +441,6 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
           </View>
         </View>
 
-        {/* Bottom Spacer */}
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
@@ -323,6 +481,18 @@ const supportStyles = StyleSheet.create({
     fontSize: 14,
     color: '#e0f2fe',
     fontWeight: '500',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -394,6 +564,9 @@ const supportStyles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
   },
+  contactOptionLast: {
+    borderBottomWidth: 0,
+  },
   contactIconCircle: {
     width: 48,
     height: 48,
@@ -414,6 +587,29 @@ const supportStyles = StyleSheet.create({
   contactSubtitle: {
     fontSize: 13,
     color: '#6b7280',
+  },
+  noContactCard: {
+    backgroundColor: '#fffbeb',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#fef3c7',
+  },
+  noContactTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#92400e',
+    marginTop: 12,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  noContactText: {
+    fontSize: 14,
+    color: '#78350f',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   faqCard: {
     backgroundColor: '#f9fafb',
@@ -481,6 +677,8 @@ const supportStyles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#1f2937',
+    maxWidth: '50%',
+    textAlign: 'right',
   },
   infoDivider: {
     height: 1,
@@ -515,6 +713,10 @@ const supportStylesDark = StyleSheet.create({
     ...supportStyles.container,
     backgroundColor: '#0f172a',
   },
+  loadingText: {
+    ...supportStyles.loadingText,
+    color: '#9ca3af',
+  },
   quickHelpTitle: {
     ...supportStyles.quickHelpTitle,
     color: '#f9fafb',
@@ -542,6 +744,19 @@ const supportStylesDark = StyleSheet.create({
   contactSubtitle: {
     ...supportStyles.contactSubtitle,
     color: '#9ca3af',
+  },
+  noContactCard: {
+    ...supportStyles.noContactCard,
+    backgroundColor: '#422006',
+    borderColor: '#713f12',
+  },
+  noContactTitle: {
+    ...supportStyles.noContactTitle,
+    color: '#fde047',
+  },
+  noContactText: {
+    ...supportStyles.noContactText,
+    color: '#fef08a',
   },
   faqCard: {
     ...supportStyles.faqCard,

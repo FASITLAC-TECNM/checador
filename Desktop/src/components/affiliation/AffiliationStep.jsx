@@ -47,13 +47,13 @@ export default function AffiliationStep({
                 </h3>
                 <p className="text-sm text-text-secondary mb-3">
                   Este código único fue proporcionado por el administrador de su
-                  empresa. Generalmente tiene el formato ABC-XYZ-123
+                  empresa. Tiene el formato EMA-XXXXX
                 </p>
                 <input
                   type="text"
                   value={companyId}
                   onChange={(e) => setCompanyId(e.target.value)}
-                  placeholder="ABC-XYZ-123"
+                  placeholder="EMA-XXXXX"
                   className="w-full px-3 py-2 border border-border-subtle rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center font-mono"
                 />
               </div>

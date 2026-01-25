@@ -196,13 +196,13 @@ export default function DevicesStep({
   return (
     <div className="h-screen w-screen bg-bg-primary flex flex-col overflow-hidden">
       {/* Barra de progreso fija */}
-      <div className="bg-bg-secondary border-b border-border-subtle py-4 px-8 flex-shrink-0">
+      <div className="bg-bg-secondary border-b border-border-subtle py-3 px-8 flex-shrink-0">
         <StepIndicator currentStep={2} totalSteps={4} />
       </div>
 
-      {/* Contenido scrollable */}
+      {/* Contenido */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto p-6">
+        <div className="max-w-5xl mx-auto px-6 py-4">
           <button
             onClick={onShowWelcome}
             className="absolute top-20 right-6 w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 flex items-center justify-center z-10"
@@ -210,8 +210,8 @@ export default function DevicesStep({
           >
             <Info className="w-6 h-6" />
           </button>
-        <div className="mb-4">
-          <h1 className="text-xl font-bold text-text-primary mb-1">
+        <div className="mb-3">
+          <h1 className="text-lg font-bold text-text-primary">
             Paso 2: Configurar Dispositivos
           </h1>
           <p className="text-text-secondary text-sm">
@@ -219,42 +219,42 @@ export default function DevicesStep({
           </p>
         </div>
 
-        <div className="mb-6">
-          <div className="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-5">
-            <div className="flex items-start gap-4 mb-4">
-              <div className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
-                <Wifi className="w-6 h-6 text-white" />
+        <div className="flex-1">
+          <div className="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
+                <Wifi className="w-4 h-4 text-white" />
               </div>
               <div className="flex-1">
-                <h3 className="font-bold text-text-primary mb-2">
+                <h3 className="font-semibold text-text-primary text-sm">
                   Dispositivos Conectados
                 </h3>
-                <p className="text-sm text-text-secondary">
-                  Configure cámaras IP, lectores biométricos y otros
-                  dispositivos de entrada
+                <p className="text-xs text-text-secondary">
+                  Configure cámaras IP, lectores biométricos y otros dispositivos de entrada
                 </p>
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => detectAllDevices(true)}
-                  disabled={isDetecting}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Detectar cámaras y dispositivos conectados"
-                >
-                  {isDetecting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Search className="w-4 h-4" />
-                  )}
-                  {isDetecting ? 'Detectando...' : 'Detectar'}
-                </button>
-                <button
-                  onClick={addDevice}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
-                >
-                  + Agregar
-                </button>
-              </div>
+              {devices.length > 0 && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => detectAllDevices(true)}
+                    disabled={isDetecting}
+                    className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isDetecting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Search className="w-4 h-4" />
+                    )}
+                    Detectar
+                  </button>
+                  <button
+                    onClick={addDevice}
+                    className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+                  >
+                    + Agregar
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Mensaje de estado de detección */}
@@ -384,12 +384,32 @@ export default function DevicesStep({
                 </div>
               ))}
               {devices.length === 0 && (
-                <div className="text-center py-8 text-text-tertiary">
-                  <Usb className="w-12 h-12 mx-auto mb-3 opacity-40" />
-                  <p className="mb-2">No hay dispositivos configurados</p>
-                  <p className="text-sm">
-                    Haga clic en "Detectar USB" para buscar dispositivos conectados o "Agregar" para añadir uno manualmente
+                <div className="flex flex-col items-center justify-center py-8">
+                  <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
+                    <Camera className="w-8 h-8 text-indigo-600" />
+                  </div>
+                  <p className="text-base text-text-secondary font-medium mb-1">No hay dispositivos configurados</p>
+                  <p className="text-sm text-text-tertiary mb-5 max-w-md text-center">
+                    Detecte automáticamente las cámaras y dispositivos conectados a este equipo
                   </p>
+                  <button
+                    onClick={() => detectAllDevices(true)}
+                    disabled={isDetecting}
+                    className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all text-base font-medium flex items-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isDetecting ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Search className="w-5 h-5" />
+                    )}
+                    {isDetecting ? 'Detectando dispositivos...' : 'Detectar Dispositivos'}
+                  </button>
+                  <button
+                    onClick={addDevice}
+                    className="mt-3 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                  >
+                    O agregar dispositivo manualmente
+                  </button>
                 </div>
               )}
             </div>
@@ -399,11 +419,11 @@ export default function DevicesStep({
       </div>
 
       {/* Footer fijo con botones */}
-      <div className="bg-bg-secondary border-t border-border-subtle px-6 py-4 flex-shrink-0">
+      <div className="bg-bg-secondary border-t border-border-subtle px-6 py-3 flex-shrink-0">
         <div className="max-w-5xl mx-auto flex justify-between">
           <button
             onClick={onPrevious}
-            className="px-6 py-2.5 text-text-secondary hover:text-text-primary font-medium transition-colors flex items-center gap-2"
+            className="px-5 py-2 text-text-secondary hover:text-text-primary font-medium transition-colors flex items-center gap-2 text-sm"
           >
             <svg
               className="w-4 h-4"
@@ -422,7 +442,7 @@ export default function DevicesStep({
           </button>
           <button
             onClick={onNext}
-            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium transition-all shadow-sm hover:shadow-md flex items-center gap-2"
+            className="px-5 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium transition-all shadow-sm hover:shadow-md flex items-center gap-2 text-sm"
           >
             Siguiente
             <svg

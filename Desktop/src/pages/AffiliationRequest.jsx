@@ -25,9 +25,7 @@ export default function AffiliationRequest({ onComplete }) {
     operatingSystem: "",
   });
 
-  const [devices, setDevices] = useState([
-    { id: 1, name: "", type: "camera", ip: "", port: "", connection: "IP" },
-  ]);
+  const [devices, setDevices] = useState([]);
 
   const [companyId, setCompanyId] = useState("");
   const [solicitudToken, setSolicitudToken] = useState(null);

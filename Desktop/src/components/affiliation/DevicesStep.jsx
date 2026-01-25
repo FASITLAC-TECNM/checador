@@ -27,6 +27,20 @@ export default function DevicesStep({
     return virtualCameraPatterns.some(pattern => nameLower.includes(pattern));
   };
 
+  // Determinar el tipo de dispositivo basado en su nombre
+  const getDeviceType = (name) => {
+    const nameLower = name.toLowerCase();
+    if (nameLower.includes('fingerprint') || nameLower.includes('huella') || nameLower.includes('dactilar') || nameLower.includes('u.are.u')) {
+      return 'dactilar';
+    }
+    return 'facial';
+  };
+
+  // Normalizar nombre para comparación (quitar IDs y paréntesis)
+  const normalizeNameForComparison = (name) => {
+    return name.toLowerCase().replace(/\s*\([^)]*\)\s*/g, '').trim();
+  };
+
   // Detectar cámaras web usando la API del navegador (funciona sin Electron)
   const detectWebcams = async () => {
     try {
@@ -41,7 +55,7 @@ export default function DevicesStep({
         .map((device, index) => ({
           id: Date.now() + index,
           name: device.label || `Cámara ${index + 1}`,
-          type: 'camera',
+          type: getDeviceType(device.label || ''),
           connection: 'USB',
           ip: '',
           port: '',
@@ -70,7 +84,11 @@ export default function DevicesStep({
       if (window.electronAPI && window.electronAPI.detectUSBDevices) {
         const result = await window.electronAPI.detectUSBDevices();
         if (result.success && result.devices.length > 0) {
-          detectedDevices = [...result.devices];
+          // Asignar tipo correcto basado en el nombre
+          detectedDevices = result.devices.map(d => ({
+            ...d,
+            type: getDeviceType(d.name || '')
+          }));
         }
       }
 
@@ -79,11 +97,13 @@ export default function DevicesStep({
 
       // Agregar cámaras que no estén ya detectadas por Electron
       for (const webcam of webcams) {
-        const alreadyExists = detectedDevices.some(d =>
-          d.type === 'camera' &&
-          (d.name.toLowerCase().includes(webcam.name.toLowerCase()) ||
-           webcam.name.toLowerCase().includes(d.name.toLowerCase()))
-        );
+        const webcamNormalized = normalizeNameForComparison(webcam.name);
+        const alreadyExists = detectedDevices.some(d => {
+          const deviceNormalized = normalizeNameForComparison(d.name);
+          return deviceNormalized === webcamNormalized ||
+                 deviceNormalized.includes(webcamNormalized) ||
+                 webcamNormalized.includes(deviceNormalized);
+        });
 
         if (!alreadyExists && webcam.name) {
           detectedDevices.push(webcam);
@@ -175,7 +195,7 @@ export default function DevicesStep({
       {
         id: devices.length + 1,
         name: "",
-        type: "camera",
+        type: "facial",
         ip: "",
         port: "",
         connection: "USB",
@@ -319,10 +339,8 @@ export default function DevicesStep({
                         }
                         className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       >
-                        <option value="camera">Cámara</option>
-                        <option value="fingerprint">Lector Huella</option>
-                        <option value="rfid">Lector RFID</option>
-                        <option value="scanner">Escáner</option>
+                        <option value="facial">Facial</option>
+                        <option value="dactilar">Dactilar</option>
                       </select>
                     </div>
                     <div>

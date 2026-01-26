@@ -17,7 +17,7 @@ let mainWindow;
 let biometricProcess = null;
 
 // Suprimir logs de errores internos de Chromium (GPU, video capture, etc.)
-app.commandLine.appendSwitch('--log-level=3');
+app.commandLine.appendSwitch('log-level', '3');
 
 /**
  * Función para iniciar el BiometricMiddleware como administrador

@@ -142,6 +142,8 @@ function createWindow() {
       v8CacheOptions: 'code',
       // Mejorar rendimiento de video
       backgroundThrottling: false,
+      // Deshabilitar seguridad web para permitir CORS en desarrollo
+      webSecurity: process.env.NODE_ENV !== 'development' ? true : false,
     },
     frame: true,
     backgroundColor: '#ffffff',

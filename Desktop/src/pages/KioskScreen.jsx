@@ -12,6 +12,7 @@ import { agregarEvento } from "../services/bitacoraService";
 import { useConnectivity } from "../hooks/useConnectivity";
 import { ConnectionStatusPanel } from "../components/common/ConnectionStatus";
 import BiometricReader from "../components/kiosk/BiometricReader";
+import { useCamera } from "../context/CameraContext";
 
 export default function KioskScreen() {
   // Leer configuración de métodos de checado
@@ -43,6 +44,9 @@ export default function KioskScreen() {
   // Hook de conectividad
   const { isInternetConnected, isDatabaseConnected } = useConnectivity();
 
+  // Hook de cámara singleton
+  const { initCamera, releaseCamera, attachToVideo } = useCamera();
+
   const [time, setTime] = useState(new Date());
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [usuarioActual, setUsuarioActual] = useState(null); // Almacenar datos del usuario
@@ -55,7 +59,6 @@ export default function KioskScreen() {
   const [showBitacora, setShowBitacora] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [cameraMode, setCameraMode] = useState("asistencia");
-  const [stream, setStream] = useState(null);
   const [captureProgress, setCaptureProgress] = useState(0);
   const [captureSuccess, setCaptureSuccess] = useState(false);
   const [captureFailed, setCaptureFailed] = useState(false);
@@ -257,6 +260,7 @@ export default function KioskScreen() {
     }
   };
 
+  // Manejar cámara usando el contexto singleton
   useEffect(() => {
     if (showCamera) {
       setCaptureProgress(0);
@@ -265,18 +269,15 @@ export default function KioskScreen() {
       setIsClosing(false);
       hasProcessedCapture.current = false;
 
-      navigator.mediaDevices
-        .getUserMedia({ video: true })
+      // Inicializar cámara usando el contexto (reutiliza stream existente)
+      initCamera()
         .then((mediaStream) => {
-          setStream(mediaStream);
           const video = document.getElementById("cameraVideo");
           if (video) {
             video.srcObject = mediaStream;
           }
         })
         .catch((err) => {
-          console.error("Error al acceder a la cámara:", err);
-
           agregarEvento({
             user: "Sistema",
             action: "Error al acceder a la cámara - Permisos denegados",
@@ -288,12 +289,10 @@ export default function KioskScreen() {
           );
         });
     } else {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-        setStream(null);
-      }
+      // Liberar uso de cámara (solo se detiene si nadie más la usa)
+      releaseCamera();
     }
-  }, [showCamera, cameraMode]);
+  }, [showCamera, cameraMode, initCamera, releaseCamera]);
 
   // Manejar login exitoso
   const handleLoginSuccess = (usuario) => {

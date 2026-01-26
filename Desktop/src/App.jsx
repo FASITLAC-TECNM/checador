@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider } from "./context/AuthContext";
+import { CameraProvider } from "./context/CameraContext";
 import AffiliationRequest from "./pages/AffiliationRequest";
 import KioskScreen from "./pages/KioskScreen";
 import SessionScreen from "./pages/SessionScreen";
@@ -52,15 +53,17 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <div className="App">
-          {currentPage === "affiliation" && (
-            <AffiliationRequest onComplete={handleAffiliationComplete} />
-          )}
-          {currentPage === "kiosk" && <KioskScreen />}
-          {currentPage === "session" && (
-            <SessionScreen onLogout={() => setCurrentPage("kiosk")} />
-          )}
-        </div>
+        <CameraProvider>
+          <div className="App">
+            {currentPage === "affiliation" && (
+              <AffiliationRequest onComplete={handleAffiliationComplete} />
+            )}
+            {currentPage === "kiosk" && <KioskScreen />}
+            {currentPage === "session" && (
+              <SessionScreen onLogout={() => setCurrentPage("kiosk")} />
+            )}
+          </div>
+        </CameraProvider>
       </AuthProvider>
     </ThemeProvider>
   );

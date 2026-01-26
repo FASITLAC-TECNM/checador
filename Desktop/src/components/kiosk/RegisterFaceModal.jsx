@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X, UserPlus, CheckCircle, XCircle, Eye } from "lucide-react";
 import { useFaceDetection } from "../../hooks/useFaceDetection";
 import { registrarDescriptorFacial } from "../../services/biometricAuthService";
+import { useCamera } from "../../context/CameraContext";
 import * as faceapi from 'face-api.js';
 
 export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId = null }) {
@@ -9,9 +10,11 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
   const [step, setStep] = useState(propEmpleadoId ? "capturing" : "input"); // input, capturing, success, error
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [stream, setStream] = useState(null);
   const [isClosing, setIsClosing] = useState(false);
   const [skipLiveness, setSkipLiveness] = useState(true); // Modo rápido para pruebas
+
+  // Hook de cámara singleton
+  const { initCamera, releaseCamera } = useCamera();
 
   const {
     modelsLoaded,
@@ -26,28 +29,23 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
 
   // Cargar modelos al montar
   useEffect(() => {
-    console.log("📦 RegisterFaceModal montado");
     loadModels();
 
     // Si viene con empleadoId, iniciar cámara automáticamente
     if (propEmpleadoId && step === "capturing") {
-      navigator.mediaDevices
-        .getUserMedia({ video: true })
+      initCamera()
         .then((mediaStream) => {
-          console.log("✅ Cámara iniciada automáticamente");
-          setStream(mediaStream);
           const video = document.getElementById("registerVideo");
           if (video) {
             video.srcObject = mediaStream;
           }
         })
         .catch((err) => {
-          console.error("❌ Error al acceder a la cámara:", err);
           setErrorMessage("No se pudo acceder a la cámara");
           setStep("input");
         });
     }
-  }, [loadModels, propEmpleadoId]);
+  }, [loadModels, propEmpleadoId, initCamera]);
 
   const handleStartCapture = () => {
     const idTrimmed = empleadoId.trim();
@@ -61,23 +59,18 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
       return;
     }
 
-    console.log("🎥 Iniciando captura para empleado:", idTrimmed);
     setErrorMessage("");
     setStep("capturing");
 
-    // Iniciar cámara
-    navigator.mediaDevices
-      .getUserMedia({ video: true })
+    // Iniciar cámara usando el contexto singleton
+    initCamera()
       .then((mediaStream) => {
-        console.log("✅ Cámara iniciada");
-        setStream(mediaStream);
         const video = document.getElementById("registerVideo");
         if (video) {
           video.srcObject = mediaStream;
         }
       })
       .catch((err) => {
-        console.error("❌ Error al acceder a la cámara:", err);
         setErrorMessage("No se pudo acceder a la cámara");
         setStep("input");
       });
@@ -240,21 +233,16 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
     };
   }, [step, modelsLoaded, empleadoId, startFaceDetection, stopFaceDetection]);
 
-  // Limpiar stream al cerrar
+  // Limpiar cámara al cerrar
   useEffect(() => {
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
+      releaseCamera();
     };
-  }, [stream]);
+  }, [releaseCamera]);
 
   const handleClose = () => {
-    console.log("🚪 Cerrando modal de registro");
     setIsClosing(true);
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-    }
+    releaseCamera();
     setTimeout(() => {
       onClose();
     }, 300);
@@ -479,10 +467,7 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
                 onClick={() => {
                   setStep("input");
                   setErrorMessage("");
-                  if (stream) {
-                    stream.getTracks().forEach((track) => track.stop());
-                    setStream(null);
-                  }
+                  releaseCamera();
                 }}
                 className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
               >

@@ -16,10 +16,8 @@ const __dirname = path.dirname(__filename);
 let mainWindow;
 let biometricProcess = null;
 
-// Desactivar aceleración de hardware GPU para evitar errores en Windows
-app.commandLine.appendSwitch('disable-gpu');
-app.commandLine.appendSwitch('disable-gpu-compositing');
-app.commandLine.appendSwitch('disable-software-rasterizer');
+// Suprimir logs de errores internos de Chromium (GPU, video capture, etc.)
+app.commandLine.appendSwitch('--log-level=3');
 
 /**
  * Función para iniciar el BiometricMiddleware como administrador

@@ -181,38 +181,6 @@ export const HomeScreen = ({ userData, darkMode }) => {
           darkMode={darkMode}
           onRegistroExitoso={handleRegistroExitoso}
         />
-
-        {/* Recent Activity */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Actividad Reciente</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>Ver todo</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.activityCard}>
-            <View style={styles.activityIcon}>
-              <Ionicons name="log-in" size={18} color="#10b981" />
-            </View>
-            <View style={styles.activityContent}>
-              <Text style={styles.activityTitle}>Entrada registrada</Text>
-              <Text style={styles.activityTime}>Hoy a las 08:15 AM</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
-          </View>
-
-          <View style={styles.activityCard}>
-            <View style={styles.activityIcon}>
-              <Ionicons name="log-out" size={18} color="#ef4444" />
-            </View>
-            <View style={styles.activityContent}>
-              <Text style={styles.activityTitle}>Salida registrada</Text>
-              <Text style={styles.activityTime}>Ayer a las 05:30 PM</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
-          </View>
-        </View>
       </ScrollView>
     </View>
   );

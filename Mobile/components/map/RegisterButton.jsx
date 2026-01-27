@@ -25,8 +25,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   
   const [ubicacionActual, setUbicacionActual] = useState(null);
   const [departamentos, setDepartamentos] = useState([]);
-  const [departamentosDisponibles, setDepartamentosDisponibles] = useState([]); // Departamentos donde está el usuario
-  const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState(null); // Para registro
+  const [departamentosDisponibles, setDepartamentosDisponibles] = useState([]);
+  const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState(null);
   const [horarioInfo, setHorarioInfo] = useState(null);
   const [toleranciaInfo, setToleranciaInfo] = useState(null);
   const [ultimoRegistroHoy, setUltimoRegistroHoy] = useState(null);
@@ -38,6 +38,23 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [jornadaCompletada, setJornadaCompletada] = useState(false);
 
   const styles = darkMode ? registerStylesDark : registerStyles;
+  const [horaActual, setHoraActual] = useState(new Date());
+
+  useEffect(() => {
+    const intervalo = setInterval(() => {
+      setHoraActual(new Date());
+      
+      if (horarioInfo && toleranciaInfo) {
+        const estado = calcularEstadoRegistro(ultimoRegistroHoy, horarioInfo, toleranciaInfo);
+        setPuedeRegistrar(estado.puedeRegistrar);
+        setTipoSiguienteRegistro(estado.tipoRegistro);
+        setEstadoHorario(estado.estadoHorario);
+        setJornadaCompletada(estado.jornadaCompleta);
+      }
+    }, 1000);
+
+    return () => clearInterval(intervalo);
+  }, [horarioInfo, toleranciaInfo, ultimoRegistroHoy, calcularEstadoRegistro]);
 
   const getDiaSemana = () => {
     const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
@@ -51,10 +68,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const obtenerUltimoRegistro = useCallback(async () => {
     try {
       const empleadoId = userData?.empleado_id;
-      if (!empleadoId) return null;
+      if (!empleadoId) {
+        return null;
+      }
 
       const response = await fetch(
-        `${API_URL}/asistencia/empleado/${empleadoId}`,
+        `${API_URL}/asistencias/empleado/${empleadoId}`,
         {
           headers: {
             'Authorization': `Bearer ${userData.token}`,
@@ -63,7 +82,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         }
       );
 
-      if (!response.ok) return null;
+      if (!response.ok) {
+        return null;
+      }
 
       const data = await response.json();
       
@@ -86,7 +107,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         hora: new Date(ultimo.fecha_registro).toLocaleTimeString('es-MX', { 
           hour: '2-digit', 
           minute: '2-digit' 
-        })
+        }),
+        totalRegistrosHoy: registrosHoy.length
       };
     } catch (err) {
       return null;
@@ -233,6 +255,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   }, [userData]);
 
   const validarEntrada = (horario, tolerancia, minutosActuales) => {
+    let hayTurnoFuturo = false;
+    
     for (const turno of horario.turnos) {
       const [hE, mE] = turno.entrada.split(':').map(Number);
       const [hS, mS] = turno.salida.split(':').map(Number);
@@ -250,6 +274,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           tipoRegistro: 'entrada',
           estadoHorario: 'puntual',
           jornadaCompleta: false,
+          hayTurnoFuturo: false,
           mensaje: 'Puedes registrar tu entrada'
         };
       }
@@ -260,6 +285,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           tipoRegistro: 'entrada',
           estadoHorario: 'retardo',
           jornadaCompleta: false,
+          hayTurnoFuturo: false,
           mensaje: 'Registro con retardo'
         };
       }
@@ -270,8 +296,13 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           tipoRegistro: 'entrada',
           estadoHorario: 'falta',
           jornadaCompleta: false,
+          hayTurnoFuturo: false,
           mensaje: 'Fuera de tolerancia (falta)'
         };
+      }
+      
+      if (minutosActuales < ventanaInicio) {
+        hayTurnoFuturo = true;
       }
     }
 
@@ -280,48 +311,38 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       tipoRegistro: 'entrada',
       estadoHorario: 'fuera_horario',
       jornadaCompleta: false,
-      mensaje: 'Fuera de horario'
+      hayTurnoFuturo: hayTurnoFuturo,
+      mensaje: hayTurnoFuturo ? 'Aún no es hora de entrada' : 'Fuera de horario'
     };
   };
-const validarSalida = (horario, minutosActuales) => {
-  for (const turno of horario.turnos) {
-    const [hS, mS] = turno.salida.split(':').map(Number);
-    const minSalida = hS * 60 + mS;
 
-    const ventanaSalidaInicio = minSalida - 10;
-    const ventanaSalidaFin = minSalida + 5;
+  const validarSalida = (horario, minutosActuales) => {
+    for (const turno of horario.turnos) {
+      const [hS, mS] = turno.salida.split(':').map(Number);
+      const minSalida = hS * 60 + mS;
 
-    if (minutosActuales >= ventanaSalidaInicio && minutosActuales <= ventanaSalidaFin) {
-      return {
-        puedeRegistrar: true,
-        tipoRegistro: 'salida',
-        estadoHorario: 'puntual',
-        jornadaCompleta: false,
-        mensaje: 'Puedes registrar tu salida'
-      };
+      const ventanaSalidaInicio = minSalida - 10;
+      const ventanaSalidaFin = minSalida + 5;
+
+      if (minutosActuales >= ventanaSalidaInicio && minutosActuales <= ventanaSalidaFin) {
+        return {
+          puedeRegistrar: true,
+          tipoRegistro: 'salida',
+          estadoHorario: 'puntual',
+          jornadaCompleta: false,
+          mensaje: 'Puedes registrar tu salida'
+        };
+      }
     }
 
-    // ⏰ Si ya pasó la ventana de salida (más de 5 min después)
-    if (minutosActuales > ventanaSalidaFin) {
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'salida',
-        estadoHorario: 'fuera_horario',
-        jornadaCompleta: false, // ✅ NO está completa, perdiste tu ventana
-        mensaje: 'Tiempo de registro expirado'
-      };
-    }
-  }
-
-  // ⏰ Aún no es hora de salida
-  return {
-    puedeRegistrar: false,
-    tipoRegistro: 'salida',
-    estadoHorario: 'fuera_horario',
-    jornadaCompleta: false,
-    mensaje: 'Aún no es hora de salida'
+    return {
+      puedeRegistrar: false,
+      tipoRegistro: 'salida',
+      estadoHorario: 'fuera_horario',
+      jornadaCompleta: false,
+      mensaje: 'Aún no es hora de salida'
+    };
   };
-};
 
   const calcularEstadoRegistro = useCallback((ultimo, horario, tolerancia) => {
     if (!horario?.trabaja) {
@@ -334,23 +355,41 @@ const validarSalida = (horario, minutosActuales) => {
       };
     }
 
-    const tipoRegistro = (!ultimo || ultimo.tipo === 'salida') ? 'entrada' : 'salida';
+    const ahora = getMinutosDelDia();
+    const totalTurnos = horario.turnos.length;
     
-    if (ultimo?.tipo === 'salida') {
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'completado',
-        jornadaCompleta: true,
-        mensaje: 'Ya completaste tu jornada de hoy'
-      };
+    if (!ultimo) {
+      return validarEntrada(horario, tolerancia, ahora);
     }
 
-    const ahora = getMinutosDelDia();
+    const registrosHoy = ultimo.totalRegistrosHoy || 1;
+    const turnosCompletados = Math.floor(registrosHoy / 2);
+    
+    if (ultimo.tipo === 'entrada') {
+      return validarSalida(horario, ahora);
+    }
+    
+    if (ultimo.tipo === 'salida') {
+      if (turnosCompletados >= totalTurnos) {
+        const resultadoEntrada = validarEntrada(horario, tolerancia, ahora);
+        
+        if (!resultadoEntrada.hayTurnoFuturo) {
+          return {
+            puedeRegistrar: false,
+            tipoRegistro: 'entrada',
+            estadoHorario: 'completado',
+            jornadaCompleta: true,
+            mensaje: 'Jornada completada por hoy'
+          };
+        }
+        
+        return resultadoEntrada;
+      }
+      
+      return validarEntrada(horario, tolerancia, ahora);
+    }
 
-    return tipoRegistro === 'entrada' 
-      ? validarEntrada(horario, tolerancia, ahora)
-      : validarSalida(horario, ahora);
+    return validarEntrada(horario, tolerancia, ahora);
   }, []);
 
   useEffect(() => {
@@ -378,7 +417,6 @@ const validarSalida = (horario, minutosActuales) => {
           setJornadaCompletada(estado.jornadaCompleta);
         }
       } catch (err) {
-        // Error silencioso
       } finally {
         setLoading(false);
       }
@@ -418,7 +456,6 @@ const validarSalida = (horario, minutosActuales) => {
           }
         );
       } catch (err) {
-        // Error de ubicación
       }
     };
 
@@ -431,7 +468,6 @@ const validarSalida = (horario, minutosActuales) => {
     };
   }, []);
 
-  // Verificar en qué departamentos está el usuario
   useEffect(() => {
     if (!ubicacionActual || !departamentos.length) {
       setDentroDelArea(false);
@@ -460,19 +496,24 @@ const validarSalida = (horario, minutosActuales) => {
     setDepartamentosDisponibles(deptsDisponibles);
     setDentroDelArea(deptsDisponibles.length > 0);
     
-    // Si hay departamentos disponibles y no hay uno seleccionado, seleccionar el primero
     if (deptsDisponibles.length > 0 && !departamentoSeleccionado) {
       setDepartamentoSeleccionado(deptsDisponibles[0]);
     }
     
-    // Si el departamento seleccionado ya no está disponible, cambiar al primero disponible
     if (departamentoSeleccionado && !deptsDisponibles.find(d => d.id === departamentoSeleccionado.id)) {
       setDepartamentoSeleccionado(deptsDisponibles[0] || null);
     }
   }, [ubicacionActual, departamentos]);
 
   const handleRegistro = async () => {
+    if (!userData || !userData.empleado_id || !userData.token) {
+      console.error('❌ userData incompleto');
+      Alert.alert('Error', 'No se pudo identificar tu información de usuario. Intenta cerrar sesión y volver a iniciar.');
+      return;
+    }
+
     if (!horarioInfo) {
+      console.error('❌ Sin horario configurado');
       Alert.alert('Error', 'No tienes un horario configurado. Contacta al administrador.', [{ text: 'OK' }]);
       return;
     }
@@ -491,19 +532,19 @@ const validarSalida = (horario, minutosActuales) => {
       } else if (!horarioInfo.trabaja) {
         mensaje = 'No tienes horario configurado para hoy';
       }
-
       Alert.alert('No disponible', mensaje, [{ text: 'Entendido' }]);
       return;
     }
 
-    const empleadoId = userData?.empleado_id;
-    if (!empleadoId) {
-      Alert.alert('Error', 'No se pudo identificar tu información');
+    if (!ubicacionActual || !ubicacionActual.lat || !ubicacionActual.lng) {
+      Alert.alert('Error', 'No se pudo obtener tu ubicación. Verifica que el GPS esté activado.');
       return;
     }
 
-    let estadoMensaje = '';
+    const empleadoId = userData.empleado_id;
+    console.log('✅ Validaciones pasadas, empleadoId:', empleadoId);
     
+    let estadoMensaje = '';
     if (tipoSiguienteRegistro === 'salida') {
       estadoMensaje = '✅ Salida';
     } else {
@@ -526,11 +567,11 @@ const validarSalida = (horario, minutosActuales) => {
 
             try {
               const payload = {
-                id_empleado: empleadoId,
-                tipo: 'Movil',
+                empleado_id: empleadoId,
+                dispositivo_origen: 'movil',
+                ubicacion: [ubicacionActual.lat, ubicacionActual.lng]
               };
-
-              const response = await fetch(`${API_URL}/asistencia/registrar-facial`, {
+              const response = await fetch(`${API_URL}/asistencias/registrar`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -538,17 +579,13 @@ const validarSalida = (horario, minutosActuales) => {
                 },
                 body: JSON.stringify(payload)
               });
-
               const responseText = await response.text();
-
               if (response.status === 502) {
                 throw new Error('El servidor no está disponible en este momento. Por favor intenta de nuevo.');
               }
-
               if (response.status === 500) {
                 throw new Error('Error interno del servidor. Contacta al administrador.');
               }
-
               let data;
               try {
                 data = responseText ? JSON.parse(responseText) : {};
@@ -560,10 +597,9 @@ const validarSalida = (horario, minutosActuales) => {
                 const errorMsg = data.message || data.error || `Error del servidor (${response.status})`;
                 throw new Error(errorMsg);
               }
-
               const nuevoUltimo = await obtenerUltimoRegistro();
               setUltimoRegistroHoy(nuevoUltimo);
-
+              
               if (horarioInfo && toleranciaInfo) {
                 const nuevoEstado = calcularEstadoRegistro(nuevoUltimo, horarioInfo, toleranciaInfo);
                 setPuedeRegistrar(nuevoEstado.puedeRegistrar);
@@ -575,7 +611,7 @@ const validarSalida = (horario, minutosActuales) => {
               let estadoTexto = '';
               let emoji = '✅';
 
-              if (tipoSiguienteRegistro === 'salida') {
+              if (data.data?.tipo === 'salida') {
                 estadoTexto = 'salida registrada';
                 emoji = '✅';
               } else {
@@ -593,7 +629,7 @@ const validarSalida = (horario, minutosActuales) => {
 
               Alert.alert(
                 '¡Éxito!',
-                `${emoji} ${tipoSiguienteRegistro === 'entrada' ? 'Entrada' : 'Salida'} registrada como ${estadoTexto}\nDepartamento: ${departamentoSeleccionado.nombre}\nHora: ${new Date(data.data?.fecha_registro).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
+                `${emoji} ${data.data?.tipo === 'salida' ? 'Salida' : 'Entrada'} registrada como ${estadoTexto}\nDepartamento: ${departamentoSeleccionado.nombre}\nHora: ${new Date(data.data?.fecha_registro).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
                 [{ text: 'OK' }]
               );
 
@@ -601,6 +637,7 @@ const validarSalida = (horario, minutosActuales) => {
                 onRegistroExitoso(data);
               }
             } catch (err) {
+              console.error('❌ Error completo:', err);
               Alert.alert('Error', err.message || 'No se pudo registrar', [{ text: 'OK' }]);
             } finally {
               setRegistrando(false);
@@ -671,7 +708,7 @@ const validarSalida = (horario, minutosActuales) => {
           <View style={styles.timeContainer}>
             <Text style={styles.timeLabel}>Hora actual</Text>
             <Text style={styles.timeValue}>
-              {new Date().toLocaleTimeString('es-MX', {
+              {horaActual.toLocaleTimeString('es-MX', {
                 hour: '2-digit',
                 minute: '2-digit',
                 hour12: true
@@ -809,7 +846,6 @@ const validarSalida = (horario, minutosActuales) => {
         </View>
       </View>
 
-      {/* Modal de lista de departamentos disponibles */}
       {departamentosDisponibles.length > 0 && (
         <Modal
           visible={mostrarDepartamentos}
@@ -896,7 +932,6 @@ const validarSalida = (horario, minutosActuales) => {
         </Modal>
       )}
 
-      {/* Modal de mapa */}
       {departamentos.length > 0 && (
         <Modal
           visible={mostrarMapa}
@@ -910,7 +945,6 @@ const validarSalida = (horario, minutosActuales) => {
             ubicacionActual={ubicacionActual}
             onClose={() => setMostrarMapa(false)}
             onDepartamentoSeleccionado={(depto) => {
-              // Solo permitir seleccionar si está dentro
               if (departamentosDisponibles.find(d => d.id === depto.id)) {
                 setDepartamentoSeleccionado(depto);
               }
@@ -927,9 +961,9 @@ const registerStyles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
     marginHorizontal: 20,
-    marginTop: 20,
+    marginTop: 12,
     borderRadius: 16,
-    padding: 16,
+    padding: 12,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -938,34 +972,34 @@ const registerStyles = StyleSheet.create({
   },
   statusContainer: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 20,
-    gap: 6,
+    gap: 4,
   },
   statusText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
   content: {
-    gap: 12,
+    gap: 8,
   },
   timeContainer: {
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 6,
   },
   timeLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#9ca3af',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   timeValue: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: '700',
     color: '#1f2937',
     letterSpacing: -1,
@@ -973,29 +1007,29 @@ const registerStyles = StyleSheet.create({
   statusIndicators: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 16,
-    paddingVertical: 8,
+    gap: 12,
+    paddingVertical: 4,
   },
   indicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 3,
   },
   indicatorText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
   },
   locationInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
+    gap: 4,
+    paddingVertical: 6,
     backgroundColor: '#f9fafb',
     borderRadius: 8,
   },
   locationText: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#6b7280',
     fontWeight: '500',
   },
@@ -1003,39 +1037,39 @@ const registerStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderRadius: 12,
-    gap: 8,
-    marginTop: 4,
+    gap: 6,
+    marginTop: 2,
   },
   registerButtonDisabled: {
     opacity: 0.5,
   },
   registerButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
   lastRegisterContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingTop: 8,
+    gap: 4,
+    paddingTop: 6,
     borderTopWidth: 1,
     borderTopColor: '#f3f4f6',
-    marginTop: 4,
+    marginTop: 2,
   },
   lastRegisterIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: '#f3f4f6',
     alignItems: 'center',
     justifyContent: 'center',
   },
   lastRegisterText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#9ca3af',
   },
   modalOverlay: {
@@ -1142,15 +1176,15 @@ const registerStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
+    gap: 4,
+    paddingVertical: 6,
     backgroundColor: '#eff6ff',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#bfdbfe',
   },
   viewMapText: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#3b82f6',
     fontWeight: '500',
   },

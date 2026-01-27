@@ -421,7 +421,7 @@ export default function SessionScreen({ onLogout, usuario }) {
             setShowDispositivosModal(false);
             setShowConfigModal(true);
           }}
-          initialDevices={dispositivos}
+          escritorioId={localStorage.getItem("escritorio_id")}
         />
       )}
 

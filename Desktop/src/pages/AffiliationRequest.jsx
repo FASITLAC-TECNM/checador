@@ -51,6 +51,10 @@ export default function AffiliationRequest({ onComplete }) {
 
       if (estado === "aceptado") {
         setRequestStatus("approved");
+        // Guardar el escritorio_id que viene del backend
+        if (solicitud.escritorio_id) {
+          localStorage.setItem("escritorio_id", solicitud.escritorio_id);
+        }
         limpiarSolicitudGuardada();
       } else if (estado === "rechazado") {
         setRequestStatus("rejected");

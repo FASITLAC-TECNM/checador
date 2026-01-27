@@ -2,26 +2,19 @@ import { getApiEndpoint } from '../config/api.js';
 
 const API_URL = getApiEndpoint('/api');
 
-/**
- * Registra asistencia de un empleado
- * @param {string} empleadoId - ID del empleado
- * @param {Object} ubicacion - {lat, lng}
- * @param {string} token - Token de autenticación
- * @param {string} departamentoId - ID del departamento (opcional, solo para metadata)
- * @returns {Promise<Object>}
- */
 export const registrarAsistencia = async (empleadoId, ubicacion, token, departamentoId = null) => {
     try {
-        // Payload con los campos que espera el backend (registrar-facial)
         const payload = {
-            id_empleado: empleadoId,
-            tipo: 'Movil' // Tipo de dispositivo
+            empleado_id: empleadoId,
+            dispositivo_origen: 'movil',
+            ubicacion: [ubicacion.lat, ubicacion.lng]
         };
 
-        console.log('📤 Enviando asistencia:', payload);
+        console.log('📤 Servicio - Enviando asistencia:', payload);
+        console.log('📍 Servicio - URL:', `${API_URL}/asistencias/registrar`);
+        console.log('🔑 Servicio - Token:', token ? 'Presente ✅' : 'Ausente ❌');
 
-        // Usar registrar-facial ya que no requiere huella dactilar
-        const response = await fetch(`${API_URL}/asistencia/registrar-facial`, {
+        const response = await fetch(`${API_URL}/asistencias/registrar`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -30,8 +23,10 @@ export const registrarAsistencia = async (empleadoId, ubicacion, token, departam
             body: JSON.stringify(payload)
         });
 
+        console.log('📊 Servicio - Status:', response.status);
+
         const responseText = await response.text();
-        console.log('📥 Respuesta del servidor:', responseText);
+        console.log('📥 Servicio - Respuesta:', responseText);
 
         if (!response.ok) {
             let errorData;
@@ -40,20 +35,19 @@ export const registrarAsistencia = async (empleadoId, ubicacion, token, departam
             } catch {
                 errorData = { message: responseText };
             }
-
             throw new Error(errorData.message || `Error del servidor (${response.status})`);
         }
 
         const data = JSON.parse(responseText);
+        console.log('✅ Servicio - Datos parseados:', data);
         
-        // ✅ Si necesitas el departamento, lo agregamos aquí localmente
         if (departamentoId) {
             data.departamento_id = departamentoId;
         }
 
         return data;
     } catch (error) {
-        console.error('❌ Error registrando asistencia:', error);
+        console.error('❌ Servicio - Error:', error);
         throw error;
     }
 };
@@ -64,7 +58,7 @@ export const getAsistenciasEmpleado = async (empleadoId, token, filtros = {}) =>
         if (filtros.fecha_inicio) params.append('fecha_inicio', filtros.fecha_inicio);
         if (filtros.fecha_fin) params.append('fecha_fin', filtros.fecha_fin);
 
-        const url = `${API_URL}/asistencia/empleado/${empleadoId}${params.toString() ? `?${params}` : ''}`;
+        const url = `${API_URL}/asistencias/empleado/${empleadoId}${params.toString() ? `?${params}` : ''}`;
 
         const response = await fetch(url, {
             headers: {
@@ -80,7 +74,6 @@ export const getAsistenciasEmpleado = async (empleadoId, token, filtros = {}) =>
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('❌ Error obteniendo asistencias:', error);
         throw error;
     }
 };
@@ -112,7 +105,6 @@ export const getUltimoRegistroHoy = async (empleadoId, token) => {
             esEntrada: ultimaAsistencia.tipo === 'entrada'
         };
     } catch (error) {
-        console.error('❌ Error obteniendo último registro:', error);
         return null;
     }
 };
@@ -120,7 +112,7 @@ export const getUltimoRegistroHoy = async (empleadoId, token) => {
 export const getAsistenciasHoy = async (token, departamentoId = null) => {
     try {
         const params = departamentoId ? `?departamento_id=${departamentoId}` : '';
-        const url = `${API_URL}/asistencia/hoy${params}`;
+        const url = `${API_URL}/asistencias/hoy${params}`;
 
         const response = await fetch(url, {
             headers: {
@@ -136,7 +128,6 @@ export const getAsistenciasHoy = async (token, departamentoId = null) => {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('❌ Error obteniendo asistencias de hoy:', error);
         throw error;
     }
 };

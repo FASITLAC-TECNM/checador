@@ -88,6 +88,7 @@ export default function AffiliationRequest({ onComplete }) {
         mac: nodeConfig.macAddress || '00:00:00:00:00:00',
         sistema_operativo: nodeConfig.operatingSystem || 'Unknown',
         empresa_id: companyId,
+        dispositivos: devices,
       });
 
       setSolicitudId(solicitud.id);

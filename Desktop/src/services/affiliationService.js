@@ -28,6 +28,7 @@ const generarToken = () => {
  * @param {string} datos.mac - Dirección MAC (CHAR 12)
  * @param {string} datos.sistema_operativo - Sistema operativo (CHAR 55)
  * @param {string} datos.empresa_id - ID de la empresa (CHAR 8)
+ * @param {Array} datos.dispositivos - Dispositivos biométricos a registrar
  * @returns {Promise<Object>} - Solicitud creada
  */
 export const crearSolicitudAfiliacion = async (datos) => {
@@ -35,6 +36,14 @@ export const crearSolicitudAfiliacion = async (datos) => {
     console.log("📝 Creando solicitud de afiliación:", datos);
 
     const token = generarToken();
+
+    // Formatear dispositivos para el campo dispositivos_temp
+    const dispositivosTemp = datos.dispositivos?.map(d => ({
+      nombre: d.name?.substring(0, 55) || "",
+      tipo: d.type || "facial",
+      ip: d.ip?.substring(0, 12) || "",
+      puerto: d.port?.substring(0, 55) || ""
+    })) || [];
 
     const solicitud = {
       tipo: "escritorio",
@@ -46,6 +55,7 @@ export const crearSolicitudAfiliacion = async (datos) => {
       sistema_operativo: datos.sistema_operativo?.substring(0, 55) || "",
       token: token,
       empresa_id: datos.empresa_id?.substring(0, 8) || "",
+      dispositivos_temp: dispositivosTemp,
     };
 
     const response = await fetch(`${API_URL}/solicitudes`, {

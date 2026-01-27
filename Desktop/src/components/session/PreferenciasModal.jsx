@@ -4,6 +4,7 @@ import { useTheme } from "../../context/ThemeContext";
 
 export default function PreferenciasModal({ onClose, onBack }) {
   const { isDarkMode, setDarkMode } = useTheme();
+  const [showSaveMessage, setShowSaveMessage] = useState(false);
 
   // Valores por defecto
   const defaultPreferences = {
@@ -33,7 +34,7 @@ export default function PreferenciasModal({ onClose, onBack }) {
           checkMethods: parsed.checkMethods ?? defaultPreferences.checkMethods,
         };
       } catch (error) {
-        console.error("Error al cargar preferencias:", error);
+        // Error al cargar preferencias, usar valores por defecto
       }
     }
     return {
@@ -83,14 +84,23 @@ export default function PreferenciasModal({ onClose, onBack }) {
   };
 
   const handleSave = () => {
-    console.log("Preferencias guardadas:", preferences);
     localStorage.setItem("userPreferences", JSON.stringify(preferences));
-    alert("Preferencias guardadas exitosamente");
-    onClose();
+    setShowSaveMessage(true);
+    setTimeout(() => {
+      setShowSaveMessage(false);
+      onClose();
+    }, 1500);
   };
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      {/* Mensaje de guardado exitoso */}
+      {showSaveMessage && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-pulse">
+          <Save className="w-5 h-5" />
+          <span className="font-semibold">Preferencias guardadas exitosamente</span>
+        </div>
+      )}
       <div className="bg-bg-primary rounded-3xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 to-purple-500 px-4 py-3 flex-shrink-0">

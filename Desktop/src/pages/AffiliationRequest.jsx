@@ -51,6 +51,10 @@ export default function AffiliationRequest({ onComplete }) {
 
       if (estado === "aceptado") {
         setRequestStatus("approved");
+        // Guardar el escritorio_id que viene del backend
+        if (solicitud.escritorio_id) {
+          localStorage.setItem("escritorio_id", solicitud.escritorio_id);
+        }
         limpiarSolicitudGuardada();
       } else if (estado === "rechazado") {
         setRequestStatus("rejected");
@@ -88,6 +92,7 @@ export default function AffiliationRequest({ onComplete }) {
         mac: nodeConfig.macAddress || '00:00:00:00:00:00',
         sistema_operativo: nodeConfig.operatingSystem || 'Unknown',
         empresa_id: companyId,
+        dispositivos: devices,
       });
 
       setSolicitudId(solicitud.id);

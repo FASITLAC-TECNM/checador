@@ -1,37 +1,83 @@
-import React, { useState } from "react";
-import { X, Smartphone, Plus, Trash2, Save } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { X, Smartphone, Plus, Trash2, Save, Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import { getApiEndpoint } from "../../config/apiEndPoint";
 
-export default function DispositivosModal({ onClose, onBack, initialDevices = [] }) {
-  const [devices, setDevices] = useState(
-    initialDevices.length > 0
-      ? initialDevices
-      : [
-          {
-            id: 1,
-            nombre: "Lector de Huella Digital",
-            descripcion: "Sensor biométrico para control de acceso",
-            tipo: "Biométrico",
-            puerto: "USB-001",
-          },
-          {
-            id: 2,
-            nombre: "Cámara de Seguridad",
-            descripcion: "Cámara HD de reconocimiento facial",
-            tipo: "Cámara",
-            puerto: "USB-002",
-          },
-        ]
-  );
+const API_URL = getApiEndpoint("/api");
+
+export default function DispositivosModal({ onClose, onBack, escritorioId }) {
+  const [devices, setDevices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  // Obtener token de autenticación
+  const getAuthToken = () => {
+    return localStorage.getItem("auth_token");
+  };
+
+  // Cargar dispositivos desde la BD
+  const fetchDevices = async () => {
+    if (!escritorioId) {
+      setError("No se ha especificado el ID del escritorio");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const token = getAuthToken();
+      const response = await fetch(`${API_URL}/biometrico/escritorio/${escritorioId}`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Error al cargar los dispositivos");
+      }
+
+      const result = await response.json();
+      const data = result.data || result;
+
+      // Mapear los datos de la BD a la estructura del componente
+      const mappedDevices = Array.isArray(data) ? data.map(d => ({
+        id: d.id,
+        nombre: d.nombre || "",
+        tipo: d.tipo || "facial",
+        puerto: d.puerto || "",
+        ip: d.ip || "",
+        estado: d.estado || "desconectado",
+        es_activo: d.es_activo ?? true,
+      })) : [];
+
+      setDevices(mappedDevices);
+    } catch (err) {
+      console.error("Error al cargar dispositivos:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDevices();
+  }, [escritorioId]);
 
   const addDevice = () => {
     setDevices([
       ...devices,
       {
-        id: devices.length + 1,
+        id: `NEW_${Date.now()}`,
         nombre: "",
-        descripcion: "",
-        tipo: "Cámara",
+        tipo: "facial",
         puerto: "",
+        ip: "",
+        estado: "desconectado",
+        es_activo: true,
+        isNew: true,
       },
     ]);
   };
@@ -44,10 +90,66 @@ export default function DispositivosModal({ onClose, onBack, initialDevices = []
     setDevices(devices.filter((dev) => dev.id !== id));
   };
 
-  const handleSave = () => {
-    console.log("Dispositivos guardados:", devices);
-    alert("Dispositivos guardados exitosamente");
-    onClose();
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const token = getAuthToken();
+
+      // Guardar cambios en la BD
+      for (const device of devices) {
+        const payload = {
+          nombre: device.nombre,
+          tipo: device.tipo,
+          puerto: device.puerto || null,
+          ip: device.ip || null,
+          estado: device.estado,
+          es_activo: device.es_activo,
+          escritorio_id: escritorioId,
+        };
+
+        const headers = {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        };
+
+        if (device.isNew) {
+          // Crear nuevo dispositivo
+          await fetch(`${API_URL}/biometrico`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(payload),
+          });
+        } else {
+          // Actualizar dispositivo existente
+          await fetch(`${API_URL}/biometrico/${device.id}`, {
+            method: "PUT",
+            headers,
+            body: JSON.stringify(payload),
+          });
+        }
+      }
+
+      alert("Dispositivos guardados exitosamente");
+      onClose();
+    } catch (err) {
+      console.error("Error al guardar:", err);
+      alert("Error al guardar los dispositivos");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const getEstadoColor = (estado) => {
+    switch (estado) {
+      case "conectado":
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+      case "desconectado":
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400";
+      case "error":
+        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400";
+    }
   };
 
   return (
@@ -62,10 +164,10 @@ export default function DispositivosModal({ onClose, onBack, initialDevices = []
               </div>
               <div>
                 <h3 className="text-2xl font-bold text-white">
-                  Dispositivos Conectados
+                  Dispositivos Biométricos
                 </h3>
                 <p className="text-green-100 dark:text-green-200 text-sm mt-1">
-                  Gestiona los dispositivos vinculados a tu cuenta
+                  Gestiona los dispositivos vinculados a este nodo
                 </p>
               </div>
             </div>
@@ -80,100 +182,131 @@ export default function DispositivosModal({ onClose, onBack, initialDevices = []
 
         {/* Body - Scrollable */}
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-4 mb-6">
-            {devices.map((device) => (
-              <div
-                key={device.id}
-                className="bg-bg-secondary border-2 border-green-500 dark:border-green-800 rounded-xl p-4"
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 text-green-600 animate-spin mb-4" />
+              <p className="text-text-secondary">Cargando dispositivos...</p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+              <p className="text-red-500 mb-4">{error}</p>
+              <button
+                onClick={fetchDevices}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
               >
-                <div className="flex items-start justify-between mb-4">
-                  <h4 className="font-bold text-text-primary flex items-center gap-2">
-                    <Smartphone className="w-5 h-5 text-green-600 dark:text-green-400" />
-                    Dispositivo #{device.id}
-                  </h4>
-                  <button
-                    onClick={() => removeDevice(device.id)}
-                    className="text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 p-2 rounded-lg transition-colors"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-text-secondary mb-2">
-                      Nombre del Dispositivo
-                    </label>
-                    <input
-                      type="text"
-                      value={device.nombre}
-                      onChange={(e) =>
-                        updateDevice(device.id, "nombre", e.target.value)
-                      }
-                      className="w-full px-4 py-2 bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-text-primary placeholder:text-text-disabled"
-                      placeholder="Ej: Lector de Huella"
-                    />
+                <RefreshCw className="w-4 h-4" />
+                Reintentar
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-4 mb-6">
+                {devices.length === 0 ? (
+                  <div className="text-center py-8 text-text-tertiary">
+                    <Smartphone className="w-12 h-12 mx-auto mb-3 opacity-40" />
+                    <p>No hay dispositivos registrados</p>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-text-secondary mb-2">
-                      Tipo
-                    </label>
-                    <select
-                      value={device.tipo}
-                      onChange={(e) =>
-                        updateDevice(device.id, "tipo", e.target.value)
-                      }
-                      className="w-full px-4 py-2 bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-text-primary"
+                ) : (
+                  devices.map((device) => (
+                    <div
+                      key={device.id}
+                      className="bg-bg-secondary border-2 border-green-500 dark:border-green-800 rounded-xl p-4"
                     >
-                      <option value="Cámara" className="bg-bg-primary text-text-primary">Cámara</option>
-                      <option value="Biométrico" className="bg-bg-primary text-text-primary">Biométrico</option>
-                      <option value="Lector RFID" className="bg-bg-primary text-text-primary">Lector RFID</option>
-                      <option value="Teclado" className="bg-bg-primary text-text-primary">Teclado</option>
-                    </select>
-                  </div>
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <h4 className="font-bold text-text-primary flex items-center gap-2">
+                            <Smartphone className="w-5 h-5 text-green-600 dark:text-green-400" />
+                            {device.id}
+                          </h4>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getEstadoColor(device.estado)}`}>
+                            {device.estado}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => removeDevice(device.id)}
+                          className="text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 p-2 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-text-secondary mb-2">
-                      Puerto/Conexión
-                    </label>
-                    <input
-                      type="text"
-                      value={device.puerto}
-                      onChange={(e) =>
-                        updateDevice(device.id, "puerto", e.target.value)
-                      }
-                      className="w-full px-4 py-2 bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-text-primary placeholder:text-text-disabled"
-                      placeholder="Ej: USB-001"
-                    />
-                  </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-text-secondary mb-2">
+                            Nombre del Dispositivo
+                          </label>
+                          <input
+                            type="text"
+                            value={device.nombre}
+                            onChange={(e) =>
+                              updateDevice(device.id, "nombre", e.target.value)
+                            }
+                            className="w-full px-4 py-2 bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-text-primary placeholder:text-text-disabled"
+                            placeholder="Ej: Lector de Huella"
+                          />
+                        </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-text-secondary mb-2">
-                      Descripción
-                    </label>
-                    <input
-                      type="text"
-                      value={device.descripcion}
-                      onChange={(e) =>
-                        updateDevice(device.id, "descripcion", e.target.value)
-                      }
-                      className="w-full px-4 py-2 bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-text-primary placeholder:text-text-disabled"
-                      placeholder="Descripción breve"
-                    />
-                  </div>
-                </div>
+                        <div>
+                          <label className="block text-sm font-medium text-text-secondary mb-2">
+                            Tipo
+                          </label>
+                          <select
+                            value={device.tipo}
+                            onChange={(e) =>
+                              updateDevice(device.id, "tipo", e.target.value)
+                            }
+                            className="w-full px-4 py-2 bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-text-primary"
+                          >
+                            <option value="facial" className="bg-bg-primary text-text-primary">Facial</option>
+                            <option value="dactilar" className="bg-bg-primary text-text-primary">Dactilar</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-text-secondary mb-2">
+                            Puerto
+                          </label>
+                          <input
+                            type="text"
+                            value={device.puerto}
+                            onChange={(e) =>
+                              updateDevice(device.id, "puerto", e.target.value)
+                            }
+                            className="w-full px-4 py-2 bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-text-primary placeholder:text-text-disabled"
+                            placeholder="Ej: USB-001"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-text-secondary mb-2">
+                            IP
+                          </label>
+                          <input
+                            type="text"
+                            value={device.ip}
+                            onChange={(e) =>
+                              updateDevice(device.id, "ip", e.target.value)
+                            }
+                            className="w-full px-4 py-2 bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-text-primary placeholder:text-text-disabled"
+                            placeholder="Ej: 192.168.1.100"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
-            ))}
-          </div>
 
-          <button
-            onClick={addDevice}
-            className="w-full py-3 bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 text-green-700 dark:text-green-300 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 border-2 border-green-300 dark:border-green-700 border-dashed"
-          >
-            <Plus className="w-5 h-5" />
-            Agregar Nuevo Dispositivo
-          </button>
+              <button
+                onClick={addDevice}
+                className="w-full py-3 bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 text-green-700 dark:text-green-300 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 border-2 border-green-300 dark:border-green-700 border-dashed"
+              >
+                <Plus className="w-5 h-5" />
+                Agregar Nuevo Dispositivo
+              </button>
+            </>
+          )}
         </div>
 
         {/* Footer */}
@@ -187,10 +320,15 @@ export default function DispositivosModal({ onClose, onBack, initialDevices = []
             </button>
             <button
               onClick={handleSave}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-green-500 dark:from-green-700 dark:to-green-800 text-white rounded-xl font-bold hover:from-green-700 hover:to-green-600 dark:hover:from-green-600 dark:hover:to-green-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+              disabled={saving || loading}
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-green-500 dark:from-green-700 dark:to-green-800 text-white rounded-xl font-bold hover:from-green-700 hover:to-green-600 dark:hover:from-green-600 dark:hover:to-green-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              <Save className="w-5 h-5" />
-              Guardar Dispositivos
+              {saving ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Save className="w-5 h-5" />
+              )}
+              {saving ? "Guardando..." : "Guardar Dispositivos"}
             </button>
           </div>
         </div>

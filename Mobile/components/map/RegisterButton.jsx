@@ -543,6 +543,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
     const empleadoId = userData.empleado_id;
     console.log('✅ Validaciones pasadas, empleadoId:', empleadoId);
+    console.log('✅ Departamento seleccionado:', departamentoSeleccionado.id, departamentoSeleccionado.nombre);
     
     let estadoMensaje = '';
     if (tipoSiguienteRegistro === 'salida') {
@@ -566,11 +567,16 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             setRegistrando(true);
 
             try {
+              // ✨ PAYLOAD ACTUALIZADO - Incluye departamento_id
               const payload = {
                 empleado_id: empleadoId,
                 dispositivo_origen: 'movil',
-                ubicacion: [ubicacionActual.lat, ubicacionActual.lng]
+                ubicacion: [ubicacionActual.lat, ubicacionActual.lng],
+                departamento_id: departamentoSeleccionado.id // ✅ AGREGADO
               };
+
+              console.log('📤 Payload completo:', payload);
+
               const response = await fetch(`${API_URL}/asistencias/registrar`, {
                 method: 'POST',
                 headers: {
@@ -579,13 +585,16 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                 },
                 body: JSON.stringify(payload)
               });
+
               const responseText = await response.text();
+
               if (response.status === 502) {
                 throw new Error('El servidor no está disponible en este momento. Por favor intenta de nuevo.');
               }
               if (response.status === 500) {
                 throw new Error('Error interno del servidor. Contacta al administrador.');
               }
+
               let data;
               try {
                 data = responseText ? JSON.parse(responseText) : {};
@@ -597,6 +606,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                 const errorMsg = data.message || data.error || `Error del servidor (${response.status})`;
                 throw new Error(errorMsg);
               }
+
               const nuevoUltimo = await obtenerUltimoRegistro();
               setUltimoRegistroHoy(nuevoUltimo);
               

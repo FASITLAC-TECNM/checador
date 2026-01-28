@@ -1,4 +1,4 @@
-// SettingsScreen.js - ACTUALIZACIÓN COMPLETA
+// SettingsScreen.js - ACTUALIZACIÓN CON INCIDENCIAS
 
 import React, { useState } from 'react';
 import {
@@ -18,6 +18,7 @@ import { PersonalInfoScreen } from './personalinfo';
 import { TermsAndConditionsScreen } from './TermsAndConditionsScreen';
 import { SupportScreen } from './SupportScreen';
 import { SecurityScreen } from './SecurityScreen';
+import { IncidenciasScreen } from './IncidenciasScreen';
 
 const obtenerUrlFotoPerfil = (foto) => {
   if (!foto) {
@@ -44,6 +45,8 @@ export const SettingsScreen = ({
   const [showTerms, setShowTerms] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
   const [showSecurity, setShowSecurity] = useState(false);
+  const [showIncidencias, setShowIncidencias] = useState(false); // ✅ NUEVO
+  
   const styles = darkMode ? settingsStylesDark : settingsStyles;
 
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
@@ -91,7 +94,18 @@ export const SettingsScreen = ({
       <SecurityScreen 
         darkMode={darkMode}
         onBack={() => setShowSecurity(false)}
-        userData={userData}  // ← ✅ AGREGADO: Pasar userData
+        userData={userData}
+      />
+    );
+  }
+
+  // ✅ NUEVO: Pantalla de Incidencias
+  if (showIncidencias) {
+    return (
+      <IncidenciasScreen 
+        userData={userData}
+        darkMode={darkMode}
+        onBack={() => setShowIncidencias(false)}
       />
     );
   }
@@ -225,6 +239,26 @@ export const SettingsScreen = ({
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
+
+          {/* ✅ NUEVO: Botón de Incidencias (solo para empleados) */}
+          {esEmpleado && (
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={() => setShowIncidencias(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingLeft}>
+                <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#581c87' : '#f3e8ff' }]}>
+                  <Ionicons name="document-text-outline" size={22} color={darkMode ? '#d8b4fe' : '#9333ea'} />
+                </View>
+                <View style={styles.settingTextContainer}>
+                  <Text style={styles.settingTitle}>Incidencias</Text>
+                  <Text style={styles.settingSubtitle}>Justificantes y permisos</Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
             <View style={styles.settingLeft}>
@@ -368,7 +402,7 @@ export const SettingsScreen = ({
               <Ionicons name="calendar" size={18} color="#6b7280" />
               <Text style={styles.infoLabel}>Última actualización</Text>
             </View>
-            <Text style={styles.infoValue}>22/01/2026</Text>
+            <Text style={styles.infoValue}>27/01/2026</Text>
           </View>
         </View>
 

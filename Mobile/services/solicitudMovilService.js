@@ -134,6 +134,7 @@ export const reabrirSolicitudMovil = async (solicitudId, observaciones) => {
 
 /**
  * Obtener estado de solicitud por token
+ * Maneja los errores 404 de forma silenciosa para evitar logs alarmantes
  */
 export const getSolicitudPorToken = async (token) => {
   try {
@@ -141,16 +142,26 @@ export const getSolicitudPorToken = async (token) => {
 
     const response = await api.get(`/solicitudes/verificar/${token}`);
 
-    console.log('📥 Estado recibido:', response.data);
+    console.log('📥 Estado recibido:', response.data.data?.estado || 'N/A');
 
     return response.data.data;
 
   } catch (error) {
-    console.error('❌ Error en getSolicitudPorToken:', error);
-    
+    // Manejar 404 de forma más amigable
     if (error.response?.status === 404) {
-      throw new Error('Solicitud no encontrada');
+      console.log('ℹ️ Solicitud no encontrada (probablemente fue eliminada)');
+      // Crear un error específico que sea fácil de identificar
+      const notFoundError = new Error('Solicitud no encontrada');
+      notFoundError.code = 'SOLICITUD_NOT_FOUND';
+      notFoundError.status = 404;
+      throw notFoundError;
     }
+    
+    // Otros errores
+    console.error('❌ Error verificando solicitud:', {
+      status: error.response?.status,
+      message: error.message
+    });
     
     throw new Error('Error al verificar el estado de la solicitud');
   }
@@ -372,9 +383,9 @@ export const verificarDispositivoActivo = async (solicitudId) => {
     };
 
   } catch (error) {
-    console.error('❌ Error verificando dispositivo:', error);
-    
+    // Manejar 404 de forma más amigable
     if (error.response?.status === 404) {
+      console.log('ℹ️ Solicitud no encontrada (probablemente fue eliminada)');
       return {
         valido: false,
         motivo: 'Solicitud eliminada o no existe'
@@ -389,6 +400,7 @@ export const verificarDispositivoActivo = async (solicitudId) => {
       };
     }
 
+    console.error('❌ Error verificando dispositivo:', error);
     throw error;
   }
 };

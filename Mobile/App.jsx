@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, ActivityIndicator, View } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, ActivityIndicator, View, Alert, AppState } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LoginScreen } from './components/logins/login';
@@ -9,6 +9,7 @@ import { ScheduleScreen } from './components/homes/schedule';
 import { SettingsScreen } from './components/homes/settings';
 import { BottomNavigation } from './components/homes/nav';
 import { OnboardingNavigator } from './components/devicesetup/onBoardNavigator';
+import { verificarDispositivoActivo, getSolicitudPorToken } from './services/solicitudMovilService';
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -17,10 +18,158 @@ export default function App() {
   const [userData, setUserData] = useState(null);
   const [deviceRegistered, setDeviceRegistered] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const appState = useRef(AppState.currentState);
+  const verificationInterval = useRef(null);
 
   useEffect(() => {
     checkAppState();
+    
+    // Listener para cuando la app vuelve al foreground
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    return () => {
+      subscription?.remove();
+      if (verificationInterval.current) {
+        clearInterval(verificationInterval.current);
+      }
+    };
   }, []);
+
+  // Iniciar verificación periódica cuando el usuario esté logueado y dispositivo registrado
+  useEffect(() => {
+    if (isLoggedIn && deviceRegistered) {
+      startDeviceVerification();
+    } else {
+      stopDeviceVerification();
+    }
+    
+    return () => {
+      stopDeviceVerification();
+    };
+  }, [isLoggedIn, deviceRegistered]);
+
+  const handleAppStateChange = async (nextAppState) => {
+    if (
+      appState.current.match(/inactive|background/) &&
+      nextAppState === 'active' &&
+      isLoggedIn &&
+      deviceRegistered
+    ) {
+      // La app volvió al foreground, verificar estado del dispositivo
+      console.log('📱 App volvió al foreground, verificando dispositivo...');
+      await verificarEstadoDispositivo();
+    }
+    appState.current = nextAppState;
+  };
+
+  const startDeviceVerification = () => {
+    console.log('🔄 Iniciando verificación periódica del dispositivo...');
+    
+    // Verificar inmediatamente
+    verificarEstadoDispositivo();
+    
+    // Verificar cada 2 minutos (120000 ms)
+    verificationInterval.current = setInterval(() => {
+      verificarEstadoDispositivo();
+    }, 120000);
+  };
+
+  const stopDeviceVerification = () => {
+    if (verificationInterval.current) {
+      console.log('⏹️ Deteniendo verificación periódica del dispositivo');
+      clearInterval(verificationInterval.current);
+      verificationInterval.current = null;
+    }
+  };
+
+  const verificarEstadoDispositivo = async () => {
+    try {
+      const [solicitudId, tokenSolicitud, onboardingCompleted] = await Promise.all([
+        AsyncStorage.getItem('@solicitud_id'),
+        AsyncStorage.getItem('@token_solicitud'),
+        AsyncStorage.getItem('@onboarding_completed')
+      ]);
+
+      // Solo verificar si el onboarding está completo
+      if (onboardingCompleted !== 'true') {
+        return;
+      }
+
+      console.log('🔍 Verificando estado del dispositivo...');
+
+      if (!solicitudId || !tokenSolicitud) {
+        console.log('⚠️ No hay solicitud registrada');
+        await handleDeviceInvalidated('No se encontró información del dispositivo registrado');
+        return;
+      }
+
+      // Verificar con el token (más confiable)
+      const response = await getSolicitudPorToken(tokenSolicitud);
+      const estadoLower = response.estado?.toLowerCase();
+
+      console.log('📊 Estado del dispositivo:', estadoLower);
+
+      if (estadoLower === 'aceptado') {
+        console.log('✅ Dispositivo sigue aprobado');
+        return;
+      } else if (estadoLower === 'pendiente') {
+        console.log('⏳ Dispositivo volvió a estado pendiente');
+        await handleDeviceInvalidated('Tu dispositivo está pendiente de aprobación nuevamente');
+      } else if (estadoLower === 'rechazado') {
+        console.log('❌ Dispositivo fue rechazado');
+        await handleDeviceInvalidated('Tu dispositivo fue rechazado por el administrador');
+      } else {
+        console.log('⚠️ Estado desconocido del dispositivo:', estadoLower);
+        await handleDeviceInvalidated('El estado de tu dispositivo ha cambiado');
+      }
+
+    } catch (error) {
+      // Verificar si es un error 404 (solicitud eliminada)
+      if (error.code === 'SOLICITUD_NOT_FOUND' || error.status === 404) {
+        console.log('🗑️ Solicitud eliminada del sistema');
+        await handleDeviceInvalidated('Tu registro de dispositivo fue eliminado');
+        return;
+      }
+      
+      // Para otros errores (red, timeout, etc.), solo registrar sin invalidar
+      // Podría ser temporal
+      console.log('⚠️ Error temporal verificando dispositivo:', error.message);
+    }
+  };
+
+  const handleDeviceInvalidated = async (mensaje) => {
+    console.log('🚨 Dispositivo invalidado:', mensaje);
+    
+    try {
+      // Limpiar el estado de onboarding completado
+      await AsyncStorage.removeItem('@onboarding_completed');
+      
+      // Detener verificación
+      stopDeviceVerification();
+      
+      // Marcar dispositivo como no registrado
+      setDeviceRegistered(false);
+      
+      // Mostrar alerta al usuario
+      Alert.alert(
+        'Registro de Dispositivo Requerido',
+        mensaje + '\n\nDebes registrar nuevamente este dispositivo para continuar.',
+        [
+          {
+            text: 'Entendido',
+            onPress: () => {
+              console.log('📱 Redirigiendo a onboarding...');
+            }
+          }
+        ],
+        { cancelable: false }
+      );
+      
+    } catch (error) {
+      console.error('❌ Error manejando invalidación del dispositivo:', error);
+    }
+  };
 
   const checkAppState = async () => {
     try {
@@ -36,13 +185,40 @@ export default function App() {
 
       if (token && deviceCompleted === 'true') {
         // Usuario tiene token Y dispositivo registrado
-        // TODO: Aquí podrías validar el token con el backend
-        // Por ahora solo verificamos que existan
-        console.log('✅ Usuario autenticado y dispositivo registrado');
-        // Necesitarías cargar los datos del usuario del AsyncStorage o del backend
-        // Por simplicidad, dejamos que vuelva a hacer login
-        setDeviceRegistered(true);
-        setIsLoggedIn(false);
+        // Verificar que el dispositivo sigue válido
+        const tokenSolicitud = await AsyncStorage.getItem('@token_solicitud');
+        
+        if (tokenSolicitud) {
+          try {
+            const response = await getSolicitudPorToken(tokenSolicitud);
+            const estadoLower = response.estado?.toLowerCase();
+            
+            if (estadoLower === 'aceptado') {
+              console.log('✅ Usuario autenticado y dispositivo aprobado');
+              // Cargar datos del usuario desde AsyncStorage
+              const savedUserData = await AsyncStorage.getItem('@user_data');
+              if (savedUserData) {
+                setUserData(JSON.parse(savedUserData));
+              }
+              setDeviceRegistered(true);
+              setIsLoggedIn(true);
+            } else {
+              console.log('⚠️ Dispositivo no está aprobado, requiere nuevo registro');
+              await AsyncStorage.removeItem('@onboarding_completed');
+              setDeviceRegistered(false);
+              setIsLoggedIn(false);
+            }
+          } catch (error) {
+            console.log('⚠️ Error verificando dispositivo:', error.message);
+            // Si hay error verificando, requerir login
+            setDeviceRegistered(false);
+            setIsLoggedIn(false);
+          }
+        } else {
+          console.log('⚠️ No hay token de solicitud');
+          setDeviceRegistered(false);
+          setIsLoggedIn(false);
+        }
       } else if (token && deviceCompleted !== 'true') {
         // Tiene token pero no ha registrado el dispositivo
         console.log('⚠️ Usuario autenticado pero dispositivo no registrado');
@@ -79,16 +255,48 @@ export default function App() {
       }
 
       // Guardar datos del usuario
+      await AsyncStorage.setItem('@user_data', JSON.stringify(data));
       setUserData(data);
 
       // Verificar si el dispositivo ya está registrado
       const deviceCompleted = await AsyncStorage.getItem('@onboarding_completed');
       
       if (deviceCompleted === 'true') {
-        // Ya completó el onboarding antes, ir directo al home
-        console.log('✅ Dispositivo ya registrado, ir a Home');
-        setDeviceRegistered(true);
-        setIsLoggedIn(true);
+        // Verificar que el dispositivo sigue válido
+        const tokenSolicitud = await AsyncStorage.getItem('@token_solicitud');
+        
+        if (tokenSolicitud) {
+          try {
+            const response = await getSolicitudPorToken(tokenSolicitud);
+            const estadoLower = response.estado?.toLowerCase();
+            
+            if (estadoLower === 'aceptado') {
+              console.log('✅ Dispositivo ya registrado y aprobado, ir a Home');
+              setDeviceRegistered(true);
+              setIsLoggedIn(true);
+            } else {
+              console.log('⚠️ Dispositivo no aprobado, requiere nuevo registro');
+              await AsyncStorage.removeItem('@onboarding_completed');
+              setDeviceRegistered(false);
+              setIsLoggedIn(true);
+            }
+          } catch (error) {
+            // Si es 404, la solicitud fue eliminada
+            if (error.code === 'SOLICITUD_NOT_FOUND' || error.status === 404) {
+              console.log('🗑️ Solicitud eliminada, requiere nuevo registro');
+            } else {
+              console.log('⚠️ Error verificando dispositivo, requiere nuevo registro');
+            }
+            await AsyncStorage.removeItem('@onboarding_completed');
+            setDeviceRegistered(false);
+            setIsLoggedIn(true);
+          }
+        } else {
+          console.log('⚠️ No hay token de solicitud, requiere registro');
+          await AsyncStorage.removeItem('@onboarding_completed');
+          setDeviceRegistered(false);
+          setIsLoggedIn(true);
+        }
       } else {
         // Primera vez con este dispositivo, mostrar onboarding
         console.log('⚠️ Primera vez en este dispositivo, mostrar onboarding');
@@ -120,9 +328,13 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
+      // Detener verificación del dispositivo
+      stopDeviceVerification();
+      
       // Limpiar token y datos de sesión
       await AsyncStorage.removeItem('userToken');
-      console.log('✅ Token eliminado');
+      await AsyncStorage.removeItem('@user_data');
+      console.log('✅ Token y datos de usuario eliminados');
       
       // NO limpiar el onboarding, el dispositivo sigue registrado
       // Solo limpia la sesión del usuario
@@ -161,7 +373,7 @@ export default function App() {
       <SafeAreaProvider>
         <OnboardingNavigator 
           onComplete={handleOnboardingComplete}
-          userData={userData} // Pasamos los datos del usuario al onboarding
+          userData={userData}
         />
       </SafeAreaProvider>
     );

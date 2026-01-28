@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import BiometricReader from "./BiometricReader";
 
@@ -14,6 +14,29 @@ function LoginModal({ isOpen = true, onClose, onFacialLogin, onLoginSuccess }) {
     const [loginSuccess, setLoginSuccess] = useState(false);
     const [showBiometricModal, setShowBiometricModal] = useState(false);
     const [loggedInUser, setLoggedInUser] = useState(null);
+
+    // Ref para mantener el valor actual de showBiometricModal (evitar stale closure)
+    const showBiometricModalRef = useRef(showBiometricModal);
+    useEffect(() => {
+        showBiometricModalRef.current = showBiometricModal;
+    }, [showBiometricModal]);
+
+    // IMPORTANTE: Resetear el estado del modal biométrico cuando el componente se monta
+    // Esto previene que el BiometricReader quede activo de sesiones anteriores
+    useEffect(() => {
+        // Siempre cerrar el modal biométrico al montar para evitar estados residuales
+        setShowBiometricModal(false);
+        setLoginSuccess(false);
+        setError('');
+        setFormData({ usuario: '', contrasena: '' });
+    }, []);
+
+    // También cerrar el modal biométrico cuando isOpen cambia a true (se abre el modal)
+    useEffect(() => {
+        if (isOpen) {
+            setShowBiometricModal(false);
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -78,6 +101,13 @@ function LoginModal({ isOpen = true, onClose, onFacialLogin, onLoginSuccess }) {
     };
 
     const handleBiometricSuccess = async (empleadoData) => {
+        // IMPORTANTE: Usar la ref para verificar el estado actual (evitar stale closure)
+        // Solo procesar si el modal biométrico está realmente abierto
+        if (!showBiometricModalRef.current) {
+            console.warn("⚠️ LoginModal: Ignorando evento biométrico - modal no activo");
+            return;
+        }
+
         console.log("✅ Autenticación biométrica exitosa:", empleadoData);
 
         // Usar loginByFingerprint para guardar la sesión correctamente en el contexto

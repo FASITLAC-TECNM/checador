@@ -298,9 +298,15 @@ export default function KioskScreen() {
   // Manejar login exitoso
   const handleLoginSuccess = (usuario) => {
     console.log("✅ Login exitoso:", usuario);
+
+    // IMPORTANTE: Cerrar TODOS los modales antes de cambiar el estado de login
+    setShowLoginModal(false);
+    setShowBiometricReader(false);
+    setShowCamera(false);
+    setShowPinModal(false);
+
     setUsuarioActual(usuario);
     setIsLoggedIn(true);
-    setShowLoginModal(false);
 
     // Mensaje de bienvenida con el nombre del usuario
     const welcomeMessage = `Bienvenido ${usuario.nombre || usuario.username}`;
@@ -314,6 +320,13 @@ export default function KioskScreen() {
   // Manejar logout
   const handleLogout = async () => {
     console.log("🚪 Cerrando sesión");
+    // IMPORTANTE: Cerrar todos los modales para evitar que queden abiertos
+    setShowLoginModal(false);
+    setShowBiometricReader(false);
+    setShowCamera(false);
+    setShowPinModal(false);
+    setShowBitacora(false);
+
     // Limpiar estado de React
     setIsLoggedIn(false);
     setUsuarioActual(null);
@@ -365,8 +378,11 @@ export default function KioskScreen() {
   const handleFingerprintLoginRequest = (usuarioCompleto) => {
     console.log("🔐 Inicio de sesión desde huella - Datos completos:", usuarioCompleto);
 
-    // El modal ya se cerró desde AsistenciaHuella
+    // IMPORTANTE: Cerrar TODOS los modales para evitar conflictos
     setShowBiometricReader(false);
+    setShowLoginModal(false);
+    setShowCamera(false);
+    setShowPinModal(false);
 
     // Mensaje de bienvenida
     const nombreUsuario = usuarioCompleto?.nombre || usuarioCompleto?.username || "Usuario";
@@ -401,8 +417,9 @@ export default function KioskScreen() {
         icon: Fingerprint,
         label: "Huella Digital",
         color: "from-blue-500 to-blue-600 dark:from-slate-700 dark:to-slate-800",
-        hoverColor: "hover:from-blue-600 hover:to-blue-700 dark:hover:from-slate-600 dark:hover:to-slate-700",
-        handler: handleFingerprintCheck,
+        hoverColor: "", // Sin hover porque es solo visual
+        handler: null, // Solo visual, el lector está siempre activo en background
+        isVisualOnly: true,
       },
       userLogin: {
         icon: User,
@@ -467,10 +484,15 @@ export default function KioskScreen() {
             (() => {
               const method = getMethodInfo(activeMethods[0]);
               const Icon = method.icon;
+              const isClickable = method.handler && !method.isVisualOnly;
               return (
                 <div
-                  onClick={method.handler}
-                  className={`bg-gradient-to-br ${method.color} ${method.hoverColor} rounded-3xl shadow-2xl h-full text-white text-center cursor-pointer hover:shadow-3xl transition-all hover:scale-[1.01] flex flex-col items-center justify-center p-8`}
+                  onClick={isClickable ? method.handler : undefined}
+                  className={`bg-gradient-to-br ${method.color} rounded-3xl shadow-2xl h-full text-white text-center transition-all flex flex-col items-center justify-center p-8 ${
+                    isClickable
+                      ? `${method.hoverColor} cursor-pointer hover:shadow-3xl hover:scale-[1.01]`
+                      : "cursor-default"
+                  }`}
                 >
                   <h2 className="text-3xl font-bold mb-4">Registrar Asistencia</h2>
 
@@ -508,20 +530,25 @@ export default function KioskScreen() {
                 {activeMethods.map((methodKey) => {
                   const method = getMethodInfo(methodKey);
                   const Icon = method.icon;
+                  const isClickable = method.handler && !method.isVisualOnly;
                   return (
-                    <button
+                    <div
                       key={methodKey}
                       onClick={(e) => {
                         e.stopPropagation();
-                        method.handler();
+                        if (isClickable) method.handler();
                       }}
-                      className="flex-1 backdrop-blur-md bg-white/20 dark:bg-white/10 hover:bg-white/30 dark:hover:bg-white/20 border border-white/30 dark:border-white/20 rounded-2xl shadow-lg hover:shadow-xl transition-all hover:scale-105 flex flex-col items-center justify-center p-6 cursor-pointer"
+                      className={`flex-1 backdrop-blur-md bg-white/20 dark:bg-white/10 border border-white/30 dark:border-white/20 rounded-2xl shadow-lg transition-all flex flex-col items-center justify-center p-6 ${
+                        isClickable
+                          ? "hover:bg-white/30 dark:hover:bg-white/20 hover:shadow-xl hover:scale-105 cursor-pointer"
+                          : "cursor-default"
+                      }`}
                     >
                       <Icon className="w-16 h-16 mb-2 text-white" strokeWidth={1.5} />
                       <span className="text-sm font-bold text-white">
                         {method.label}
                       </span>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -629,9 +656,12 @@ export default function KioskScreen() {
       {showBitacora && <BitacoraModal onClose={() => setShowBitacora(false)} />}
 
       {/* Modal de AsistenciaHuella para registro de asistencia con huella */}
-      {showBiometricReader && (
+      {/* En modo background: siempre activo escuchando, modal aparece al detectar huella */}
+      {/* En modo normal: aparece solo cuando showBiometricReader es true */}
+      {checkMethods.fingerprint?.enabled && (
         <AsistenciaHuella
           isOpen={showBiometricReader}
+          backgroundMode={!showBiometricReader} // Si no está abierto manualmente, usar modo background
           onClose={() => setShowBiometricReader(false)}
           onSuccess={handleFingerprintSuccess}
           onLoginRequest={handleFingerprintLoginRequest}

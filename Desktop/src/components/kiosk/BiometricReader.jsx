@@ -818,34 +818,6 @@ export default function BiometricReader({
               </div>
             )}
 
-            {/* Logs Panel - Minimalist */}
-            {messages.length > 0 && (
-              <div className="bg-gray-50 dark:bg-slate-700/50 rounded-xl p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                    Registro de Eventos
-                  </h3>
-                  <button
-                    onClick={() => setMessages([])}
-                    className="px-2 py-1 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-                  >
-                    Limpiar
-                  </button>
-                </div>
-
-                <div className="space-y-1 max-h-32 overflow-y-auto">
-                  {messages.slice(0, 5).map((log) => (
-                    <div
-                      key={log.id}
-                      className="text-xs text-gray-600 dark:text-gray-400 flex gap-2"
-                    >
-                      <span className="text-gray-400">{log.timestamp}</span>
-                      <span className="flex-1">{log.message}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

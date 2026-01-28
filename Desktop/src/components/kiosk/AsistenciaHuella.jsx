@@ -15,10 +15,19 @@ import {
 import { guardarSesion } from "../../services/biometricAuthService";
 import { API_CONFIG, fetchApi } from "../../config/apiEndPoint";
 
-export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, onLoginRequest }) {
-  if (!isOpen) return null;
+export default function AsistenciaHuella({
+  isOpen = false,
+  onClose,
+  onSuccess,
+  onLoginRequest,
+  backgroundMode = false // Modo silencioso: conexión activa pero sin modal visible hasta detectar huella
+}) {
+  // En modo normal, si no está abierto, no renderizar
+  // En modo background, siempre mantener la conexión activa
+  const shouldMaintainConnection = isOpen || backgroundMode;
 
   const [connected, setConnected] = useState(false);
+  const [showModal, setShowModal] = useState(!backgroundMode); // En background, modal oculto inicialmente
   const [readerConnected, setReaderConnected] = useState(false);
   const [currentOperation, setCurrentOperation] = useState("None");
   const [status, setStatus] = useState("disconnected");
@@ -47,11 +56,13 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
   const hasStartedIdentification = useRef(false);
   const countdownIntervalRef = useRef(null);
   const onCloseRef = useRef(onClose);
+  const backgroundModeRef = useRef(backgroundMode);
   const MAX_RECONNECT_ATTEMPTS = 5;
 
-  // Mantener la ref actualizada
+  // Mantener las refs actualizadas
   useEffect(() => {
     onCloseRef.current = onClose;
+    backgroundModeRef.current = backgroundMode;
   }, [onClose]);
 
   // === FUNCIONES DE UTILIDAD PARA HORARIOS ===
@@ -372,26 +383,82 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
   }, [obtenerUltimoRegistro, obtenerHorario, obtenerTolerancia, calcularEstadoRegistro]);
 
   
+  // Reset de loginHabilitado al montar el componente (prevenir login automático)
   useEffect(() => {
-    connectToServer();
+    // Solo resetear loginHabilitado al montar para prevenir login automático
+    // NO resetear result aquí porque puede interferir con el flujo de registro
+    setLoginHabilitado(false);
+    setProcessingLogin(false);
+
+    // En modo background, asegurar que el modal esté oculto inicialmente
+    if (backgroundMode) {
+      setShowModal(false);
+    }
 
     return () => {
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
+      // Limpiar al desmontar
+      setLoginHabilitado(false);
+    };
+  }, []); // Solo al montar/desmontar
+
+  // Conectar al servidor cuando shouldMaintainConnection sea true
+  useEffect(() => {
+    if (shouldMaintainConnection) {
+      connectToServer();
+    }
+
+    return () => {
+      // Solo desconectar si no estamos en modo background
+      if (!backgroundMode) {
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+        }
+        if (wsRef.current) {
+          wsRef.current.close();
+        }
+        if (countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current);
+        }
       }
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-      if (countdownIntervalRef.current) {
-        clearInterval(countdownIntervalRef.current);
+    };
+  }, [shouldMaintainConnection, backgroundMode]);
+
+  // Ref para la función de cierre del modal (necesaria para el setInterval)
+  const closeModalRef = useRef(null);
+
+  // Actualizar la ref de cierre
+  useEffect(() => {
+    closeModalRef.current = () => {
+      // SIEMPRE deshabilitar login al cerrar para prevenir llamadas automáticas
+      setLoginHabilitado(false);
+
+      if (backgroundModeRef.current) {
+        // En modo background, solo ocultar el modal y reiniciar
+        setShowModal(false);
+        setResult(null);
+        setMessages([]);
+        hasStartedIdentification.current = false;
+        // Reiniciar identificación después de cerrar
+        setTimeout(() => {
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            sendCommand("startIdentification", { apiUrl: `${API_CONFIG.BASE_URL}/api` });
+          }
+        }, 500);
+      } else {
+        // En modo normal, cerrar completamente
+        if (onCloseRef.current) onCloseRef.current();
       }
     };
   }, []);
 
   // Countdown para cerrar automáticamente después de resultado (éxito o no disponible)
   useEffect(() => {
-    // Activar countdown cuando hay éxito O cuando no puede registrar (fuera de horario) O error con empleado identificado
-    const debeIniciarCountdown = result?.success || result?.noPuedeRegistrar || (result && !result.success && result.empleadoId);
+    // Activar countdown cuando hay éxito O cuando no puede registrar (fuera de horario)
+    // O error con empleado identificado O cualquier error en modo background
+    const debeIniciarCountdown = result?.success ||
+      result?.noPuedeRegistrar ||
+      (result && !result.success && result.empleadoId) ||
+      (backgroundMode && result && !result.success); // En background, cerrar automáticamente cualquier error
 
     if (debeIniciarCountdown) {
       // Limpiar cualquier intervalo anterior
@@ -409,7 +476,7 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
             countdownIntervalRef.current = null;
             // Cerrar después de mostrar 0
             setTimeout(() => {
-              if (onCloseRef.current) onCloseRef.current();
+              if (closeModalRef.current) closeModalRef.current();
             }, 500);
             return 0;
           }
@@ -426,20 +493,25 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
     };
   }, [result?.success, result?.noPuedeRegistrar, result?.empleadoId]);
 
-  // Habilitar login solo después de que el resultado se muestre (prevenir login automático)
+  // Habilitar login solo después de que el resultado se muestre Y el modal esté visible (prevenir login automático)
   useEffect(() => {
-    if (result && result.empleadoId) {
+    // Solo habilitar login si:
+    // 1. Hay un resultado con empleadoId
+    // 2. El modal está visible (showModal es true)
+    // 3. Después de un delay para asegurar que el usuario vea la ventana
+    if (result && result.empleadoId && showModal) {
       // Resetear el estado de login habilitado
       setLoginHabilitado(false);
-      // Habilitar el botón después de un pequeño delay para asegurar que el usuario vea la ventana
+      // Habilitar el botón después de un delay más largo para asegurar que el usuario vea la ventana
       const timer = setTimeout(() => {
+        // Verificar nuevamente que el modal sigue visible antes de habilitar
         setLoginHabilitado(true);
-      }, 500);
+      }, 1000); // Aumentado a 1 segundo para dar tiempo a ver la ventana
       return () => clearTimeout(timer);
     } else {
       setLoginHabilitado(false);
     }
-  }, [result]);
+  }, [result, showModal]);
 
   const connectToServer = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -549,14 +621,28 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
 
         addMessage(`⚠️ ${mensaje}`, "warning");
 
-        setResult({
+        // Preparar el resultado ANTES de mostrar el modal
+        const resultadoNoPuedeRegistrar = {
           success: false,
           message: mensaje,
           empleado: empleadoData,
           empleadoId: empleadoId,
           estadoHorario: estadoActual?.estadoHorario,
           noPuedeRegistrar: true,
-        });
+        };
+
+        console.log("📋 No puede registrar:", resultadoNoPuedeRegistrar);
+
+        // IMPORTANTE: Establecer el resultado PRIMERO, luego mostrar el modal
+        setResult(resultadoNoPuedeRegistrar);
+
+        // En modo background, mostrar modal ahora que tenemos resultado
+        if (backgroundMode) {
+          setTimeout(() => {
+            console.log("📋 Ejecutando setShowModal(true) - No puede registrar");
+            setShowModal(true);
+          }, 50);
+        }
 
         return;
       }
@@ -634,7 +720,8 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
 
       addMessage(`${emoji} ${tipoMovimiento === 'SALIDA' ? 'Salida' : 'Entrada'} registrada (${estadoTexto})`, "success");
 
-      setResult({
+      // Preparar el resultado ANTES de mostrar el modal
+      const nuevoResultado = {
         success: true,
         message: "Asistencia registrada",
         empleado: empleadoData,
@@ -645,7 +732,22 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
           : horaActual,
         estado: data.data?.estado || 'puntual',
         estadoTexto: estadoTexto,
-      });
+      };
+
+      console.log("📋 Asistencia registrada exitosamente:", nuevoResultado);
+      console.log("📋 backgroundMode:", backgroundMode, "- Mostrando modal...");
+
+      // IMPORTANTE: Establecer el resultado PRIMERO, luego mostrar el modal
+      setResult(nuevoResultado);
+
+      // En modo background, mostrar modal ahora que tenemos resultado
+      if (backgroundMode) {
+        // Usar setTimeout para asegurar que el estado se actualice antes de mostrar el modal
+        setTimeout(() => {
+          console.log("📋 Ejecutando setShowModal(true)");
+          setShowModal(true);
+        }, 50);
+      }
 
       // Callback de éxito
       if (onSuccess) {
@@ -663,12 +765,26 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
       console.error("Error registrando asistencia:", error);
       addMessage(`❌ Error: ${error.message}`, "error");
 
-      setResult({
+      // Preparar el resultado de error
+      const resultadoError = {
         success: false,
         message: error.message,
         empleadoId: empleadoId,
         empleado: empleadoData,
-      });
+      };
+
+      console.log("📋 Error en registro:", resultadoError);
+
+      // IMPORTANTE: Establecer el resultado PRIMERO, luego mostrar el modal
+      setResult(resultadoError);
+
+      // En modo background, mostrar modal con el error
+      if (backgroundMode) {
+        setTimeout(() => {
+          console.log("📋 Ejecutando setShowModal(true) - Error");
+          setShowModal(true);
+        }, 50);
+      }
     } finally {
       setProcessingAttendance(false);
       setCurrentOperation("None");
@@ -678,9 +794,9 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
 
   // Procesar login biométrico para obtener datos completos del empleado
   const procesarLoginBiometrico = async (empleadoId) => {
-    // Verificar que el login esté habilitado (prevenir llamadas automáticas)
-    if (!loginHabilitado) {
-      console.warn("⚠️ Login no habilitado - ignorando llamada automática");
+    // Verificar que el login esté habilitado Y el modal esté visible (prevenir llamadas automáticas)
+    if (!loginHabilitado || !showModal) {
+      console.warn("⚠️ Login no habilitado o modal no visible - ignorando llamada");
       return;
     }
 
@@ -807,6 +923,9 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
         console.log("📨 captureComplete recibido:", data);
 
         if (data.result === "identificationSuccess") {
+          // En modo background, NO mostrar modal aquí - esperar al resultado final
+          // El modal se mostrará cuando setResult sea llamado en registrarAsistencia
+
           // Huella identificada - registrar asistencia
           addMessage(`✅ Huella reconocida: ${data.userId}`, "success");
           addMessage(`🎯 Precisión: ${data.matchScore || 100}%`, "info");
@@ -818,6 +937,12 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
             registrarAsistencia(empleadoId, data.matchScore || 100);
           } else {
             addMessage("❌ No se pudo extraer el ID del empleado", "error");
+
+            // En modo background, mostrar modal con el error
+            if (backgroundMode) {
+              setShowModal(true);
+            }
+
             setResult({
               success: false,
               message: "Error identificando empleado",
@@ -827,14 +952,17 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
           }
 
         } else if (data.result === "identificationFailed") {
-          // Huella no reconocida
-          addMessage("❌ Huella no reconocida en el sistema", "error");
-          setResult({
-            success: false,
-            message: "Huella no reconocida",
-          });
+          // Huella no reconocida - reiniciar silenciosamente sin mostrar modal
+          console.log("⚠️ Huella no reconocida, reiniciando identificación...");
           setCurrentOperation("None");
           setStatus("ready");
+          hasStartedIdentification.current = false;
+          // Reiniciar identificación automáticamente después de un breve delay
+          setTimeout(() => {
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              startIdentification();
+            }
+          }, 500);
         }
         break;
 
@@ -907,6 +1035,37 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
 
   const isProcessing = currentOperation !== "None" || processingAttendance;
 
+  // Función para cerrar el modal (diferente comportamiento en background mode)
+  const handleCloseModal = () => {
+    // SIEMPRE deshabilitar login al cerrar para prevenir llamadas automáticas
+    setLoginHabilitado(false);
+
+    if (backgroundMode) {
+      // En modo background, solo ocultar el modal y reiniciar para siguiente lectura
+      setShowModal(false);
+      setResult(null);
+      setMessages([]);
+      hasStartedIdentification.current = false;
+      // Reiniciar identificación para estar listo para la siguiente huella
+      if (connected && readerConnected) {
+        setTimeout(() => startIdentification(), 500);
+      }
+    } else {
+      // En modo normal, cerrar completamente
+      if (onClose) onClose();
+    }
+  };
+
+  // No renderizar nada si no debe mantener conexión
+  if (!shouldMaintainConnection) {
+    return null;
+  }
+
+  // En modo background, no mostrar UI hasta que se detecte huella
+  if (backgroundMode && !showModal) {
+    return null;
+  }
+
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full shadow-2xl">
@@ -943,14 +1102,12 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
                 <span>{connected ? "Conectado" : "Desconectado"}</span>
               </div>
 
-              {onClose && (
-                <button
-                  onClick={onClose}
+              <button
+                  onClick={handleCloseModal}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
-              )}
             </div>
           </div>
 

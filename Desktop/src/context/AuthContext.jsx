@@ -179,6 +179,8 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setError(null);
 
+      console.log("🔐 loginByFingerprint - Datos recibidos:", empleadoData);
+
       // empleadoData viene del BiometricReader con los datos del empleado
       const usuario = {
         ...empleadoData,
@@ -188,12 +190,48 @@ export const AuthProvider = ({ children }) => {
       // Obtener datos completos del empleado con horario
       let empleadoCompleto = usuario;
       try {
-        if (usuario.empleado_id || usuario.id) {
-          const datosCompletos = await getEmpleadoConHorario(
-            usuario.empleado_id || usuario.id,
-          );
+        // Si tiene empleado_id, usar eso directamente
+        if (usuario.empleado_id) {
+          console.log("📋 Buscando empleado por empleado_id:", usuario.empleado_id);
+          const datosCompletos = await getEmpleadoConHorario(usuario);
           if (datosCompletos) {
             empleadoCompleto = { ...usuario, ...datosCompletos };
+          }
+        }
+        // Si no tiene empleado_id pero tiene id (usuario_id), buscar empleado por usuario_id
+        else if (usuario.id) {
+          console.log("📋 Buscando empleado por usuario_id:", usuario.id);
+          const { getEmpleadoByUsuarioId } = await import("../services/empleadoService");
+          const empleadoPorUsuario = await getEmpleadoByUsuarioId(usuario.id);
+          if (empleadoPorUsuario) {
+            console.log("✅ Empleado encontrado:", empleadoPorUsuario);
+            // Combinar datos: primero empleado, luego usuario (para no sobrescribir nombre, correo, etc.)
+            empleadoCompleto = {
+              ...empleadoPorUsuario,  // Datos del empleado (rfc, nss, horario_id)
+              ...usuario,              // Datos del usuario (nombre, correo, telefono) - tienen prioridad
+              empleado_id: empleadoPorUsuario.id,
+              es_empleado: true,
+              // Preservar explícitamente los datos del usuario
+              nombre: usuario.nombre,
+              correo: usuario.correo,
+              telefono: usuario.telefono,
+              // Agregar datos del empleado que no existen en usuario
+              rfc: empleadoPorUsuario.rfc,
+              nss: empleadoPorUsuario.nss,
+              horario_id: empleadoPorUsuario.horario_id,
+            };
+            // Obtener horario si existe
+            if (empleadoPorUsuario.horario_id) {
+              try {
+                const { getHorarioById } = await import("../services/empleadoService");
+                const horario = await getHorarioById(empleadoPorUsuario.horario_id);
+                if (horario) {
+                  empleadoCompleto.horario = horario;
+                }
+              } catch (horarioErr) {
+                console.warn("⚠️ No se pudo cargar el horario:", horarioErr);
+              }
+            }
           }
         }
       } catch (err) {
@@ -203,7 +241,9 @@ export const AuthProvider = ({ children }) => {
         );
       }
 
-      // Guardar en localStorage (sin token ya que es autenticación biométrica)
+      console.log("✅ Datos completos del empleado:", empleadoCompleto);
+
+      // Guardar en localStorage
       localStorage.setItem("user_data", JSON.stringify(empleadoCompleto));
 
       setUser(empleadoCompleto);

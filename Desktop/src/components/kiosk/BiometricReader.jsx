@@ -206,20 +206,24 @@ export default function BiometricReader({
         throw new Error(result.message || "Error en autenticación");
       }
 
-      const empleado = result.data;
-      console.log("👤 Empleado autenticado:", empleado);
+      // Extraer datos correctamente de la respuesta
+      const { usuario, roles, permisos, esAdmin, token } = result.data;
+      console.log("👤 Usuario autenticado:", usuario);
+      console.log("📋 Roles:", roles);
 
       // Guardar token en localStorage
-      if (empleado.token) {
-        localStorage.setItem('auth_token', empleado.token);
+      if (token) {
+        localStorage.setItem('auth_token', token);
         console.log("🔑 Token guardado");
       }
 
-      addMessage(`✅ Bienvenido, ${empleado.nombre || empleado.usuario}`, "success");
-
       // Preparar datos completos del usuario para la sesión
       const usuarioCompleto = {
-        ...empleado,
+        ...usuario,
+        roles,
+        permisos,
+        esAdmin,
+        token,
         matchScore: matchScore,
         metodoAutenticacion: "HUELLA",
       };
@@ -227,15 +231,13 @@ export default function BiometricReader({
       // Guardar sesión
       guardarSesion(usuarioCompleto);
 
+      // Cerrar modal inmediatamente
+      if (onClose) onClose();
+
       // Callback de autenticación exitosa
       if (onAuthSuccess) {
         onAuthSuccess(usuarioCompleto);
       }
-
-      // Cerrar el modal después de 1.5 segundos
-      setTimeout(() => {
-        if (onClose) onClose();
-      }, 1500);
     } catch (error) {
       console.error("Error procesando login biométrico:", error);
       addMessage(`❌ Error: ${error.message}`, "error");

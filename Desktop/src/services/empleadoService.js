@@ -13,14 +13,21 @@ const API_URL = API_CONFIG.BASE_URL;
 export const getEmpleadoByUsuarioId = async (usuarioId) => {
   try {
     console.log(`📋 Buscando empleado para usuario ${usuarioId}...`);
-    const response = await fetch(`${API_URL}${API_CONFIG.ENDPOINTS.EMPLEADOS}`);
+    const token = localStorage.getItem("auth_token");
+
+    const response = await fetch(`${API_URL}${API_CONFIG.ENDPOINTS.EMPLEADOS}`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
 
     if (!response.ok) {
       throw new Error("Error al obtener empleados");
     }
 
     const empleados = await response.json();
-    const empleado = empleados.find(emp => emp.usuario_id === usuarioId);
+    const empleado = empleados.find((emp) => emp.usuario_id === usuarioId);
 
     if (empleado) {
       console.log("✅ Empleado encontrado:", empleado);
@@ -40,7 +47,14 @@ export const getEmpleadoByUsuarioId = async (usuarioId) => {
 export const getEmpleadoById = async (empleadoId) => {
   try {
     console.log(`📋 Obteniendo datos del empleado ${empleadoId}...`);
-    const response = await fetch(`${API_URL}${API_CONFIG.ENDPOINTS.EMPLEADOS}/${empleadoId}`);
+    const token = localStorage.getItem("auth_token");
+
+    const response = await fetch(`${API_URL}${API_CONFIG.ENDPOINTS.EMPLEADOS}/${empleadoId}`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
 
     if (!response.ok) {
       throw new Error("Empleado no encontrado");
@@ -63,7 +77,14 @@ export const getEmpleadoById = async (empleadoId) => {
 export const getHorarioById = async (horarioId) => {
   try {
     console.log(`⏰ Obteniendo horario ${horarioId}...`);
-    const response = await fetch(`${API_URL}${API_CONFIG.ENDPOINTS.HORARIOS}/${horarioId}`);
+    const token = localStorage.getItem("auth_token");
+
+    const response = await fetch(`${API_URL}${API_CONFIG.ENDPOINTS.HORARIOS}/${horarioId}`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
 
     if (!response.ok) {
       throw new Error("Horario no encontrado");

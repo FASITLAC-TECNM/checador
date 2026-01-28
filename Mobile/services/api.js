@@ -4,7 +4,7 @@
 import { getApiEndpoint } from '../config/api.js';
 
 // Importar y re-exportar servicios modulares
-export * as empleadoService from './empleadosServices.js';
+export * as empleadoService from './empleadoServices.js';
 export * as authService from './authService.js';
 
 // Usar la configuración centralizada

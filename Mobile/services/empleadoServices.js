@@ -1,16 +1,7 @@
-// services/empleadoService.js
-// Servicio modular para gestión de empleados
+import { getApiEndpoint } from '../config/api.js';
 
-import { getApiEndpoint } from '../config/api.js';  // ✅ Agregar .js
-
-// Usar la configuración centralizada
 const API_URL = getApiEndpoint('/api');
 
-console.log('🔗 Empleados API URL:', API_URL);
-
-/**
- * Obtener todos los empleados
- */
 export const getEmpleados = async () => {
     try {
         const response = await fetch(`${API_URL}/empleados`);
@@ -22,9 +13,6 @@ export const getEmpleados = async () => {
     }
 };
 
-/**
- * Obtener un empleado por ID
- */
 export const getEmpleado = async (id) => {
     try {
         const response = await fetch(`${API_URL}/empleados/${id}`);
@@ -36,9 +24,51 @@ export const getEmpleado = async (id) => {
     }
 };
 
-/**
- * Obtener empleado por ID de usuario
- */
+export const getEmpleadoById = async (empleadoId, token) => {
+    try {
+        if (!empleadoId) {
+            throw new Error('empleado_id es requerido');
+        }
+
+        if (!token) {
+            throw new Error('Token de autenticación no disponible');
+        }
+
+        const response = await fetch(`${API_URL}/empleados/${empleadoId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                throw new Error('Empleado no encontrado');
+            }
+            if (response.status === 401) {
+                throw new Error('No autorizado - Token inválido');
+            }
+            if (response.status === 403) {
+                throw new Error('No tienes permisos para ver este empleado');
+            }
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.message || 'Error al obtener empleado');
+        }
+
+        return data;
+
+    } catch (error) {
+        console.error('[empleadoService] Error:', error.message);
+        throw error;
+    }
+};
+
 export const getEmpleadoPorUsuario = async (idUsuario) => {
     try {
         const response = await fetch(`${API_URL}/empleados/usuario/${idUsuario}`);
@@ -50,17 +80,8 @@ export const getEmpleadoPorUsuario = async (idUsuario) => {
     }
 };
 
-/**
- * Crear un nuevo empleado
- * @param {Object} empleado - Datos del empleado
- * @param {number} empleado.id_usuario - ID del usuario asociado
- * @param {string} empleado.nss - Número de Seguridad Social (11 dígitos)
- * @param {string} empleado.rfc - RFC (13 caracteres)
- * @param {string} empleado.pin - PIN de seguridad (4 dígitos)
- */
 export const crearEmpleado = async (empleado) => {
     try {
-        // Validaciones
         if (!empleado.id_usuario) {
             throw new Error('El ID de usuario es obligatorio');
         }
@@ -101,14 +122,8 @@ export const crearEmpleado = async (empleado) => {
     }
 };
 
-/**
- * Actualizar un empleado existente
- * @param {number} id - ID del empleado
- * @param {Object} empleado - Datos del empleado a actualizar
- */
 export const actualizarEmpleado = async (id, empleado) => {
     try {
-        // Validaciones
         if (empleado.nss && empleado.nss.length !== 11) {
             throw new Error('El NSS debe tener exactamente 11 dígitos');
         }
@@ -145,10 +160,6 @@ export const actualizarEmpleado = async (id, empleado) => {
     }
 };
 
-/**
- * Eliminar un empleado
- * @param {number} id - ID del empleado a eliminar
- */
 export const eliminarEmpleado = async (id) => {
     try {
         const response = await fetch(`${API_URL}/empleados/${id}`, {
@@ -163,11 +174,6 @@ export const eliminarEmpleado = async (id) => {
     }
 };
 
-/**
- * Validar PIN de empleado
- * @param {number} idEmpleado - ID del empleado
- * @param {string} pin - PIN a validar
- */
 export const validarPinEmpleado = async (idEmpleado, pin) => {
     try {
         if (!pin || pin.length !== 4) {
@@ -194,10 +200,6 @@ export const validarPinEmpleado = async (idEmpleado, pin) => {
     }
 };
 
-/**
- * Obtener empleado con sus permisos
- * @param {number} id - ID del empleado
- */
 export const getEmpleadoConPermisos = async (id) => {
     try {
         const response = await fetch(`${API_URL}/empleados/${id}/permisos`);
@@ -209,9 +211,6 @@ export const getEmpleadoConPermisos = async (id) => {
     }
 };
 
-/**
- * Obtener estadísticas de empleados
- */
 export const getStats = async () => {
     try {
         const response = await fetch(`${API_URL}/empleados/stats`);
@@ -223,10 +222,6 @@ export const getStats = async () => {
     }
 };
 
-/**
- * Buscar empleado por NSS
- * @param {string} nss - NSS a buscar
- */
 export const buscarPorNSS = async (nss) => {
     try {
         const response = await fetch(`${API_URL}/empleados/nss/${nss}`);
@@ -238,10 +233,6 @@ export const buscarPorNSS = async (nss) => {
     }
 };
 
-/**
- * Buscar empleado por RFC
- * @param {string} rfc - RFC a buscar
- */
 export const buscarPorRFC = async (rfc) => {
     try {
         const response = await fetch(`${API_URL}/empleados/rfc/${rfc.toUpperCase()}`);
@@ -253,9 +244,6 @@ export const buscarPorRFC = async (rfc) => {
     }
 };
 
-/**
- * Obtener empleados con información completa del usuario
- */
 export const getEmpleadosConUsuarios = async () => {
     try {
         const response = await fetch(`${API_URL}/empleados/completo`);
@@ -267,11 +255,6 @@ export const getEmpleadosConUsuarios = async () => {
     }
 };
 
-/**
- * Validar si un NSS ya existe
- * @param {string} nss - NSS a validar
- * @param {number} idEmpleadoExcluir - ID del empleado a excluir (para edición)
- */
 export const validarNSSUnico = async (nss, idEmpleadoExcluir = null) => {
     try {
         const params = new URLSearchParams({ nss });
@@ -288,11 +271,6 @@ export const validarNSSUnico = async (nss, idEmpleadoExcluir = null) => {
     }
 };
 
-/**
- * Validar si un RFC ya existe
- * @param {string} rfc - RFC a validar
- * @param {number} idEmpleadoExcluir - ID del empleado a excluir (para edición)
- */
 export const validarRFCUnico = async (rfc, idEmpleadoExcluir = null) => {
     try {
         const params = new URLSearchParams({ rfc: rfc.toUpperCase() });
@@ -309,12 +287,6 @@ export const validarRFCUnico = async (rfc, idEmpleadoExcluir = null) => {
     }
 };
 
-/**
- * Cambiar estado de un empleado
- * @param {number} id - ID del empleado
- * @param {string} estado - Nuevo estado (ACTIVO, LICENCIA, VACACIONES, BAJA_TEMPORAL, BAJA_DEFINITIVA)
- * @param {string} motivo - Motivo del cambio (opcional)
- */
 export const cambiarEstadoEmpleado = async (id, estado, motivo = null) => {
     try {
         const response = await fetch(`${API_URL}/empleados/${id}/estado`, {
@@ -337,10 +309,6 @@ export const cambiarEstadoEmpleado = async (id, estado, motivo = null) => {
     }
 };
 
-/**
- * Obtener historial de cambios de estado de un empleado
- * @param {number} id - ID del empleado
- */
 export const getHistorialEstadoEmpleado = async (id) => {
     try {
         const response = await fetch(`${API_URL}/empleados/${id}/historial-estado`);
@@ -352,10 +320,10 @@ export const getHistorialEstadoEmpleado = async (id) => {
     }
 };
 
-// Exportar todo el servicio como default
 export default {
     getEmpleados,
     getEmpleado,
+    getEmpleadoById,
     getEmpleadoPorUsuario,
     getEmpleadoConPermisos,
     getStats,

@@ -24,7 +24,7 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
   const [processingAttendance, setProcessingAttendance] = useState(false);
   const [processingLogin, setProcessingLogin] = useState(false);
   const [result, setResult] = useState(null); // { success: boolean, message: string, empleado?: object }
-  const [countdown, setCountdown] = useState(10); // Contador de 10 segundos
+  const [countdown, setCountdown] = useState(6); // Contador de 6 segundos
 
   const [messages, setMessages] = useState([]);
 
@@ -33,7 +33,13 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
   const reconnectAttemptsRef = useRef(0);
   const hasStartedIdentification = useRef(false);
   const countdownIntervalRef = useRef(null);
+  const onCloseRef = useRef(onClose);
   const MAX_RECONNECT_ATTEMPTS = 5;
+
+  // Mantener la ref actualizada
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     connectToServer();
@@ -54,25 +60,37 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
   // Countdown para cerrar automáticamente después de registro exitoso
   useEffect(() => {
     if (result?.success) {
-      setCountdown(10);
+      // Limpiar cualquier intervalo anterior
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+
+      setCountdown(6);
+
       countdownIntervalRef.current = setInterval(() => {
         setCountdown((prev) => {
-          if (prev <= 1) {
+          const newValue = prev - 1;
+          if (newValue <= 0) {
             clearInterval(countdownIntervalRef.current);
-            if (onClose) onClose();
+            countdownIntervalRef.current = null;
+            // Cerrar después de mostrar 0
+            setTimeout(() => {
+              if (onCloseRef.current) onCloseRef.current();
+            }, 500);
             return 0;
           }
-          return prev - 1;
+          return newValue;
         });
       }, 1000);
-
-      return () => {
-        if (countdownIntervalRef.current) {
-          clearInterval(countdownIntervalRef.current);
-        }
-      };
     }
-  }, [result?.success, onClose]);
+
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+    };
+  }, [result?.success]);
 
   const connectToServer = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -272,15 +290,19 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
       console.error("Error procesando login biométrico:", error);
       addMessage(`❌ Error: ${error.message}`, "error");
       // Reiniciar countdown si hay error
-      setCountdown(10);
+      setCountdown(6);
       countdownIntervalRef.current = setInterval(() => {
         setCountdown((prev) => {
-          if (prev <= 1) {
+          const newValue = prev - 1;
+          if (newValue <= 0) {
             clearInterval(countdownIntervalRef.current);
-            if (onClose) onClose();
+            countdownIntervalRef.current = null;
+            setTimeout(() => {
+              if (onCloseRef.current) onCloseRef.current();
+            }, 500);
             return 0;
           }
-          return prev - 1;
+          return newValue;
         });
       }, 1000);
     } finally {

@@ -9,6 +9,7 @@ import BitacoraModal from "../components/kiosk/BitacoraModal";
 import NoticeDetailModal from "../components/kiosk/NoticeDetailModal";
 import SessionScreen from "./SessionScreen";
 import { agregarEvento } from "../services/bitacoraService";
+import { cerrarSesion } from "../services/biometricAuthService";
 import { useConnectivity } from "../hooks/useConnectivity";
 import { ConnectionStatusPanel } from "../components/common/ConnectionStatus";
 import AsistenciaHuella from "../components/kiosk/AsistenciaHuella";
@@ -311,10 +312,22 @@ export default function KioskScreen() {
   };
 
   // Manejar logout
-  const handleLogout = () => {
+  const handleLogout = async () => {
     console.log("🚪 Cerrando sesión");
+    // Limpiar estado de React
     setIsLoggedIn(false);
     setUsuarioActual(null);
+    // Limpiar localStorage para evitar restauración automática de sesión
+    try {
+      await cerrarSesion(usuarioActual?.id);
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+      // Limpiar manualmente si falla
+      localStorage.removeItem("usuarioActual");
+      localStorage.removeItem("ultimoLogin");
+      localStorage.removeItem("metodoAutenticacion");
+      localStorage.removeItem("auth_token");
+    }
   };
 
   // Manejadores para cada método de checado

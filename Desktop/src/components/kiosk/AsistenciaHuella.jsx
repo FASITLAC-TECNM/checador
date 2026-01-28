@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Fingerprint,
   Wifi,
@@ -10,8 +10,10 @@ import {
   LogIn,
   Timer,
   Loader2,
+  AlertTriangle,
 } from "lucide-react";
 import { guardarSesion } from "../../services/biometricAuthService";
+import { API_CONFIG, fetchApi } from "../../config/apiEndPoint";
 
 export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, onLoginRequest }) {
   if (!isOpen) return null;
@@ -25,8 +27,19 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
   const [processingLogin, setProcessingLogin] = useState(false);
   const [result, setResult] = useState(null); // { success: boolean, message: string, empleado?: object }
   const [countdown, setCountdown] = useState(6); // Contador de 6 segundos
+  const [loginHabilitado, setLoginHabilitado] = useState(false); // Prevenir login automático
 
   const [messages, setMessages] = useState([]);
+
+  // Estados para lógica de asistencia real
+  const [horarioInfo, setHorarioInfo] = useState(null);
+  const [toleranciaInfo, setToleranciaInfo] = useState(null);
+  const [ultimoRegistroHoy, setUltimoRegistroHoy] = useState(null);
+  const [puedeRegistrar, setPuedeRegistrar] = useState(false);
+  const [tipoSiguienteRegistro, setTipoSiguienteRegistro] = useState('entrada');
+  const [estadoHorario, setEstadoHorario] = useState(null);
+  const [jornadaCompletada, setJornadaCompletada] = useState(false);
+  const [cargandoDatosHorario, setCargandoDatosHorario] = useState(false);
 
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
@@ -41,6 +54,324 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
     onCloseRef.current = onClose;
   }, [onClose]);
 
+  // === FUNCIONES DE UTILIDAD PARA HORARIOS ===
+
+  // Obtener día de la semana
+  const getDiaSemana = () => {
+    const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+    return dias[new Date().getDay()];
+  };
+
+  // Convertir hora a minutos del día
+  const getMinutosDelDia = (fecha = new Date()) => {
+    return fecha.getHours() * 60 + fecha.getMinutes();
+  };
+
+  // === FUNCIONES DE OBTENCIÓN DE DATOS ===
+
+  // Obtener último registro del día para un empleado
+  const obtenerUltimoRegistro = useCallback(async (empleadoId) => {
+    try {
+      if (!empleadoId) return null;
+
+      const response = await fetchApi(`${API_CONFIG.ENDPOINTS.ASISTENCIAS}/empleado/${empleadoId}`);
+
+      if (!response.data?.length) return null;
+
+      // Filtrar registros de hoy
+      const hoy = new Date().toDateString();
+      const registrosHoy = response.data.filter(registro => {
+        const fechaRegistro = new Date(registro.fecha_registro);
+        return fechaRegistro.toDateString() === hoy;
+      });
+
+      if (!registrosHoy.length) return null;
+
+      const ultimo = registrosHoy[0];
+
+      return {
+        tipo: ultimo.tipo,
+        estado: ultimo.estado,
+        fecha_registro: new Date(ultimo.fecha_registro),
+        hora: new Date(ultimo.fecha_registro).toLocaleTimeString('es-MX', {
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        totalRegistrosHoy: registrosHoy.length
+      };
+    } catch (err) {
+      console.error('Error obteniendo último registro:', err);
+      return null;
+    }
+  }, []);
+
+  // Obtener horario del empleado
+  const obtenerHorario = useCallback(async (empleadoId) => {
+    try {
+      if (!empleadoId) return null;
+
+      const response = await fetchApi(`${API_CONFIG.ENDPOINTS.EMPLEADOS}/${empleadoId}/horario`);
+      const horario = response.data || response.horario || response;
+
+      if (!horario?.configuracion) return null;
+
+      let config = typeof horario.configuracion === 'string'
+        ? JSON.parse(horario.configuracion)
+        : horario.configuracion;
+
+      const diaHoy = getDiaSemana();
+      let turnosHoy = [];
+
+      // Extraer turnos según configuración
+      if (config.configuracion_semanal?.[diaHoy]) {
+        turnosHoy = config.configuracion_semanal[diaHoy].map(t => ({
+          entrada: t.inicio,
+          salida: t.fin
+        }));
+      } else if (config.dias?.includes(diaHoy)) {
+        turnosHoy = config.turnos || [];
+      }
+
+      if (!turnosHoy.length) {
+        return { trabaja: false, turnos: [] };
+      }
+
+      return {
+        trabaja: true,
+        turnos: turnosHoy,
+        entrada: turnosHoy[0].entrada,
+        salida: turnosHoy[turnosHoy.length - 1].salida,
+        tipo: turnosHoy.length > 1 ? 'quebrado' : 'continuo'
+      };
+    } catch (err) {
+      console.error('Error obteniendo horario:', err);
+      return null;
+    }
+  }, []);
+
+  // Obtener tolerancia del usuario
+  const obtenerTolerancia = useCallback(async (usuarioId) => {
+    const defaultTolerancia = {
+      minutos_retardo: 10,
+      minutos_falta: 30,
+      permite_registro_anticipado: true,
+      minutos_anticipado_max: 60
+    };
+
+    try {
+      if (!usuarioId) return defaultTolerancia;
+
+      const rolesResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.USUARIOS}/${usuarioId}/roles`);
+      const roles = rolesResponse.data || [];
+
+      const rolConTolerancia = roles
+        .filter(r => r.tolerancia_id)
+        .sort((a, b) => b.posicion - a.posicion)[0];
+
+      if (!rolConTolerancia) return defaultTolerancia;
+
+      const toleranciaResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.TOLERANCIAS}/${rolConTolerancia.tolerancia_id}`);
+      return toleranciaResponse.data || toleranciaResponse;
+    } catch (err) {
+      console.error('Error obteniendo tolerancia:', err);
+      return defaultTolerancia;
+    }
+  }, []);
+
+  // Obtener departamento activo del empleado
+  const obtenerDepartamentoEmpleado = useCallback(async (empleadoId) => {
+    try {
+      if (!empleadoId) return null;
+
+      // Intentar obtener departamentos del empleado
+      const response = await fetchApi(`${API_CONFIG.ENDPOINTS.EMPLEADOS}/${empleadoId}/departamentos`);
+      const departamentos = response.data || response;
+
+      if (!departamentos?.length) return null;
+
+      // Buscar el departamento activo (es_activo = true)
+      const departamentoActivo = departamentos.find(d => d.es_activo === true || d.es_activo === 1);
+
+      return departamentoActivo?.departamento_id || departamentos[0]?.departamento_id || null;
+    } catch (err) {
+      console.error('Error obteniendo departamento del empleado:', err);
+      return null;
+    }
+  }, []);
+
+  // === FUNCIONES DE VALIDACIÓN ===
+
+  // Validar si puede registrar entrada
+  const validarEntrada = (horario, tolerancia, minutosActuales) => {
+    let hayTurnoFuturo = false;
+
+    for (const turno of horario.turnos) {
+      const [hE, mE] = turno.entrada.split(':').map(Number);
+      const minEntrada = hE * 60 + mE;
+
+      const ventanaInicio = minEntrada - (tolerancia.minutos_anticipado_max || 60);
+      const ventanaRetardo = minEntrada + tolerancia.minutos_retardo;
+      const ventanaFalta = minEntrada + tolerancia.minutos_falta;
+
+      if (minutosActuales >= ventanaInicio && minutosActuales <= ventanaRetardo) {
+        return {
+          puedeRegistrar: true,
+          tipoRegistro: 'entrada',
+          estadoHorario: 'puntual',
+          jornadaCompleta: false
+        };
+      }
+
+      if (minutosActuales > ventanaRetardo && minutosActuales <= ventanaFalta) {
+        return {
+          puedeRegistrar: true,
+          tipoRegistro: 'entrada',
+          estadoHorario: 'retardo',
+          jornadaCompleta: false
+        };
+      }
+
+      if (minutosActuales > ventanaFalta) {
+        const [hS, mS] = turno.salida.split(':').map(Number);
+        const minSalida = hS * 60 + mS;
+
+        if (minutosActuales <= minSalida) {
+          return {
+            puedeRegistrar: true,
+            tipoRegistro: 'entrada',
+            estadoHorario: 'falta',
+            jornadaCompleta: false
+          };
+        }
+      }
+
+      if (minutosActuales < ventanaInicio) {
+        hayTurnoFuturo = true;
+      }
+    }
+
+    return {
+      puedeRegistrar: false,
+      tipoRegistro: 'entrada',
+      estadoHorario: 'fuera_horario',
+      jornadaCompleta: false,
+      hayTurnoFuturo: hayTurnoFuturo
+    };
+  };
+
+  // Validar si puede registrar salida
+  const validarSalida = (horario, minutosActuales) => {
+    for (const turno of horario.turnos) {
+      const [hS, mS] = turno.salida.split(':').map(Number);
+      const minSalida = hS * 60 + mS;
+
+      const ventanaSalidaInicio = minSalida - 10;
+      const ventanaSalidaFin = minSalida + 5;
+
+      if (minutosActuales >= ventanaSalidaInicio && minutosActuales <= ventanaSalidaFin) {
+        return {
+          puedeRegistrar: true,
+          tipoRegistro: 'salida',
+          estadoHorario: 'puntual',
+          jornadaCompleta: false
+        };
+      }
+    }
+
+    return {
+      puedeRegistrar: false,
+      tipoRegistro: 'salida',
+      estadoHorario: 'fuera_horario',
+      jornadaCompleta: false
+    };
+  };
+
+  // Calcular estado actual del registro
+  const calcularEstadoRegistro = useCallback((ultimo, horario, tolerancia) => {
+    if (!horario?.trabaja) {
+      return {
+        puedeRegistrar: false,
+        tipoRegistro: 'entrada',
+        estadoHorario: 'fuera_horario',
+        jornadaCompleta: false
+      };
+    }
+
+    const ahora = getMinutosDelDia();
+    const totalTurnos = horario.turnos.length;
+
+    // Si no hay registros previos, validar entrada
+    if (!ultimo) {
+      return validarEntrada(horario, tolerancia, ahora);
+    }
+
+    const registrosHoy = ultimo.totalRegistrosHoy || 1;
+    const turnosCompletados = Math.floor(registrosHoy / 2);
+
+    // Si último registro fue entrada, siguiente es salida
+    if (ultimo.tipo === 'entrada') {
+      return validarSalida(horario, ahora);
+    }
+
+    // Si último registro fue salida
+    if (ultimo.tipo === 'salida') {
+      // Verificar si completó todos los turnos
+      if (turnosCompletados >= totalTurnos) {
+        const resultadoEntrada = validarEntrada(horario, tolerancia, ahora);
+
+        if (!resultadoEntrada.hayTurnoFuturo) {
+          return {
+            puedeRegistrar: false,
+            tipoRegistro: 'entrada',
+            estadoHorario: 'completado',
+            jornadaCompleta: true
+          };
+        }
+
+        return resultadoEntrada;
+      }
+
+      // Siguiente turno
+      return validarEntrada(horario, tolerancia, ahora);
+    }
+
+    return validarEntrada(horario, tolerancia, ahora);
+  }, []);
+
+  // Cargar datos de horario para un empleado
+  const cargarDatosHorario = useCallback(async (empleadoId, usuarioId) => {
+    setCargandoDatosHorario(true);
+
+    try {
+      const [ultimo, horario, tolerancia] = await Promise.all([
+        obtenerUltimoRegistro(empleadoId),
+        obtenerHorario(empleadoId),
+        obtenerTolerancia(usuarioId)
+      ]);
+
+      setUltimoRegistroHoy(ultimo);
+      setHorarioInfo(horario);
+      setToleranciaInfo(tolerancia);
+
+      if (horario && tolerancia) {
+        const estado = calcularEstadoRegistro(ultimo, horario, tolerancia);
+        setPuedeRegistrar(estado.puedeRegistrar);
+        setTipoSiguienteRegistro(estado.tipoRegistro);
+        setEstadoHorario(estado.estadoHorario);
+        setJornadaCompletada(estado.jornadaCompleta);
+        return estado;
+      }
+
+      return null;
+    } catch (err) {
+      console.error('Error cargando datos de horario:', err);
+      return null;
+    } finally {
+      setCargandoDatosHorario(false);
+    }
+  }, [obtenerUltimoRegistro, obtenerHorario, obtenerTolerancia, calcularEstadoRegistro]);
+
+  
   useEffect(() => {
     connectToServer();
 
@@ -57,9 +388,12 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
     };
   }, []);
 
-  // Countdown para cerrar automáticamente después de registro exitoso
+  // Countdown para cerrar automáticamente después de resultado (éxito o no disponible)
   useEffect(() => {
-    if (result?.success) {
+    // Activar countdown cuando hay éxito O cuando no puede registrar (fuera de horario) O error con empleado identificado
+    const debeIniciarCountdown = result?.success || result?.noPuedeRegistrar || (result && !result.success && result.empleadoId);
+
+    if (debeIniciarCountdown) {
       // Limpiar cualquier intervalo anterior
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current);
@@ -90,7 +424,22 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
         countdownIntervalRef.current = null;
       }
     };
-  }, [result?.success]);
+  }, [result?.success, result?.noPuedeRegistrar, result?.empleadoId]);
+
+  // Habilitar login solo después de que el resultado se muestre (prevenir login automático)
+  useEffect(() => {
+    if (result && result.empleadoId) {
+      // Resetear el estado de login habilitado
+      setLoginHabilitado(false);
+      // Habilitar el botón después de un pequeño delay para asegurar que el usuario vea la ventana
+      const timer = setTimeout(() => {
+        setLoginHabilitado(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    } else {
+      setLoginHabilitado(false);
+    }
+  }, [result]);
 
   const connectToServer = () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -156,14 +505,31 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
     }
   };
 
-  // Registrar asistencia después de identificación exitosa (SIMULADO)
+  // Registrar asistencia después de identificación exitosa (API REAL)
   const registrarAsistencia = async (empleadoId, matchScore) => {
     setProcessingAttendance(true);
-    addMessage("📝 Registrando asistencia...", "info");
+    addMessage("📝 Cargando datos del empleado...", "info");
+
+    // Declarar fuera del try para poder usarlo en catch
+    let empleadoData = null;
 
     try {
-      // Simular delay de procesamiento
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Primero obtener datos del empleado desde la API
+      const empleadoResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.EMPLEADOS}/${empleadoId}`);
+      empleadoData = empleadoResponse.data || empleadoResponse;
+
+      if (!empleadoData) {
+        throw new Error("No se encontró información del empleado");
+      }
+
+      // Usar el ID numérico real del empleado, no el código
+      const empleadoIdNumerico = empleadoData.id;
+      const usuarioId = empleadoData.usuario_id;
+
+      addMessage("📅 Verificando horario...", "info");
+
+      // Cargar datos de horario y tolerancia
+      const estadoActual = await cargarDatosHorario(empleadoIdNumerico, usuarioId);
 
       // Obtener hora actual
       const now = new Date();
@@ -172,26 +538,113 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
         minute: "2-digit",
       });
 
-      // Determinar si es entrada o salida basado en la hora
-      const hora = now.getHours();
-      const tipoMovimiento = hora < 14 ? "ENTRADA" : "SALIDA";
+      // Verificar si puede registrar
+      if (estadoActual && !estadoActual.puedeRegistrar) {
+        let mensaje = "No puedes registrar en este momento";
+        if (estadoActual.jornadaCompleta) {
+          mensaje = "Ya completaste tu jornada de hoy";
+        } else if (estadoActual.estadoHorario === 'fuera_horario') {
+          mensaje = "Estás fuera del horario de registro";
+        }
 
-      // Datos simulados del empleado
-      const empleadoSimulado = {
-        id: empleadoId,
-        nombre: `Empleado ${empleadoId}`,
-        email: `${empleadoId.toLowerCase()}@empresa.com`,
+        addMessage(`⚠️ ${mensaje}`, "warning");
+
+        setResult({
+          success: false,
+          message: mensaje,
+          empleado: empleadoData,
+          empleadoId: empleadoId,
+          estadoHorario: estadoActual?.estadoHorario,
+          noPuedeRegistrar: true,
+        });
+
+        return;
+      }
+
+      addMessage("📝 Registrando asistencia...", "info");
+
+      // Obtener departamento del empleado
+      const departamentoId = await obtenerDepartamentoEmpleado(empleadoIdNumerico);
+
+      // Llamar a la API para registrar asistencia
+      // empleado_id es CHAR(8), usar el código del empleado
+      // dispositivo_origen ENUM solo acepta 'movil' o 'escritorio'
+      const payload = {
+        empleado_id: empleadoData.id,
+        dispositivo_origen: 'escritorio',
+        departamento_id: departamentoId
       };
 
-      addMessage("✅ Asistencia registrada correctamente", "success");
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ASISTENCIAS}/registrar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token') || ''}`,
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const responseText = await response.text();
+      let data;
+
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch (parseError) {
+        throw new Error('Error del servidor: respuesta inválida');
+      }
+
+      if (!response.ok) {
+        const errorMsg = data.message || data.error || `Error del servidor (${response.status})`;
+        throw new Error(errorMsg);
+      }
+
+      // Actualizar último registro después de registrar
+      const nuevoUltimo = await obtenerUltimoRegistro(empleadoIdNumerico);
+      setUltimoRegistroHoy(nuevoUltimo);
+
+      // Recalcular estado
+      if (horarioInfo && toleranciaInfo) {
+        const nuevoEstado = calcularEstadoRegistro(nuevoUltimo, horarioInfo, toleranciaInfo);
+        setPuedeRegistrar(nuevoEstado.puedeRegistrar);
+        setTipoSiguienteRegistro(nuevoEstado.tipoRegistro);
+        setEstadoHorario(nuevoEstado.estadoHorario);
+        setJornadaCompletada(nuevoEstado.jornadaCompleta);
+      }
+
+      // Determinar tipo y estado del registro
+      const tipoMovimiento = data.data?.tipo === 'salida' ? 'SALIDA' : 'ENTRADA';
+      let estadoTexto = '';
+      let emoji = '✅';
+
+      if (data.data?.tipo === 'salida') {
+        estadoTexto = 'salida registrada';
+        emoji = '✅';
+      } else {
+        if (data.data?.estado === 'retardo') {
+          estadoTexto = 'con retardo';
+          emoji = '⚠️';
+        } else if (data.data?.estado === 'falta') {
+          estadoTexto = 'fuera de tolerancia';
+          emoji = '❌';
+        } else {
+          estadoTexto = 'puntual';
+          emoji = '✅';
+        }
+      }
+
+      addMessage(`${emoji} ${tipoMovimiento === 'SALIDA' ? 'Salida' : 'Entrada'} registrada (${estadoTexto})`, "success");
 
       setResult({
         success: true,
         message: "Asistencia registrada",
-        empleado: empleadoSimulado,
-        empleadoId: empleadoId, // Guardar el ID para usarlo en el login
+        empleado: empleadoData,
+        empleadoId: empleadoId,
         tipoMovimiento: tipoMovimiento,
-        hora: horaActual,
+        hora: data.data?.fecha_registro
+          ? new Date(data.data.fecha_registro).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
+          : horaActual,
+        estado: data.data?.estado || 'puntual',
+        estadoTexto: estadoTexto,
       });
 
       // Callback de éxito
@@ -199,13 +652,12 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
         onSuccess({
           empleadoId,
           matchScore,
-          empleado: empleadoSimulado,
+          empleado: empleadoData,
           tipo_movimiento: tipoMovimiento,
           hora: horaActual,
+          estado: data.data?.estado,
         });
       }
-
-      // El countdown se encarga de cerrar el modal automáticamente
 
     } catch (error) {
       console.error("Error registrando asistencia:", error);
@@ -214,6 +666,8 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
       setResult({
         success: false,
         message: error.message,
+        empleadoId: empleadoId,
+        empleado: empleadoData,
       });
     } finally {
       setProcessingAttendance(false);
@@ -224,6 +678,12 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
 
   // Procesar login biométrico para obtener datos completos del empleado
   const procesarLoginBiometrico = async (empleadoId) => {
+    // Verificar que el login esté habilitado (prevenir llamadas automáticas)
+    if (!loginHabilitado) {
+      console.warn("⚠️ Login no habilitado - ignorando llamada automática");
+      return;
+    }
+
     setProcessingLogin(true);
 
     // Detener el countdown
@@ -556,11 +1016,11 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
                   </p>
                 </div>
 
-                {processingAttendance && (
+                {(processingAttendance || cargandoDatosHorario) && (
                   <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3 mb-4">
                     <p className="text-gray-900 dark:text-white text-center text-sm flex items-center justify-center gap-2">
                       <Clock className="w-4 h-4 animate-spin" />
-                      Registrando asistencia...
+                      {cargandoDatosHorario ? "Verificando horario..." : "Registrando asistencia..."}
                     </p>
                   </div>
                 )}
@@ -584,6 +1044,8 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
                 className={`rounded-xl p-6 text-center ${
                   result.success
                     ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+                    : result.noPuedeRegistrar
+                    ? "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
                     : "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
                 }`}
               >
@@ -599,10 +1061,26 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
                       </p>
                     )}
                     {result.tipoMovimiento && (
-                      <p className="text-gray-600 dark:text-gray-400 text-sm mt-2">
-                        {result.tipoMovimiento === "ENTRADA" ? "Entrada" : "Salida"}{" "}
-                        registrada {result.hora && `a las ${result.hora}`}
-                      </p>
+                      <div className="mt-2">
+                        <p className="text-gray-600 dark:text-gray-400 text-sm">
+                          {result.tipoMovimiento === "ENTRADA" ? "Entrada" : "Salida"}{" "}
+                          registrada {result.hora && `a las ${result.hora}`}
+                        </p>
+                        {/* Badge de estado */}
+                        <span
+                          className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${
+                            result.estado === "puntual"
+                              ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
+                              : result.estado === "retardo"
+                              ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
+                              : result.estado === "falta"
+                              ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
+                              : "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300"
+                          }`}
+                        >
+                          {result.estadoTexto || result.estado || "Registrado"}
+                        </span>
+                      </div>
                     )}
 
                     {/* Separador */}
@@ -615,13 +1093,87 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
 
                     <button
                       onClick={() => procesarLoginBiometrico(result.empleadoId)}
-                      disabled={processingLogin}
-                      className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mb-3"
+                      disabled={processingLogin || !loginHabilitado}
+                      className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mb-3"
                     >
                       {processingLogin ? (
                         <>
                           <Loader2 className="w-5 h-5 animate-spin" />
                           Cargando datos...
+                        </>
+                      ) : !loginHabilitado ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Preparando...
+                        </>
+                      ) : (
+                        <>
+                          <LogIn className="w-5 h-5" />
+                          Abrir Sesión
+                        </>
+                      )}
+                    </button>
+
+                    {/* Contador de cierre automático */}
+                    {!processingLogin && (
+                      <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm">
+                        <Timer className="w-4 h-4" />
+                        <span>
+                          Esta ventana se cerrará en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
+                        </span>
+                      </div>
+                    )}
+                  </>
+                ) : result.noPuedeRegistrar ? (
+                  /* No puede registrar (fuera de horario o jornada completada) */
+                  <>
+                    <AlertTriangle className="w-16 h-16 mx-auto mb-3 text-yellow-600 dark:text-yellow-400" />
+                    <p className="text-yellow-800 dark:text-yellow-300 font-bold text-lg mb-1">
+                      No Disponible
+                    </p>
+                    {result.empleado?.nombre && (
+                      <p className="text-gray-700 dark:text-gray-300 text-lg mb-2">
+                        {result.empleado.nombre}
+                      </p>
+                    )}
+                    <p className="text-gray-700 dark:text-gray-300 text-sm">
+                      {result.message}
+                    </p>
+                    {/* Badge de estado de horario */}
+                    <span
+                      className={`inline-block mt-3 px-3 py-1 rounded-full text-xs font-semibold ${
+                        result.estadoHorario === "completado"
+                          ? "bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300"
+                          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
+                      }`}
+                    >
+                      {result.estadoHorario === "completado"
+                        ? "Jornada completada"
+                        : "Fuera de horario"}
+                    </span>
+
+                    {/* Separador */}
+                    <div className="border-t border-gray-200 dark:border-gray-700 my-4" />
+
+                    {/* Opción de abrir sesión */}
+                    <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
+                      ¿Deseas abrir tu sesión de todas formas?
+                    </p>
+
+                    <button
+                      onClick={() => procesarLoginBiometrico(result.empleadoId)}
+                      disabled={processingLogin || !loginHabilitado}
+                      className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mb-3"
+                    >
+                      {processingLogin ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Cargando datos...
+                        </>
+                      ) : !loginHabilitado ? (
+                        <>
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                          Preparando...
                         </>
                       ) : (
                         <>
@@ -642,17 +1194,71 @@ export default function AsistenciaHuella({ isOpen = false, onClose, onSuccess, o
                     )}
                   </>
                 ) : (
+                  /* Error real */
                   <>
                     <XCircle className="w-16 h-16 mx-auto mb-3 text-red-600 dark:text-red-400" />
                     <p className="text-red-800 dark:text-red-300 font-bold text-lg mb-1">
                       Error en el Registro
                     </p>
+                    {result.empleado?.nombre && (
+                      <p className="text-gray-700 dark:text-gray-300 text-lg mb-2">
+                        {result.empleado.nombre}
+                      </p>
+                    )}
                     <p className="text-gray-700 dark:text-gray-300 text-sm">
                       {result.message}
                     </p>
+
+                    {/* Mostrar opción de abrir sesión si tenemos el empleadoId */}
+                    {result.empleadoId && (
+                      <>
+                        {/* Separador */}
+                        <div className="border-t border-gray-200 dark:border-gray-700 my-4" />
+
+                        {/* Opción de abrir sesión */}
+                        <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
+                          ¿Deseas abrir tu sesión de todas formas?
+                        </p>
+
+                        <button
+                          onClick={() => procesarLoginBiometrico(result.empleadoId)}
+                          disabled={processingLogin || !loginHabilitado}
+                          className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mb-3"
+                        >
+                          {processingLogin ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                              Cargando datos...
+                            </>
+                          ) : !loginHabilitado ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                              Preparando...
+                            </>
+                          ) : (
+                            <>
+                              <LogIn className="w-5 h-5" />
+                              Abrir Sesión
+                            </>
+                          )}
+                        </button>
+
+                        {/* Contador de cierre automático */}
+                        {!processingLogin && (
+                          <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm mb-3">
+                            <Timer className="w-4 h-4" />
+                            <span>
+                              Esta ventana se cerrará en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+
                     <button
                       onClick={() => {
                         setResult(null);
+                        setLoginHabilitado(false);
                         hasStartedIdentification.current = false;
                         // Reiniciar identificación automáticamente
                         if (connected && readerConnected) {

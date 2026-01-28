@@ -6,13 +6,11 @@ export const ThemeProvider = ({ children }) => {
     const [theme, setTheme] = useState(() => {
         // Cargar tema guardado del localStorage o usar 'light' por defecto
         const savedPreferences = localStorage.getItem('userPreferences');
-        console.log('🔍 Inicializando tema, localStorage:', savedPreferences);
 
         if (savedPreferences) {
             try {
                 const prefs = JSON.parse(savedPreferences);
                 const initialTheme = prefs.darkMode ? 'dark' : 'light';
-                console.log('✅ Tema inicial desde localStorage:', initialTheme, 'darkMode:', prefs.darkMode);
 
                 // Aplicar inmediatamente en el HTML
                 document.documentElement.classList.remove('light', 'dark');
@@ -20,59 +18,35 @@ export const ThemeProvider = ({ children }) => {
 
                 return initialTheme;
             } catch (error) {
-                console.error('❌ Error al cargar preferencias:', error);
                 return 'light';
             }
         }
 
-        console.log('⚠️ No hay preferencias guardadas, usando light');
         return 'light';
     });
 
     useEffect(() => {
-        // Aplicar clase al elemento raíz HTML de forma inmediata
-        const applyTheme = () => {
-            const root = document.documentElement;
+        // Aplicar clase al elemento raíz HTML
+        const root = document.documentElement;
+        root.setAttribute('data-theme', theme);
+        root.classList.remove('light', 'dark');
+        root.classList.add(theme);
 
-            // Forzar la actualización usando setAttribute también
-            root.setAttribute('data-theme', theme);
-
-            // Remover todas las clases de tema
-            root.classList.remove('light', 'dark');
-
-            // Agregar la clase del tema actual
-            root.classList.add(theme);
-
-            console.log('🎨 Tema aplicado:', theme);
-            console.log('📋 Clases en HTML:', root.className);
-            console.log('🏷️ data-theme:', root.getAttribute('data-theme'));
-
-            // Actualizar el localStorage
-            const savedPreferences = localStorage.getItem('userPreferences');
-            let preferences = {
-                notifications: true,
-                darkMode: theme === 'dark',
-                language: 'es',
-                soundEnabled: true
-            };
-
-            if (savedPreferences) {
-                try {
-                    const parsed = JSON.parse(savedPreferences);
-                    preferences = { ...preferences, ...parsed, darkMode: theme === 'dark' };
-                } catch (error) {
-                    console.error('Error al parsear preferencias:', error);
+        // Solo actualizar darkMode en localStorage, preservando otras preferencias
+        const savedPreferences = localStorage.getItem('userPreferences');
+        if (savedPreferences) {
+            try {
+                const parsed = JSON.parse(savedPreferences);
+                // Solo actualizar si el valor cambió para evitar re-renders innecesarios
+                if (parsed.darkMode !== (theme === 'dark')) {
+                    parsed.darkMode = theme === 'dark';
+                    localStorage.setItem('userPreferences', JSON.stringify(parsed));
                 }
+            } catch (error) {
+                // Si hay error, crear preferencias mínimas
+                localStorage.setItem('userPreferences', JSON.stringify({ darkMode: theme === 'dark' }));
             }
-
-            localStorage.setItem('userPreferences', JSON.stringify(preferences));
-        };
-
-        // Aplicar inmediatamente
-        applyTheme();
-
-        // También aplicar después de un tick para asegurar
-        setTimeout(applyTheme, 0);
+        }
     }, [theme]);
 
     const toggleTheme = () => {

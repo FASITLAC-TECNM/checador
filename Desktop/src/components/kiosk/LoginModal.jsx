@@ -84,16 +84,12 @@ function LoginModal({ isOpen = true, onClose, onFacialLogin, onLoginSuccess }) {
         const result = await loginByFingerprint(empleadoData);
 
         if (result.success) {
-            setLoggedInUser(result.usuario);
-            setLoginSuccess(true);
-            setTimeout(() => {
-                setLoginSuccess(false);
-                if (onLoginSuccess) {
-                    onLoginSuccess(result.usuario);
-                }
-                setShowBiometricModal(false);
-                onClose();
-            }, 2000);
+            // Cerrar modales inmediatamente y pasar al SessionScreen
+            setShowBiometricModal(false);
+            if (onLoginSuccess) {
+                onLoginSuccess(result.usuario);
+            }
+            onClose();
         } else {
             console.error("Error en login biométrico:", result.message);
         }

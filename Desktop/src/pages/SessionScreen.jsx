@@ -110,7 +110,7 @@ export default function SessionScreen({ onLogout, usuario }) {
   const userId = datosCompletos?.id || "N/A";
   const userEmail = datosCompletos?.correo || datosCompletos?.email || "N/A";
   const userPhone = datosCompletos?.telefono || "N/A";
-  const userUsername = datosCompletos?.username || "N/A";
+  const userUsername = datosCompletos?.usuario || datosCompletos?.username || "N/A";
   const userRFC = datosCompletos?.rfc;
   const userNSS = datosCompletos?.nss;
   const userDepartamento =

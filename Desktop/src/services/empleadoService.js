@@ -112,10 +112,10 @@ export const getEmpleadoConHorario = async (usuarioIdOrData) => {
 
     // Si es un objeto con empleado_id, usar esos datos directamente
     if (typeof usuarioIdOrData === 'object' && usuarioIdOrData.empleado_id) {
+      // Preservar TODOS los datos del usuario, no solo algunos campos
       empleado = {
+        ...usuarioIdOrData,
         id: usuarioIdOrData.empleado_id,
-        rfc: usuarioIdOrData.rfc,
-        nss: usuarioIdOrData.nss,
         usuario_id: usuarioIdOrData.id,
       };
       horarioId = usuarioIdOrData.horario_id;

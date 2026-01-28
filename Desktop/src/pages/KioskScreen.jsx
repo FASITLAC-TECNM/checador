@@ -11,7 +11,7 @@ import SessionScreen from "./SessionScreen";
 import { agregarEvento } from "../services/bitacoraService";
 import { useConnectivity } from "../hooks/useConnectivity";
 import { ConnectionStatusPanel } from "../components/common/ConnectionStatus";
-import BiometricReader from "../components/kiosk/BiometricReader";
+import AsistenciaHuella from "../components/kiosk/AsistenciaHuella";
 import { useCamera } from "../context/CameraContext";
 
 export default function KioskScreen() {
@@ -346,10 +346,32 @@ export default function KioskScreen() {
     utterance.lang = "es-MX";
     utterance.rate = 0.9;
     window.speechSynthesis.speak(utterance);
+  };
 
-    setTimeout(() => {
-      setShowBiometricReader(false);
-    }, 2000);
+  // Manejar solicitud de login desde el modal de asistencia
+  const handleFingerprintLoginRequest = (usuarioCompleto) => {
+    console.log("🔐 Inicio de sesión desde huella - Datos completos:", usuarioCompleto);
+
+    // El modal ya se cerró desde AsistenciaHuella
+    setShowBiometricReader(false);
+
+    // Mensaje de bienvenida
+    const nombreUsuario = usuarioCompleto?.nombre || usuarioCompleto?.username || "Usuario";
+    const welcomeMessage = `Bienvenido ${nombreUsuario}`;
+    const utterance = new SpeechSynthesisUtterance(welcomeMessage);
+    utterance.lang = "es-MX";
+    utterance.rate = 0.9;
+    window.speechSynthesis.speak(utterance);
+
+    // Establecer usuario y abrir sesión (datos ya vienen completos del API)
+    setUsuarioActual(usuarioCompleto);
+    setIsLoggedIn(true);
+
+    agregarEvento({
+      user: nombreUsuario,
+      action: "Inicio de sesión exitoso - Huella digital",
+      type: "success",
+    });
   };
 
   // Obtener información del método
@@ -593,13 +615,13 @@ export default function KioskScreen() {
 
       {showBitacora && <BitacoraModal onClose={() => setShowBitacora(false)} />}
 
-      {/* Modal de BiometricReader para registro de asistencia con huella */}
+      {/* Modal de AsistenciaHuella para registro de asistencia con huella */}
       {showBiometricReader && (
-        <BiometricReader
+        <AsistenciaHuella
           isOpen={showBiometricReader}
           onClose={() => setShowBiometricReader(false)}
-          onAuthSuccess={handleFingerprintSuccess}
-          mode="auth"
+          onSuccess={handleFingerprintSuccess}
+          onLoginRequest={handleFingerprintLoginRequest}
         />
       )}
     </div>

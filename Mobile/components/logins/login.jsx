@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { login } from '../../services/authService';
+import { getEmpleadoById } from '../../services/empleadoServices';
 
 export const LoginScreen = ({ onLoginSuccess }) => {
   const [usuario, setUsuario] = useState('');
@@ -37,7 +38,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     setGeneralError('');
   };
 
-const handleLogin = async () => {
+  const handleLogin = async () => {
     setUsuarioError('');
     setPasswordError('');
     setGeneralError('');
@@ -58,17 +59,22 @@ const handleLogin = async () => {
     try {
       const response = await login(usuario, password);
 
-      console.log('═══════════════════════════════════════');
-      console.log('🔍 DEBUG: RESPUESTA COMPLETA DEL LOGIN');
-      console.log('═══════════════════════════════════════');
-      console.log('response:', JSON.stringify(response, null, 2));
-      console.log('response.success:', response?.success);
-      console.log('response.usuario:', response?.usuario ? 'SÍ ✅' : 'NO ❌');
-      console.log('response.token:', response?.token ? 'SÍ ✅' : 'NO ❌');
-      console.log('Token value:', response?.token);
-      console.log('═══════════════════════════════════════');
-
       if (response && response.success && response.usuario) {
+        const token = response.token;
+        let empresaId = null;
+
+        if (response.usuario.es_empleado && response.usuario.empleado_id) {
+          try {
+            const empleadoData = await getEmpleadoById(response.usuario.empleado_id, token);
+            
+            if (empleadoData.success && empleadoData.data) {
+              empresaId = empleadoData.data.empresa_id;
+            }
+          } catch (error) {
+            console.warn('No se pudo obtener empresa_id del empleado:', error.message);
+          }
+        }
+
         const datosCompletos = {
           id: response.usuario.id,
           usuario: response.usuario.usuario,
@@ -80,29 +86,20 @@ const handleLogin = async () => {
           empleado_id: response.usuario.empleado_id,
           rfc: response.usuario.rfc,
           nss: response.usuario.nss,
+          empresa_id: empresaId,
           
           empleadoInfo: response.empleadoInfo || null,
           
           roles: response.roles || [],
           permisos: response.permisos || '0',
           esAdmin: response.esAdmin || false,
-          token: response.token || null  // ← AQUÍ ESTÁ EL TOKEN
+          token: token
         };
 
-        console.log('');
-        console.log('═══════════════════════════════════════');
-        console.log('📦 DATOS QUE SE ENVÍAN A App.js');
-        console.log('═══════════════════════════════════════');
-        console.log('datosCompletos.token:', datosCompletos.token ? 'SÍ ✅' : 'NO ❌');
-        console.log('Token value:', datosCompletos.token);
-        console.log('empleado_id:', datosCompletos.empleado_id);
-        console.log('═══════════════════════════════════════');
-
-        // Llamar a onLoginSuccess que está en App.js
         onLoginSuccess(datosCompletos);
       }
     } catch (error) {
-      console.error('❌ Error en login:', error);
+      console.error('Error en login:', error);
 
       const errorMessage = error?.message || '';
 
@@ -137,7 +134,6 @@ const handleLogin = async () => {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Header compacto */}
             <View style={styles.header}>
               <LinearGradient
                 colors={['#ffffff', '#f0f9ff']}
@@ -150,11 +146,9 @@ const handleLogin = async () => {
               <Text style={styles.subtitle}>Fábrica de Software del ITLAC</Text>
             </View>
 
-            {/* Formulario compacto */}
             <View style={styles.formContainer}>
               <Text style={styles.welcomeText}>Iniciar Sesión</Text>
 
-              {/* Usuario Input */}
               <View style={styles.inputWrapper}>
                 <Text style={styles.label}>Usuario o Correo</Text>
                 <View style={[styles.inputContainer, usuarioError ? styles.inputError : null]}>
@@ -178,7 +172,6 @@ const handleLogin = async () => {
                 ) : null}
               </View>
 
-              {/* Password Input */}
               <View style={styles.inputWrapper}>
                 <Text style={styles.label}>Contraseña</Text>
                 <View style={[styles.inputContainer, passwordError ? styles.inputError : null]}>
@@ -213,7 +206,6 @@ const handleLogin = async () => {
                 ) : null}
               </View>
 
-              {/* Error general */}
               {generalError ? (
                 <View style={styles.generalErrorContainer}>
                   <Ionicons name="warning" size={16} color="#dc2626" />
@@ -221,12 +213,10 @@ const handleLogin = async () => {
                 </View>
               ) : null}
 
-              {/* Forgot Password */}
               <TouchableOpacity disabled={isLoading} activeOpacity={0.7}>
                 <Text style={styles.forgotPassword}>¿Olvidaste tu contraseña?</Text>
               </TouchableOpacity>
 
-              {/* Login Button */}
               <TouchableOpacity
                 style={styles.loginButtonWrapper}
                 onPress={handleLogin}
@@ -253,14 +243,12 @@ const handleLogin = async () => {
                 </LinearGradient>
               </TouchableOpacity>
 
-              {/* Footer */}
               <Text style={styles.footerText}>
                 ¿No tienes cuenta?{' '}
                 <Text style={styles.footerLink}>Contacta al admin</Text>
               </Text>
             </View>
 
-            {/* Copyright */}
             <Text style={styles.copyright}>© 2024 FASITLAC™</Text>
           </ScrollView>
         </KeyboardAvoidingView>

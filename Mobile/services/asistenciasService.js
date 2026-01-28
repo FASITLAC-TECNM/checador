@@ -7,7 +7,8 @@ export const registrarAsistencia = async (empleadoId, ubicacion, token, departam
         const payload = {
             empleado_id: empleadoId,
             dispositivo_origen: 'movil',
-            ubicacion: [ubicacion.lat, ubicacion.lng]
+            ubicacion: [ubicacion.lat, ubicacion.lng],
+            departamento_id: departamentoId // Agregado departamento_id
         };
 
         console.log('📤 Servicio - Enviando asistencia:', payload);
@@ -40,10 +41,6 @@ export const registrarAsistencia = async (empleadoId, ubicacion, token, departam
 
         const data = JSON.parse(responseText);
         console.log('✅ Servicio - Datos parseados:', data);
-        
-        if (departamentoId) {
-            data.departamento_id = departamentoId;
-        }
 
         return data;
     } catch (error) {

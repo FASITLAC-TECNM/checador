@@ -396,7 +396,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
                 <Ionicons name="cafe-outline" size={48} color="#6366f1" />
               </View>
               <Text style={styles.dayOffTitle}>Día de Descanso</Text>
-              <Text style={styles.dayOffText}>Disfruta tu día libre 🎉</Text>
+              <Text style={styles.dayOffText}>Disfruta tu día libre</Text>
             </View>
           )}
 

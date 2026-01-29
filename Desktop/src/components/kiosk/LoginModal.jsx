@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import BiometricReader from "./BiometricReader";
+import FacialAuthModal from "./FacialAuthModal";
 
-function LoginModal({ isOpen = true, onClose, onFacialLogin, onLoginSuccess }) {
+function LoginModal({ isOpen = true, onClose, onLoginSuccess }) {
     const { loginByPin, loginByFingerprint, loading, error: authError } = useAuth();
     const [formData, setFormData] = useState({
         usuario: '',
@@ -13,7 +14,39 @@ function LoginModal({ isOpen = true, onClose, onFacialLogin, onLoginSuccess }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [loginSuccess, setLoginSuccess] = useState(false);
     const [showBiometricModal, setShowBiometricModal] = useState(false);
+    const [showFacialModal, setShowFacialModal] = useState(false);
     const [loggedInUser, setLoggedInUser] = useState(null);
+
+    // Ref para mantener el valor actual de showBiometricModal (evitar stale closure)
+    const showBiometricModalRef = useRef(showBiometricModal);
+    useEffect(() => {
+        showBiometricModalRef.current = showBiometricModal;
+    }, [showBiometricModal]);
+
+    // Ref para mantener el valor actual de showFacialModal (evitar stale closure)
+    const showFacialModalRef = useRef(showFacialModal);
+    useEffect(() => {
+        showFacialModalRef.current = showFacialModal;
+    }, [showFacialModal]);
+
+    // IMPORTANTE: Resetear el estado de los modales biometricos cuando el componente se monta
+    // Esto previene que los modales queden activos de sesiones anteriores
+    useEffect(() => {
+        // Siempre cerrar los modales al montar para evitar estados residuales
+        setShowBiometricModal(false);
+        setShowFacialModal(false);
+        setLoginSuccess(false);
+        setError('');
+        setFormData({ usuario: '', contrasena: '' });
+    }, []);
+
+    // Tambien cerrar los modales biometricos cuando isOpen cambia a true (se abre el modal)
+    useEffect(() => {
+        if (isOpen) {
+            setShowBiometricModal(false);
+            setShowFacialModal(false);
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -77,7 +110,43 @@ function LoginModal({ isOpen = true, onClose, onFacialLogin, onLoginSuccess }) {
         setShowBiometricModal(true);
     };
 
+    const handleFacialLogin = () => {
+        setShowFacialModal(true);
+    };
+
+    const handleFacialSuccess = async (empleadoData) => {
+        // IMPORTANTE: Usar la ref para verificar el estado actual (evitar stale closure)
+        // Solo procesar si el modal facial esta realmente abierto
+        if (!showFacialModalRef.current) {
+            console.warn("⚠️ LoginModal: Ignorando evento facial - modal no activo");
+            return;
+        }
+
+        console.log("✅ Autenticacion facial exitosa:", empleadoData);
+
+        // Usar loginByFingerprint para guardar la sesion correctamente en el contexto
+        // (funciona igual para facial, solo guarda la sesion del usuario)
+        const result = await loginByFingerprint(empleadoData);
+
+        if (result.success) {
+            setShowFacialModal(false);
+            if (onLoginSuccess) {
+                onLoginSuccess(result.usuario);
+            }
+            onClose();
+        } else {
+            console.error("Error en login facial:", result.message);
+        }
+    };
+
     const handleBiometricSuccess = async (empleadoData) => {
+        // IMPORTANTE: Usar la ref para verificar el estado actual (evitar stale closure)
+        // Solo procesar si el modal biométrico está realmente abierto
+        if (!showBiometricModalRef.current) {
+            console.warn("⚠️ LoginModal: Ignorando evento biométrico - modal no activo");
+            return;
+        }
+
         console.log("✅ Autenticación biométrica exitosa:", empleadoData);
 
         // Usar loginByFingerprint para guardar la sesión correctamente en el contexto
@@ -274,20 +343,18 @@ function LoginModal({ isOpen = true, onClose, onFacialLogin, onLoginSuccess }) {
                             </button>
 
                             {/* Facial recognition button */}
-                            {onFacialLogin && (
-                                <button
-                                    type="button"
-                                    onClick={onFacialLogin}
-                                    disabled={isSubmitting || loading}
-                                    className="w-full py-2.5 bg-bg-secondary hover:bg-bg-tertiary border border-border-subtle text-text-secondary hover:text-text-primary rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                    Iniciar con Reconocimiento Facial
-                                </button>
-                            )}
+                            <button
+                                type="button"
+                                onClick={handleFacialLogin}
+                                disabled={isSubmitting || loading}
+                                className="w-full py-2.5 bg-bg-secondary hover:bg-bg-tertiary border border-border-subtle text-text-secondary hover:text-text-primary rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                Iniciar con Reconocimiento Facial
+                            </button>
                         </div>
                             </>
                         )}
@@ -302,13 +369,21 @@ function LoginModal({ isOpen = true, onClose, onFacialLogin, onLoginSuccess }) {
                 </div>
             </div>
 
-            {/* Modal Biométrico */}
+            {/* Modal Biometrico */}
             {showBiometricModal && (
                 <BiometricReader
                     isOpen={showBiometricModal}
                     onClose={() => setShowBiometricModal(false)}
                     onAuthSuccess={handleBiometricSuccess}
                     mode="auth"
+                />
+            )}
+
+            {/* Modal Facial */}
+            {showFacialModal && (
+                <FacialAuthModal
+                    onClose={() => setShowFacialModal(false)}
+                    onAuthSuccess={handleFacialSuccess}
                 />
             )}
         </>

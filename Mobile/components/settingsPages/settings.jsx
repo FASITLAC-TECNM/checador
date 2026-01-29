@@ -1,5 +1,3 @@
-// SettingsScreen.js - ACTUALIZACIÓN CON INCIDENCIAS
-
 import React, { useState } from 'react';
 import {
   View,
@@ -13,12 +11,11 @@ import {
   Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { PersonalInfoScreen } from './personalinfo';
+import { PersonalInfoScreen } from '../homes/personalinfo';
 import { TermsAndConditionsScreen } from './TermsAndConditionsScreen';
 import { SupportScreen } from './SupportScreen';
 import { SecurityScreen } from './SecurityScreen';
-import { IncidenciasScreen } from './IncidenciasScreen';
+import { IncidenciasScreen } from './IncidentScreen';
 
 const obtenerUrlFotoPerfil = (foto) => {
   if (!foto) {
@@ -45,7 +42,7 @@ export const SettingsScreen = ({
   const [showTerms, setShowTerms] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
   const [showSecurity, setShowSecurity] = useState(false);
-  const [showIncidencias, setShowIncidencias] = useState(false); // ✅ NUEVO
+  const [showIncidencias, setShowIncidencias] = useState(false);
   
   const styles = darkMode ? settingsStylesDark : settingsStyles;
 
@@ -99,7 +96,6 @@ export const SettingsScreen = ({
     );
   }
 
-  // ✅ NUEVO: Pantalla de Incidencias
   if (showIncidencias) {
     return (
       <IncidenciasScreen 
@@ -112,17 +108,17 @@ export const SettingsScreen = ({
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#2563eb" translucent={false} />
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor={darkMode ? "#1e40af" : "#2563eb"} 
+        translucent={false} 
+      />
       
-      <LinearGradient
-        colors={darkMode ? ['#1e40af', '#2563eb'] : ['#2563eb', '#3b82f6']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
+      {/* Header con color sólido */}
+      <View style={styles.header}>
         <Text style={styles.headerTitle}>Configuración</Text>
         <Text style={styles.headerSubtitle}>Gestiona tu cuenta y preferencias</Text>
-      </LinearGradient>
+      </View>
 
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
@@ -130,12 +126,7 @@ export const SettingsScreen = ({
       >
         {/* User Profile Card */}
         <View style={styles.profileCard}>
-          <LinearGradient
-            colors={darkMode ? ['#1e293b', '#334155'] : ['#ffffff', '#f8fafc']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={styles.profileGradient}
-          >
+          <View style={styles.profileGradient}>
             <View style={styles.profileHeader}>
               <View style={styles.avatarWrapper}>
                 <View style={styles.avatarContainer}>
@@ -180,7 +171,7 @@ export const SettingsScreen = ({
                 </View>
               </View>
             </View>
-          </LinearGradient>
+          </View>
         </View>
 
         {/* Appearance Section */}
@@ -240,7 +231,6 @@ export const SettingsScreen = ({
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
 
-          {/* ✅ NUEVO: Botón de Incidencias (solo para empleados) */}
           {esEmpleado && (
             <TouchableOpacity
               style={styles.settingItem}
@@ -402,7 +392,7 @@ export const SettingsScreen = ({
               <Ionicons name="calendar" size={18} color="#6b7280" />
               <Text style={styles.infoLabel}>Última actualización</Text>
             </View>
-            <Text style={styles.infoValue}>27/01/2026</Text>
+            <Text style={styles.infoValue}>29/01/2026</Text>
           </View>
         </View>
 
@@ -412,15 +402,10 @@ export const SettingsScreen = ({
           onPress={onLogout}
           activeOpacity={0.85}
         >
-          <LinearGradient
-            colors={['#ef4444', '#dc2626']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.logoutGradient}
-          >
+          <View style={styles.logoutGradient}>
             <Ionicons name="log-out-outline" size={24} color="#fff" />
             <Text style={styles.logoutText}>Cerrar Sesión</Text>
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -433,6 +418,7 @@ const settingsStyles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   header: {
+    backgroundColor: '#2563eb',
     paddingTop: Platform.OS === 'android' ? 16 : 50,
     paddingBottom: 20,
     paddingHorizontal: 24,
@@ -462,6 +448,7 @@ const settingsStyles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 16,
     elevation: 8,
+    backgroundColor: '#ffffff',
   },
   profileGradient: {
     padding: 24,
@@ -636,6 +623,7 @@ const settingsStyles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 18,
     gap: 12,
+    backgroundColor: '#ef4444',
   },
   logoutText: {
     color: '#fff',
@@ -650,6 +638,14 @@ const settingsStylesDark = StyleSheet.create({
   container: {
     ...settingsStyles.container,
     backgroundColor: '#0f172a',
+  },
+  header: {
+    ...settingsStyles.header,
+    backgroundColor: '#1e40af',
+  },
+  profileCard: {
+    ...settingsStyles.profileCard,
+    backgroundColor: '#1e293b',
   },
   profileName: {
     ...settingsStyles.profileName,
@@ -686,5 +682,9 @@ const settingsStylesDark = StyleSheet.create({
   infoDivider: {
     ...settingsStyles.infoDivider,
     backgroundColor: '#374151',
+  },
+  logoutGradient: {
+    ...settingsStyles.logoutGradient,
+    backgroundColor: '#dc2626',
   },
 });

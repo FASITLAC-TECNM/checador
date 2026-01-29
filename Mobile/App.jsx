@@ -6,7 +6,7 @@ import { LoginScreen } from './components/logins/login';
 import { HomeScreen } from './components/homes/home';
 import { HistoryScreen } from './components/homes/history';
 import { ScheduleScreen } from './components/homes/schedule';
-import { SettingsScreen } from './components/homes/settings';
+import { SettingsScreen } from './components/settingsPages/settings';
 import { BottomNavigation } from './components/homes/nav';
 import { OnboardingNavigator } from './components/devicesetup/onBoardNavigator';
 import { verificarDispositivoActivo, getSolicitudPorToken } from './services/solicitudMovilService';

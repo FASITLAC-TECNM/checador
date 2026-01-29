@@ -16,7 +16,7 @@ import { extraerCoordenadas } from '../../services/ubicacionService';
 /**
  * Componente para visualizar el mapa con Leaflet y múltiples zonas permitidas
  */
-const MapaZonasPermitidas = ({ 
+const MapScreen = ({ 
   departamento, 
   departamentos = [], 
   ubicacionActual, 
@@ -756,4 +756,4 @@ const mapStylesDark = StyleSheet.create({
   },
 });
 
-export default MapaZonasPermitidas;
+export default MapScreen;

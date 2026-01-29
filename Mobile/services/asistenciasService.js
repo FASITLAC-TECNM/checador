@@ -8,7 +8,7 @@ export const registrarAsistencia = async (empleadoId, ubicacion, token, departam
             empleado_id: empleadoId,
             dispositivo_origen: 'movil',
             ubicacion: [ubicacion.lat, ubicacion.lng],
-            departamento_id: departamentoId // Agregado departamento_id
+            departamento_id: departamentoId
         };
 
         console.log('📤 Servicio - Enviando asistencia:', payload);
@@ -84,14 +84,16 @@ export const getUltimoRegistroHoy = async (empleadoId, token) => {
         }
 
         const hoy = new Date().toDateString();
-        const ultimaAsistencia = data.data.find(a => {
+        const registrosHoy = data.data.filter(a => {
             const fechaRegistro = new Date(a.fecha_registro);
             return fechaRegistro.toDateString() === hoy;
         });
 
-        if (!ultimaAsistencia) return null;
+        if (!registrosHoy.length) return null;
 
+        const ultimaAsistencia = registrosHoy[0];
         const fechaRegistro = new Date(ultimaAsistencia.fecha_registro);
+        
         return {
             tipo: ultimaAsistencia.tipo === 'entrada' ? 'Entrada' : 'Salida',
             hora: fechaRegistro.toLocaleTimeString('es-MX', { 
@@ -99,7 +101,8 @@ export const getUltimoRegistroHoy = async (empleadoId, token) => {
                 minute: '2-digit' 
             }),
             estado: ultimaAsistencia.estado,
-            esEntrada: ultimaAsistencia.tipo === 'entrada'
+            esEntrada: ultimaAsistencia.tipo === 'entrada',
+            totalRegistrosHoy: registrosHoy.length
         };
     } catch (error) {
         return null;

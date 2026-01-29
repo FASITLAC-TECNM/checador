@@ -10,10 +10,9 @@ import {
   Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RegisterButton } from '../map/RegisterButton';
-import { NotificacionesModal } from './NotificacionesModal';
+import { NotificacionesModal } from './NotificationModal';
 
 const obtenerUrlFotoPerfil = (foto) => {
   if (!foto) return null;
@@ -26,7 +25,6 @@ export const HomeScreen = ({ userData, darkMode }) => {
   const [showNotificaciones, setShowNotificaciones] = useState(false);
   const [token, setToken] = useState(null);
 
-  // Obtener el token de AsyncStorage al montar el componente
   useEffect(() => {
     const obtenerToken = async () => {
       try {
@@ -44,10 +42,8 @@ export const HomeScreen = ({ userData, darkMode }) => {
   const styles = darkMode ? homeStylesDark : homeStyles;
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
 
-  // Determinar si es empleado basado en es_empleado y empleado_id
   const esEmpleado = userData.es_empleado && userData.empleado_id;
 
-  // Determinar el rol a mostrar
   const rolMostrar = esEmpleado
     ? 'Empleado'
     : (userData.roles && userData.roles.length > 0
@@ -69,11 +65,10 @@ export const HomeScreen = ({ userData, darkMode }) => {
     <View style={styles.mainContainer}>
       <StatusBar 
         barStyle="light-content" 
-        backgroundColor="#2563eb"
+        backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
         translucent={false}
       />
       
-      {/* Modal de Notificaciones */}
       <NotificacionesModal
         visible={showNotificaciones}
         onClose={() => setShowNotificaciones(false)}
@@ -81,14 +76,9 @@ export const HomeScreen = ({ userData, darkMode }) => {
         token={token}
       />
       
-      {/* Header mejorado */}
+      {/* Header con color sólido */}
       <View style={styles.headerWrapper}>
-        <LinearGradient
-          colors={['#2563eb', '#3b82f6']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.header}
-        >
+        <View style={styles.header}>
           <View style={styles.headerTop}>
             <View style={styles.headerLeft}>
               <View style={styles.avatarContainer}>
@@ -140,7 +130,7 @@ export const HomeScreen = ({ userData, darkMode }) => {
               </TouchableOpacity>
             </View>
           </View>
-        </LinearGradient>
+        </View>
       </View>
 
       <ScrollView 
@@ -195,6 +185,7 @@ const homeStyles = StyleSheet.create({
     backgroundColor: '#2563eb',
   },
   header: {
+    backgroundColor: '#2563eb',
     paddingTop: Platform.OS === 'android' ? 16 : 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
@@ -416,7 +407,15 @@ const homeStylesDark = StyleSheet.create({
   },
   headerWrapper: {
     ...homeStyles.headerWrapper,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#1e40af',
+  },
+  header: {
+    ...homeStyles.header,
+    backgroundColor: '#1e40af',
+  },
+  statusDot: {
+    ...homeStyles.statusDot,
+    borderColor: '#1e40af',
   },
   statCard: {
     ...homeStyles.statCard,

@@ -1,5 +1,3 @@
-// components/homes/SupportScreen.jsx - CÓDIGO COMPLETO CORREGIDO
-
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -14,7 +12,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getEmpresaById } from '../../services/empresaService';
 
@@ -32,7 +29,6 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
     try {
       setIsLoading(true);
       
-      // ✅ Intentar múltiples formas de obtener empresa_id
       const empresaId = userData?.empresa_id || 
                         userData?.empresa?.id || 
                         userData?.empleado?.empresa_id ||
@@ -224,26 +220,28 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
+        <StatusBar 
+          barStyle="light-content" 
+          backgroundColor={darkMode ? "#1e40af" : "#2563eb"} 
+        />
         
-        <LinearGradient
-          colors={darkMode ? ['#1e40af', '#2563eb'] : ['#2563eb', '#3b82f6']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.header}
-        >
-          <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
+        {/* Header mientras carga */}
+        <View style={styles.header}>
           <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>Ayuda y Soporte</Text>
-            <Text style={styles.headerSubtitle}>Cargando...</Text>
+            <TouchableOpacity onPress={onBack} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>Ayuda y Soporte</Text>
+              <Text style={styles.headerSubtitle}>Cargando...</Text>
+            </View>
+            <View style={styles.headerPlaceholder} />
           </View>
-        </LinearGradient>
+        </View>
 
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2563eb" />
-          <Text style={styles.loadingText}>Cargando información de contacto...</Text>
+          <Text style={styles.loadingText}>Cargando información...</Text>
         </View>
       </View>
     );
@@ -251,36 +249,33 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor={darkMode ? "#1e40af" : "#2563eb"} 
+      />
       
-      <LinearGradient
-        colors={darkMode ? ['#1e40af', '#2563eb'] : ['#2563eb', '#3b82f6']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
-        <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
+      {/* Header estandarizado - Sin gradiente */}
+      <View style={styles.header}>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Ayuda y Soporte</Text>
-          <Text style={styles.headerSubtitle}>
-            {empresaData?.nombre || 'Estamos aquí para ayudarte'}
-          </Text>
+          <TouchableOpacity onPress={onBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>Ayuda y Soporte</Text>
+            <Text style={styles.headerSubtitle}>
+              {empresaData?.nombre || 'Estamos aquí'}
+            </Text>
+          </View>
+          <View style={styles.headerPlaceholder} />
         </View>
-      </LinearGradient>
+      </View>
 
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.quickHelpCard}>
-          <LinearGradient
-            colors={darkMode ? ['#1e3a8a', '#2563eb'] : ['#dbeafe', '#eff6ff']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.quickHelpGradient}
-          >
+          <View style={styles.quickHelpGradient}>
             <View style={styles.quickHelpIconContainer}>
               <Ionicons 
                 name="help-circle" 
@@ -294,7 +289,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
             <Text style={styles.quickHelpText}>
               Encuentra respuestas rápidas en nuestras preguntas frecuentes o contáctanos directamente.
             </Text>
-          </LinearGradient>
+          </View>
         </View>
 
         {contactOptions.length > 0 ? (
@@ -453,11 +448,15 @@ const supportStyles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   header: {
+    backgroundColor: '#2563eb',
     paddingTop: Platform.OS === 'android' ? 16 : 50,
     paddingBottom: 20,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backButton: {
     width: 40,
@@ -466,21 +465,23 @@ const supportStyles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
   },
-  headerContent: {
+  headerTextContainer: {
     flex: 1,
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: '800',
+    fontWeight: '700',
     color: '#fff',
-    marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 14,
     color: '#e0f2fe',
-    fontWeight: '500',
+    marginTop: 2,
+  },
+  headerPlaceholder: {
+    width: 40,
   },
   loadingContainer: {
     flex: 1,
@@ -503,6 +504,7 @@ const supportStyles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     marginBottom: 24,
+    backgroundColor: '#dbeafe',
     shadowColor: '#2563eb',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -517,7 +519,7 @@ const supportStyles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -713,9 +715,17 @@ const supportStylesDark = StyleSheet.create({
     ...supportStyles.container,
     backgroundColor: '#0f172a',
   },
+  header: {
+    ...supportStyles.header,
+    backgroundColor: '#1e40af',
+  },
   loadingText: {
     ...supportStyles.loadingText,
     color: '#9ca3af',
+  },
+  quickHelpCard: {
+    ...supportStyles.quickHelpCard,
+    backgroundColor: '#1e3a8a',
   },
   quickHelpTitle: {
     ...supportStyles.quickHelpTitle,
@@ -797,3 +807,5 @@ const supportStylesDark = StyleSheet.create({
     backgroundColor: '#374151',
   },
 });
+
+export default SupportScreen;

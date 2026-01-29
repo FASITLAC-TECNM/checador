@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Importar servicios
@@ -112,7 +111,7 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
         
         setBiometricEnabled(tieneDactilar);
         setFaceIdEnabled(tieneFacial);
-        setPinEnabled(tienePin); // ✅ Solo activo si tiene PIN en BD
+        setPinEnabled(tienePin);
         
         console.log('[Security] 📊 Credenciales cargadas:', {
           dactilar: tieneDactilar,
@@ -126,7 +125,7 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
         setHasPin(false);
         setBiometricEnabled(false);
         setFaceIdEnabled(false);
-        setPinEnabled(false); // ✅ Desactivado por defecto
+        setPinEnabled(false);
         
         console.log('[Security] ℹ️ Usuario sin credenciales registradas');
       }
@@ -512,7 +511,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       const response = await guardarPin(empleadoId, pin, token);
 
       if (response.success) {
-        // ✅ Actualizar estados SOLO si el guardado fue exitoso
         setPinEnabled(true);
         setHasPin(true);
         
@@ -528,10 +526,9 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
 
     } catch (error) {
       console.error('❌ Error guardando PIN:', error);
-      // ✅ Asegurar que el estado se mantenga desactivado si hubo error
       setPinEnabled(false);
       setHasPin(false);
-      throw error; // El modal manejará el error
+      throw error;
     } finally {
       setIsLoadingPin(false);
     }
@@ -566,7 +563,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
               const response = await eliminarCredencial(empleadoId, 'pin', token);
 
               if (response.success) {
-                // ✅ Actualizar estados SOLO si la eliminación fue exitosa
                 setPinEnabled(false);
                 setHasPin(false);
                 
@@ -583,7 +579,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
             } catch (error) {
               console.error('❌ Error eliminando PIN:', error);
               Alert.alert('Error', 'No se pudo eliminar el PIN');
-              // ✅ Mantener el estado actual si hubo error
               setPinEnabled(true);
               setHasPin(true);
             } finally {
@@ -608,34 +603,46 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
 
   if (isLoadingCredentials) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={[styles.methodSubtitle, { marginTop: 16 }]}>
-          Cargando configuración de seguridad...
-        </Text>
+      <View style={styles.container}>
+        {/* Header mientras carga */}
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <TouchableOpacity onPress={onBack} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>Seguridad</Text>
+              <Text style={styles.headerSubtitle}>Cargando...</Text>
+            </View>
+            <View style={styles.headerPlaceholder} />
+          </View>
+        </View>
+        
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text style={styles.loadingText}>
+            Cargando configuración de seguridad...
+          </Text>
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={darkMode ? ['#1e40af', '#2563eb'] : ['#2563eb', '#3b82f6']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
-        <TouchableOpacity
-          onPress={onBack}
-          style={styles.backButton}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Seguridad</Text>
-        <Text style={styles.headerSubtitle}>Métodos de acceso a tu cuenta</Text>
-      </LinearGradient>
+      {/* Header estandarizado - Sin gradiente */}
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>Seguridad</Text>
+            <Text style={styles.headerSubtitle}>Métodos de acceso</Text>
+          </View>
+          <View style={styles.headerPlaceholder} />
+        </View>
+      </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -643,12 +650,7 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       >
         {/* Info Card */}
         <View style={styles.infoCard}>
-          <LinearGradient
-            colors={darkMode ? ['#1e3a8a', '#2563eb'] : ['#dbeafe', '#bfdbfe']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.infoGradient}
-          >
+          <View style={styles.infoGradient}>
             <Ionicons
               name="shield-checkmark"
               size={32}
@@ -658,7 +660,7 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
             <Text style={styles.infoText}>
               Elige los métodos de autenticación que prefieras para acceder a tu cuenta
             </Text>
-          </LinearGradient>
+          </View>
         </View>
 
         {/* Device Support Info */}
@@ -969,23 +971,50 @@ const securityStyles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   header: {
+    backgroundColor: '#2563eb',
     paddingTop: Platform.OS === 'android' ? 16 : 50,
     paddingBottom: 20,
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backButton: {
-    marginBottom: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTextContainer: {
+    flex: 1,
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 32,
-    fontWeight: '800',
+    fontSize: 24,
+    fontWeight: '700',
     color: '#fff',
-    marginBottom: 6,
   },
   headerSubtitle: {
     fontSize: 14,
     color: '#e0f2fe',
-    fontWeight: '500',
+    marginTop: 2,
+  },
+  headerPlaceholder: {
+    width: 40,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#6b7280',
   },
   scrollContent: {
     paddingHorizontal: 20,
@@ -996,6 +1025,7 @@ const securityStyles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 24,
     overflow: 'hidden',
+    backgroundColor: '#dbeafe',
   },
   infoGradient: {
     padding: 24,
@@ -1183,6 +1213,14 @@ const securityStylesDark = StyleSheet.create({
   container: {
     ...securityStyles.container,
     backgroundColor: '#0f172a',
+  },
+  header: {
+    ...securityStyles.header,
+    backgroundColor: '#1e40af',
+  },
+  infoCard: {
+    ...securityStyles.infoCard,
+    backgroundColor: '#1e3a8a',
   },
   infoTitle: {
     ...securityStyles.infoTitle,

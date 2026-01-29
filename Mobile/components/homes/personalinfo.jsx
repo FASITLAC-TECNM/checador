@@ -10,9 +10,7 @@ import {
   Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 
-// Función helper para obtener URL de foto
 const obtenerUrlFotoPerfil = (foto) => {
   if (!foto) {
     return null;
@@ -32,17 +30,14 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
 
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
   
-  // Usar los datos que ya vienen en userData desde el login
   const esEmpleado = userData.es_empleado && userData.empleado_id;
   const empleadoInfo = userData.empleadoInfo || null;
   const roles = userData.roles || [];
   
-  // Determinar el rol a mostrar
   const rolMostrar = esEmpleado
     ? 'Empleado'
     : (roles.length > 0 ? roles[0].nombre : (userData.esAdmin ? 'Administrador' : 'Usuario'));
 
-  // Departamentos (pueden venir en empleadoInfo.departamentos)
   const departamentos = empleadoInfo?.departamentos || [];
 
   const InfoRow = ({ icon, label, value, valueColor }) => (
@@ -61,21 +56,20 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#2563eb" translucent={false} />
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor={darkMode ? "#1e40af" : "#2563eb"} 
+        translucent={false} 
+      />
 
-      {/* Header Moderno */}
-      <LinearGradient
-        colors={['#2563eb', '#3b82f6']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
+      {/* Header con color sólido */}
+      <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mi Perfil</Text>
         <View style={styles.headerPlaceholder} />
-      </LinearGradient>
+      </View>
 
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
@@ -83,12 +77,7 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
       >
         {/* Profile Card Compacta */}
         <View style={styles.profileCard}>
-          <LinearGradient
-            colors={darkMode ? ['#1e293b', '#334155'] : ['#ffffff', '#f8fafc']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={styles.profileGradient}
-          >
+          <View style={styles.profileGradient}>
             <View style={styles.profileHeader}>
               <View style={styles.avatarContainer}>
                 {fotoUrl ? (
@@ -131,7 +120,7 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
                 </View>
               </View>
             </View>
-          </LinearGradient>
+          </View>
         </View>
 
         {/* Información Personal */}
@@ -282,6 +271,7 @@ const personalInfoStyles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   header: {
+    backgroundColor: '#2563eb',
     paddingTop: Platform.OS === 'android' ? 16 : 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
@@ -319,6 +309,7 @@ const personalInfoStyles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 4,
+    backgroundColor: '#ffffff',
   },
   profileGradient: {
     padding: 20,
@@ -494,6 +485,14 @@ const personalInfoStylesDark = StyleSheet.create({
   container: {
     ...personalInfoStyles.container,
     backgroundColor: '#0f172a',
+  },
+  header: {
+    ...personalInfoStyles.header,
+    backgroundColor: '#1e40af',
+  },
+  profileCard: {
+    ...personalInfoStyles.profileCard,
+    backgroundColor: '#1e293b',
   },
   profileName: {
     ...personalInfoStyles.profileName,

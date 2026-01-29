@@ -1,132 +1,376 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StatusBar
+  StatusBar,
+  ActivityIndicator,
+  RefreshControl,
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { getAsistenciasEmpleado } from '../../services/asistenciasService';
 
-export const HistoryScreen = ({ darkMode }) => {
+export const HistoryScreen = ({ darkMode, userData }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  
-  const historyData = [
-    { id: 1, type: 'Entrada', date: '2025-10-16', time: '08:00:15 a.m.', location: 'Edificio A' },
-    { id: 2, type: 'Salida', date: '2025-10-16', time: '02:30:42 p.m.', location: 'Edificio A' },
-    { id: 3, type: 'Entrada', date: '2025-10-15', time: '07:58:22 a.m.', location: 'Edificio A' },
-    { id: 4, type: 'Salida', date: '2025-10-15', time: '02:32:18 p.m.', location: 'Edificio A' },
-  ];
+  const [asistencias, setAsistencias] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [estadisticas, setEstadisticas] = useState({
+    diasAsistidos: 0,
+    entradas: 0,
+    salidas: 0,
+    retardos: 0,
+    faltas: 0,
+    puntuales: 0
+  });
 
-  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const monthNames = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
 
   const styles = darkMode ? historyStylesDark : historyStyles;
 
+  // Cargar asistencias del mes actual
+  const cargarAsistencias = useCallback(async () => {
+    if (!userData?.empleado_id || !userData?.token) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const primerDia = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+      const ultimoDia = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+
+      const filtros = {
+        fecha_inicio: primerDia.toISOString().split('T')[0],
+        fecha_fin: ultimoDia.toISOString().split('T')[0]
+      };
+
+      const response = await getAsistenciasEmpleado(userData.empleado_id, userData.token, filtros);
+      
+      if (response?.data && Array.isArray(response.data)) {
+        // Ordenar por fecha más reciente primero
+        const asistenciasOrdenadas = response.data.sort((a, b) => 
+          new Date(b.fecha_registro) - new Date(a.fecha_registro)
+        );
+        
+        setAsistencias(asistenciasOrdenadas);
+        calcularEstadisticas(asistenciasOrdenadas);
+      } else {
+        setAsistencias([]);
+        setEstadisticas({
+          diasAsistidos: 0,
+          entradas: 0,
+          salidas: 0,
+          retardos: 0,
+          faltas: 0,
+          puntuales: 0
+        });
+      }
+    } catch (error) {
+      console.error('Error cargando asistencias:', error);
+      setAsistencias([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [userData, currentMonth]);
+
+  // Calcular estadísticas del mes
+  const calcularEstadisticas = (data) => {
+    const stats = {
+      diasAsistidos: 0,
+      entradas: 0,
+      salidas: 0,
+      retardos: 0,
+      faltas: 0,
+      puntuales: 0
+    };
+
+    // Agrupar por día
+    const diasUnicos = new Set();
+    
+    data.forEach(registro => {
+      const fecha = new Date(registro.fecha_registro).toDateString();
+      diasUnicos.add(fecha);
+
+      if (registro.tipo === 'entrada') {
+        stats.entradas++;
+        if (registro.estado === 'puntual') stats.puntuales++;
+        if (registro.estado === 'retardo') stats.retardos++;
+        if (registro.estado === 'falta') stats.faltas++;
+      } else if (registro.tipo === 'salida') {
+        stats.salidas++;
+      }
+    });
+
+    stats.diasAsistidos = diasUnicos.size;
+
+    setEstadisticas(stats);
+  };
+
+  useEffect(() => {
+    cargarAsistencias();
+  }, [cargarAsistencias]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    cargarAsistencias();
+  };
+
+  const cambiarMes = (direccion) => {
+    const nuevoMes = new Date(currentMonth);
+    nuevoMes.setMonth(currentMonth.getMonth() + direccion);
+    setCurrentMonth(nuevoMes);
+  };
+
+  const formatearFecha = (fechaStr) => {
+    const fecha = new Date(fechaStr);
+    const dia = fecha.getDate().toString().padStart(2, '0');
+    const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
+    const año = fecha.getFullYear();
+    return `${dia}/${mes}/${año}`;
+  };
+
+  const formatearHora = (fechaStr) => {
+    const fecha = new Date(fechaStr);
+    return fecha.toLocaleTimeString('es-MX', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  };
+
+  const obtenerColorEstado = (estado) => {
+    switch (estado) {
+      case 'puntual':
+        return '#059669';
+      case 'retardo':
+        return '#f59e0b';
+      case 'falta':
+        return '#ef4444';
+      default:
+        return '#6b7280';
+    }
+  };
+
+  const obtenerTextoEstado = (estado) => {
+    switch (estado) {
+      case 'puntual':
+        return 'Puntual';
+      case 'retardo':
+        return 'Retardo';
+      case 'falta':
+        return 'Falta';
+      default:
+        return 'Registrado';
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color="#2563eb" />
+        <Text style={styles.loadingText}>Cargando historial...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle={darkMode ? "light-content" : "dark-content"} />
+      
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Historial</Text>
         <Text style={styles.headerSubtitle}>Registro de asistencias</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Records Section */}
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#2563eb"
+            colors={['#2563eb']}
+          />
+        }
+        showsVerticalScrollIndicator={false}
+        bounces={true}
+        overScrollMode="never"
+      >
+        {/* Navegación de mes */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Últimos Registros</Text>
-          <Text style={styles.sectionSubtitle}>Historial de entradas y salidas</Text>
-          
-          {historyData.map((record) => (
-            <View key={record.id} style={styles.recordCard}>
-              <View style={styles.recordHeader}>
-                <View style={styles.recordLeft}>
-                  <View style={[
-                    styles.recordIcon,
-                    { backgroundColor: record.type === 'Entrada' ? '#d1fae5' : '#fed7aa' }
-                  ]}>
-                    <Ionicons 
-                      name={record.type === 'Entrada' ? 'arrow-back' : 'arrow-forward'} 
-                      size={20} 
-                      color={record.type === 'Entrada' ? '#059669' : '#ea580c'}
-                      style={record.type === 'Entrada' ? { transform: [{ rotate: '180deg' }] } : {}}
-                    />
-                  </View>
-                  <View>
-                    <Text style={styles.recordType}>{record.type}</Text>
-                    <Text style={styles.recordLocation}>{record.location}</Text>
-                  </View>
-                </View>
-                <View style={styles.recordRight}>
-                  <Text style={styles.recordTime}>{record.time}</Text>
-                  <Text style={styles.recordDate}>{record.date}</Text>
-                </View>
-              </View>
-              <View style={styles.recordStatus}>
-                <View style={styles.statusDot} />
-                <Text style={styles.statusText}>Registrado correctamente</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        {/* Calendar Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Calendario de Asistencia</Text>
-          
           <View style={styles.calendarHeader}>
-            <TouchableOpacity style={styles.calendarButton}>
+            <TouchableOpacity 
+              style={styles.calendarButton}
+              onPress={() => cambiarMes(-1)}
+            >
               <Ionicons name="chevron-back" size={24} color="#2563eb" />
             </TouchableOpacity>
             <Text style={styles.calendarMonth}>
               {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
             </Text>
-            <TouchableOpacity style={styles.calendarButton}>
-              <Ionicons name="chevron-forward" size={24} color="#2563eb" />
+            <TouchableOpacity 
+              style={styles.calendarButton}
+              onPress={() => cambiarMes(1)}
+              disabled={currentMonth >= new Date()}
+            >
+              <Ionicons 
+                name="chevron-forward" 
+                size={24} 
+                color={currentMonth >= new Date() ? '#9ca3af' : '#2563eb'} 
+              />
             </TouchableOpacity>
-          </View>
-
-          <View style={styles.legendContainer}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#2563eb' }]} />
-              <Text style={styles.legendText}>Hoy</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#d1fae5', borderWidth: 1, borderColor: '#6ee7b7' }]} />
-              <Text style={styles.legendText}>Con registro</Text>
-            </View>
           </View>
         </View>
 
-        {/* Statistics */}
+        {/* Estadísticas */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Estadísticas de {monthNames[currentMonth.getMonth()]}</Text>
           <View style={styles.statsContainer}>
             <View style={styles.statCard}>
-              <View style={[styles.statIcon, { backgroundColor: '#d1fae5' }]}>
-                <Text style={[styles.statNumber, { color: '#059669' }]}>8</Text>
+              <View style={[styles.statIcon, { backgroundColor: '#dbeafe' }]}>
+                <Text style={[styles.statNumber, { color: '#2563eb' }]}>
+                  {estadisticas.diasAsistidos}
+                </Text>
               </View>
-              <Text style={styles.statLabel}>Días asistidos</Text>
+              <Text style={styles.statLabel}>Días con registro</Text>
+            </View>
+            <View style={styles.statCard}>
+              <View style={[styles.statIcon, { backgroundColor: '#d1fae5' }]}>
+                <Text style={[styles.statNumber, { color: '#059669' }]}>
+                  {estadisticas.puntuales}
+                </Text>
+              </View>
+              <Text style={styles.statLabel}>Puntuales</Text>
             </View>
             <View style={styles.statCard}>
               <View style={[styles.statIcon, { backgroundColor: '#fed7aa' }]}>
-                <Text style={[styles.statNumber, { color: '#ea580c' }]}>2</Text>
+                <Text style={[styles.statNumber, { color: '#f59e0b' }]}>
+                  {estadisticas.retardos}
+                </Text>
               </View>
-              <Text style={styles.statLabel}>Faltas</Text>
+              <Text style={styles.statLabel}>Retardos</Text>
+            </View>
+          </View>
+
+          <View style={[styles.statsContainer, { marginTop: 12 }]}>
+            <View style={styles.statCard}>
+              <View style={[styles.statIcon, { backgroundColor: '#d1fae5' }]}>
+                <Text style={[styles.statNumber, { color: '#059669' }]}>
+                  {estadisticas.entradas}
+                </Text>
+              </View>
+              <Text style={styles.statLabel}>Entradas</Text>
             </View>
             <View style={styles.statCard}>
               <View style={[styles.statIcon, { backgroundColor: '#dbeafe' }]}>
-                <Text style={[styles.statNumber, { color: '#2563eb' }]}>90%</Text>
+                <Text style={[styles.statNumber, { color: '#2563eb' }]}>
+                  {estadisticas.salidas}
+                </Text>
               </View>
-              <Text style={styles.statLabel}>Asistencia</Text>
+              <Text style={styles.statLabel}>Salidas</Text>
+            </View>
+            <View style={styles.statCard}>
+              <View style={[styles.statIcon, { backgroundColor: '#fee2e2' }]}>
+                <Text style={[styles.statNumber, { color: '#ef4444' }]}>
+                  {estadisticas.faltas}
+                </Text>
+              </View>
+              <Text style={styles.statLabel}>Faltas</Text>
             </View>
           </View>
         </View>
 
-        <TouchableOpacity style={styles.viewAllButton}>
-          <Text style={styles.viewAllText}>Ver todo el historial</Text>
-        </TouchableOpacity>
+        {/* Lista de registros */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Registros del mes</Text>
+          <Text style={styles.sectionSubtitle}>
+            {asistencias.length} {asistencias.length === 1 ? 'registro' : 'registros'} encontrados
+          </Text>
+          
+          {asistencias.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="calendar-outline" size={48} color="#9ca3af" />
+              <Text style={styles.emptyStateText}>
+                No hay registros para este mes
+              </Text>
+              <Text style={styles.emptyStateSubtext}>
+                Tus asistencias aparecerán aquí
+              </Text>
+            </View>
+          ) : (
+            asistencias.map((registro, index) => (
+              <View key={registro.id || index} style={styles.recordCard}>
+                <View style={styles.recordHeader}>
+                  <View style={styles.recordLeft}>
+                    <View style={[
+                      styles.recordIcon,
+                      { 
+                        backgroundColor: registro.tipo === 'entrada' 
+                          ? '#d1fae5' 
+                          : '#dbeafe' 
+                      }
+                    ]}>
+                      <Ionicons 
+                        name={registro.tipo === 'entrada' ? 'log-in' : 'log-out'} 
+                        size={20} 
+                        color={registro.tipo === 'entrada' ? '#059669' : '#2563eb'}
+                      />
+                    </View>
+                    <View>
+                      <Text style={styles.recordType}>
+                        {registro.tipo === 'entrada' ? 'Entrada' : 'Salida'}
+                      </Text>
+                      <Text style={styles.recordLocation}>
+                        {registro.dispositivo_origen || 'Móvil'}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.recordRight}>
+                    <Text style={styles.recordTime}>
+                      {formatearHora(registro.fecha_registro)}
+                    </Text>
+                    <Text style={styles.recordDate}>
+                      {formatearFecha(registro.fecha_registro)}
+                    </Text>
+                  </View>
+                </View>
+                
+                {registro.tipo === 'entrada' && registro.estado && (
+                  <View style={styles.recordStatus}>
+                    <View style={[
+                      styles.statusDot,
+                      { backgroundColor: obtenerColorEstado(registro.estado) }
+                    ]} />
+                    <Text style={[
+                      styles.statusText,
+                      { color: obtenerColorEstado(registro.estado) }
+                    ]}>
+                      {obtenerTextoEstado(registro.estado)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ))
+          )}
+        </View>
+
+        {asistencias.length > 0 && (
+          <View style={styles.infoBox}>
+            <Ionicons name="information-circle" size={16} color="#3b82f6" />
+            <Text style={styles.infoBoxText}>
+              Desliza hacia abajo para actualizar los registros
+            </Text>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -136,6 +380,16 @@ const historyStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f3f4f6',
+    paddingBottom: 0, // El bottom nav se encarga del espacio inferior
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#6b7280',
   },
   header: {
     backgroundColor: '#2563eb',
@@ -153,7 +407,7 @@ const historyStyles = StyleSheet.create({
     color: '#93c5fd',
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: 120, // Espacio extra para el bottom nav
   },
   section: {
     backgroundColor: '#fff',
@@ -189,11 +443,12 @@ const historyStyles = StyleSheet.create({
   recordHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   recordLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   recordIcon: {
     width: 40,
@@ -209,7 +464,7 @@ const historyStyles = StyleSheet.create({
     color: '#1f2937',
   },
   recordLocation: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#6b7280',
     marginTop: 2,
   },
@@ -230,53 +485,32 @@ const historyStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 5,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
   },
   statusDot: {
     width: 8,
     height: 8,
-    backgroundColor: '#10b981',
     borderRadius: 4,
     marginRight: 8,
   },
   statusText: {
     fontSize: 12,
-    color: '#6b7280',
+    fontWeight: '600',
   },
   calendarHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginVertical: 15,
   },
   calendarButton: {
     padding: 8,
   },
   calendarMonth: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#1f2937',
-  },
-  legendContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 15,
-    paddingTop: 15,
-    borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
-  },
-  legendText: {
-    fontSize: 12,
-    color: '#6b7280',
   },
   statsContainer: {
     flexDirection: 'row',
@@ -300,24 +534,42 @@ const historyStyles = StyleSheet.create({
     fontWeight: 'bold',
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6b7280',
     textAlign: 'center',
   },
-  viewAllButton: {
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginTop: 20,
-    borderRadius: 15,
-    padding: 15,
-    borderWidth: 2,
-    borderColor: '#dbeafe',
+  emptyState: {
     alignItems: 'center',
+    paddingVertical: 40,
   },
-  viewAllText: {
-    color: '#2563eb',
+  emptyStateText: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#4b5563',
+    marginTop: 12,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#9ca3af',
+    marginTop: 4,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    marginHorizontal: 20,
+    marginTop: 20,
+    backgroundColor: '#eff6ff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+  },
+  infoBoxText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#1e40af',
+    lineHeight: 16,
   },
 });
 
@@ -342,6 +594,7 @@ const historyStylesDark = StyleSheet.create({
   recordCard: {
     ...historyStyles.recordCard,
     backgroundColor: '#374151',
+    borderLeftColor: '#3b82f6',
   },
   recordType: {
     ...historyStyles.recordType,
@@ -351,12 +604,43 @@ const historyStylesDark = StyleSheet.create({
     ...historyStyles.recordTime,
     color: '#fff',
   },
+  recordDate: {
+    ...historyStyles.recordDate,
+    color: '#9ca3af',
+  },
+  recordLocation: {
+    ...historyStyles.recordLocation,
+    color: '#9ca3af',
+  },
   calendarMonth: {
     ...historyStyles.calendarMonth,
     color: '#fff',
   },
-  viewAllButton: {
-    ...historyStyles.viewAllButton,
-    backgroundColor: '#1f2937',
+  emptyStateText: {
+    ...historyStyles.emptyStateText,
+    color: '#d1d5db',
+  },
+  emptyStateSubtext: {
+    ...historyStyles.emptyStateSubtext,
+    color: '#6b7280',
+  },
+  loadingText: {
+    ...historyStyles.loadingText,
+    color: '#9ca3af',
+  },
+  infoBox: {
+    ...historyStyles.infoBox,
+    backgroundColor: '#1e3a5f',
+    borderColor: '#3b82f6',
+  },
+  infoBoxText: {
+    ...historyStyles.infoBoxText,
+    color: '#93c5fd',
+  },
+  recordStatus: {
+    ...historyStyles.recordStatus,
+    borderTopColor: '#4b5563',
   },
 });
+
+export default HistoryScreen;

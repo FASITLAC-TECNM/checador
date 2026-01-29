@@ -4,13 +4,11 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  TouchableOpacity,
   StatusBar,
   Platform,
-  TouchableOpacity,
-  SafeAreaView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 
 export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
   const [expandedSections, setExpandedSections] = useState({});
@@ -120,26 +118,25 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#2563eb" translucent={false} />
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor={darkMode ? "#1e40af" : "#2563eb"} 
+        translucent={false} 
+      />
       
-      {/* Header con gradiente - MISMO TAMAÑO QUE SETTINGS */}
-      <LinearGradient
-        colors={darkMode ? ['#1e40af', '#2563eb'] : ['#2563eb', '#3b82f6']}        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={onBack}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back" size={24} color="#fff" />
-        </TouchableOpacity>
+      {/* Header estandarizado - Sin gradiente */}
+      <View style={styles.header}>
         <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Términos y Condiciones</Text>
-          <Text style={styles.headerSubtitle}>Información legal y de uso</Text>
+          <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </TouchableOpacity>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>Términos y condiciones</Text>
+            <Text style={styles.headerSubtitle}>Información legal</Text>
+          </View>
+          <View style={styles.headerPlaceholder} />
         </View>
-      </LinearGradient>
+      </View>
 
       <ScrollView 
         style={styles.scrollView}
@@ -183,12 +180,9 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
           >
             <View style={styles.sectionHeader}>
               <View style={styles.sectionHeaderLeft}>
-                <LinearGradient
-                  colors={[section.color, section.color + 'dd']}
-                  style={styles.sectionIconContainer}
-                >
+                <View style={[styles.sectionIconContainer, { backgroundColor: section.color }]}>
                   <Ionicons name={section.icon} size={22} color="#fff" />
-                </LinearGradient>
+                </View>
                 <Text style={styles.sectionTitle}>{section.title}</Text>
               </View>
               <View style={[
@@ -214,10 +208,10 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
 
         {/* Checkbox de Aceptación Moderno */}
         <View style={styles.acceptanceCard}>
-          <LinearGradient
-            colors={acceptedTerms ? ['#2563eb', '#3b82f6'] : ['#f3f4f6', '#e5e7eb']}
-            style={styles.acceptanceGradient}
-          >
+          <View style={[
+            styles.acceptanceGradient,
+            { backgroundColor: acceptedTerms ? '#2563eb' : '#f3f4f6' }
+          ]}>
             <TouchableOpacity
               style={styles.checkboxContainer}
               onPress={() => setAcceptedTerms(!acceptedTerms)}
@@ -240,7 +234,7 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
                 He leído y acepto los términos y condiciones
               </Text>
             </TouchableOpacity>
-          </LinearGradient>
+          </View>
         </View>
 
         {/* Botones de Acción Mejorados */}
@@ -252,16 +246,11 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
               onPress={onAccept}
               activeOpacity={0.85}
             >
-              <LinearGradient
-                colors={['#10b981', '#059669']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.buttonGradient}
-              >
+              <View style={styles.buttonGradient}>
                 <Ionicons name="checkmark-circle" size={22} color="#fff" />
                 <Text style={styles.buttonTitle}>Aceptar y Continuar</Text>
                 <Ionicons name="arrow-forward" size={20} color="#fff" />
-              </LinearGradient>
+              </View>
             </TouchableOpacity>
           )}
 
@@ -311,12 +300,15 @@ const termsStyles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   header: {
+    backgroundColor: '#2563eb',
     paddingTop: Platform.OS === 'android' ? 16 : 50,
     paddingBottom: 20,
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    justifyContent: 'space-between',
   },
   backButton: {
     width: 40,
@@ -326,19 +318,22 @@ const termsStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerContent: {
+  headerTextContainer: {
     flex: 1,
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: '700',
     color: '#fff',
-    marginBottom: 6,
   },
   headerSubtitle: {
     fontSize: 14,
     color: '#e0f2fe',
-    fontWeight: '500',
+    marginTop: 2,
+  },
+  headerPlaceholder: {
+    width: 40,
   },
   scrollView: {
     flex: 1,
@@ -521,6 +516,7 @@ const termsStyles = StyleSheet.create({
   acceptButton: {
     borderRadius: 16,
     overflow: 'hidden',
+    backgroundColor: '#10b981',
     shadowColor: '#10b981',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
@@ -609,6 +605,10 @@ const termsStylesDark = StyleSheet.create({
     ...termsStyles.container,
     backgroundColor: '#0f172a',
   },
+  header: {
+    ...termsStyles.header,
+    backgroundColor: '#1e40af',
+  },
   introCard: {
     ...termsStyles.introCard,
     backgroundColor: '#1e293b',
@@ -652,6 +652,9 @@ const termsStylesDark = StyleSheet.create({
   sectionText: {
     ...termsStyles.sectionText,
     color: '#d1d5db',
+  },
+  acceptanceGradient: {
+    ...termsStyles.acceptanceGradient,
   },
   checkboxLabel: {
     ...termsStyles.checkboxLabel,

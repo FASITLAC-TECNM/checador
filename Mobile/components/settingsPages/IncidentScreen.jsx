@@ -13,7 +13,6 @@ import {
   Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
   getIncidenciasEmpleado,
   createIncidencia,
@@ -325,13 +324,20 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
   if (loading) {
     return (
       <View style={styles.container}>
+        {/* Header mientras carga - Sin gradiente */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Incidencias</Text>
-          <View style={{ width: 40 }} />
+          <View style={styles.headerContent}>
+            <TouchableOpacity onPress={onBack} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>Incidencias</Text>
+              <Text style={styles.headerSubtitle}>Cargando...</Text>
+            </View>
+            <View style={styles.headerPlaceholder} />
+          </View>
         </View>
+        
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#3b82f6" />
           <Text style={styles.loadingText}>Cargando incidencias...</Text>
@@ -342,12 +348,8 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={darkMode ? ['#1e40af', '#2563eb'] : ['#2563eb', '#3b82f6']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
+      {/* Header estandarizado - Sin gradiente */}
+      <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -365,7 +367,7 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
             <Ionicons name="add" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
-      </LinearGradient>
+      </View>
 
       <ScrollView
         style={styles.content}
@@ -440,6 +442,7 @@ const incidenciasStyles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   header: {
+    backgroundColor: '#2563eb',
     paddingTop: Platform.OS === 'android' ? 16 : 50,
     paddingBottom: 20,
     paddingHorizontal: 16,
@@ -470,6 +473,9 @@ const incidenciasStyles = StyleSheet.create({
     fontSize: 14,
     color: '#e0f2fe',
     marginTop: 2,
+  },
+  headerPlaceholder: {
+    width: 40,
   },
   addButton: {
     width: 40,
@@ -759,6 +765,10 @@ const incidenciasStylesDark = StyleSheet.create({
   container: {
     ...incidenciasStyles.container,
     backgroundColor: '#0f172a',
+  },
+  header: {
+    ...incidenciasStyles.header,
+    backgroundColor: '#1e40af',
   },
   statCard: {
     ...incidenciasStyles.statCard,

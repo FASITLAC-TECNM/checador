@@ -313,6 +313,79 @@ export const haySesionActiva = () => {
 };
 
 /**
+ * Identificar usuario por descriptor facial
+ * Compara el descriptor facial contra todos los registrados en credenciales.facial
+ * @param {string} descriptorBase64 - Descriptor facial en Base64
+ * @returns {Promise<Object>} - Usuario identificado o error
+ */
+export const identificarPorFacial = async (descriptorBase64) => {
+  try {
+    console.log("🔍 Iniciando identificación facial...");
+
+    // Obtener token de autenticación si existe (para endpoints que lo requieran)
+    const token = localStorage.getItem("auth_token");
+
+    const response = await fetch(`${API_URL}/credenciales/facial/identify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify({
+        facial: descriptorBase64,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `Error HTTP: ${response.status}`;
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.error || errorData.message || errorMessage;
+      } catch {
+        errorMessage = errorText || errorMessage;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    console.log("📨 Respuesta del backend:", result);
+
+    if (!result.success || !result.data) {
+      return {
+        success: false,
+        error: result.message || "Rostro no reconocido en el sistema",
+      };
+    }
+
+    const { empleado, matchScore } = result.data;
+    console.log("👤 Empleado identificado:", empleado);
+
+    // Actualizar estado a CONECTADO si tiene id_usuario
+    if (empleado.id_usuario) {
+      try {
+        await actualizarEstadoUsuario(empleado.id_usuario, "CONECTADO");
+        empleado.estado = "CONECTADO";
+      } catch (error) {
+        console.error("⚠️ No se pudo actualizar el estado:", error);
+      }
+    }
+
+    return {
+      success: true,
+      usuario: empleado,
+      matchScore: matchScore || 100,
+    };
+  } catch (error) {
+    console.error("❌ Error en identificación facial:", error);
+    return {
+      success: false,
+      error: error.message || "Error al identificar rostro",
+    };
+  }
+};
+
+/**
  * Registrar descriptor facial para un empleado
  * @param {string} idEmpleado - ID del empleado (CHAR(8))
  * @param {string} descriptorBase64 - Descriptor facial en Base64 (se guarda como BYTEA)

@@ -633,6 +633,7 @@ export default function KioskScreen() {
             setShowCamera(true);
           }}
           onLoginSuccess={handleLoginSuccess}
+          checkMethods={checkMethods}
         />
       )}
 

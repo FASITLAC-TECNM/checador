@@ -104,6 +104,14 @@ export default function BiometricReader({
     }
 
     return () => {
+      // Cancelar cualquier operación en curso antes de cerrar (usar stopCapture que cancela todo)
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        try {
+          wsRef.current.send(JSON.stringify({ command: "stopCapture" }));
+        } catch (e) {
+          console.warn("Error enviando cancelación:", e);
+        }
+      }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
@@ -560,10 +568,10 @@ export default function BiometricReader({
   };
 
   const cancelEnrollment = () => {
-    sendCommand("cancelEnrollment");
+    sendCommand("stopCapture"); // Usar stopCapture para cancelar cualquier operación
     setEnrollProgress({ collected: 0, required: 4, percentage: 0 });
     setCurrentOperation("None");
-    addMessage("⏹️ Enrollment cancelado", "warning");
+    addMessage("⏹️ Operación cancelada", "warning");
   };
 
   const disconnect = () => {
@@ -586,10 +594,32 @@ export default function BiometricReader({
     addMessage("🔄 Refrescando estado...", "info");
   };
 
+  // Manejador para cerrar el modal, cancela operaciones activas primero
+  const handleClose = () => {
+    // Cancelar cualquier operación en curso antes de cerrar (usar stopCapture que cancela todo)
+    if (currentOperation !== "None" && wsRef.current?.readyState === WebSocket.OPEN) {
+      try {
+        wsRef.current.send(JSON.stringify({ command: "stopCapture" }));
+        console.log("⏹️ Operación cancelada al cerrar modal");
+      } catch (e) {
+        console.warn("Error enviando cancelación:", e);
+      }
+    }
+    setCurrentOperation("None");
+    setEnrollProgress({ collected: 0, required: 4, percentage: 0 });
+    if (onClose) onClose();
+  };
+
   const isProcessing = currentOperation !== "None" || savingToDatabase;
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      onClick={(e) => {
+        // Cerrar solo si se hace clic en el backdrop, no en el contenido
+        if (e.target === e.currentTarget) handleClose();
+      }}
+    >
       <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-2xl w-full shadow-2xl">
         <div className="p-6">
           {/* Header */}
@@ -625,7 +655,7 @@ export default function BiometricReader({
 
               {onClose && (
                 <button
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
                 >
                   <X className="w-5 h-5" />

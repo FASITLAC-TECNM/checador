@@ -3,7 +3,10 @@ import { useAuth } from '../../context/AuthContext';
 import BiometricReader from "./BiometricReader";
 import FacialAuthModal from "./FacialAuthModal";
 
-function LoginModal({ isOpen = true, onClose, onLoginSuccess }) {
+function LoginModal({ isOpen = true, onClose, onLoginSuccess, checkMethods }) {
+    // Verificar si los métodos biométricos están habilitados
+    const isFingerprintEnabled = checkMethods?.fingerprint?.enabled ?? false;
+    const isFacialEnabled = checkMethods?.facial?.enabled ?? false;
     const { loginByPin, loginByFingerprint, loading, error: authError } = useAuth();
     const [formData, setFormData] = useState({
         usuario: '',
@@ -333,20 +336,23 @@ function LoginModal({ isOpen = true, onClose, onLoginSuccess }) {
                             <button
                                 type="button"
                                 onClick={handleBiometricLogin}
-                                disabled={isSubmitting || loading}
+                                disabled={isSubmitting || loading || !isFingerprintEnabled}
+                                title={!isFingerprintEnabled ? "Método de huella digital no habilitado" : ""}
                                 className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-700 dark:to-purple-800 hover:from-indigo-700 hover:to-purple-700 dark:hover:from-indigo-600 dark:hover:to-purple-700 text-white rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
                                 </svg>
                                 Iniciar con Huella Digital
+                                {!isFingerprintEnabled && <span className="text-xs opacity-75">(No habilitado)</span>}
                             </button>
 
                             {/* Facial recognition button */}
                             <button
                                 type="button"
                                 onClick={handleFacialLogin}
-                                disabled={isSubmitting || loading}
+                                disabled={isSubmitting || loading || !isFacialEnabled}
+                                title={!isFacialEnabled ? "Método de reconocimiento facial no habilitado" : ""}
                                 className="w-full py-2.5 bg-bg-secondary hover:bg-bg-tertiary border border-border-subtle text-text-secondary hover:text-text-primary rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -354,6 +360,7 @@ function LoginModal({ isOpen = true, onClose, onLoginSuccess }) {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                                 </svg>
                                 Iniciar con Reconocimiento Facial
+                                {!isFacialEnabled && <span className="text-xs opacity-75">(No habilitado)</span>}
                             </button>
                         </div>
                             </>

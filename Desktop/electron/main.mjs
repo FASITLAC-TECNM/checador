@@ -3,12 +3,12 @@
  * Este archivo maneja la ventana de la aplicación y la comunicación con el sistema
  */
 
-import { app, BrowserWindow, ipcMain } from 'electron';
-import path from 'path';
-import os from 'os';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-import { spawn, execSync } from 'child_process';
+import { app, BrowserWindow, ipcMain } from "electron";
+import path from "path";
+import os from "os";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import { spawn, execSync } from "child_process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,7 +17,7 @@ let mainWindow;
 let biometricProcess = null;
 
 // Suprimir logs de errores internos de Chromium (GPU, video capture, etc.)
-app.commandLine.appendSwitch('log-level', '3');
+app.commandLine.appendSwitch("log-level", "3");
 
 /**
  * Función para iniciar el BiometricMiddleware como administrador
@@ -25,22 +25,33 @@ app.commandLine.appendSwitch('log-level', '3');
 function startBiometricMiddleware() {
   try {
     // Ejecutable compilado en Debug/net48
-    const middlewarePath = path.join(__dirname, 'BiometricMiddleware', 'bin', 'Debug', 'net48', 'BiometricMiddleware.exe');
-    const workingDir = path.join(__dirname, 'BiometricMiddleware', 'bin', 'Debug', 'net48');
+    const middlewarePath = path.join(
+      __dirname,
+      "BiometricMiddleware",
+      "bin",
+      "BiometricMiddleware.exe",
+    );
+    const workingDir = path.join(__dirname, "BiometricMiddleware", "bin");
 
     // Verificar que el archivo existe
     if (!fs.existsSync(middlewarePath)) {
-      console.error('[ERROR] BiometricMiddleware.exe no encontrado en:', middlewarePath);
+      console.error(
+        "[ERROR] BiometricMiddleware.exe no encontrado en:",
+        middlewarePath,
+      );
       return;
     }
 
-    console.log('[BIOMETRIC] Iniciando BiometricMiddleware desde:', middlewarePath);
+    console.log(
+      "[BIOMETRIC] Iniciando BiometricMiddleware desde:",
+      middlewarePath,
+    );
 
-    if (process.platform === 'win32') {
+    if (process.platform === "win32") {
       // En Windows, ejecutar directamente con spawn
       // El ejecutable debe tener configurado "requireAdministrator" en su manifiesto
       // O se debe ejecutar Electron como administrador
-      console.log('🔑 Ejecutando BiometricMiddleware en Windows...');
+      console.log("🔑 Ejecutando BiometricMiddleware en Windows...");
 
       biometricProcess = spawn(middlewarePath, [], {
         cwd: workingDir,
@@ -50,30 +61,38 @@ function startBiometricMiddleware() {
       });
 
       // Manejar salida estándar
-      biometricProcess.stdout.on('data', (data) => {
+      biometricProcess.stdout.on("data", (data) => {
         console.log(`[BiometricMiddleware] ${data.toString().trim()}`);
       });
 
       // Manejar errores
-      biometricProcess.stderr.on('data', (data) => {
+      biometricProcess.stderr.on("data", (data) => {
         console.error(`[BiometricMiddleware ERROR] ${data.toString().trim()}`);
       });
 
       // Manejar cierre del proceso
-      biometricProcess.on('close', (code) => {
-        console.log(`[BIOMETRIC] BiometricMiddleware cerrado con código: ${code}`);
+      biometricProcess.on("close", (code) => {
+        console.log(
+          `[BIOMETRIC] BiometricMiddleware cerrado con código: ${code}`,
+        );
         biometricProcess = null;
       });
 
       // Manejar errores al iniciar
-      biometricProcess.on('error', (error) => {
-        console.error('[ERROR] Error al iniciar BiometricMiddleware:', error);
-        console.error('💡 SOLUCIÓN: Ejecuta Electron como administrador');
-        console.error('   Cierra esta ventana y haz clic derecho en VS Code > Ejecutar como administrador');
+      biometricProcess.on("error", (error) => {
+        console.error("[ERROR] Error al iniciar BiometricMiddleware:", error);
+        console.error("💡 SOLUCIÓN: Ejecuta Electron como administrador");
+        console.error(
+          "   Cierra esta ventana y haz clic derecho en VS Code > Ejecutar como administrador",
+        );
         biometricProcess = null;
       });
 
-      console.log('[OK] BiometricMiddleware iniciado correctamente (PID:', biometricProcess.pid, ')');
+      console.log(
+        "[OK] BiometricMiddleware iniciado correctamente (PID:",
+        biometricProcess.pid,
+        ")",
+      );
     } else {
       // En otros sistemas operativos, ejecutar normalmente
       biometricProcess = spawn(middlewarePath, [], {
@@ -81,31 +100,37 @@ function startBiometricMiddleware() {
       });
 
       // Manejar salida estándar
-      biometricProcess.stdout.on('data', (data) => {
+      biometricProcess.stdout.on("data", (data) => {
         console.log(`[BiometricMiddleware] ${data.toString().trim()}`);
       });
 
       // Manejar errores
-      biometricProcess.stderr.on('data', (data) => {
+      biometricProcess.stderr.on("data", (data) => {
         console.error(`[BiometricMiddleware ERROR] ${data.toString().trim()}`);
       });
 
       // Manejar cierre del proceso
-      biometricProcess.on('close', (code) => {
-        console.log(`[BIOMETRIC] BiometricMiddleware cerrado con código: ${code}`);
+      biometricProcess.on("close", (code) => {
+        console.log(
+          `[BIOMETRIC] BiometricMiddleware cerrado con código: ${code}`,
+        );
         biometricProcess = null;
       });
 
       // Manejar errores al iniciar
-      biometricProcess.on('error', (error) => {
-        console.error('[ERROR] Error al iniciar BiometricMiddleware:', error);
+      biometricProcess.on("error", (error) => {
+        console.error("[ERROR] Error al iniciar BiometricMiddleware:", error);
         biometricProcess = null;
       });
 
-      console.log('[OK] BiometricMiddleware iniciado correctamente (PID:', biometricProcess.pid, ')');
+      console.log(
+        "[OK] BiometricMiddleware iniciado correctamente (PID:",
+        biometricProcess.pid,
+        ")",
+      );
     }
   } catch (error) {
-    console.error('[ERROR] Error al iniciar BiometricMiddleware:', error);
+    console.error("[ERROR] Error al iniciar BiometricMiddleware:", error);
   }
 }
 
@@ -114,13 +139,13 @@ function startBiometricMiddleware() {
  */
 function stopBiometricMiddleware() {
   if (biometricProcess) {
-    console.log('[BIOMETRIC] Deteniendo BiometricMiddleware...');
+    console.log("[BIOMETRIC] Deteniendo BiometricMiddleware...");
     try {
       biometricProcess.kill();
       biometricProcess = null;
-      console.log('[OK] BiometricMiddleware detenido');
+      console.log("[OK] BiometricMiddleware detenido");
     } catch (error) {
-      console.error('[ERROR] Error al detener BiometricMiddleware:', error);
+      console.error("[ERROR] Error al detener BiometricMiddleware:", error);
     }
   }
 }
@@ -135,34 +160,34 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.cjs'),
+      preload: path.join(__dirname, "preload.cjs"),
       enableWebSQL: false,
-      v8CacheOptions: 'code',
+      v8CacheOptions: "code",
       // Mejorar rendimiento de video
       backgroundThrottling: false,
       // Deshabilitar seguridad web para permitir CORS en desarrollo
-      webSecurity: process.env.NODE_ENV !== 'development' ? true : false,
+      webSecurity: process.env.NODE_ENV !== "development" ? true : false,
     },
     frame: true,
-    backgroundColor: '#ffffff',
+    backgroundColor: "#ffffff",
     show: false, // No mostrar hasta que esté listo
     autoHideMenuBar: true, // Ocultar el menú automáticamente
   });
 
   // Cargar la aplicación
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === "development") {
     // En desarrollo, cargar desde el servidor de desarrollo de Vite
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL("http://localhost:5173");
     // Abrir DevTools solo si se necesita para debugging
     // mainWindow.webContents.openDevTools();
   } else {
     // En producción, cargar el archivo index.html compilado desde la app empaquetada
-    const indexPath = path.join(app.getAppPath(), 'dist', 'index.html');
-    console.log('📂 Cargando desde:', indexPath);
-    console.log('📂 App path:', app.getAppPath());
+    const indexPath = path.join(app.getAppPath(), "dist", "index.html");
+    console.log("📂 Cargando desde:", indexPath);
+    console.log("📂 App path:", app.getAppPath());
 
-    mainWindow.loadFile(indexPath).catch(err => {
-      console.error('[ERROR] Error cargando index.html:', err);
+    mainWindow.loadFile(indexPath).catch((err) => {
+      console.error("[ERROR] Error cargando index.html:", err);
     });
 
     // Abrir DevTools en producción para ver errores
@@ -170,18 +195,21 @@ function createWindow() {
   }
 
   // Mostrar cuando esté listo para evitar flash
-  mainWindow.once('ready-to-show', () => {
-    console.log('[OK] Ventana lista para mostrar');
+  mainWindow.once("ready-to-show", () => {
+    console.log("[OK] Ventana lista para mostrar");
     mainWindow.show();
   });
 
   // Log de errores de carga
-  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-    console.error('[ERROR] Error de carga:', errorCode, errorDescription);
-  });
+  mainWindow.webContents.on(
+    "did-fail-load",
+    (event, errorCode, errorDescription) => {
+      console.error("[ERROR] Error de carga:", errorCode, errorDescription);
+    },
+  );
 
   // Emitted when the window is closed.
-  mainWindow.on('closed', function () {
+  mainWindow.on("closed", function () {
     mainWindow = null;
   });
 }
@@ -194,15 +222,15 @@ app.whenReady().then(() => {
   // Crear la ventana principal
   createWindow();
 
-  app.on('activate', function () {
+  app.on("activate", function () {
     // En macOS es común recrear una ventana cuando se hace clic en el icono del dock
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
 // Salir cuando todas las ventanas estén cerradas, excepto en macOS
-app.on('window-all-closed', function () {
-  if (process.platform !== 'darwin') {
+app.on("window-all-closed", function () {
+  if (process.platform !== "darwin") {
     // Detener el BiometricMiddleware antes de salir
     stopBiometricMiddleware();
     app.quit();
@@ -210,7 +238,7 @@ app.on('window-all-closed', function () {
 });
 
 // Detener el BiometricMiddleware cuando la app se cierre
-app.on('will-quit', () => {
+app.on("will-quit", () => {
   stopBiometricMiddleware();
 });
 
@@ -219,41 +247,41 @@ app.on('will-quit', () => {
 /**
  * Obtener información del sistema
  */
-ipcMain.handle('get-system-info', async () => {
+ipcMain.handle("get-system-info", async () => {
   try {
     const networkInterfaces = os.networkInterfaces();
-    let ipAddress = 'No detectada';
-    let macAddress = 'No detectada';
+    let ipAddress = "No detectada";
+    let macAddress = "No detectada";
 
     // Buscar la primera interfaz IPv4 que no sea localhost
     for (const name of Object.keys(networkInterfaces)) {
       for (const net of networkInterfaces[name]) {
         // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
-        if (net.family === 'IPv4' && !net.internal) {
+        if (net.family === "IPv4" && !net.internal) {
           ipAddress = net.address;
           macAddress = net.mac.toUpperCase();
           break;
         }
       }
-      if (ipAddress !== 'No detectada') break;
+      if (ipAddress !== "No detectada") break;
     }
 
     // Formatear el nombre del sistema operativo de forma más amigable
     let osName = os.type();
     const release = os.release();
 
-    if (osName === 'Windows_NT') {
+    if (osName === "Windows_NT") {
       // Detectar versión de Windows basado en el build number
-      const buildNumber = parseInt(release.split('.')[2] || '0');
+      const buildNumber = parseInt(release.split(".")[2] || "0");
       if (buildNumber >= 22000) {
-        osName = 'Windows 11';
+        osName = "Windows 11";
       } else if (buildNumber >= 10240) {
-        osName = 'Windows 10';
+        osName = "Windows 10";
       } else {
-        osName = 'Windows';
+        osName = "Windows";
       }
-    } else if (osName === 'Darwin') {
-      osName = 'macOS';
+    } else if (osName === "Darwin") {
+      osName = "macOS";
     }
 
     return {
@@ -263,16 +291,16 @@ ipcMain.handle('get-system-info', async () => {
       platform: os.platform(),
       arch: os.arch(),
       hostname: os.hostname(),
-      totalMemory: `${Math.round(os.totalmem() / (1024 ** 3))} GB`,
-      freeMemory: `${Math.round(os.freemem() / (1024 ** 3))} GB`,
+      totalMemory: `${Math.round(os.totalmem() / 1024 ** 3)} GB`,
+      freeMemory: `${Math.round(os.freemem() / 1024 ** 3)} GB`,
       cpus: os.cpus().length,
-      cpuModel: os.cpus()[0]?.model || 'No disponible',
+      cpuModel: os.cpus()[0]?.model || "No disponible",
       uptime: Math.floor(os.uptime() / 3600), // horas
     };
   } catch (error) {
-    console.error('Error obteniendo información del sistema:', error);
+    console.error("Error obteniendo información del sistema:", error);
     return {
-      error: 'No se pudo obtener la información del sistema',
+      error: "No se pudo obtener la información del sistema",
     };
   }
 });
@@ -280,7 +308,7 @@ ipcMain.handle('get-system-info', async () => {
 /**
  * Obtener información de red detallada
  */
-ipcMain.handle('get-network-info', async () => {
+ipcMain.handle("get-network-info", async () => {
   try {
     const networkInterfaces = os.networkInterfaces();
     const interfaces = [];
@@ -300,7 +328,7 @@ ipcMain.handle('get-network-info', async () => {
 
     return interfaces;
   } catch (error) {
-    console.error('Error obteniendo información de red:', error);
+    console.error("Error obteniendo información de red:", error);
     return [];
   }
 });
@@ -308,7 +336,7 @@ ipcMain.handle('get-network-info', async () => {
 /**
  * Minimizar ventana
  */
-ipcMain.on('minimize-window', () => {
+ipcMain.on("minimize-window", () => {
   if (mainWindow) {
     mainWindow.minimize();
   }
@@ -317,7 +345,7 @@ ipcMain.on('minimize-window', () => {
 /**
  * Maximizar/Restaurar ventana
  */
-ipcMain.on('maximize-window', () => {
+ipcMain.on("maximize-window", () => {
   if (mainWindow) {
     if (mainWindow.isMaximized()) {
       mainWindow.restore();
@@ -330,7 +358,7 @@ ipcMain.on('maximize-window', () => {
 /**
  * Cerrar ventana
  */
-ipcMain.on('close-window', () => {
+ipcMain.on("close-window", () => {
   if (mainWindow) {
     mainWindow.close();
   }
@@ -339,7 +367,7 @@ ipcMain.on('close-window', () => {
 /**
  * Obtener si la ventana está maximizada
  */
-ipcMain.handle('is-maximized', () => {
+ipcMain.handle("is-maximized", () => {
   return mainWindow ? mainWindow.isMaximized() : false;
 });
 
@@ -348,13 +376,13 @@ ipcMain.handle('is-maximized', () => {
  * La configuración se guarda en la carpeta de datos de usuario de la aplicación
  */
 const getConfigPath = () => {
-  return path.join(app.getPath('userData'), 'app-config.json');
+  return path.join(app.getPath("userData"), "app-config.json");
 };
 
 /**
  * Leer configuración desde archivo
  */
-ipcMain.handle('config-get', async (event, key) => {
+ipcMain.handle("config-get", async (event, key) => {
   try {
     const configPath = getConfigPath();
 
@@ -364,12 +392,12 @@ ipcMain.handle('config-get', async (event, key) => {
     }
 
     // Leer el archivo
-    const data = fs.readFileSync(configPath, 'utf8');
+    const data = fs.readFileSync(configPath, "utf8");
     const config = JSON.parse(data);
 
     return key ? config[key] : config;
   } catch (error) {
-    console.error('Error leyendo configuración:', error);
+    console.error("Error leyendo configuración:", error);
     return null;
   }
 });
@@ -377,14 +405,14 @@ ipcMain.handle('config-get', async (event, key) => {
 /**
  * Guardar configuración en archivo
  */
-ipcMain.handle('config-set', async (event, key, value) => {
+ipcMain.handle("config-set", async (event, key, value) => {
   try {
     const configPath = getConfigPath();
     let config = {};
 
     // Si el archivo existe, leer la configuración actual
     if (fs.existsSync(configPath)) {
-      const data = fs.readFileSync(configPath, 'utf8');
+      const data = fs.readFileSync(configPath, "utf8");
       config = JSON.parse(data);
     }
 
@@ -398,11 +426,11 @@ ipcMain.handle('config-set', async (event, key, value) => {
     }
 
     // Guardar el archivo
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf8");
 
     return true;
   } catch (error) {
-    console.error('Error guardando configuración:', error);
+    console.error("Error guardando configuración:", error);
     return false;
   }
 });
@@ -410,7 +438,7 @@ ipcMain.handle('config-set', async (event, key, value) => {
 /**
  * Eliminar una clave de configuración
  */
-ipcMain.handle('config-remove', async (event, key) => {
+ipcMain.handle("config-remove", async (event, key) => {
   try {
     const configPath = getConfigPath();
 
@@ -418,16 +446,16 @@ ipcMain.handle('config-remove', async (event, key) => {
       return true;
     }
 
-    const data = fs.readFileSync(configPath, 'utf8');
+    const data = fs.readFileSync(configPath, "utf8");
     const config = JSON.parse(data);
 
     delete config[key];
 
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf8");
 
     return true;
   } catch (error) {
-    console.error('Error eliminando configuración:', error);
+    console.error("Error eliminando configuración:", error);
     return false;
   }
 });
@@ -442,7 +470,7 @@ ipcMain.handle('config-remove', async (event, key) => {
  */
 function calculateEuclideanDistance(descriptor1, descriptor2) {
   if (descriptor1.length !== descriptor2.length) {
-    throw new Error('Los descriptores deben tener la misma longitud');
+    throw new Error("Los descriptores deben tener la misma longitud");
   }
 
   let sum = 0;
@@ -460,52 +488,62 @@ function calculateEuclideanDistance(descriptor1, descriptor2) {
 function getBackendUrl() {
   const configPath = getConfigPath();
   // URL por defecto - Dev Tunnel
-  let backendUrl = 'https://9dm7dqf9-3001.usw3.devtunnels.ms';
+  let backendUrl = "https://9dm7dqf9-3001.usw3.devtunnels.ms";
 
   try {
     if (fs.existsSync(configPath)) {
-      const data = fs.readFileSync(configPath, 'utf8');
+      const data = fs.readFileSync(configPath, "utf8");
       const config = JSON.parse(data);
       backendUrl = config.backendUrl || backendUrl;
     }
   } catch (error) {
-    console.error('[WARN] Error leyendo configuración, usando URL por defecto:', error);
+    console.error(
+      "[WARN] Error leyendo configuración, usando URL por defecto:",
+      error,
+    );
   }
 
   // Eliminar barra final si existe
-  return backendUrl.replace(/\/$/, '');
+  return backendUrl.replace(/\/$/, "");
 }
 
 /**
  * Verificar usuario por reconocimiento facial
  * Recibe un descriptor facial y lo compara con todos los registrados en la DB
  */
-ipcMain.handle('verificar-usuario', async (event, descriptor) => {
+ipcMain.handle("verificar-usuario", async (event, descriptor) => {
   try {
-    console.log('[SCAN] Verificando usuario por reconocimiento facial...');
+    console.log("[SCAN] Verificando usuario por reconocimiento facial...");
 
     const backendUrl = getBackendUrl();
     console.log(`📡 Conectando a: ${backendUrl}`);
 
     // Obtener todos los descriptores faciales de la base de datos
-    const response = await fetch(`${backendUrl}/api/credenciales/descriptores`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
+    const response = await fetch(
+      `${backendUrl}/api/credenciales/descriptores`,
+      {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
       },
-    });
+    );
 
     if (!response.ok) {
-      throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
+      throw new Error(
+        `Error HTTP: ${response.status} - ${response.statusText}`,
+      );
     }
 
     const credenciales = await response.json();
-    console.log(`[INFO] Comparando con ${credenciales.length} descriptores en la BD...`);
+    console.log(
+      `[INFO] Comparando con ${credenciales.length} descriptores en la BD...`,
+    );
 
     if (credenciales.length === 0) {
       return {
         success: false,
-        message: 'No hay descriptores faciales registrados en la base de datos',
+        message: "No hay descriptores faciales registrados en la base de datos",
       };
     }
 
@@ -515,11 +553,18 @@ ipcMain.handle('verificar-usuario', async (event, descriptor) => {
     let bestDistance = Infinity;
 
     console.log(`[SCAN] Descriptor recibido: ${descriptor.length} dimensiones`);
-    console.log(`[INFO] Primeros 5 valores: [${descriptor.slice(0, 5).map(v => v.toFixed(4)).join(', ')}...]`);
+    console.log(
+      `[INFO] Primeros 5 valores: [${descriptor
+        .slice(0, 5)
+        .map((v) => v.toFixed(4))
+        .join(", ")}...]`,
+    );
 
     for (const credencial of credenciales) {
       if (!credencial.descriptor_facial) {
-        console.log(`[WARN] Empleado ${credencial.empleado_id} (${credencial.nombre}) no tiene descriptor facial`);
+        console.log(
+          `[WARN] Empleado ${credencial.empleado_id} (${credencial.nombre}) no tiene descriptor facial`,
+        );
         continue;
       }
 
@@ -527,13 +572,17 @@ ipcMain.handle('verificar-usuario', async (event, descriptor) => {
       const storedDescriptor = credencial.descriptor_facial;
 
       if (storedDescriptor.length !== descriptor.length) {
-        console.log(`[WARN] Empleado ${credencial.empleado_id}: descriptor con longitud incorrecta (${storedDescriptor.length} vs ${descriptor.length})`);
+        console.log(
+          `[WARN] Empleado ${credencial.empleado_id}: descriptor con longitud incorrecta (${storedDescriptor.length} vs ${descriptor.length})`,
+        );
         continue;
       }
 
       const distance = calculateEuclideanDistance(descriptor, storedDescriptor);
 
-      console.log(`[MEASURE] Empleado ${credencial.empleado_id} (${credencial.nombre}): distancia = ${distance.toFixed(4)} ${distance < THRESHOLD ? '[OK] MATCH!' : '[ERROR]'}`);
+      console.log(
+        `[MEASURE] Empleado ${credencial.empleado_id} (${credencial.nombre}): distancia = ${distance.toFixed(4)} ${distance < THRESHOLD ? "[OK] MATCH!" : "[ERROR]"}`,
+      );
 
       if (distance < bestDistance) {
         bestDistance = distance;
@@ -541,24 +590,35 @@ ipcMain.handle('verificar-usuario', async (event, descriptor) => {
       }
     }
 
-    console.log(`\n🎯 Mejor coincidencia: ${bestMatch ? `${bestMatch.empleado_id} (${bestMatch.nombre})` : 'Ninguna'}`);
+    console.log(
+      `\n🎯 Mejor coincidencia: ${bestMatch ? `${bestMatch.empleado_id} (${bestMatch.nombre})` : "Ninguna"}`,
+    );
     console.log(`[MEASURE] Mejor distancia: ${bestDistance.toFixed(4)}`);
     console.log(`[THRESHOLD] Umbral: ${THRESHOLD}`);
-    console.log(`[OK] ¿Acepta?: ${bestMatch && bestDistance < THRESHOLD ? 'SÍ' : 'NO'}\n`);
+    console.log(
+      `[OK] ¿Acepta?: ${bestMatch && bestDistance < THRESHOLD ? "SÍ" : "NO"}\n`,
+    );
 
     if (bestMatch && bestDistance < THRESHOLD) {
-      console.log(`[OK] Usuario identificado: ${bestMatch.empleado_id} (${bestMatch.nombre}) - distancia: ${bestDistance.toFixed(4)}`);
+      console.log(
+        `[OK] Usuario identificado: ${bestMatch.empleado_id} (${bestMatch.nombre}) - distancia: ${bestDistance.toFixed(4)}`,
+      );
 
       // Obtener información del empleado
-      const empleadoResponse = await fetch(`${backendUrl}/api/empleados/${bestMatch.empleado_id}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
+      const empleadoResponse = await fetch(
+        `${backendUrl}/api/empleados/${bestMatch.empleado_id}`,
+        {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+          },
         },
-      });
+      );
 
       if (!empleadoResponse.ok) {
-        throw new Error(`Error obteniendo datos del empleado: ${empleadoResponse.status}`);
+        throw new Error(
+          `Error obteniendo datos del empleado: ${empleadoResponse.status}`,
+        );
       }
 
       const empleado = await empleadoResponse.json();
@@ -567,24 +627,28 @@ ipcMain.handle('verificar-usuario', async (event, descriptor) => {
         success: true,
         empleado: empleado,
         distancia: bestDistance,
-        message: 'Usuario identificado correctamente',
+        message: "Usuario identificado correctamente",
       };
     } else {
       console.log(`[ERROR] No se encontró coincidencia suficiente`);
-      console.log(`   Mejor candidato: ${bestMatch ? `${bestMatch.nombre} (distancia: ${bestDistance.toFixed(4)})` : 'Ninguno'}`);
+      console.log(
+        `   Mejor candidato: ${bestMatch ? `${bestMatch.nombre} (distancia: ${bestDistance.toFixed(4)})` : "Ninguno"}`,
+      );
       console.log(`   Se requiere distancia < ${THRESHOLD}\n`);
       return {
         success: false,
-        message: 'Rostro no identificado',
+        message: "Rostro no identificado",
         distancia: bestDistance,
-        mejorCandidato: bestMatch ? {
-          nombre: bestMatch.nombre,
-          distancia: bestDistance
-        } : null
+        mejorCandidato: bestMatch
+          ? {
+              nombre: bestMatch.nombre,
+              distancia: bestDistance,
+            }
+          : null,
       };
     }
   } catch (error) {
-    console.error('[ERROR] Error verificando usuario:', error);
+    console.error("[ERROR] Error verificando usuario:", error);
     return {
       success: false,
       message: `Error de conexión: ${error.message}`,
@@ -597,7 +661,7 @@ ipcMain.handle('verificar-usuario', async (event, descriptor) => {
  * Registrar asistencia con reconocimiento facial
  * Verifica el usuario y registra su asistencia
  */
-ipcMain.handle('registrar-asistencia-facial', async (event, empleadoId) => {
+ipcMain.handle("registrar-asistencia-facial", async (event, empleadoId) => {
   try {
     console.log(`📝 Registrando asistencia para empleado ${empleadoId}...`);
 
@@ -605,34 +669,37 @@ ipcMain.handle('registrar-asistencia-facial', async (event, empleadoId) => {
     console.log(`📡 Conectando a: ${backendUrl}`);
 
     // Registrar la asistencia
-    const response = await fetch(`${backendUrl}/api/asistencia/registrar-facial`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
+    const response = await fetch(
+      `${backendUrl}/api/asistencia/registrar-facial`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          id_empleado: empleadoId,
+          tipo: "Escritorio", // Tipo de ubicación del dispositivo
+        }),
       },
-      body: JSON.stringify({
-        id_empleado: empleadoId,
-        tipo: 'Escritorio', // Tipo de ubicación del dispositivo
-      }),
-    });
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[ERROR] Respuesta del servidor:', errorText);
+      console.error("[ERROR] Respuesta del servidor:", errorText);
       throw new Error(`Error HTTP ${response.status}: ${errorText}`);
     }
 
     const result = await response.json();
-    console.log('[OK] Asistencia registrada exitosamente');
+    console.log("[OK] Asistencia registrada exitosamente");
 
     return {
       success: true,
-      message: 'Asistencia registrada correctamente',
+      message: "Asistencia registrada correctamente",
       data: result,
     };
   } catch (error) {
-    console.error('[ERROR] Error registrando asistencia:', error);
+    console.error("[ERROR] Error registrando asistencia:", error);
     return {
       success: false,
       message: `Error de conexión: ${error.message}`,
@@ -645,15 +712,25 @@ ipcMain.handle('registrar-asistencia-facial', async (event, empleadoId) => {
  * Leer template de huella dactilar desde archivo .fpt
  * Lee el archivo guardado por BiometricMiddleware y lo convierte a Base64
  */
-ipcMain.handle('read-fingerprint-template', async (event, userId) => {
+ipcMain.handle("read-fingerprint-template", async (event, userId) => {
   try {
     console.log(`[FILE] Leyendo template de huella para userId: ${userId}`);
 
-    const templatePath = path.join(__dirname, 'BiometricMiddleware', 'bin', 'Debug', 'net48', 'FingerprintTemplates', `${userId}.fpt`);
+    const templatePath = path.join(
+      __dirname,
+      "BiometricMiddleware",
+      "bin",
+      "Debug",
+      "net48",
+      "FingerprintTemplates",
+      `${userId}.fpt`,
+    );
 
     // Verificar que el archivo existe
     if (!fs.existsSync(templatePath)) {
-      console.error(`[ERROR] Archivo de template no encontrado: ${templatePath}`);
+      console.error(
+        `[ERROR] Archivo de template no encontrado: ${templatePath}`,
+      );
       return null;
     }
 
@@ -662,12 +739,12 @@ ipcMain.handle('read-fingerprint-template', async (event, userId) => {
     console.log(`[OK] Template leído: ${buffer.length} bytes`);
 
     // Convertir a Base64
-    const base64 = buffer.toString('base64');
+    const base64 = buffer.toString("base64");
     console.log(`📤 Template convertido a Base64: ${base64.length} caracteres`);
 
     return base64;
   } catch (error) {
-    console.error('[ERROR] Error leyendo template de huella:', error);
+    console.error("[ERROR] Error leyendo template de huella:", error);
     return null;
   }
 });
@@ -676,68 +753,79 @@ ipcMain.handle('read-fingerprint-template', async (event, userId) => {
  * Registrar descriptor facial para un empleado
  * Convierte el descriptor array a Base64 (igual que las huellas) y lo guarda en la DB como BYTEA
  */
-ipcMain.handle('registrar-descriptor-facial', async (event, empleadoId, descriptor) => {
-  try {
-    console.log(`[SAVE] Registrando descriptor facial para empleado ${empleadoId}...`);
+ipcMain.handle(
+  "registrar-descriptor-facial",
+  async (event, empleadoId, descriptor) => {
+    try {
+      console.log(
+        `[SAVE] Registrando descriptor facial para empleado ${empleadoId}...`,
+      );
 
-    const backendUrl = getBackendUrl();
-    console.log(`📡 Conectando a: ${backendUrl}`);
+      const backendUrl = getBackendUrl();
+      console.log(`📡 Conectando a: ${backendUrl}`);
 
-    // Verificar que el descriptor sea válido
-    if (!descriptor || !Array.isArray(descriptor) || descriptor.length === 0) {
-      throw new Error('Descriptor facial inválido');
+      // Verificar que el descriptor sea válido
+      if (
+        !descriptor ||
+        !Array.isArray(descriptor) ||
+        descriptor.length === 0
+      ) {
+        throw new Error("Descriptor facial inválido");
+      }
+
+      console.log(`[INFO] Descriptor: ${descriptor.length} dimensiones`);
+
+      // Convertir el descriptor array a Float32Array y luego a Base64
+      // Esto es necesario porque el backend espera BYTEA (igual que las huellas)
+      const float32Array = new Float32Array(descriptor);
+      const buffer = Buffer.from(float32Array.buffer);
+      const descriptorBase64 = buffer.toString("base64");
+
+      console.log(
+        `[INFO] Descriptor convertido a Base64: ${descriptorBase64.length} caracteres`,
+      );
+
+      // Enviar el descriptor al backend usando el endpoint correcto
+      const response = await fetch(`${backendUrl}/api/credenciales/facial`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          empleado_id: empleadoId,
+          facial: descriptorBase64,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[ERROR] Respuesta del servidor:", errorText);
+        throw new Error(`Error HTTP ${response.status}: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log("[OK] Descriptor facial guardado exitosamente");
+
+      return {
+        success: true,
+        message: "Descriptor facial registrado correctamente",
+        data: {
+          id_credencial: result.id,
+          descriptor_size: descriptorBase64.length,
+          timestamp: new Date().toISOString(),
+        },
+      };
+    } catch (error) {
+      console.error("[ERROR] Error registrando descriptor facial:", error);
+      return {
+        success: false,
+        message: `Error de conexión: ${error.message}`,
+        error: error.toString(),
+      };
     }
-
-    console.log(`[INFO] Descriptor: ${descriptor.length} dimensiones`);
-
-    // Convertir el descriptor array a Float32Array y luego a Base64
-    // Esto es necesario porque el backend espera BYTEA (igual que las huellas)
-    const float32Array = new Float32Array(descriptor);
-    const buffer = Buffer.from(float32Array.buffer);
-    const descriptorBase64 = buffer.toString('base64');
-
-    console.log(`[INFO] Descriptor convertido a Base64: ${descriptorBase64.length} caracteres`);
-
-    // Enviar el descriptor al backend usando el endpoint correcto
-    const response = await fetch(`${backendUrl}/api/credenciales/facial`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
-        empleado_id: empleadoId,
-        facial: descriptorBase64,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[ERROR] Respuesta del servidor:', errorText);
-      throw new Error(`Error HTTP ${response.status}: ${errorText}`);
-    }
-
-    const result = await response.json();
-    console.log('[OK] Descriptor facial guardado exitosamente');
-
-    return {
-      success: true,
-      message: 'Descriptor facial registrado correctamente',
-      data: {
-        id_credencial: result.id,
-        descriptor_size: descriptorBase64.length,
-        timestamp: new Date().toISOString(),
-      },
-    };
-  } catch (error) {
-    console.error('[ERROR] Error registrando descriptor facial:', error);
-    return {
-      success: false,
-      message: `Error de conexión: ${error.message}`,
-      error: error.toString(),
-    };
-  }
-});
+  },
+);
 
 // ===== Detección de Dispositivos USB =====
 
@@ -745,30 +833,37 @@ ipcMain.handle('registrar-descriptor-facial', async (event, empleadoId, descript
  * Detectar dispositivos USB conectados al sistema
  * En Windows usa WMIC, en Linux/Mac usa lsusb o system_profiler
  */
-ipcMain.handle('detect-usb-devices', async () => {
+ipcMain.handle("detect-usb-devices", async () => {
   try {
-    console.log('[USB] Detectando dispositivos USB conectados...');
+    console.log("[USB] Detectando dispositivos USB conectados...");
     const devices = [];
 
-    if (process.platform === 'win32') {
+    if (process.platform === "win32") {
       // Windows: Usar PowerShell para obtener información detallada de dispositivos USB
       try {
         // Obtener dispositivos USB con PowerShell - incluir más clases
         // Usar Base64 para evitar problemas de escape
         const psScript = `Get-PnpDevice -Status OK | Where-Object { $_.Class -match 'USB|Biometric|Camera|Image|SmartCard|HID|Sensor|WPD|Media|Ports|Authentication' -or $_.InstanceId -like 'USB*' } | Select-Object Class, FriendlyName, InstanceId, Status | ConvertTo-Json -Compress`;
-        const encodedCommand = Buffer.from(psScript, 'utf16le').toString('base64');
+        const encodedCommand = Buffer.from(psScript, "utf16le").toString(
+          "base64",
+        );
 
-        const result = execSync(`powershell -NoProfile -EncodedCommand ${encodedCommand}`, {
-          encoding: 'utf8',
-          timeout: 15000,
-          windowsHide: true
-        });
+        const result = execSync(
+          `powershell -NoProfile -EncodedCommand ${encodedCommand}`,
+          {
+            encoding: "utf8",
+            timeout: 15000,
+            windowsHide: true,
+          },
+        );
 
         if (result && result.trim()) {
           const parsed = JSON.parse(result);
           const deviceList = Array.isArray(parsed) ? parsed : [parsed];
 
-          console.log(`[USB] Total dispositivos encontrados por PowerShell: ${deviceList.length}`);
+          console.log(
+            `[USB] Total dispositivos encontrados por PowerShell: ${deviceList.length}`,
+          );
 
           for (const dev of deviceList) {
             if (!dev.FriendlyName) continue;
@@ -776,143 +871,159 @@ ipcMain.handle('detect-usb-devices', async () => {
             // Limpiar caracteres especiales del nombre (®, ™, etc.)
             const rawName = dev.FriendlyName;
             const name = rawName
-              .replace(/[®™©�´┐¢\uFFFD]/g, '')  // Remover símbolos de marca y caracteres inválidos
-              .replace(/\s+/g, ' ')              // Normalizar espacios
+              .replace(/[®™©�´┐¢\uFFFD]/g, "") // Remover símbolos de marca y caracteres inválidos
+              .replace(/\s+/g, " ") // Normalizar espacios
               .trim();
             const nameLower = name.toLowerCase();
-            const classLower = (dev.Class || '').toLowerCase();
-            const instanceLower = (dev.InstanceId || '').toLowerCase();
+            const classLower = (dev.Class || "").toLowerCase();
+            const instanceLower = (dev.InstanceId || "").toLowerCase();
 
             // Log para diagnóstico
-            console.log(`[USB] Analizando: "${name}" | Clase: ${dev.Class} | Instance: ${dev.InstanceId?.substring(0, 50)}...`);
+            console.log(
+              `[USB] Analizando: "${name}" | Clase: ${dev.Class} | Instance: ${dev.InstanceId?.substring(0, 50)}...`,
+            );
 
             // Detectar tipo de dispositivo basado en nombre y clase
-            let type = 'unknown';
-            let connection = 'USB';
+            let type = "unknown";
+            let connection = "USB";
 
             // Vendor IDs conocidos de lectores biométricos
-            const isDigitalPersonaVID = instanceLower.includes('vid_05ba'); // DigitalPersona
-            const isSecuGenVID = instanceLower.includes('vid_1162'); // SecuGen
-            const isZKTecoVID = instanceLower.includes('vid_1b55'); // ZKTeco
+            const isDigitalPersonaVID = instanceLower.includes("vid_05ba"); // DigitalPersona
+            const isSecuGenVID = instanceLower.includes("vid_1162"); // SecuGen
+            const isZKTecoVID = instanceLower.includes("vid_1b55"); // ZKTeco
 
             // Lectores de huella - ampliar detección
-            if (nameLower.includes('fingerprint') ||
-                nameLower.includes('biometric') ||
-                nameLower.includes('huella') ||
-                nameLower.includes('digital persona') ||
-                nameLower.includes('digitalpersona') ||
-                nameLower.includes('u.are.u') ||
-                nameLower.includes('uareu') ||
-                nameLower.includes('uru') ||
-                nameLower.includes('4500') || // U.are.U 4500
-                nameLower.includes('5100') || // U.are.U 5100
-                nameLower.includes('5160') || // U.are.U 5160
-                nameLower.includes('5300') || // U.are.U 5300
-                nameLower.includes('eikon') ||
-                nameLower.includes('secugen') ||
-                nameLower.includes('hamster') ||
-                nameLower.includes('suprema') ||
-                nameLower.includes('zkteco') ||
-                nameLower.includes('zk ') ||
-                nameLower.includes('zk4500') ||
-                nameLower.includes('live20r') ||
-                nameLower.includes('anviz') ||
-                nameLower.includes('morpho') ||
-                nameLower.includes('crossmatch') ||
-                nameLower.includes('nitgen') ||
-                nameLower.includes('futronic') ||
-                (nameLower.includes('sensor') && nameLower.includes('finger')) ||
-                classLower === 'biometric' ||
-                classLower.includes('biometric') ||
-                classLower.includes('authentication') ||
-                isDigitalPersonaVID ||
-                isSecuGenVID ||
-                isZKTecoVID) {
-              type = 'fingerprint';
+            if (
+              nameLower.includes("fingerprint") ||
+              nameLower.includes("biometric") ||
+              nameLower.includes("huella") ||
+              nameLower.includes("digital persona") ||
+              nameLower.includes("digitalpersona") ||
+              nameLower.includes("u.are.u") ||
+              nameLower.includes("uareu") ||
+              nameLower.includes("uru") ||
+              nameLower.includes("4500") || // U.are.U 4500
+              nameLower.includes("5100") || // U.are.U 5100
+              nameLower.includes("5160") || // U.are.U 5160
+              nameLower.includes("5300") || // U.are.U 5300
+              nameLower.includes("eikon") ||
+              nameLower.includes("secugen") ||
+              nameLower.includes("hamster") ||
+              nameLower.includes("suprema") ||
+              nameLower.includes("zkteco") ||
+              nameLower.includes("zk ") ||
+              nameLower.includes("zk4500") ||
+              nameLower.includes("live20r") ||
+              nameLower.includes("anviz") ||
+              nameLower.includes("morpho") ||
+              nameLower.includes("crossmatch") ||
+              nameLower.includes("nitgen") ||
+              nameLower.includes("futronic") ||
+              (nameLower.includes("sensor") && nameLower.includes("finger")) ||
+              classLower === "biometric" ||
+              classLower.includes("biometric") ||
+              classLower.includes("authentication") ||
+              isDigitalPersonaVID ||
+              isSecuGenVID ||
+              isZKTecoVID
+            ) {
+              type = "fingerprint";
             }
             // Cámaras (filtrar virtuales)
-            else if ((nameLower.includes('camera') ||
-                     nameLower.includes('webcam') ||
-                     nameLower.includes('cámara') ||
-                     nameLower.includes('imaging') ||
-                     nameLower.includes('video') ||
-                     nameLower.includes('cam ') ||
-                     (nameLower.includes('logitech') && !nameLower.includes('keyboard') && !nameLower.includes('mouse')) ||
-                     classLower === 'camera' ||
-                     classLower === 'image' ||
-                     classLower.includes('camera')) &&
-                     // Filtrar cámaras virtuales
-                     !nameLower.includes('obs') &&
-                     !nameLower.includes('virtual') &&
-                     !nameLower.includes('manycam') &&
-                     !nameLower.includes('xsplit') &&
-                     !nameLower.includes('snap camera') &&
-                     !nameLower.includes('droidcam') &&
-                     !nameLower.includes('iriun') &&
-                     !nameLower.includes('epoccam') &&
-                     !nameLower.includes('ndi') &&
-                     !nameLower.includes('newtek') &&
-                     !nameLower.includes('camtwist') &&
-                     !nameLower.includes('sparkocam') &&
-                     !nameLower.includes('splitcam') &&
-                     !nameLower.includes('youcam') &&
-                     !nameLower.includes('cyberlink') &&
-                     !nameLower.includes('avatarify') &&
-                     !nameLower.includes('chromacam') &&
-                     !nameLower.includes('vcam') &&
-                     !nameLower.includes('fake')) {
-              type = 'camera';
+            else if (
+              (nameLower.includes("camera") ||
+                nameLower.includes("webcam") ||
+                nameLower.includes("cámara") ||
+                nameLower.includes("imaging") ||
+                nameLower.includes("video") ||
+                nameLower.includes("cam ") ||
+                (nameLower.includes("logitech") &&
+                  !nameLower.includes("keyboard") &&
+                  !nameLower.includes("mouse")) ||
+                classLower === "camera" ||
+                classLower === "image" ||
+                classLower.includes("camera")) &&
+              // Filtrar cámaras virtuales
+              !nameLower.includes("obs") &&
+              !nameLower.includes("virtual") &&
+              !nameLower.includes("manycam") &&
+              !nameLower.includes("xsplit") &&
+              !nameLower.includes("snap camera") &&
+              !nameLower.includes("droidcam") &&
+              !nameLower.includes("iriun") &&
+              !nameLower.includes("epoccam") &&
+              !nameLower.includes("ndi") &&
+              !nameLower.includes("newtek") &&
+              !nameLower.includes("camtwist") &&
+              !nameLower.includes("sparkocam") &&
+              !nameLower.includes("splitcam") &&
+              !nameLower.includes("youcam") &&
+              !nameLower.includes("cyberlink") &&
+              !nameLower.includes("avatarify") &&
+              !nameLower.includes("chromacam") &&
+              !nameLower.includes("vcam") &&
+              !nameLower.includes("fake")
+            ) {
+              type = "camera";
             }
             // Lectores RFID / Smart Card
-            else if (nameLower.includes('rfid') ||
-                     nameLower.includes('card reader') ||
-                     nameLower.includes('smart card') ||
-                     nameLower.includes('smartcard') ||
-                     nameLower.includes('nfc') ||
-                     nameLower.includes('mifare') ||
-                     nameLower.includes('proximity') ||
-                     nameLower.includes('contactless') ||
-                     classLower === 'smartcardreader' ||
-                     classLower.includes('smartcard')) {
-              type = 'rfid';
+            else if (
+              nameLower.includes("rfid") ||
+              nameLower.includes("card reader") ||
+              nameLower.includes("smart card") ||
+              nameLower.includes("smartcard") ||
+              nameLower.includes("nfc") ||
+              nameLower.includes("mifare") ||
+              nameLower.includes("proximity") ||
+              nameLower.includes("contactless") ||
+              classLower === "smartcardreader" ||
+              classLower.includes("smartcard")
+            ) {
+              type = "rfid";
             }
             // Escáneres
-            else if (nameLower.includes('scanner') ||
-                     nameLower.includes('escáner') ||
-                     nameLower.includes('scan') && !nameLower.includes('keyboard')) {
-              type = 'scanner';
+            else if (
+              nameLower.includes("scanner") ||
+              nameLower.includes("escáner") ||
+              (nameLower.includes("scan") && !nameLower.includes("keyboard"))
+            ) {
+              type = "scanner";
             }
 
             // Verificar si es un dispositivo biométrico por VID
-            const isBiometricVID = isDigitalPersonaVID || isSecuGenVID || isZKTecoVID;
+            const isBiometricVID =
+              isDigitalPersonaVID || isSecuGenVID || isZKTecoVID;
 
             // Filtrar dispositivos USB genéricos y hubs (excepto biométricos)
-            const isGenericOrHub = (
-              nameLower.includes('hub') ||
-              nameLower.includes('root') ||
-              nameLower.includes('host controller') ||
-              nameLower.includes('composite device') ||
-              nameLower.includes('generic usb') ||
-              (nameLower.includes('usb input device') && !nameLower.includes('biometric') && !isBiometricVID) ||
-              nameLower.includes('mass storage') ||
-              nameLower.includes('disk drive') ||
-              nameLower.includes('keyboard') ||
-              nameLower.includes('mouse') ||
-              nameLower.includes('audio') ||
-              nameLower.includes('bluetooth') ||
-              nameLower.includes('wireless')
-            );
+            const isGenericOrHub =
+              nameLower.includes("hub") ||
+              nameLower.includes("root") ||
+              nameLower.includes("host controller") ||
+              nameLower.includes("composite device") ||
+              nameLower.includes("generic usb") ||
+              (nameLower.includes("usb input device") &&
+                !nameLower.includes("biometric") &&
+                !isBiometricVID) ||
+              nameLower.includes("mass storage") ||
+              nameLower.includes("disk drive") ||
+              nameLower.includes("keyboard") ||
+              nameLower.includes("mouse") ||
+              nameLower.includes("audio") ||
+              nameLower.includes("bluetooth") ||
+              nameLower.includes("wireless");
 
-            if (isGenericOrHub && type === 'unknown') {
+            if (isGenericOrHub && type === "unknown") {
               continue; // Ignorar hubs y controladores genéricos
             }
 
             // Si es un dispositivo USB que no reconocemos pero tiene características interesantes, incluirlo
-            if (type === 'unknown') {
+            if (type === "unknown") {
               // Verificar si está conectado por USB y tiene un nombre interesante
-              if (instanceLower.includes('usb') &&
-                  !isGenericOrHub &&
-                  name.length > 5) {
+              if (
+                instanceLower.includes("usb") &&
+                !isGenericOrHub &&
+                name.length > 5
+              ) {
                 // Podría ser un dispositivo relevante no reconocido
                 console.log(`[USB] Dispositivo USB no clasificado: "${name}"`);
               }
@@ -925,76 +1036,98 @@ ipcMain.handle('detect-usb-devices', async () => {
               name: name,
               type: type,
               connection: connection,
-              ip: '',
-              port: '',
-              deviceClass: dev.Class || 'USB',
-              instanceId: dev.InstanceId || '',
-              detected: true
+              ip: "",
+              port: "",
+              deviceClass: dev.Class || "USB",
+              instanceId: dev.InstanceId || "",
+              detected: true,
             });
 
-            console.log(`[USB] ✓ Dispositivo detectado: "${name}" -> Tipo: ${type}`);
+            console.log(
+              `[USB] ✓ Dispositivo detectado: "${name}" -> Tipo: ${type}`,
+            );
           }
         }
       } catch (psError) {
-        console.error('[USB] Error con PowerShell, intentando WMIC:', psError.message);
+        console.error(
+          "[USB] Error con PowerShell, intentando WMIC:",
+          psError.message,
+        );
 
         // Fallback a WMIC
         try {
-          const wmicResult = execSync('wmic path Win32_PnPEntity where "Status=\'OK\'" get Name,DeviceID,PNPClass /format:csv', {
-            encoding: 'utf8',
-            timeout: 10000,
-            windowsHide: true
-          });
+          const wmicResult = execSync(
+            "wmic path Win32_PnPEntity where \"Status='OK'\" get Name,DeviceID,PNPClass /format:csv",
+            {
+              encoding: "utf8",
+              timeout: 10000,
+              windowsHide: true,
+            },
+          );
 
-          const lines = wmicResult.split('\n').filter(line => line.trim());
+          const lines = wmicResult.split("\n").filter((line) => line.trim());
 
-          for (const line of lines.slice(1)) { // Skip header
-            const parts = line.split(',');
+          for (const line of lines.slice(1)) {
+            // Skip header
+            const parts = line.split(",");
             if (parts.length < 4) continue;
 
             const [, deviceId, name, pnpClass] = parts;
             if (!name || !deviceId) continue;
 
             const nameLower = name.toLowerCase();
-            const classLower = (pnpClass || '').toLowerCase();
+            const classLower = (pnpClass || "").toLowerCase();
 
             // Misma lógica de detección
-            let type = 'unknown';
+            let type = "unknown";
 
-            if (nameLower.includes('fingerprint') || nameLower.includes('biometric') || classLower === 'biometric') {
-              type = 'fingerprint';
-            } else if (nameLower.includes('camera') || nameLower.includes('webcam') || classLower === 'camera' || classLower === 'image') {
-              type = 'camera';
-            } else if (nameLower.includes('rfid') || nameLower.includes('smart card') || classLower === 'smartcardreader') {
-              type = 'rfid';
-            } else if (nameLower.includes('scanner')) {
-              type = 'scanner';
+            if (
+              nameLower.includes("fingerprint") ||
+              nameLower.includes("biometric") ||
+              classLower === "biometric"
+            ) {
+              type = "fingerprint";
+            } else if (
+              nameLower.includes("camera") ||
+              nameLower.includes("webcam") ||
+              classLower === "camera" ||
+              classLower === "image"
+            ) {
+              type = "camera";
+            } else if (
+              nameLower.includes("rfid") ||
+              nameLower.includes("smart card") ||
+              classLower === "smartcardreader"
+            ) {
+              type = "rfid";
+            } else if (nameLower.includes("scanner")) {
+              type = "scanner";
             }
 
-            if (type !== 'unknown') {
+            if (type !== "unknown") {
               devices.push({
                 id: Date.now() + Math.random(),
                 name: name.trim(),
                 type: type,
-                connection: 'USB',
-                ip: '',
-                port: '',
-                deviceClass: pnpClass || 'USB',
-                instanceId: deviceId || '',
-                detected: true
+                connection: "USB",
+                ip: "",
+                port: "",
+                deviceClass: pnpClass || "USB",
+                instanceId: deviceId || "",
+                detected: true,
               });
             }
           }
         } catch (wmicError) {
-          console.error('[USB] Error con WMIC:', wmicError.message);
+          console.error("[USB] Error con WMIC:", wmicError.message);
         }
       }
-    } else if (process.platform === 'darwin') {
+    } else if (process.platform === "darwin") {
       // macOS: Usar system_profiler
       try {
-        const result = execSync('system_profiler SPUSBDataType -json', {
-          encoding: 'utf8',
-          timeout: 10000
+        const result = execSync("system_profiler SPUSBDataType -json", {
+          encoding: "utf8",
+          timeout: 10000,
         });
 
         const data = JSON.parse(result);
@@ -1002,30 +1135,39 @@ ipcMain.handle('detect-usb-devices', async () => {
 
         const processUSBItems = (items) => {
           for (const item of items) {
-            const name = item._name || '';
+            const name = item._name || "";
             const nameLower = name.toLowerCase();
 
-            let type = 'unknown';
+            let type = "unknown";
 
-            if (nameLower.includes('fingerprint') || nameLower.includes('biometric')) {
-              type = 'fingerprint';
-            } else if (nameLower.includes('camera') || nameLower.includes('facetime')) {
-              type = 'camera';
-            } else if (nameLower.includes('rfid') || nameLower.includes('card reader')) {
-              type = 'rfid';
-            } else if (nameLower.includes('scanner')) {
-              type = 'scanner';
+            if (
+              nameLower.includes("fingerprint") ||
+              nameLower.includes("biometric")
+            ) {
+              type = "fingerprint";
+            } else if (
+              nameLower.includes("camera") ||
+              nameLower.includes("facetime")
+            ) {
+              type = "camera";
+            } else if (
+              nameLower.includes("rfid") ||
+              nameLower.includes("card reader")
+            ) {
+              type = "rfid";
+            } else if (nameLower.includes("scanner")) {
+              type = "scanner";
             }
 
-            if (type !== 'unknown') {
+            if (type !== "unknown") {
               devices.push({
                 id: Date.now() + Math.random(),
                 name: name,
                 type: type,
-                connection: 'USB',
-                ip: '',
-                port: '',
-                detected: true
+                connection: "USB",
+                ip: "",
+                port: "",
+                detected: true,
               });
             }
 
@@ -1038,33 +1180,42 @@ ipcMain.handle('detect-usb-devices', async () => {
 
         processUSBItems(usbData);
       } catch (macError) {
-        console.error('[USB] Error en macOS:', macError.message);
+        console.error("[USB] Error en macOS:", macError.message);
       }
     } else {
       // Linux: Usar lsusb
       try {
-        const result = execSync('lsusb -v 2>/dev/null || lsusb', {
-          encoding: 'utf8',
-          timeout: 10000
+        const result = execSync("lsusb -v 2>/dev/null || lsusb", {
+          encoding: "utf8",
+          timeout: 10000,
         });
 
-        const lines = result.split('\n');
+        const lines = result.split("\n");
 
         for (const line of lines) {
           const nameLower = line.toLowerCase();
-          let type = 'unknown';
+          let type = "unknown";
 
-          if (nameLower.includes('fingerprint') || nameLower.includes('biometric')) {
-            type = 'fingerprint';
-          } else if (nameLower.includes('camera') || nameLower.includes('webcam')) {
-            type = 'camera';
-          } else if (nameLower.includes('rfid') || nameLower.includes('card reader')) {
-            type = 'rfid';
-          } else if (nameLower.includes('scanner')) {
-            type = 'scanner';
+          if (
+            nameLower.includes("fingerprint") ||
+            nameLower.includes("biometric")
+          ) {
+            type = "fingerprint";
+          } else if (
+            nameLower.includes("camera") ||
+            nameLower.includes("webcam")
+          ) {
+            type = "camera";
+          } else if (
+            nameLower.includes("rfid") ||
+            nameLower.includes("card reader")
+          ) {
+            type = "rfid";
+          } else if (nameLower.includes("scanner")) {
+            type = "scanner";
           }
 
-          if (type !== 'unknown') {
+          if (type !== "unknown") {
             // Extraer nombre del dispositivo de la línea lsusb
             const match = line.match(/ID \w+:\w+ (.+)/);
             const name = match ? match[1].trim() : line.trim();
@@ -1073,34 +1224,34 @@ ipcMain.handle('detect-usb-devices', async () => {
               id: Date.now() + Math.random(),
               name: name,
               type: type,
-              connection: 'USB',
-              ip: '',
-              port: '',
-              detected: true
+              connection: "USB",
+              ip: "",
+              port: "",
+              detected: true,
             });
           }
         }
       } catch (linuxError) {
-        console.error('[USB] Error en Linux:', linuxError.message);
+        console.error("[USB] Error en Linux:", linuxError.message);
       }
     }
 
     console.log(`\n[USB] ========== RESUMEN ==========`);
     console.log(`[USB] Dispositivos detectados: ${devices.length}`);
-    devices.forEach(d => console.log(`  - ${d.name} (${d.type})`));
+    devices.forEach((d) => console.log(`  - ${d.name} (${d.type})`));
     console.log(`[USB] ================================\n`);
 
     return {
       success: true,
       devices: devices,
-      count: devices.length
+      count: devices.length,
     };
   } catch (error) {
-    console.error('[USB] Error detectando dispositivos:', error);
+    console.error("[USB] Error detectando dispositivos:", error);
     return {
       success: false,
       devices: [],
-      error: error.message
+      error: error.message,
     };
   }
 });
@@ -1108,49 +1259,58 @@ ipcMain.handle('detect-usb-devices', async () => {
 /**
  * Listar TODOS los dispositivos USB para diagnóstico
  */
-ipcMain.handle('list-all-usb-devices', async () => {
+ipcMain.handle("list-all-usb-devices", async () => {
   try {
-    console.log('[USB-DEBUG] Listando TODOS los dispositivos USB...\n');
+    console.log("[USB-DEBUG] Listando TODOS los dispositivos USB...\n");
 
-    if (process.platform === 'win32') {
+    if (process.platform === "win32") {
       // Obtener todos los dispositivos conectados por USB o biométricos
       const psScript = `Get-PnpDevice -Status OK | Where-Object { $_.InstanceId -like 'USB*' -or $_.Class -like '*Biometric*' -or $_.Class -like '*Authentication*' } | Select-Object Class, FriendlyName, InstanceId | ConvertTo-Json`;
-      const encodedCommand = Buffer.from(psScript, 'utf16le').toString('base64');
+      const encodedCommand = Buffer.from(psScript, "utf16le").toString(
+        "base64",
+      );
 
-      const result = execSync(`powershell -NoProfile -EncodedCommand ${encodedCommand}`, {
-        encoding: 'utf8',
-        timeout: 15000,
-        windowsHide: true
-      });
+      const result = execSync(
+        `powershell -NoProfile -EncodedCommand ${encodedCommand}`,
+        {
+          encoding: "utf8",
+          timeout: 15000,
+          windowsHide: true,
+        },
+      );
 
       if (result && result.trim()) {
         const parsed = JSON.parse(result);
         const deviceList = Array.isArray(parsed) ? parsed : [parsed];
 
-        console.log(`[USB-DEBUG] Total dispositivos USB: ${deviceList.length}\n`);
+        console.log(
+          `[USB-DEBUG] Total dispositivos USB: ${deviceList.length}\n`,
+        );
 
         deviceList.forEach((dev, i) => {
           if (dev.FriendlyName) {
             console.log(`${i + 1}. ${dev.FriendlyName}`);
-            console.log(`   Clase: ${dev.Class || 'N/A'}`);
-            console.log(`   ID: ${dev.InstanceId || 'N/A'}\n`);
+            console.log(`   Clase: ${dev.Class || "N/A"}`);
+            console.log(`   ID: ${dev.InstanceId || "N/A"}\n`);
           }
         });
 
         return {
           success: true,
-          devices: deviceList.filter(d => d.FriendlyName).map(d => ({
-            name: d.FriendlyName,
-            class: d.Class,
-            instanceId: d.InstanceId
-          }))
+          devices: deviceList
+            .filter((d) => d.FriendlyName)
+            .map((d) => ({
+              name: d.FriendlyName,
+              class: d.Class,
+              instanceId: d.InstanceId,
+            })),
         };
       }
     }
 
     return { success: true, devices: [] };
   } catch (error) {
-    console.error('[USB-DEBUG] Error:', error.message);
+    console.error("[USB-DEBUG] Error:", error.message);
     return { success: false, error: error.message };
   }
 });
@@ -1158,25 +1318,25 @@ ipcMain.handle('list-all-usb-devices', async () => {
 /**
  * Verificar si el servidor biométrico está activo
  */
-ipcMain.handle('check-biometric-server', async () => {
+ipcMain.handle("check-biometric-server", async () => {
   try {
     // Verificar conexión WebSocket al servidor biométrico
-    const WebSocket = (await import('ws')).default;
+    const WebSocket = (await import("ws")).default;
 
     return new Promise((resolve) => {
-      const ws = new WebSocket('ws://localhost:8787/');
+      const ws = new WebSocket("ws://localhost:8787/");
       const timeout = setTimeout(() => {
         ws.close();
-        resolve({ connected: false, message: 'Timeout al conectar' });
+        resolve({ connected: false, message: "Timeout al conectar" });
       }, 3000);
 
-      ws.on('open', () => {
+      ws.on("open", () => {
         clearTimeout(timeout);
         ws.close();
-        resolve({ connected: true, message: 'Servidor biométrico activo' });
+        resolve({ connected: true, message: "Servidor biométrico activo" });
       });
 
-      ws.on('error', (error) => {
+      ws.on("error", (error) => {
         clearTimeout(timeout);
         resolve({ connected: false, message: error.message });
       });

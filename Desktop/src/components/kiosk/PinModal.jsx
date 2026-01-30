@@ -21,14 +21,16 @@ export default function PinModal({ onClose }) {
               <Clock className="w-8 h-8 text-white" />
             </div>
             <h2 className="text-xl font-bold text-white">Checador</h2>
-            <p className="text-white/80 text-sm">Sistema de Control de Asistencias</p>
+            <p className="text-white/80 text-sm">
+              Sistema de Control de Asistencias
+            </p>
           </div>
         </div>
 
         {/* Formulario */}
         <div className="p-6 space-y-4">
           <h3 className="text-xl font-semibold text-text-primary text-center mb-4">
-            Iniciar Sesion
+            Ingresa tu usuario/correo y PIN
           </h3>
 
           <div>
@@ -74,7 +76,7 @@ export default function PinModal({ onClose }) {
           </div>
 
           <button className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-semibold text-base shadow-lg transition-all mt-2">
-            Iniciar Sesion
+            Registrar Asistencia
           </button>
         </div>
       </div>

@@ -12,10 +12,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { isPointInPolygon, extraerCoordenadas } from '../../services/ubicacionService';
-import MapScreen from './MapScreen';
-import asistenciaService from '../../services/asistenciasService';
-import toleranciaService from '../../services/toleranciaService';
-import horariosService from '../../services/horariosService';
+import { getApiEndpoint } from '../../config/api';
+import MapaZonasPermitidas from './MapScreen';
+
+const API_URL = getApiEndpoint('/api');
 
 export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [loading, setLoading] = useState(true);
@@ -36,12 +36,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [tipoSiguienteRegistro, setTipoSiguienteRegistro] = useState('entrada');
   const [estadoHorario, setEstadoHorario] = useState(null);
   const [jornadaCompletada, setJornadaCompletada] = useState(false);
-  const [turnoActual, setTurnoActual] = useState(null);
 
   const styles = darkMode ? registerStylesDark : registerStyles;
   const [horaActual, setHoraActual] = useState(new Date());
 
-  // ⏰ Actualizar hora cada segundo y recalcular estado
   useEffect(() => {
     const intervalo = setInterval(() => {
       setHoraActual(new Date());
@@ -52,12 +50,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         setTipoSiguienteRegistro(estado.tipoRegistro);
         setEstadoHorario(estado.estadoHorario);
         setJornadaCompletada(estado.jornadaCompleta);
-        setTurnoActual(estado.turnoActual);
       }
     }, 1000);
 
     return () => clearInterval(intervalo);
-  }, [horarioInfo, toleranciaInfo, ultimoRegistroHoy]);
+  }, [horarioInfo, toleranciaInfo, ultimoRegistroHoy, calcularEstadoRegistro]);
 
   const getDiaSemana = () => {
     const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
@@ -68,62 +65,77 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     return fecha.getHours() * 60 + fecha.getMinutes();
   };
 
-  // 🆕 Obtener último registro usando servicio
   const obtenerUltimoRegistro = useCallback(async () => {
     try {
       const empleadoId = userData?.empleado_id;
-      if (!empleadoId) return null;
+      if (!empleadoId) {
+        return null;
+      }
 
-      const ultimoRegistro = await asistenciaService.getUltimoRegistroHoy(
-        empleadoId, 
-        userData.token
+      const response = await fetch(
+        `${API_URL}/asistencias/empleado/${empleadoId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
       );
 
-      if (!ultimoRegistro) return null;
+      if (!response.ok) {
+        return null;
+      }
 
-      // Obtener todos los registros del día para contar total
-      const todosRegistros = await asistenciaService.getAsistenciasEmpleado(
-        empleadoId,
-        userData.token
-      );
+      const data = await response.json();
+      
+      if (!data.data?.length) return null;
 
       const hoy = new Date().toDateString();
-      const registrosHoy = todosRegistros.data?.filter(registro => {
+      const registrosHoy = data.data.filter(registro => {
         const fechaRegistro = new Date(registro.fecha_registro);
         return fechaRegistro.toDateString() === hoy;
-      }) || [];
+      });
 
+      if (!registrosHoy.length) return null;
+
+      const ultimo = registrosHoy[0];
+      
       return {
-        tipo: ultimoRegistro.esEntrada ? 'entrada' : 'salida',
-        estado: ultimoRegistro.estado,
-        hora: ultimoRegistro.hora,
+        tipo: ultimo.tipo,
+        estado: ultimo.estado,
+        fecha_registro: new Date(ultimo.fecha_registro),
+        hora: new Date(ultimo.fecha_registro).toLocaleTimeString('es-MX', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }),
         totalRegistrosHoy: registrosHoy.length
       };
     } catch (err) {
-      console.error('❌ Error obteniendo último registro:', err);
       return null;
     }
   }, [userData]);
 
-  // 🆕 Obtener horario usando servicio
   const obtenerHorario = useCallback(async () => {
     try {
       const empleadoId = userData?.empleado_id;
       if (!empleadoId) return null;
 
-      console.log('📅 Obteniendo horario para empleado:', empleadoId);
-
-      const horario = await horariosService.getHorarioPorEmpleado(
-        empleadoId,
-        userData.token
+      const response = await fetch(
+        `${API_URL}/empleados/${empleadoId}/horario`,
+        {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
       );
 
-      console.log('📅 Horario obtenido:', horario);
+      if (!response.ok) return null;
 
-      if (!horario?.configuracion) {
-        console.warn('⚠️ No hay configuración en el horario');
-        return null;
-      }
+      const data = await response.json();
+      const horario = data.data || data.horario || data;
+      
+      if (!horario?.configuracion) return null;
 
       let config = typeof horario.configuracion === 'string' 
         ? JSON.parse(horario.configuracion) 
@@ -132,31 +144,18 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const diaHoy = getDiaSemana();
       let turnosHoy = [];
 
-      // Soportar estructura nueva (configuracion_semanal)
       if (config.configuracion_semanal?.[diaHoy]) {
         turnosHoy = config.configuracion_semanal[diaHoy].map(t => ({
           entrada: t.inicio,
           salida: t.fin
         }));
-      } 
-      // Soportar estructura antigua (dias + turnos)
-      else if (config.dias?.includes(diaHoy)) {
+      } else if (config.dias?.includes(diaHoy)) {
         turnosHoy = config.turnos || [];
       }
 
       if (!turnosHoy.length) {
-        console.log('📅 No trabaja hoy:', diaHoy);
         return { trabaja: false, turnos: [] };
       }
-
-      // Ordenar turnos por hora de entrada
-      turnosHoy.sort((a, b) => {
-        const [haA, maA] = a.entrada.split(':').map(Number);
-        const [haB, maB] = b.entrada.split(':').map(Number);
-        return (haA * 60 + maA) - (haB * 60 + maB);
-      });
-
-      console.log('✅ Turnos de hoy:', turnosHoy);
 
       return {
         trabaja: true,
@@ -166,49 +165,58 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         tipo: turnosHoy.length > 1 ? 'quebrado' : 'continuo'
       };
     } catch (err) {
-      console.error('❌ Error obteniendo horario:', err);
       return null;
     }
   }, [userData]);
 
-  // 🆕 Obtener tolerancia usando servicio
   const obtenerTolerancia = useCallback(async () => {
     const defaultTolerancia = {
       minutos_retardo: 10,
       minutos_falta: 30,
       permite_registro_anticipado: true,
-      minutos_anticipado_max: 60,
-      aplica_tolerancia_salida: true
+      minutos_anticipado_max: 60
     };
 
     try {
-      console.log('🕐 Obteniendo tolerancia para usuario:', userData.id);
-
-      const toleranciaData = await toleranciaService.getToleranciaEmpleado(
-        userData.id,
-        userData.token
+      const rolesResponse = await fetch(
+        `${API_URL}/usuarios/${userData.id}/roles`,
+        {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
       );
 
-      console.log('✅ Tolerancia obtenida:', toleranciaData);
+      if (!rolesResponse.ok) return defaultTolerancia;
 
-      const tolerancia = toleranciaData.data || toleranciaData;
+      const rolesData = await rolesResponse.json();
+      const roles = rolesData.data || [];
+      const rolConTolerancia = roles
+        .filter(r => r.tolerancia_id)
+        .sort((a, b) => b.posicion - a.posicion)[0];
 
-      // Asegurar valores por defecto si faltan
-      return {
-        minutos_retardo: tolerancia.minutos_retardo || 10,
-        minutos_falta: tolerancia.minutos_falta || 30,
-        permite_registro_anticipado: tolerancia.permite_registro_anticipado !== false,
-        minutos_anticipado_max: tolerancia.minutos_anticipado_max || 60,
-        aplica_tolerancia_salida: tolerancia.aplica_tolerancia_salida !== false
-      };
+      if (!rolConTolerancia) return defaultTolerancia;
+
+      const toleranciaResponse = await fetch(
+        `${API_URL}/tolerancias/${rolConTolerancia.tolerancia_id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!toleranciaResponse.ok) return defaultTolerancia;
+
+      const toleranciaData = await toleranciaResponse.json();
+      return toleranciaData.data || toleranciaData;
     } catch (err) {
-      console.error('❌ Error obteniendo tolerancia:', err);
-      console.log('⚠️ Usando tolerancia por defecto');
       return defaultTolerancia;
     }
   }, [userData]);
 
-  // 🆕 Obtener departamentos (mantener lógica actual)
   const obtenerDepartamentos = useCallback(async () => {
     try {
       const departamentosAsignados = userData?.empleadoInfo?.departamentos;
@@ -220,7 +228,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const promesas = departamentosAsignados.map(async (depto) => {
         try {
           const response = await fetch(
-            `${asistenciaService.API_URL || '/api'}/departamentos/${depto.id}`,
+            `${API_URL}/departamentos/${depto.id}`,
             {
               headers: {
                 'Authorization': `Bearer ${userData.token}`,
@@ -242,327 +250,100 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const resultados = await Promise.all(promesas);
       return resultados.filter(depto => depto !== null && depto.ubicacion);
     } catch (err) {
-      console.error('❌ Error obteniendo departamentos:', err);
       return [];
     }
   }, [userData]);
 
-  // 🆕 Detectar si dos turnos son consecutivos (diferencia <= 1 minuto)
-  const sonTurnosConsecutivos = (turno1, turno2) => {
-    if (!turno1 || !turno2) return false;
+  const validarEntrada = (horario, tolerancia, minutosActuales) => {
+    let hayTurnoFuturo = false;
     
-    const [h1, m1] = turno1.salida.split(':').map(Number);
-    const [h2, m2] = turno2.entrada.split(':').map(Number);
-    
-    const minutosSalida1 = h1 * 60 + m1;
-    const minutosEntrada2 = h2 * 60 + m2;
-    
-    // Consecutivos si la diferencia es <= 1 minuto
-    const diferencia = minutosEntrada2 - minutosSalida1;
-    
-    console.log('🔗 Verificando si son consecutivos:', {
-      turno1: `${turno1.entrada}-${turno1.salida}`,
-      turno2: `${turno2.entrada}-${turno2.salida}`,
-      diferencia,
-      sonConsecutivos: diferencia >= 0 && diferencia <= 1
-    });
-    
-    return diferencia >= 0 && diferencia <= 1;
-  };
-
-  // 🆕 Agrupar turnos consecutivos en bloques
-  const agruparTurnosConsecutivos = (turnos) => {
-    if (!turnos || turnos.length === 0) return [];
-    
-    const bloques = [];
-    let bloqueActual = [turnos[0]];
-    
-    for (let i = 1; i < turnos.length; i++) {
-      const turnoAnterior = turnos[i - 1];
-      const turnoActual = turnos[i];
+    for (const turno of horario.turnos) {
+      const [hE, mE] = turno.entrada.split(':').map(Number);
+      const [hS, mS] = turno.salida.split(':').map(Number);
       
-      if (sonTurnosConsecutivos(turnoAnterior, turnoActual)) {
-        // Agregar al bloque actual
-        bloqueActual.push(turnoActual);
-      } else {
-        // Finalizar bloque actual y empezar uno nuevo
-        bloques.push(bloqueActual);
-        bloqueActual = [turnoActual];
-      }
-    }
-    
-    // Agregar último bloque
-    bloques.push(bloqueActual);
-    
-    console.log('📦 Bloques de turnos consecutivos:', bloques.map((bloque, idx) => ({
-      bloque: idx + 1,
-      turnos: bloque.length,
-      rango: `${bloque[0].entrada} - ${bloque[bloque.length - 1].salida}`
-    })));
-    
-    return bloques;
-  };
-
-  // 🔍 Encontrar turno/bloque correspondiente según registros
-  const encontrarTurnoCorrespondiente = (turnos, totalRegistros) => {
-    if (!turnos || turnos.length === 0) return null;
-    
-    // Agrupar turnos consecutivos
-    const bloques = agruparTurnosConsecutivos(turnos);
-    
-    // Calcular en qué bloque estamos según la cantidad de registros
-    // Par = esperando entrada, Impar = esperando salida
-    const bloqueIndex = Math.floor(totalRegistros / 2);
-    
-    // Si ya completamos todos los bloques
-    if (bloqueIndex >= bloques.length) {
-      return null;
-    }
-    
-    const bloqueActual = bloques[bloqueIndex];
-    const primerTurnoDelBloque = bloqueActual[0];
-    const ultimoTurnoDelBloque = bloqueActual[bloqueActual.length - 1];
-    
-    console.log('🎯 Turno/Bloque correspondiente:', {
-      totalRegistros,
-      bloqueIndex,
-      turnosEnBloque: bloqueActual.length,
-      entrada: primerTurnoDelBloque.entrada,
-      salida: ultimoTurnoDelBloque.salida
-    });
-    
-    return {
-      entrada: primerTurnoDelBloque.entrada,
-      salida: ultimoTurnoDelBloque.salida,
-      index: bloqueIndex,
-      esUltimo: bloqueIndex === bloques.length - 1,
-      esBloque: bloqueActual.length > 1,
-      turnosEnBloque: bloqueActual.length,
-      turnos: bloqueActual // Todos los turnos del bloque
-    };
-  };
-
-  // ✅ Validación de entrada CON TOLERANCIA APLICADA Y DESACTIVACIÓN
-  const validarEntrada = (horario, tolerancia, minutosActuales, totalRegistros = 0) => {
-    const turnoActual = encontrarTurnoCorrespondiente(horario.turnos, totalRegistros);
-    
-    if (!turnoActual) {
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'completado',
-        jornadaCompleta: true,
-        turnoActual: null,
-        mensaje: 'Todos los turnos completados'
-      };
-    }
-
-    const [hE, mE] = turnoActual.entrada.split(':').map(Number);
-    const [hS, mS] = turnoActual.salida.split(':').map(Number);
-    
-    const minEntrada = hE * 60 + mE;
-    const minSalida = hS * 60 + mS;
-    
-    // 🆕 APLICAR TOLERANCIA CORRECTAMENTE
-    const ventanaInicio = minEntrada - (tolerancia.minutos_anticipado_max || 60);
-    const ventanaRetardo = minEntrada + (tolerancia.minutos_retardo || 10);
-    const ventanaFalta = minEntrada + (tolerancia.minutos_falta || 30);
-
-    console.log('🕐 Validando entrada:', {
-      minutosActuales,
-      minEntrada,
-      minSalida,
-      ventanaInicio,
-      ventanaRetardo,
-      ventanaFalta,
-      turno: turnoActual.index + 1,
-      esBloque: turnoActual.esBloque
-    });
-
-    // ✅ Dentro de ventana puntual (desde ventanaInicio hasta ventanaRetardo)
-    if (minutosActuales >= ventanaInicio && minutosActuales <= ventanaRetardo) {
-      console.log('✅ PUNTUAL');
-      return {
-        puedeRegistrar: true,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'puntual',
-        jornadaCompleta: false,
-        turnoActual,
-        mensaje: turnoActual.esBloque 
-          ? `Entrada al bloque ${turnoActual.index + 1} (${turnoActual.turnosEnBloque} turnos)`
-          : `Entrada al turno ${turnoActual.index + 1}`
-      };
-    }
-
-    // ⚠️ Con retardo (después de ventanaRetardo hasta ventanaFalta)
-    if (minutosActuales > ventanaRetardo && minutosActuales <= ventanaFalta) {
-      console.log('⚠️ RETARDO');
-      return {
-        puedeRegistrar: true,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'retardo',
-        jornadaCompleta: false,
-        turnoActual,
-        mensaje: turnoActual.esBloque
-          ? `Retardo - Bloque ${turnoActual.index + 1}`
-          : `Retardo - Turno ${turnoActual.index + 1}`
-      };
-    }
-
-    // ❌ Falta (después de ventanaFalta pero antes de salida)
-    // 🆕 IMPORTANTE: Se desabilita después de ventanaFalta
-    if (minutosActuales > ventanaFalta && minutosActuales <= minSalida) {
-      console.log('❌ FALTA - REGISTRO DESHABILITADO');
-      return {
-        puedeRegistrar: false, // ⚠️ CAMBIADO A FALSE - se desabilita después de tolerancia
-        tipoRegistro: 'entrada',
-        estadoHorario: 'falta',
-        jornadaCompleta: false,
-        turnoActual,
-        mensaje: turnoActual.esBloque
-          ? `Fuera de tolerancia - Bloque ${turnoActual.index + 1}`
-          : `Fuera de tolerancia - Turno ${turnoActual.index + 1}`
-      };
-    }
-
-    // Verificar si hay un bloque/turno futuro
-    const bloques = agruparTurnosConsecutivos(horario.turnos);
-    const siguienteBloque = bloques[turnoActual.index + 1];
-    
-    if (siguienteBloque) {
-      const primerTurnoSiguiente = siguienteBloque[0];
-      const [hESig, mESig] = primerTurnoSiguiente.entrada.split(':').map(Number);
-      const minEntradaSiguiente = hESig * 60 + mESig;
-      const ventanaInicioSiguiente = minEntradaSiguiente - (tolerancia.minutos_anticipado_max || 60);
+      const minEntrada = hE * 60 + mE;
+      const minSalida = hS * 60 + mS;
       
-      if (minutosActuales < ventanaInicioSiguiente) {
-        console.log('⏸️ Entre bloques/turnos');
+      const ventanaInicio = minEntrada - (tolerancia.minutos_anticipado_max || 60);
+      const ventanaRetardo = minEntrada + tolerancia.minutos_retardo;
+      const ventanaFalta = minEntrada + tolerancia.minutos_falta;
+
+      if (minutosActuales >= ventanaInicio && minutosActuales <= ventanaRetardo) {
         return {
-          puedeRegistrar: false,
+          puedeRegistrar: true,
           tipoRegistro: 'entrada',
-          estadoHorario: 'fuera_horario',
+          estadoHorario: 'puntual',
           jornadaCompleta: false,
-          turnoActual,
-          mensaje: `Entre ${turnoActual.esBloque ? 'bloques' : 'turnos'} ${turnoActual.index + 1} y ${turnoActual.index + 2}`
+          hayTurnoFuturo: false,
+          mensaje: 'Puedes registrar tu entrada'
         };
       }
+
+      if (minutosActuales > ventanaRetardo && minutosActuales <= ventanaFalta) {
+        return {
+          puedeRegistrar: true,
+          tipoRegistro: 'entrada',
+          estadoHorario: 'retardo',
+          jornadaCompleta: false,
+          hayTurnoFuturo: false,
+          mensaje: 'Registro con retardo'
+        };
+      }
+
+      if (minutosActuales > ventanaFalta && minutosActuales <= minSalida) {
+        return {
+          puedeRegistrar: true,
+          tipoRegistro: 'entrada',
+          estadoHorario: 'falta',
+          jornadaCompleta: false,
+          hayTurnoFuturo: false,
+          mensaje: 'Fuera de tolerancia (falta)'
+        };
+      }
+      
+      if (minutosActuales < ventanaInicio) {
+        hayTurnoFuturo = true;
+      }
     }
 
-    // Antes del primer turno/bloque
-    if (minutosActuales < ventanaInicio) {
-      console.log('⏰ Demasiado temprano');
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'fuera_horario',
-        jornadaCompleta: false,
-        turnoActual,
-        mensaje: 'Aún no es hora de entrada'
-      };
-    }
-
-    // Después del último turno/bloque
-    console.log('🔚 Fuera de horario');
     return {
       puedeRegistrar: false,
       tipoRegistro: 'entrada',
       estadoHorario: 'fuera_horario',
       jornadaCompleta: false,
-      turnoActual,
-      mensaje: 'Fuera de horario'
+      hayTurnoFuturo: hayTurnoFuturo,
+      mensaje: hayTurnoFuturo ? 'Aún no es hora de entrada' : 'Fuera de horario'
     };
   };
 
-  // ✅ Validación de salida CON TOLERANCIA APLICADA Y DESACTIVACIÓN
-  const validarSalida = (horario, tolerancia, minutosActuales, totalRegistros = 1) => {
-    const turnoActual = encontrarTurnoCorrespondiente(horario.turnos, totalRegistros);
-    
-    if (!turnoActual) {
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'salida',
-        estadoHorario: 'completado',
-        jornadaCompleta: true,
-        turnoActual: null,
-        mensaje: 'Todos los turnos completados'
-      };
+  const validarSalida = (horario, minutosActuales) => {
+    for (const turno of horario.turnos) {
+      const [hS, mS] = turno.salida.split(':').map(Number);
+      const minSalida = hS * 60 + mS;
+
+      const ventanaSalidaInicio = minSalida - 10;
+      const ventanaSalidaFin = minSalida + 5;
+
+      if (minutosActuales >= ventanaSalidaInicio && minutosActuales <= ventanaSalidaFin) {
+        return {
+          puedeRegistrar: true,
+          tipoRegistro: 'salida',
+          estadoHorario: 'puntual',
+          jornadaCompleta: false,
+          mensaje: 'Puedes registrar tu salida'
+        };
+      }
     }
 
-    const [hS, mS] = turnoActual.salida.split(':').map(Number);
-    const minSalida = hS * 60 + mS;
-
-    // 🆕 APLICAR TOLERANCIA DE SALIDA
-    const minutosTolerancia = tolerancia.aplica_tolerancia_salida 
-      ? (tolerancia.minutos_retardo || 10) 
-      : 10;
-    
-    const ventanaSalidaInicio = minSalida - minutosTolerancia;
-    const ventanaSalidaFin = minSalida + minutosTolerancia; // 🆕 Límite superior de tolerancia
-
-    console.log('🕐 Validando salida:', {
-      minutosActuales,
-      minSalida,
-      ventanaSalidaInicio,
-      ventanaSalidaFin,
-      turno: turnoActual.index + 1,
-      esBloque: turnoActual.esBloque
-    });
-
-    // ⚠️ Muy temprano para salida (antes de la ventana)
-    if (minutosActuales < ventanaSalidaInicio) {
-      console.log('⏰ Muy temprano para salida');
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'salida',
-        estadoHorario: 'fuera_horario',
-        jornadaCompleta: false,
-        turnoActual,
-        mensaje: 'Aún no es hora de salida'
-      };
-    }
-
-    // ✅ Dentro de la ventana de tolerancia (puede registrar salida)
-    if (minutosActuales >= ventanaSalidaInicio && minutosActuales <= ventanaSalidaFin) {
-      const esPuntual = minutosActuales >= minSalida;
-      console.log(esPuntual ? '✅ SALIDA PUNTUAL' : '⚠️ SALIDA TEMPRANA');
-      
-      return {
-        puedeRegistrar: true,
-        tipoRegistro: 'salida',
-        estadoHorario: esPuntual ? 'salida_puntual' : 'salida_temprano',
-        jornadaCompleta: turnoActual.esUltimo,
-        turnoActual,
-        mensaje: turnoActual.esBloque
-          ? `Salida del bloque ${turnoActual.index + 1}`
-          : `Salida del turno ${turnoActual.index + 1}`
-      };
-    }
-
-    // ❌ Después de la ventana de tolerancia - DESHABILITADO
-    if (minutosActuales > ventanaSalidaFin) {
-      console.log('❌ FUERA DE TOLERANCIA DE SALIDA - DESHABILITADO');
-      return {
-        puedeRegistrar: false, // ⚠️ Se desabilita después de la tolerancia
-        tipoRegistro: 'salida',
-        estadoHorario: 'fuera_tolerancia_salida',
-        jornadaCompleta: false,
-        turnoActual,
-        mensaje: 'Fuera de tolerancia de salida'
-      };
-    }
-
-    // Fallback
     return {
       puedeRegistrar: false,
       tipoRegistro: 'salida',
       estadoHorario: 'fuera_horario',
       jornadaCompleta: false,
-      turnoActual,
-      mensaje: 'Fuera de horario'
+      mensaje: 'Aún no es hora de salida'
     };
   };
 
-  // 🆕 Función principal de cálculo de estado
   const calcularEstadoRegistro = useCallback((ultimo, horario, tolerancia) => {
     if (!horario?.trabaja) {
       return {
@@ -570,60 +351,58 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         tipoRegistro: 'entrada',
         estadoHorario: 'fuera_horario',
         jornadaCompleta: false,
-        turnoActual: null,
-        mensaje: 'No trabajas hoy'
+        mensaje: 'No tienes horario configurado para hoy'
       };
     }
 
     const ahora = getMinutosDelDia();
-    const totalRegistros = ultimo?.totalRegistrosHoy || 0;
+    const totalTurnos = horario.turnos.length;
     
-    console.log('📊 Calculando estado:', {
-      ahora,
-      totalRegistros,
-      ultimoTipo: ultimo?.tipo
-    });
-    
-    // Sin registros previos = primera entrada
-    if (!ultimo || totalRegistros === 0) {
-      return validarEntrada(horario, tolerancia, ahora, 0);
+    if (!ultimo) {
+      return validarEntrada(horario, tolerancia, ahora);
     }
 
-    // Si el último fue entrada, toca salida
+    const registrosHoy = ultimo.totalRegistrosHoy || 1;
+    const turnosCompletados = Math.floor(registrosHoy / 2);
+    
     if (ultimo.tipo === 'entrada') {
-      return validarSalida(horario, tolerancia, ahora, totalRegistros);
+      return validarSalida(horario, ahora);
     }
     
-    // Si el último fue salida, toca entrada (del siguiente turno o completado)
     if (ultimo.tipo === 'salida') {
-      return validarEntrada(horario, tolerancia, ahora, totalRegistros);
+      if (turnosCompletados >= totalTurnos) {
+        const resultadoEntrada = validarEntrada(horario, tolerancia, ahora);
+        
+        if (!resultadoEntrada.hayTurnoFuturo) {
+          return {
+            puedeRegistrar: false,
+            tipoRegistro: 'entrada',
+            estadoHorario: 'completado',
+            jornadaCompleta: true,
+            mensaje: 'Jornada completada por hoy'
+          };
+        }
+        
+        return resultadoEntrada;
+      }
+      
+      return validarEntrada(horario, tolerancia, ahora);
     }
 
-    // Fallback
-    return validarEntrada(horario, tolerancia, ahora, totalRegistros);
+    return validarEntrada(horario, tolerancia, ahora);
   }, []);
 
-  // 📥 Cargar datos iniciales
   useEffect(() => {
     const cargarDatos = async () => {
       setLoading(true);
 
       try {
-        console.log('📥 Cargando datos...');
-        
         const [ultimo, horario, tolerancia, deptos] = await Promise.all([
           obtenerUltimoRegistro(),
           obtenerHorario(),
           obtenerTolerancia(),
           obtenerDepartamentos()
         ]);
-
-        console.log('📊 Datos cargados:', {
-          ultimo,
-          horario,
-          tolerancia,
-          totalDeptos: deptos.length
-        });
 
         setUltimoRegistroHoy(ultimo);
         setHorarioInfo(horario);
@@ -632,16 +411,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
         if (horario && tolerancia) {
           const estado = calcularEstadoRegistro(ultimo, horario, tolerancia);
-          console.log('📊 Estado calculado:', estado);
-          
           setPuedeRegistrar(estado.puedeRegistrar);
           setTipoSiguienteRegistro(estado.tipoRegistro);
           setEstadoHorario(estado.estadoHorario);
           setJornadaCompletada(estado.jornadaCompleta);
-          setTurnoActual(estado.turnoActual);
         }
       } catch (err) {
-        console.error('❌ Error cargando datos:', err);
       } finally {
         setLoading(false);
       }
@@ -650,7 +425,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     cargarDatos();
   }, [obtenerUltimoRegistro, obtenerHorario, obtenerTolerancia, obtenerDepartamentos, calcularEstadoRegistro]);
 
-  // 📍 Gestión de ubicación
   useEffect(() => {
     let locationSubscription = null;
 
@@ -682,7 +456,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           }
         );
       } catch (err) {
-        console.error('❌ Error ubicación:', err);
       }
     };
 
@@ -695,7 +468,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     };
   }, []);
 
-  // 🗺️ Validar si está dentro del área
   useEffect(() => {
     if (!ubicacionActual || !departamentos.length) {
       setDentroDelArea(false);
@@ -731,17 +503,18 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     if (departamentoSeleccionado && !deptsDisponibles.find(d => d.id === departamentoSeleccionado.id)) {
       setDepartamentoSeleccionado(deptsDisponibles[0] || null);
     }
-  }, [ubicacionActual, departamentos, departamentoSeleccionado]);
+  }, [ubicacionActual, departamentos]);
 
-  // 📝 Manejar registro de asistencia
   const handleRegistro = async () => {
     if (!userData || !userData.empleado_id || !userData.token) {
-      Alert.alert('Error', 'No se pudo identificar tu información de usuario.');
+      console.error('❌ userData incompleto');
+      Alert.alert('Error', 'No se pudo identificar tu información de usuario. Intenta cerrar sesión y volver a iniciar.');
       return;
     }
 
-    if (!horarioInfo?.trabaja) {
-      Alert.alert('Error', 'No tienes un horario configurado para hoy.');
+    if (!horarioInfo) {
+      console.error('❌ Sin horario configurado');
+      Alert.alert('Error', 'No tienes un horario configurado. Contacta al administrador.', [{ text: 'OK' }]);
       return;
     }
 
@@ -756,40 +529,36 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         mensaje = 'Ya completaste tu jornada de hoy';
       } else if (estadoHorario === 'fuera_horario') {
         mensaje = 'Estás fuera de tu horario laboral';
+      } else if (!horarioInfo.trabaja) {
+        mensaje = 'No tienes horario configurado para hoy';
       }
-      Alert.alert('No disponible', mensaje);
+      Alert.alert('No disponible', mensaje, [{ text: 'Entendido' }]);
       return;
     }
 
-    if (!ubicacionActual?.lat || !ubicacionActual?.lng) {
-      Alert.alert('Error', 'No se pudo obtener tu ubicación.');
+    if (!ubicacionActual || !ubicacionActual.lat || !ubicacionActual.lng) {
+      Alert.alert('Error', 'No se pudo obtener tu ubicación. Verifica que el GPS esté activado.');
       return;
     }
 
-    let estadoMensaje = '';
+    const empleadoId = userData.empleado_id;
+    console.log('✅ Validaciones pasadas, empleadoId:', empleadoId);
+    console.log('✅ Departamento seleccionado:', departamentoSeleccionado.id, departamentoSeleccionado.nombre);
     
+    let estadoMensaje = '';
     if (tipoSiguienteRegistro === 'salida') {
       estadoMensaje = '✅ Salida';
     } else {
-      if (estadoHorario === 'puntual') {
-        estadoMensaje = '✅ Puntual';
-      } else if (estadoHorario === 'retardo') {
-        estadoMensaje = '⚠️ Con retardo';
-      } else if (estadoHorario === 'falta') {
-        estadoMensaje = '❌ Fuera de tolerancia';
-      }
+      if (estadoHorario === 'puntual') estadoMensaje = '✅ Puntual';
+      if (estadoHorario === 'retardo') estadoMensaje = '⚠️ Con retardo';
+      if (estadoHorario === 'falta') estadoMensaje = '❌ Fuera de tolerancia';
     }
 
     const tipoTexto = tipoSiguienteRegistro === 'entrada' ? 'Entrada' : 'Salida';
-    const identificador = turnoActual 
-      ? (turnoActual.esBloque 
-          ? `Bloque ${turnoActual.index + 1} (${turnoActual.turnosEnBloque} turnos consecutivos)`
-          : `Turno ${turnoActual.index + 1}`)
-      : '';
 
     Alert.alert(
       `Confirmar ${tipoTexto}`,
-      `¿Deseas registrar tu ${tipoTexto.toLowerCase()}?\n\n${estadoMensaje}${identificador ? `\n${identificador}` : ''}\n\nDepartamento: ${departamentoSeleccionado.nombre}\nHora: ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
+      `¿Deseas registrar tu ${tipoTexto.toLowerCase()}?\n\n${estadoMensaje}\n\nDepartamento: ${departamentoSeleccionado.nombre}\nHora: ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -798,19 +567,46 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             setRegistrando(true);
 
             try {
-              console.log('📤 Registrando asistencia...');
-              
-              // 🆕 Usar servicio de asistencia
-              const data = await asistenciaService.registrarAsistencia(
-                userData.empleado_id,
-                ubicacionActual,
-                userData.token,
-                departamentoSeleccionado.id
-              );
+              // ✨ PAYLOAD ACTUALIZADO - Incluye departamento_id
+              const payload = {
+                empleado_id: empleadoId,
+                dispositivo_origen: 'movil',
+                ubicacion: [ubicacionActual.lat, ubicacionActual.lng],
+                departamento_id: departamentoSeleccionado.id // ✅ AGREGADO
+              };
 
-              console.log('✅ Registro exitoso:', data);
+              console.log('📤 Payload completo:', payload);
 
-              // Actualizar estado local
+              const response = await fetch(`${API_URL}/asistencias/registrar`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${userData.token}`,
+                },
+                body: JSON.stringify(payload)
+              });
+
+              const responseText = await response.text();
+
+              if (response.status === 502) {
+                throw new Error('El servidor no está disponible en este momento. Por favor intenta de nuevo.');
+              }
+              if (response.status === 500) {
+                throw new Error('Error interno del servidor. Contacta al administrador.');
+              }
+
+              let data;
+              try {
+                data = responseText ? JSON.parse(responseText) : {};
+              } catch (parseError) {
+                throw new Error('Error del servidor: respuesta inválida');
+              }
+
+              if (!response.ok) {
+                const errorMsg = data.message || data.error || `Error del servidor (${response.status})`;
+                throw new Error(errorMsg);
+              }
+
               const nuevoUltimo = await obtenerUltimoRegistro();
               setUltimoRegistroHoy(nuevoUltimo);
               
@@ -820,31 +616,30 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                 setTipoSiguienteRegistro(nuevoEstado.tipoRegistro);
                 setEstadoHorario(nuevoEstado.estadoHorario);
                 setJornadaCompletada(nuevoEstado.jornadaCompleta);
-                setTurnoActual(nuevoEstado.turnoActual);
               }
 
               let estadoTexto = '';
-              let emojiResultado = '✅';
+              let emoji = '✅';
 
               if (data.data?.tipo === 'salida') {
-                estadoTexto = data.data.estado === 'salida_temprano' ? 'salida temprana' : 'salida';
-                emojiResultado = '✅';
+                estadoTexto = 'salida registrada';
+                emoji = '✅';
               } else {
                 if (data.data?.estado === 'retardo') {
                   estadoTexto = 'retardo';
-                  emojiResultado = '⚠️';
+                  emoji = '⚠️';
                 } else if (data.data?.estado === 'falta') {
                   estadoTexto = 'falta';
-                  emojiResultado = '❌';
+                  emoji = '❌';
                 } else {
                   estadoTexto = 'puntual';
-                  emojiResultado = '✅';
+                  emoji = '✅';
                 }
               }
 
               Alert.alert(
                 '¡Éxito!',
-                `${emojiResultado} ${data.data?.tipo === 'salida' ? 'Salida' : 'Entrada'} registrada como ${estadoTexto}\nDepartamento: ${departamentoSeleccionado.nombre}\nHora: ${new Date(data.data?.fecha_registro).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
+                `${emoji} ${data.data?.tipo === 'salida' ? 'Salida' : 'Entrada'} registrada como ${estadoTexto}\nDepartamento: ${departamentoSeleccionado.nombre}\nHora: ${new Date(data.data?.fecha_registro).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
                 [{ text: 'OK' }]
               );
 
@@ -852,8 +647,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                 onRegistroExitoso(data);
               }
             } catch (err) {
-              console.error('❌ Error al registrar:', err);
-              Alert.alert('Error', err.message || 'No se pudo registrar');
+              console.error('❌ Error completo:', err);
+              Alert.alert('Error', err.message || 'No se pudo registrar', [{ text: 'OK' }]);
             } finally {
               setRegistrando(false);
             }
@@ -870,7 +665,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     if (estadoHorario === 'puntual') return '#10b981';
     if (estadoHorario === 'retardo') return '#f59e0b';
     if (estadoHorario === 'falta') return '#ef4444';
-    if (estadoHorario === 'salida_temprano') return '#f59e0b';
     return '#6b7280';
   };
 
@@ -899,17 +693,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const getButtonText = () => {
     if (jornadaCompletada) return 'Jornada completada';
     if (!puedeRegistrar || !dentroDelArea) return 'No disponible';
-    
-    if (turnoActual) {
-      if (turnoActual.esBloque) {
-        const bloqueTexto = `B${turnoActual.index + 1}`;
-        return `Registrar ${tipoSiguienteRegistro === 'entrada' ? 'Entrada' : 'Salida'} ${bloqueTexto}`;
-      } else {
-        const turnoTexto = `T${turnoActual.index + 1}`;
-        return `Registrar ${tipoSiguienteRegistro === 'entrada' ? 'Entrada' : 'Salida'} ${turnoTexto}`;
-      }
-    }
-    
     return `Registrar ${tipoSiguienteRegistro === 'entrada' ? 'Entrada' : 'Salida'}`;
   };
 
@@ -941,14 +724,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                 hour12: true
               })}
             </Text>
-            {turnoActual && horarioInfo?.tipo === 'quebrado' && (
-              <Text style={styles.turnoInfo}>
-                {turnoActual.esBloque 
-                  ? `Bloque ${turnoActual.index + 1} (${turnoActual.turnosEnBloque} turnos) · ${turnoActual.entrada} - ${turnoActual.salida}`
-                  : `Turno ${turnoActual.index + 1} de ${horarioInfo.turnos.length} · ${turnoActual.entrada} - ${turnoActual.salida}`
-                }
-              </Text>
-            )}
           </View>
 
           {!loading && !jornadaCompletada && (
@@ -1002,49 +777,35 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             </View>
           )}
 
-          {!loading && ubicacionActual && departamentos.length > 0 && (
+          {!loading && departamentosDisponibles.length > 0 && (
             <>
               <TouchableOpacity 
                 style={styles.locationInfo}
-                onPress={() => {
-                  if (departamentosDisponibles.length > 0) {
-                    setMostrarDepartamentos(true);
-                  } else {
-                    setMostrarMapa(true);
-                  }
-                }}
+                onPress={() => setMostrarDepartamentos(true)}
                 activeOpacity={0.7}
               >
-                <Ionicons 
-                  name={dentroDelArea ? "location" : "location-outline"} 
-                  size={14} 
-                  color={dentroDelArea ? "#10b981" : "#6b7280"} 
-                />
+                <Ionicons name="location" size={14} color="#6b7280" />
                 <Text style={styles.locationText} numberOfLines={1}>
-                  {dentroDelArea && departamentoSeleccionado
-                    ? departamentoSeleccionado.nombre
-                    : dentroDelArea && departamentosDisponibles.length > 0
-                    ? `${departamentosDisponibles.length} ${departamentosDisponibles.length === 1 ? 'disponible' : 'disponibles'}`
-                    : 'Mi ubicación'
+                  {departamentoSeleccionado 
+                    ? departamentoSeleccionado.nombre 
+                    : `${departamentosDisponibles.length} ${departamentosDisponibles.length === 1 ? 'disponible' : 'disponibles'}`
                   }
                 </Text>
-                {departamentosDisponibles.length > 1 ? (
+                {departamentosDisponibles.length > 1 && (
                   <Ionicons name="chevron-down" size={14} color="#6b7280" style={{ marginLeft: 4 }} />
-                ) : !dentroDelArea ? (
-                  <Ionicons name="map-outline" size={14} color="#6b7280" style={{ marginLeft: 4 }} />
-                ) : null}
+                )}
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.viewMapButton}
-                onPress={() => setMostrarMapa(true)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="map-outline" size={14} color="#3b82f6" />
-                <Text style={styles.viewMapText}>
-                  {dentroDelArea ? 'Ver mapa de zonas' : 'Ver mi ubicación en el mapa'}
-                </Text>
-              </TouchableOpacity>
+              {departamentos.length > 1 && (
+                <TouchableOpacity 
+                  style={styles.viewMapButton}
+                  onPress={() => setMostrarMapa(true)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="map-outline" size={14} color="#3b82f6" />
+                  <Text style={styles.viewMapText}>Ver mapa</Text>
+                </TouchableOpacity>
+              )}
             </>
           )}
 
@@ -1095,7 +856,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         </View>
       </View>
 
-      {/* Modal de departamentos disponibles */}
       {departamentosDisponibles.length > 0 && (
         <Modal
           visible={mostrarDepartamentos}
@@ -1182,7 +942,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         </Modal>
       )}
 
-      {/* Modal del mapa */}
       {departamentos.length > 0 && (
         <Modal
           visible={mostrarMapa}
@@ -1190,7 +949,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           transparent={false}
           onRequestClose={() => setMostrarMapa(false)}
         >
-          <MapScreen
+          <MapaZonasPermitidas
             departamento={departamentoSeleccionado}
             departamentos={departamentos}
             ubicacionActual={ubicacionActual}
@@ -1208,7 +967,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   );
 };
 
-// Estilos (mantener los mismos)
 const registerStyles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
@@ -1255,12 +1013,6 @@ const registerStyles = StyleSheet.create({
     fontWeight: '700',
     color: '#1f2937',
     letterSpacing: -1,
-  },
-  turnoInfo: {
-    fontSize: 11,
-    color: '#6b7280',
-    marginTop: 2,
-    fontWeight: '500',
   },
   statusIndicators: {
     flexDirection: 'row',
@@ -1458,10 +1210,6 @@ const registerStylesDark = StyleSheet.create({
     ...registerStyles.timeValue,
     color: '#fff',
   },
-  turnoInfo: {
-    ...registerStyles.turnoInfo,
-    color: '#9ca3af',
-  },
   locationInfo: {
     ...registerStyles.locationInfo,
     backgroundColor: '#374151',
@@ -1514,10 +1262,6 @@ const registerStylesDark = StyleSheet.create({
   infoBoxText: {
     ...registerStyles.infoBoxText,
     color: '#93c5fd',
-  },
-  viewMapButton: {
-    ...registerStyles.viewMapButton,
-    backgroundColor: '#1e3a5f',
   },
 });
 

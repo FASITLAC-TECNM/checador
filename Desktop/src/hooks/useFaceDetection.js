@@ -1,18 +1,10 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import * as faceapi from 'face-api.js';
 
-// Variable global para controlar si los modelos ya están cargados
+// Mantenemos el Singleton global para los modelos
 let modelsLoadedGlobal = false;
 let loadingPromise = null;
 
-/**
- * Hook personalizado para detección facial y prueba de liveness
- * Implementa:
- * 1. Detección de rostro en tiempo real
- * 2. Prueba de liveness (detección de parpadeo)
- * 3. Extracción de descriptores faciales (Float32Array)
- * 4. Validación de calidad del rostro detectado
- */
 export function useFaceDetection() {
   const [modelsLoaded, setModelsLoaded] = useState(modelsLoadedGlobal);
   const [faceDetected, setFaceDetected] = useState(false);
@@ -21,24 +13,25 @@ export function useFaceDetection() {
   const [detectionProgress, setDetectionProgress] = useState(0);
   const [detectionError, setDetectionError] = useState(null);
 
-  // Refs para prueba de liveness (detección de parpadeo)
+  // Refs de estado interno (para no re-renderizar durante el bucle)
+  const isScanning = useRef(false);
+  const detectionTimeout = useRef(null);
+  
+  // Refs para lógica de parpadeo
   const blinkCount = useRef(0);
   const eyesClosedFrames = useRef(0);
   const eyesOpenFrames = useRef(0);
   const lastBlinkTime = useRef(0);
-  const detectionInterval = useRef(null);
+  const startTimeRef = useRef(0);
 
   /**
-   * Cargar modelos de face-api.js de forma lazy (solo cuando se necesiten)
+   * Carga Singleton de modelos
    */
   const loadModels = useCallback(async () => {
-    // Si ya están cargados, no hacer nada
     if (modelsLoadedGlobal) {
       setModelsLoaded(true);
       return;
     }
-
-    // Si ya se está cargando, esperar a que termine
     if (loadingPromise) {
       await loadingPromise;
       setModelsLoaded(true);
@@ -46,24 +39,10 @@ export function useFaceDetection() {
     }
 
     try {
-      console.log('📦 Iniciando carga de modelos de face-api.js...');
+      console.log('📦 Iniciando carga de modelos...');
+      // Ajuste automático de ruta para Electron (file://) vs Web (http://)
+      const MODEL_URL = window.location.protocol === 'file:' ? './models' : '/models';
 
-      // Determinar la ruta base según el entorno
-      // En desarrollo (Vite): usar ruta relativa /models
-      // En producción (Electron): usar la ruta del protocolo file://
-      let MODEL_URL;
-
-      if (window.location.protocol === 'file:') {
-        // Modo producción con Electron - usar ruta absoluta relativa al index.html
-        MODEL_URL = './models';
-      } else {
-        // Modo desarrollo con Vite
-        MODEL_URL = '/models';
-      }
-
-      console.log(`📂 Cargando modelos desde: ${MODEL_URL}`);
-
-      // Crear promesa de carga
       loadingPromise = Promise.all([
         faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
         faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
@@ -71,248 +50,191 @@ export function useFaceDetection() {
       ]);
 
       await loadingPromise;
-
-      console.log('✅ Modelos de face-api.js cargados correctamente');
+      console.log('✅ Modelos cargados');
       modelsLoadedGlobal = true;
       setModelsLoaded(true);
     } catch (error) {
-      console.error('❌ Error cargando modelos de face-api.js:', error);
-      console.error('📍 URL intentada:', window.location.protocol === 'file:' ? './models' : '/models');
-      console.error('📍 Protocolo actual:', window.location.protocol);
-      console.error('📍 Detalles del error:', error.message);
-      setDetectionError('Error cargando modelos de reconocimiento facial');
-      loadingPromise = null; // Resetear para permitir reintentos
+      console.error('❌ Error cargando modelos:', error);
+      setDetectionError('Error cargando modelos IA');
+      loadingPromise = null; 
     }
   }, []);
 
-  /**
-   * Calcular Eye Aspect Ratio (EAR) para detectar parpadeo
-   * @param {Array} landmarks - Puntos de referencia faciales
-   * @returns {number} - Ratio del aspecto del ojo
-   */
+  // Cálculo del EAR (Eye Aspect Ratio)
   const calculateEAR = (landmarks) => {
     try {
       const leftEye = landmarks.getLeftEye();
       const rightEye = landmarks.getRightEye();
+      const distance = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
 
-      // Calcular EAR para ojo izquierdo
-      const leftEAR = (
-        euclideanDistance(leftEye[1], leftEye[5]) +
-        euclideanDistance(leftEye[2], leftEye[4])
-      ) / (2.0 * euclideanDistance(leftEye[0], leftEye[3]));
+      const leftEAR = (distance(leftEye[1], leftEye[5]) + distance(leftEye[2], leftEye[4])) / (2.0 * distance(leftEye[0], leftEye[3]));
+      const rightEAR = (distance(rightEye[1], rightEye[5]) + distance(rightEye[2], rightEye[4])) / (2.0 * distance(rightEye[0], rightEye[3]));
 
-      // Calcular EAR para ojo derecho
-      const rightEAR = (
-        euclideanDistance(rightEye[1], rightEye[5]) +
-        euclideanDistance(rightEye[2], rightEye[4])
-      ) / (2.0 * euclideanDistance(rightEye[0], rightEye[3]));
-
-      // Promedio de ambos ojos
       return (leftEAR + rightEAR) / 2.0;
-    } catch (error) {
-      console.error('Error calculando EAR:', error);
-      return 0.25; // Valor por defecto (ojos abiertos)
+    } catch {
+      return 0.3;
     }
   };
 
   /**
-   * Calcular distancia euclidiana entre dos puntos
+   * Bucle de Detección Recursivo
+   * Reemplaza a setInterval para evitar saturación de CPU
    */
-  const euclideanDistance = (point1, point2) => {
-    const dx = point1.x - point2.x;
-    const dy = point1.y - point2.y;
-    return Math.sqrt(dx * dx + dy * dy);
-  };
-
-  /**
-   * Iniciar detección facial en un elemento de video
-   * @param {HTMLVideoElement} videoElement - Elemento de video
-   * @param {Function} onSuccess - Callback cuando se completa la detección
-   * @param {Function} onError - Callback cuando hay un error
-   */
-  const startFaceDetection = async (videoElement, onSuccess, onError) => {
-    if (!videoElement) {
-      onError?.('No hay elemento de video disponible');
+  const detectionLoop = async (videoElement, onSuccess, onError) => {
+    // 1. Verificar si debemos seguir escaneando
+    if (!isScanning.current || !videoElement || videoElement.paused || videoElement.ended) {
       return;
     }
 
-    // Cargar modelos si no están cargados
+    const startProcessTime = Date.now();
+
+    try {
+      // 2. Ejecutar detección
+      // inputSize 320 es mejor balance que 224 para distancias de escritorio
+      const detections = await faceapi
+        .detectSingleFace(videoElement, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      if (detections) {
+        setFaceDetected(true);
+        
+        // --- LÓGICA DE LIVENESS MEJORADA ---
+        const ear = calculateEAR(detections.landmarks);
+        
+        // Ajuste dinámico de dificultad:
+        // Si lleva más de 4 segundos intentando, hacemos el umbral un poco más permisivo
+        // para gente con ojos pequeños o lentes, pero SIN aceptar fotos estáticas.
+        const timeElapsed = Date.now() - startTimeRef.current;
+        const currentThreshold = timeElapsed > 4000 ? 0.29 : 0.26; 
+
+        // Detectar ojos cerrados
+        if (ear < currentThreshold) {
+          eyesClosedFrames.current++;
+        } else {
+          // Detectar apertura tras cierre (Parpadeo completo)
+          if (eyesClosedFrames.current > 0) {
+             const now = Date.now();
+             // Filtrar parpadeos fantasma (ruido) demasiado rápidos (<50ms) o lentos
+             if (eyesClosedFrames.current >= 1 && (now - lastBlinkTime.current > 200)) {
+                blinkCount.current++;
+                lastBlinkTime.current = now;
+                console.log(`👁️ Parpadeo válido! (${blinkCount.current})`);
+                
+                // Feedback visual de progreso
+                setDetectionProgress((prev) => Math.min(prev + 50, 90));
+             }
+             eyesClosedFrames.current = 0;
+          }
+        }
+
+        // --- VERIFICACIÓN DE ÉXITO ---
+        if (blinkCount.current >= 1 && !livenessDetected) {
+            setLivenessDetected(true);
+            setDetectionProgress(100);
+            
+            // Éxito: Detenemos el bucle
+            isScanning.current = false;
+            
+            // Copiar datos para evitar referencias perdidas
+            const descriptor = new Float32Array(detections.descriptor);
+            
+            onSuccess?.({
+              descriptor: Array.from(descriptor),
+              detection: detections.detection,
+              landmarks: detections.landmarks
+            });
+            return; // Salir del bucle
+        }
+
+        // Si no ha parpadeado, mostramos progreso parcial de "rostro detectado"
+        if (blinkCount.current === 0) {
+           setDetectionProgress((prev) => Math.min(prev + 2, 40)); 
+        }
+
+      } else {
+        // No hay rostro
+        setFaceDetected(false);
+        eyesClosedFrames.current = 0;
+        setDetectionProgress((prev) => Math.max(0, prev - 5));
+      }
+
+    } catch (error) {
+      console.error(error);
+      // No detenemos el bucle por un error de un frame, solo logueamos
+    }
+
+    // 3. Programar el siguiente frame
+    // Calculamos cuánto tardó este frame para ajustar el delay
+    const processDuration = Date.now() - startProcessTime;
+    // Intentamos mantener aprox 150-200ms entre frames
+    const delay = Math.max(50, 200 - processDuration);
+    
+    if (isScanning.current) {
+      detectionTimeout.current = setTimeout(() => 
+        detectionLoop(videoElement, onSuccess, onError), 
+      delay);
+    }
+  };
+
+  /**
+   * Iniciar proceso
+   */
+  const startFaceDetection = async (videoElement, onSuccess, onError) => {
+    // Limpieza de seguridad previa
+    stopFaceDetection();
+
+    if (!videoElement) {
+      onError?.('Cámara no detectada');
+      return;
+    }
+
+    // Carga de modelos si faltan
     if (!modelsLoadedGlobal) {
-      console.log('🔄 Modelos no cargados, cargando ahora...');
       try {
         await loadModels();
-      } catch (error) {
-        onError?.('Error cargando modelos de reconocimiento facial');
+      } catch (e) {
+        onError?.('Error inicializando IA');
         return;
       }
     }
 
-    // Resetear estados
+    // Reiniciar estados
     blinkCount.current = 0;
     eyesClosedFrames.current = 0;
-    eyesOpenFrames.current = 0;
-    lastBlinkTime.current = 0;
+    startTimeRef.current = Date.now();
+    isScanning.current = true; // Bandera maestra
+    
     setFaceDetected(false);
     setLivenessDetected(false);
     setDetectionProgress(0);
     setDetectionError(null);
 
-    const EAR_THRESHOLD = 0.27; // Umbral para detectar ojos cerrados (más tolerante)
-    const BLINKS_REQUIRED = 1; // Solo 1 parpadeo requerido
-    const MIN_DETECTION_CONFIDENCE = 0.4; // Confianza mínima
-    const STABLE_FRAMES_REQUIRED = 3; // Frames estables antes de procesar
-    const AUTO_PROCEED_TIMEOUT = 5000; // Auto-proceder después de 5 segundos si hay rostro estable
+    // Iniciar bucle
+    detectionLoop(videoElement, onSuccess, onError);
 
-    let progressValue = 0;
-    let stableFramesCount = 0;
-    let autoProceTimer = null;
-
-    // Intervalo de detección cada 250ms (más rápido)
-    detectionInterval.current = setInterval(async () => {
-      try {
-        // Usar parámetros optimizados para mejor rendimiento
-        const detections = await faceapi
-          .detectSingleFace(videoElement, new faceapi.TinyFaceDetectorOptions({
-            inputSize: 224,
-            scoreThreshold: 0.4
-          }))
-          .withFaceLandmarks()
-          .withFaceDescriptor();
-
-        if (detections && detections.detection.score > MIN_DETECTION_CONFIDENCE) {
-          // ✅ Rostro detectado
-          setFaceDetected(true);
-          stableFramesCount++;
-          progressValue = Math.min(progressValue + 8, 50);
-          setDetectionProgress(progressValue);
-
-          // Iniciar timer de auto-proceder si el rostro está estable
-          if (stableFramesCount >= STABLE_FRAMES_REQUIRED && !autoProceTimer) {
-            console.log('⏱️ Rostro estable detectado, iniciando timer de auto-proceder...');
-            autoProceTimer = setTimeout(() => {
-              if (!livenessDetected) {
-                console.log('⚡ Auto-procediendo sin parpadeo (rostro estable detectado)');
-                setLivenessDetected(true);
-                progressValue = 100;
-                setDetectionProgress(100);
-
-                const descriptor = Array.from(detections.descriptor);
-                setFaceDescriptor(descriptor);
-
-                clearInterval(detectionInterval.current);
-                onSuccess?.({
-                  descriptor,
-                  detection: detections.detection,
-                  landmarks: detections.landmarks,
-                });
-              }
-            }, AUTO_PROCEED_TIMEOUT);
-          }
-
-          // Calcular EAR para detección de parpadeo
-          const ear = calculateEAR(detections.landmarks);
-
-          // Log del EAR para debugging
-          if (stableFramesCount % 5 === 0) {
-            console.log(`👁️ EAR actual: ${ear.toFixed(3)} (umbral: ${EAR_THRESHOLD})`);
-          }
-
-          // Detectar parpadeo (lógica más permisiva)
-          if (ear < EAR_THRESHOLD) {
-            eyesClosedFrames.current++;
-            if (eyesClosedFrames.current >= 1 && eyesOpenFrames.current >= 1) {
-              const now = Date.now();
-              if (now - lastBlinkTime.current > 150) {
-                blinkCount.current++;
-                lastBlinkTime.current = now;
-                console.log(`👁️✨ ¡Parpadeo detectado! (${blinkCount.current}/${BLINKS_REQUIRED}) - EAR: ${ear.toFixed(3)}`);
-
-                progressValue = Math.min(progressValue + 40, 90);
-                setDetectionProgress(progressValue);
-              }
-              eyesClosedFrames.current = 0;
-              eyesOpenFrames.current = 0;
-            }
-          } else {
-            eyesOpenFrames.current++;
-            if (eyesClosedFrames.current > 0) {
-              eyesClosedFrames.current = 0;
-            }
-          }
-
-          // Si se detectó parpadeo, proceder inmediatamente
-          if (blinkCount.current >= BLINKS_REQUIRED && !livenessDetected) {
-            if (autoProceTimer) clearTimeout(autoProceTimer);
-
-            setLivenessDetected(true);
-            progressValue = 100;
-            setDetectionProgress(100);
-
-            const descriptor = Array.from(detections.descriptor);
-            setFaceDescriptor(descriptor);
-
-            console.log('✅ Liveness detectado con parpadeo - Rostro válido');
-            console.log('📊 Descriptor facial extraído:', descriptor.length, 'dimensiones');
-
-            clearInterval(detectionInterval.current);
-            onSuccess?.({
-              descriptor,
-              detection: detections.detection,
-              landmarks: detections.landmarks,
-            });
-          }
-        } else {
-          // ❌ No se detectó rostro
-          setFaceDetected(false);
-          stableFramesCount = 0;
-          if (autoProceTimer) {
-            clearTimeout(autoProceTimer);
-            autoProceTimer = null;
-          }
-          progressValue = Math.max(progressValue - 3, 0);
-          setDetectionProgress(progressValue);
-        }
-      } catch (error) {
-        console.error('❌ Error en detección facial:', error);
-        setDetectionError('Error durante la detección facial');
-        onError?.(error.message);
-      }
-    }, 250); // 250ms de intervalo (más rápido)
-
-    // Timeout de 30 segundos
+    // Timeout de seguridad general (30s)
     setTimeout(() => {
-      if (!livenessDetected) {
-        if (autoProceTimer) clearTimeout(autoProceTimer);
-        clearInterval(detectionInterval.current);
-        setDetectionError('Tiempo agotado para la detección');
-        onError?.('Tiempo agotado. Por favor intenta de nuevo.');
+      if (isScanning.current) {
+        stopFaceDetection();
+        setDetectionError('Tiempo agotado. Intente acercarse más.');
+        onError?.('Tiempo agotado');
       }
     }, 30000);
   };
 
-  /**
-   * Detener detección facial
-   */
   const stopFaceDetection = () => {
-    if (detectionInterval.current) {
-      clearInterval(detectionInterval.current);
-      detectionInterval.current = null;
+    isScanning.current = false;
+    if (detectionTimeout.current) {
+      clearTimeout(detectionTimeout.current);
+      detectionTimeout.current = null;
     }
-    blinkCount.current = 0;
-    eyesClosedFrames.current = 0;
-    eyesOpenFrames.current = 0;
     setFaceDetected(false);
-    setLivenessDetected(false);
     setDetectionProgress(0);
   };
 
-  /**
-   * Cleanup al desmontar
-   */
   useEffect(() => {
-    return () => {
-      stopFaceDetection();
-    };
+    return () => stopFaceDetection();
   }, []);
 
   return {

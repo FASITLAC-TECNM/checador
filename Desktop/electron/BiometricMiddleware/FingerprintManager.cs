@@ -36,7 +36,8 @@ namespace BiometricMiddleware
         /// <summary>
         /// Intenta detectar y conectar un lector biometrico
         /// </summary>
-        public async Task<bool> TryDetectReader()
+        /// <param name="silent">Si es true, no envia notificaciones (usado por el monitor)</param>
+        public async Task<bool> TryDetectReader(bool silent = false)
         {
             try
             {
@@ -57,7 +58,6 @@ namespace BiometricMiddleware
 
                 if (_reader == null)
                 {
-                    await NotifyStatus("noReader", "No hay lector conectado");
                     return false;
                 }
 
@@ -69,13 +69,11 @@ namespace BiometricMiddleware
                 Console.WriteLine("[OK] Lector detectado");
                 Console.WriteLine($"    Lector: {_reader.ReaderBrand} {_reader.DeviceModel}\n");
 
-                await NotifyStatus("ready", $"Lector conectado - {_reader.ReaderBrand}");
                 return true;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[ERROR] Deteccion de lector: {ex.Message}");
-                await NotifyStatus("noReader", "No hay lector conectado");
                 return false;
             }
         }
@@ -91,28 +89,39 @@ namespace BiometricMiddleware
                 {
                     bool currentState = _reader != null && _reader.IsConnected;
 
-                    // Si no hay lector, intentar detectar uno
+                    // Si no hay lector, intentar detectar uno (silenciosamente)
                     if (!currentState)
                     {
-                        var found = await TryDetectReader();
+                        var found = await TryDetectReader(silent: true);
                         currentState = found;
                     }
 
-                    // Notificar cambio de estado
+                    // Solo notificar si hay un CAMBIO de estado
                     if (currentState != _lastReaderState)
                     {
                         _lastReaderState = currentState;
                         Console.WriteLine($"[MONITOR] Lector {(currentState ? "CONECTADO" : "DESCONECTADO")}");
 
+                        // Notificar cambio via evento
                         if (OnReaderConnectionChanged != null)
                         {
                             await OnReaderConnectionChanged(currentState);
+                        }
+
+                        // Notificar estado via WebSocket solo en cambio
+                        if (currentState)
+                        {
+                            await NotifyStatus("ready", $"Lector conectado - {_reader?.ReaderBrand}");
+                        }
+                        else
+                        {
+                            await NotifyStatus("noReader", "Lector desconectado");
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[MONITOR] Error: {ex.Message}");
+                    // Silenciar errores del monitor para no llenar la consola
                 }
             }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(3));
         }

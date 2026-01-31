@@ -53,25 +53,25 @@ export const PinInputModal = ({
   }, [visible]);
 
   const shake = () => {
-    Vibration.vibrate(400);
+    Vibration.vibrate(200); // ⚡ REDUCIDO de 400 a 200
     Animated.sequence([
-      Animated.timing(shakeAnimation, { toValue: 10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnimation, { toValue: -10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnimation, { toValue: 10, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeAnimation, { toValue: 0, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnimation, { toValue: 10, duration: 30, useNativeDriver: true }), // ⚡ REDUCIDO
+      Animated.timing(shakeAnimation, { toValue: -10, duration: 30, useNativeDriver: true }),
+      Animated.timing(shakeAnimation, { toValue: 10, duration: 30, useNativeDriver: true }),
+      Animated.timing(shakeAnimation, { toValue: 0, duration: 30, useNativeDriver: true }),
     ]).start();
   };
 
   const animatePress = (index) => {
     Animated.sequence([
       Animated.timing(scaleAnimations[index], {
-        toValue: 1.2,
-        duration: 100,
+        toValue: 1.15, // ⚡ REDUCIDO de 1.2 a 1.15
+        duration: 50, // ⚡ REDUCIDO de 100 a 50
         useNativeDriver: true,
       }),
       Animated.timing(scaleAnimations[index], {
         toValue: 1,
-        duration: 100,
+        duration: 50, // ⚡ REDUCIDO de 100 a 50
         useNativeDriver: true,
       }),
     ]).start();
@@ -89,20 +89,22 @@ export const PinInputModal = ({
       animatePress(newPin.length - 1);
       
       if (newPin.length === 6) {
+        // ⚡ REDUCIDO de 200ms a 100ms
         setTimeout(() => {
           if (requireConfirmation) {
             setStep(2);
           } else {
             handleSubmit(newPin);
           }
-        }, 200);
+        }, 100);
       }
     } else {
       setConfirmPin(newPin);
       animatePress(newPin.length - 1);
       
       if (newPin.length === 6) {
-        setTimeout(() => handleConfirmPin(newPin), 200);
+        // ⚡ REDUCIDO de 200ms a 100ms
+        setTimeout(() => handleConfirmPin(newPin), 100);
       }
     }
     
@@ -200,7 +202,7 @@ export const PinInputModal = ({
                     key={keyIndex}
                     style={styles.keyButton}
                     onPress={handleBackspace}
-                    activeOpacity={0.7}
+                    activeOpacity={0.6} // ⚡ REDUCIDO de 0.7 para feedback más rápido
                   >
                     <Ionicons name="backspace-outline" size={24} color={darkMode ? '#f9fafb' : '#1f2937'} />
                   </TouchableOpacity>
@@ -212,7 +214,7 @@ export const PinInputModal = ({
                   key={keyIndex}
                   style={styles.keyButton}
                   onPress={() => handleNumberPress(key)}
-                  activeOpacity={0.7}
+                  activeOpacity={0.6} // ⚡ REDUCIDO de 0.7 para feedback más rápido
                 >
                   <Text style={styles.keyText}>{key}</Text>
                 </TouchableOpacity>
@@ -245,8 +247,10 @@ export const PinInputModal = ({
             showsVerticalScrollIndicator={false}
             bounces={false}
             contentContainerStyle={styles.scrollContent}
+            // ⚡ OPTIMIZACIÓN: Desactiva scroll cuando no es necesario
+            scrollEnabled={false}
           >
-            {/* Header - MÁS COMPACTO */}
+            {/* Header */}
             <LinearGradient
               colors={darkMode ? ['#1e40af', '#2563eb'] : ['#2563eb', '#3b82f6']}
               start={{ x: 0, y: 0 }}
@@ -256,7 +260,7 @@ export const PinInputModal = ({
               <TouchableOpacity
                 onPress={handleClose}
                 style={styles.closeButton}
-                activeOpacity={0.7}
+                activeOpacity={0.6} // ⚡ REDUCIDO
               >
                 <Ionicons name="close" size={24} color="#fff" />
               </TouchableOpacity>
@@ -273,7 +277,7 @@ export const PinInputModal = ({
               </Text>
             </LinearGradient>
 
-            {/* PIN Display - MÁS COMPACTO */}
+            {/* PIN Display */}
             <View style={styles.pinDisplay}>
               {renderPinDots()}
               
@@ -291,7 +295,7 @@ export const PinInputModal = ({
               )}
             </View>
 
-            {/* Keypad - MÁS COMPACTO */}
+            {/* Keypad */}
             {renderKeypad()}
           </ScrollView>
         </Animated.View>
@@ -310,7 +314,7 @@ const pinStyles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: height * 0.85, // ⭐ LÍMITE DE ALTURA
+    maxHeight: height * 0.85,
   },
   scrollContent: {
     flexGrow: 1,
@@ -318,7 +322,7 @@ const pinStyles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 20, // ⭐ REDUCIDO
+    paddingBottom: 20,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     alignItems: 'center',
@@ -330,7 +334,7 @@ const pinStyles = StyleSheet.create({
     zIndex: 10,
   },
   iconContainer: {
-    width: 64, // ⭐ REDUCIDO
+    width: 64,
     height: 64,
     borderRadius: 32,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -339,7 +343,7 @@ const pinStyles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 22, // ⭐ REDUCIDO
+    fontSize: 22,
     fontWeight: '700',
     color: '#fff',
     marginBottom: 6,
@@ -351,7 +355,7 @@ const pinStyles = StyleSheet.create({
   },
   pinDisplay: {
     alignItems: 'center',
-    paddingVertical: 20, // ⭐ REDUCIDO
+    paddingVertical: 20,
     minHeight: 80,
   },
   dotsContainer: {
@@ -360,7 +364,7 @@ const pinStyles = StyleSheet.create({
     marginBottom: 12,
   },
   dot: {
-    width: 14, // ⭐ REDUCIDO
+    width: 14,
     height: 14,
     borderRadius: 7,
     borderWidth: 2,
@@ -389,17 +393,17 @@ const pinStyles = StyleSheet.create({
     minHeight: 14,
   },
   keypad: {
-    paddingHorizontal: 16, // ⭐ REDUCIDO
+    paddingHorizontal: 16,
     paddingBottom: 12,
   },
   keypadRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 16, // ⭐ REDUCIDO
+    gap: 16,
     marginBottom: 12,
   },
   keyButton: {
-    width: 64, // ⭐ REDUCIDO
+    width: 64,
     height: 64,
     borderRadius: 32,
     backgroundColor: '#f3f4f6',
@@ -407,13 +411,13 @@ const pinStyles = StyleSheet.create({
     alignItems: 'center',
   },
   keyText: {
-    fontSize: 26, // ⭐ REDUCIDO
+    fontSize: 26,
     fontWeight: '600',
     color: '#1f2937',
   },
   tipsContainer: {
     paddingHorizontal: 20,
-    paddingBottom: 12, // ⭐ REDUCIDO
+    paddingBottom: 12,
     gap: 6,
   },
   tipRow: {
@@ -422,7 +426,7 @@ const pinStyles = StyleSheet.create({
     gap: 6,
   },
   tipText: {
-    fontSize: 11.5, // ⭐ REDUCIDO
+    fontSize: 11.5,
     color: '#6b7280',
   },
 });

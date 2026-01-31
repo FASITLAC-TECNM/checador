@@ -25,7 +25,6 @@ export default function App() {
   useEffect(() => {
     checkAppState();
     
-    // Listener para cuando la app vuelve al foreground
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     
     return () => {
@@ -36,7 +35,6 @@ export default function App() {
     };
   }, []);
 
-  // Iniciar verificación periódica cuando el usuario esté logueado y dispositivo registrado
   useEffect(() => {
     if (isLoggedIn && deviceRegistered) {
       startDeviceVerification();
@@ -56,20 +54,14 @@ export default function App() {
       isLoggedIn &&
       deviceRegistered
     ) {
-      // La app volvió al foreground, verificar estado del dispositivo
-      console.log('📱 App volvió al foreground, verificando dispositivo...');
       await verificarEstadoDispositivo();
     }
     appState.current = nextAppState;
   };
 
   const startDeviceVerification = () => {
-    console.log('🔄 Iniciando verificación periódica del dispositivo...');
-    
-    // Verificar inmediatamente
     verificarEstadoDispositivo();
     
-    // Verificar cada 2 minutos (120000 ms)
     verificationInterval.current = setInterval(() => {
       verificarEstadoDispositivo();
     }, 120000);
@@ -77,7 +69,6 @@ export default function App() {
 
   const stopDeviceVerification = () => {
     if (verificationInterval.current) {
-      console.log('⏹️ Deteniendo verificación periódica del dispositivo');
       clearInterval(verificationInterval.current);
       verificationInterval.current = null;
     }
@@ -91,178 +82,82 @@ export default function App() {
         AsyncStorage.getItem('@onboarding_completed')
       ]);
 
-      // Solo verificar si el onboarding está completo
       if (onboardingCompleted !== 'true') {
         return;
       }
 
-      console.log('🔍 Verificando estado del dispositivo...');
-
       if (!solicitudId || !tokenSolicitud) {
-        console.log('⚠️ No hay solicitud registrada');
         await handleDeviceInvalidated('No se encontró información del dispositivo registrado');
         return;
       }
 
-      // Verificar con el token (más confiable)
       const response = await getSolicitudPorToken(tokenSolicitud);
       const estadoLower = response.estado?.toLowerCase();
 
-      console.log('📊 Estado del dispositivo:', estadoLower);
-
       if (estadoLower === 'aceptado') {
-        console.log('✅ Dispositivo sigue aprobado');
         return;
       } else if (estadoLower === 'pendiente') {
-        console.log('⏳ Dispositivo volvió a estado pendiente');
         await handleDeviceInvalidated('Tu dispositivo está pendiente de aprobación nuevamente');
       } else if (estadoLower === 'rechazado') {
-        console.log('❌ Dispositivo fue rechazado');
         await handleDeviceInvalidated('Tu dispositivo fue rechazado por el administrador');
       } else {
-        console.log('⚠️ Estado desconocido del dispositivo:', estadoLower);
         await handleDeviceInvalidated('El estado de tu dispositivo ha cambiado');
       }
 
     } catch (error) {
-      // Verificar si es un error 404 (solicitud eliminada)
       if (error.code === 'SOLICITUD_NOT_FOUND' || error.status === 404) {
-        console.log('🗑️ Solicitud eliminada del sistema');
         await handleDeviceInvalidated('Tu registro de dispositivo fue eliminado');
         return;
       }
-      
-      // Para otros errores (red, timeout, etc.), solo registrar sin invalidar
-      // Podría ser temporal
-      console.log('⚠️ Error temporal verificando dispositivo:', error.message);
     }
   };
 
   const handleDeviceInvalidated = async (mensaje) => {
-    console.log('🚨 Dispositivo invalidado:', mensaje);
-    
     try {
-      // Limpiar el estado de onboarding completado
       await AsyncStorage.removeItem('@onboarding_completed');
-      
-      // Detener verificación
       stopDeviceVerification();
-      
-      // Marcar dispositivo como no registrado
       setDeviceRegistered(false);
       
-      // Mostrar alerta al usuario
       Alert.alert(
         'Registro de Dispositivo Requerido',
         mensaje + '\n\nDebes registrar nuevamente este dispositivo para continuar.',
-        [
-          {
-            text: 'Entendido',
-            onPress: () => {
-              console.log('📱 Redirigiendo a onboarding...');
-            }
-          }
-        ],
+        [{ text: 'Entendido' }],
         { cancelable: false }
       );
       
     } catch (error) {
-      console.error('❌ Error manejando invalidación del dispositivo:', error);
+      console.error('Error manejando invalidación del dispositivo:', error);
     }
   };
 
   const checkAppState = async () => {
     try {
-      // 1. Verificar si hay un token guardado (usuario logueado previamente)
-      const token = await AsyncStorage.getItem('userToken');
-      
-      // 2. Verificar si el dispositivo ya está registrado
       const deviceCompleted = await AsyncStorage.getItem('@onboarding_completed');
       
-      console.log('📱 Estado de la app:');
-      console.log('- Token existe:', token ? 'Sí ✅' : 'No ❌');
-      console.log('- Dispositivo registrado:', deviceCompleted === 'true' ? 'Sí ✅' : 'No ❌');
-
-      if (token && deviceCompleted === 'true') {
-        // Usuario tiene token Y dispositivo registrado
-        // Verificar que el dispositivo sigue válido
-        const tokenSolicitud = await AsyncStorage.getItem('@token_solicitud');
-        
-        if (tokenSolicitud) {
-          try {
-            const response = await getSolicitudPorToken(tokenSolicitud);
-            const estadoLower = response.estado?.toLowerCase();
-            
-            if (estadoLower === 'aceptado') {
-              console.log('✅ Usuario autenticado y dispositivo aprobado');
-              // Cargar datos del usuario desde AsyncStorage
-              const savedUserData = await AsyncStorage.getItem('@user_data');
-              if (savedUserData) {
-                setUserData(JSON.parse(savedUserData));
-              }
-              setDeviceRegistered(true);
-              setIsLoggedIn(true);
-            } else {
-              console.log('⚠️ Dispositivo no está aprobado, requiere nuevo registro');
-              await AsyncStorage.removeItem('@onboarding_completed');
-              setDeviceRegistered(false);
-              setIsLoggedIn(false);
-            }
-          } catch (error) {
-            console.log('⚠️ Error verificando dispositivo:', error.message);
-            // Si hay error verificando, requerir login
-            setDeviceRegistered(false);
-            setIsLoggedIn(false);
-          }
-        } else {
-          console.log('⚠️ No hay token de solicitud');
-          setDeviceRegistered(false);
-          setIsLoggedIn(false);
-        }
-      } else if (token && deviceCompleted !== 'true') {
-        // Tiene token pero no ha registrado el dispositivo
-        console.log('⚠️ Usuario autenticado pero dispositivo no registrado');
-        setDeviceRegistered(false);
-        setIsLoggedIn(false);
-      } else {
-        // No hay token, debe hacer login
-        console.log('❌ Usuario no autenticado');
-        setDeviceRegistered(false);
-        setIsLoggedIn(false);
-      }
-
+      setIsLoggedIn(false);
+      setDeviceRegistered(deviceCompleted === 'true');
       setIsLoading(false);
+
     } catch (error) {
       console.error('Error verificando estado de la app:', error);
+      setIsLoggedIn(false);
+      setDeviceRegistered(false);
       setIsLoading(false);
     }
   };
 
   const handleLoginSuccess = async (data) => {
     try {
-      console.log('🎯 Login exitoso, datos recibidos:', {
-        nombre: data.nombre,
-        correo: data.correo,
-        es_empleado: data.es_empleado,
-        empleado_id: data.empleado_id,
-        token: data.token ? 'Sí ✅' : 'No ❌'
-      });
-
-      // Guardar el token
       if (data.token) {
         await AsyncStorage.setItem('userToken', data.token);
-        console.log('✅ Token guardado');
       }
 
-      // Guardar datos del usuario
       await AsyncStorage.setItem('@user_data', JSON.stringify(data));
       setUserData(data);
 
-      // Verificar si el dispositivo ya está registrado
       const deviceCompleted = await AsyncStorage.getItem('@onboarding_completed');
       
       if (deviceCompleted === 'true') {
-        // Verificar que el dispositivo sigue válido
         const tokenSolicitud = await AsyncStorage.getItem('@token_solicitud');
         
         if (tokenSolicitud) {
@@ -271,83 +166,58 @@ export default function App() {
             const estadoLower = response.estado?.toLowerCase();
             
             if (estadoLower === 'aceptado') {
-              console.log('✅ Dispositivo ya registrado y aprobado, ir a Home');
               setDeviceRegistered(true);
               setIsLoggedIn(true);
             } else {
-              console.log('⚠️ Dispositivo no aprobado, requiere nuevo registro');
               await AsyncStorage.removeItem('@onboarding_completed');
               setDeviceRegistered(false);
               setIsLoggedIn(true);
             }
           } catch (error) {
-            // Si es 404, la solicitud fue eliminada
             if (error.code === 'SOLICITUD_NOT_FOUND' || error.status === 404) {
-              console.log('🗑️ Solicitud eliminada, requiere nuevo registro');
-            } else {
-              console.log('⚠️ Error verificando dispositivo, requiere nuevo registro');
+              await AsyncStorage.removeItem('@onboarding_completed');
             }
-            await AsyncStorage.removeItem('@onboarding_completed');
             setDeviceRegistered(false);
             setIsLoggedIn(true);
           }
         } else {
-          console.log('⚠️ No hay token de solicitud, requiere registro');
           await AsyncStorage.removeItem('@onboarding_completed');
           setDeviceRegistered(false);
           setIsLoggedIn(true);
         }
       } else {
-        // Primera vez con este dispositivo, mostrar onboarding
-        console.log('⚠️ Primera vez en este dispositivo, mostrar onboarding');
         setDeviceRegistered(false);
-        setIsLoggedIn(true); // Está logueado pero necesita onboarding
+        setIsLoggedIn(true);
       }
     } catch (error) {
-      console.error('❌ Error en handleLoginSuccess:', error);
+      console.error('Error en handleLoginSuccess:', error);
     }
   };
 
   const handleOnboardingComplete = async (onboardingData) => {
     try {
-      console.log('✅ Onboarding completado:', {
-        email: onboardingData.email,
-        empresaId: onboardingData.empresaId,
-        deviceId: onboardingData.idDispositivo
-      });
-
-      // Marcar que el dispositivo ya fue registrado
       await AsyncStorage.setItem('@onboarding_completed', 'true');
-      
-      // Ir a la pantalla principal
       setDeviceRegistered(true);
     } catch (error) {
-      console.error('❌ Error completando onboarding:', error);
+      console.error('Error completando onboarding:', error);
     }
   };
 
   const handleLogout = async () => {
     try {
-      // Detener verificación del dispositivo
       stopDeviceVerification();
       
-      // Limpiar token y datos de sesión
       await AsyncStorage.removeItem('userToken');
       await AsyncStorage.removeItem('@user_data');
-      console.log('✅ Token y datos de usuario eliminados');
-      
-      // NO limpiar el onboarding, el dispositivo sigue registrado
-      // Solo limpia la sesión del usuario
       
       setIsLoggedIn(false);
       setCurrentScreen('home');
       setUserData(null);
     } catch (error) {
-      console.error('❌ Error en logout:', error);
+      console.error('Error en logout:', error);
     }
   };
 
-  // Pantalla de carga inicial
   if (isLoading) {
     return (
       <SafeAreaProvider>
@@ -358,7 +228,6 @@ export default function App() {
     );
   }
 
-  // FLUJO 1: Usuario NO ha iniciado sesión → LOGIN
   if (!isLoggedIn) {
     return (
       <SafeAreaProvider>
@@ -367,7 +236,6 @@ export default function App() {
     );
   }
 
-  // FLUJO 2: Usuario logueado pero dispositivo NO registrado → ONBOARDING
   if (isLoggedIn && !deviceRegistered && userData) {
     return (
       <SafeAreaProvider>
@@ -379,7 +247,6 @@ export default function App() {
     );
   }
 
-  // FLUJO 3: Usuario logueado Y dispositivo registrado → HOME
   return (
     <SafeAreaProvider>
       <SafeAreaView

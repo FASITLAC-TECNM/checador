@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, ActivityIndicator, View, Alert, AppState } from 'react-native';
+import { StyleSheet, ActivityIndicator, View, Alert, AppState, StatusBar } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LoginScreen } from './components/logins/login';
@@ -221,6 +221,7 @@ export default function App() {
   if (isLoading) {
     return (
       <SafeAreaProvider>
+        <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
         <View style={appStyles.loadingContainer}>
           <ActivityIndicator size="large" color="#2563eb" />
         </View>
@@ -231,6 +232,7 @@ export default function App() {
   if (!isLoggedIn) {
     return (
       <SafeAreaProvider>
+        <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
         <LoginScreen onLoginSuccess={handleLoginSuccess} />
       </SafeAreaProvider>
     );
@@ -239,6 +241,7 @@ export default function App() {
   if (isLoggedIn && !deviceRegistered && userData) {
     return (
       <SafeAreaProvider>
+        <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
         <OnboardingNavigator 
           onComplete={handleOnboardingComplete}
           userData={userData}
@@ -249,6 +252,10 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor={darkMode ? "#1e40af" : "#2563eb"} 
+      />
       <SafeAreaView
         style={[appStyles.container, darkMode && appStyles.containerDark]}
         edges={['top']}

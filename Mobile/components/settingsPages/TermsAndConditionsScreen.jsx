@@ -109,10 +109,10 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
     {
       id: 'contact',
       icon: 'mail-outline',
-      color: '#14b8a6',
+      color: '#5c9c42',
       bg: '#ccfbf1',
       title: 'Contacto',
-      content: 'Para preguntas, sugerencias o reportes sobre estos términos y condiciones, puede contactar a:\n\nDepartamento de Recursos Humanos\nEmail: rh@empresa.com\nTeléfono: +52 (xxx) xxx-xxxx\n\nHorario de atención: Lunes a Viernes, 9:00 AM - 6:00 PM'
+      content: 'Para cualquier queja o sugerencia de la aplicación, puede contactar al grupo FASITLAC'
     }
   ];
 

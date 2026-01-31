@@ -10,8 +10,10 @@ import {
   Platform,
   ScrollView,
   StatusBar,
-  SafeAreaView,
+  Image,
+  Dimensions
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { login } from '../../services/authService';
@@ -50,7 +52,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     }
 
     if (password.length < 6) {
-      setPasswordError('La contraseña debe tener al menos 6 caracteres');
+      setPasswordError('Mínimo 6 caracteres');
       return;
     }
 
@@ -58,60 +60,42 @@ export const LoginScreen = ({ onLoginSuccess }) => {
 
     try {
       const response = await login(usuario, password);
-
       if (response && response.success && response.usuario) {
         const token = response.token;
         let empresaId = null;
-
         if (response.usuario.es_empleado && response.usuario.empleado_id) {
-          try {
-            const empleadoData = await getEmpleadoById(response.usuario.empleado_id, token);
-            
-            if (empleadoData.success && empleadoData.data) {
-              empresaId = empleadoData.data.empresa_id;
+            try {
+              const empleadoData = await getEmpleadoById(response.usuario.empleado_id, token);
+              if (empleadoData.success && empleadoData.data) {
+                empresaId = empleadoData.data.empresa_id;
+              }
+            } catch (error) {
+              console.warn('Error empresa_id:', error.message);
             }
-          } catch (error) {
-            console.warn('No se pudo obtener empresa_id del empleado:', error.message);
-          }
         }
-
         const datosCompletos = {
-          id: response.usuario.id,
-          usuario: response.usuario.usuario,
-          correo: response.usuario.correo,
-          nombre: response.usuario.nombre,
-          telefono: response.usuario.telefono,
-          foto: response.usuario.foto,
-          es_empleado: response.usuario.es_empleado,
-          empleado_id: response.usuario.empleado_id,
-          rfc: response.usuario.rfc,
-          nss: response.usuario.nss,
-          empresa_id: empresaId,
-          
-          empleadoInfo: response.empleadoInfo || null,
-          
-          roles: response.roles || [],
-          permisos: response.permisos || '0',
-          esAdmin: response.esAdmin || false,
-          token: token
+            id: response.usuario.id,
+            usuario: response.usuario.usuario,
+            correo: response.usuario.correo,
+            nombre: response.usuario.nombre,
+            telefono: response.usuario.telefono,
+            foto: response.usuario.foto,
+            es_empleado: response.usuario.es_empleado,
+            empleado_id: response.usuario.empleado_id,
+            rfc: response.usuario.rfc,
+            nss: response.usuario.nss,
+            empresa_id: empresaId,
+            empleadoInfo: response.empleadoInfo || null,
+            roles: response.roles || [],
+            permisos: response.permisos || '0',
+            esAdmin: response.esAdmin || false,
+            token: token
         };
-
         onLoginSuccess(datosCompletos);
       }
     } catch (error) {
-      console.error('Error en login:', error);
-
-      const errorMessage = error?.message || '';
-
-      if (errorMessage.includes('Credenciales inválidas')) {
-        setGeneralError('El usuario/correo o la contraseña son incorrectos');
-      } else if (errorMessage.includes('Cuenta')) {
-        setGeneralError(errorMessage);
-      } else if (errorMessage.includes('respuesta no válida') || errorMessage.includes('servidor')) {
-        setGeneralError('No se pudo conectar con el servidor. Verifica tu conexión.');
-      } else {
-        setGeneralError(errorMessage || 'Ocurrió un error al iniciar sesión');
-      }
+       console.error(error);
+       setGeneralError('Error al iniciar sesión');
     } finally {
       setIsLoading(false);
     }
@@ -119,33 +103,32 @@ export const LoginScreen = ({ onLoginSuccess }) => {
 
   return (
     <View style={styles.mainContainer}>
-      <StatusBar 
-        barStyle="light-content" 
-        backgroundColor="#2563eb"
-        translucent={false}
-      />
       <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.container}
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1 }}
         >
           <ScrollView
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            bounces={false}
+            overScrollMode="never"
           >
-            <View style={styles.header}>
-              <LinearGradient
-                colors={['#ffffff', '#f0f9ff']}
-                style={styles.logoContainer}
-              >
-                <Ionicons name="shield-checkmark" size={32} color="#2563eb" />
-              </LinearGradient>
-              
+            {/* 1. HEADER */}
+            <View style={styles.headerContainer}>
+              <View style={styles.iconFrame}>
+                <Image
+                  source={require('../../assets/icon.png')} 
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
+              </View>
               <Text style={styles.title}>FASITLAC™</Text>
               <Text style={styles.subtitle}>Fábrica de Software del ITLAC</Text>
             </View>
 
+            {/* 2. FORMULARIO */}
             <View style={styles.formContainer}>
               <Text style={styles.welcomeText}>Iniciar Sesión</Text>
 
@@ -155,7 +138,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
                   <Ionicons name="person" size={18} color="#2563eb" style={styles.icon} />
                   <TextInput
                     style={styles.input}
-                    placeholder="usuario o correo@ejemplo.com"
+                    placeholder="usuario@ejemplo.com"
                     placeholderTextColor="#94a3b8"
                     value={usuario}
                     onChangeText={handleUsuarioChange}
@@ -212,11 +195,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
                   <Text style={styles.generalErrorText}>{generalError}</Text>
                 </View>
               ) : null}
-
-              <TouchableOpacity disabled={isLoading} activeOpacity={0.7}>
-                <Text style={styles.forgotPassword}>¿Olvidaste tu contraseña?</Text>
-              </TouchableOpacity>
-
+              
               <TouchableOpacity
                 style={styles.loginButtonWrapper}
                 onPress={handleLogin}
@@ -242,14 +221,9 @@ export const LoginScreen = ({ onLoginSuccess }) => {
                   )}
                 </LinearGradient>
               </TouchableOpacity>
-
-              <Text style={styles.footerText}>
-                ¿No tienes cuenta?{' '}
-                <Text style={styles.footerLink}>Contacta al admin</Text>
-              </Text>
             </View>
 
-            <Text style={styles.copyright}>© 2024 FASITLAC™</Text>
+            <Text style={styles.copyright}>© {new Date().getFullYear()} FASITLAC™</Text>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -260,13 +234,9 @@ export const LoginScreen = ({ onLoginSuccess }) => {
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: '#2563eb',
+    backgroundColor: '#2563eb', 
   },
   safeArea: {
-    flex: 1,
-    backgroundColor: '#2563eb',
-  },
-  container: {
     flex: 1,
     backgroundColor: '#2563eb',
   },
@@ -274,30 +244,32 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 24,
+    paddingVertical: 20,
   },
-  header: {
+  headerContainer: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
-  logoContainer: {
-    width: 64,
-    height: 64,
+  iconFrame: {
+    backgroundColor: 'white',
+    padding: 12,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10, 
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowRadius: 5,
+  },
+  logoImage: {
+    width: 80,
+    height: 80,
   },
   title: {
     fontSize: 24,
     fontWeight: '800',
     color: '#ffffff',
-    marginBottom: 4,
+    marginBottom: 2,
     letterSpacing: 0.5,
   },
   subtitle: {
@@ -385,13 +357,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontWeight: '600',
   },
-  forgotPassword: {
-    color: '#2563eb',
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'right',
-    marginBottom: 16,
-  },
   loginButtonWrapper: {
     borderRadius: 12,
     overflow: 'hidden',
@@ -421,15 +386,6 @@ const styles = StyleSheet.create({
   loadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  footerText: {
-    color: '#64748b',
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  footerLink: {
-    color: '#2563eb',
-    fontWeight: '700',
   },
   copyright: {
     color: '#e0f2fe',

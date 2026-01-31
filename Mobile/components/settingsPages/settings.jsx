@@ -177,17 +177,17 @@ export const SettingsScreen = ({
         {/* Appearance Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="color-palette" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
+            <Ionicons name="image" size={18} color={darkMode ? '#3794fd' : '#6897ff'} />
             <Text style={styles.sectionTitle}>Apariencia</Text>
           </View>
           
           <View style={styles.settingItem}>
             <View style={styles.settingLeft}>
-              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#4338ca' : '#eef2ff' }]}>
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#2c1cd6' : '#0e8bff' }]}>
                 <Ionicons
                   name={darkMode ? "moon" : "sunny"}
                   size={22}
-                  color={darkMode ? '#c7d2fe' : '#6366f1'}
+                  color={darkMode ? '#fcda1c' : '#ffd900'}
                 />
               </View>
               <View style={styles.settingTextContainer}>
@@ -210,7 +210,7 @@ export const SettingsScreen = ({
         {/* Account Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="person-circle" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
+            <Ionicons name="person-circle" size={18} color={darkMode ? '#3794fd' : '#6366f1'} />
             <Text style={styles.sectionTitle}>Cuenta</Text>
           </View>
           
@@ -249,28 +249,14 @@ export const SettingsScreen = ({
               <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
             </TouchableOpacity>
           )}
-
-          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
-            <View style={styles.settingLeft}>
-              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#065f46' : '#d1fae5' }]}>
-                <Ionicons name="notifications-outline" size={22} color={darkMode ? '#6ee7b7' : '#059669'} />
-              </View>
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Notificaciones</Text>
-                <Text style={styles.settingSubtitle}>Configura tus alertas</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-          </TouchableOpacity>
-
           <TouchableOpacity 
             style={styles.settingItem} 
             onPress={() => setShowSecurity(true)}
             activeOpacity={0.7}
           >
             <View style={styles.settingLeft}>
-              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#78350f' : '#fef3c7' }]}>
-                <Ionicons name="lock-closed-outline" size={22} color={darkMode ? '#fde047' : '#d97706'} />
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#a0552a' : '#fef3c7' }]}>
+                <Ionicons name="lock-closed-outline" size={22} color={darkMode ? '#f5ce4f' : '#d97706'} />
               </View>
               <View style={styles.settingTextContainer}>
                 <Text style={styles.settingTitle}>Seguridad</Text>
@@ -281,17 +267,15 @@ export const SettingsScreen = ({
           </TouchableOpacity>
         </View>
 
-        {/* App Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="apps" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
+            <Ionicons name="apps" size={18} color={darkMode ? '#3794fd' : '#6366f1'} />
             <Text style={styles.sectionTitle}>Aplicación</Text>
           </View>
-
-          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
             <View style={styles.settingLeft}>
-              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#581c87' : '#f3e8ff' }]}>
-                <Ionicons name="shield-checkmark-outline" size={22} color={darkMode ? '#d8b4fe' : '#9333ea'} />
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#881337' : '#ffe4e6' }]}>
+                <Ionicons name="shield-checkmark-outline" size={22} color={darkMode ? '#fda4af' : '#e11d48'} />
               </View>
               <View style={styles.settingTextContainer}>
                 <Text style={styles.settingTitle}>Privacidad</Text>
@@ -300,7 +284,6 @@ export const SettingsScreen = ({
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
-
           <TouchableOpacity 
             style={styles.settingItem} 
             onPress={() => setShowSupport(true)}
@@ -319,10 +302,9 @@ export const SettingsScreen = ({
           </TouchableOpacity>
         </View>
 
-        {/* Legal Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="document-text" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
+            <Ionicons name="document-text" size={18} color={darkMode ? '#3794fd' : '#7476d3'} />
             <Text style={styles.sectionTitle}>Legal</Text>
           </View>
           
@@ -331,9 +313,9 @@ export const SettingsScreen = ({
             onPress={() => setShowTerms(true)}
             activeOpacity={0.7}
           >
-            <View style={styles.settingLeft}>
-              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#422006' : '#fef3c7' }]}>
-                <Ionicons name="document-text-outline" size={22} color={darkMode ? '#fcd34d' : '#d97706'} />
+           <View style={styles.settingLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#4b5563' : '#f3f4f6' }]}>
+                <Ionicons name="document-text-outline" size={22} color={darkMode ? '#ffffff' : '#374151'} />
               </View>
               <View style={styles.settingTextContainer}>
                 <Text style={styles.settingTitle}>Términos y Condiciones</Text>
@@ -342,38 +324,11 @@ export const SettingsScreen = ({
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
-
-          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
-            <View style={styles.settingLeft}>
-              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#1e3a8a' : '#dbeafe' }]}>
-                <Ionicons name="shield-outline" size={22} color={darkMode ? '#93c5fd' : '#2563eb'} />
-              </View>
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Política de Privacidad</Text>
-                <Text style={styles.settingSubtitle}>Cómo usamos tus datos</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
-            <View style={styles.settingLeft}>
-              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#713f12' : '#fed7aa' }]}>
-                <Ionicons name="reader-outline" size={22} color={darkMode ? '#fbbf24' : '#ea580c'} />
-              </View>
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Licencias</Text>
-                <Text style={styles.settingSubtitle}>Software de terceros</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-          </TouchableOpacity>
         </View>
 
-        {/* Info Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="information-circle" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
+            <Ionicons name="information-circle" size={18} color={darkMode ? '#3794fd' : '#6366f1'} />
             <Text style={styles.sectionTitle}>Información</Text>
           </View>
           
@@ -421,16 +376,16 @@ const settingsStyles = StyleSheet.create({
     backgroundColor: '#2563eb',
     paddingTop: Platform.OS === 'android' ? 16 : 50,
     paddingBottom: 20,
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
   },
   headerTitle: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '800',
     color: '#fff',
     marginBottom: 6,
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#e0f2fe',
     fontWeight: '500',
   },

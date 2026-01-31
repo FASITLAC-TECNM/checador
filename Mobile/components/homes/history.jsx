@@ -183,12 +183,17 @@ export const HistoryScreen = ({ darkMode, userData }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle={darkMode ? "light-content" : "dark-content"} />
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
+      />
       
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Historial</Text>
-        <Text style={styles.headerSubtitle}>Registro de asistencias</Text>
+      {/* Header - Mismo tamaño que HomeScreen */}
+      <View style={styles.headerWrapper}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Historial</Text>
+          <Text style={styles.headerSubtitle}>Registro de asistencias</Text>
+        </View>
       </View>
 
       <ScrollView 
@@ -379,8 +384,8 @@ export const HistoryScreen = ({ darkMode, userData }) => {
 const historyStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
-    paddingBottom: 0, // El bottom nav se encarga del espacio inferior
+    backgroundColor: '#f8fafc',
+    paddingBottom: 0,
   },
   centerContent: {
     justifyContent: 'center',
@@ -391,10 +396,14 @@ const historyStyles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
   },
+  headerWrapper: {
+    backgroundColor: '#2563eb',
+  },
   header: {
     backgroundColor: '#2563eb',
-    padding: 20,
-    paddingTop: 50,
+    paddingTop: Platform.OS === 'android' ? 16 : 50,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
   },
   headerTitle: {
     fontSize: 28,
@@ -404,10 +413,11 @@ const historyStyles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#93c5fd',
+    color: '#e0f2fe',
+    fontWeight: '500',
   },
   scrollContent: {
-    paddingBottom: 120, // Espacio extra para el bottom nav
+    paddingBottom: 120,
   },
   section: {
     backgroundColor: '#fff',
@@ -577,7 +587,15 @@ const historyStylesDark = StyleSheet.create({
   ...historyStyles,
   container: {
     ...historyStyles.container,
-    backgroundColor: '#111827',
+    backgroundColor: '#0f172a',
+  },
+  headerWrapper: {
+    ...historyStyles.headerWrapper,
+    backgroundColor: '#1e40af',
+  },
+  header: {
+    ...historyStyles.header,
+    backgroundColor: '#1e40af',
   },
   section: {
     ...historyStyles.section,

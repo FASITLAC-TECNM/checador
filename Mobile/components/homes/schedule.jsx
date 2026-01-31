@@ -8,13 +8,11 @@ import {
   Platform,
   ActivityIndicator,
   RefreshControl,
-  Animated,
   TouchableOpacity,
   Modal,
   Pressable
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   getHorarioPorEmpleado, 
@@ -30,7 +28,6 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
   const [resumen, setResumen] = useState({ diasLaborales: 0, totalDias: 7, horasTotales: '0' });
   const [infoHoy, setInfoHoy] = useState({ trabaja: false, entrada: null, salida: null, turnos: [] });
   const [error, setError] = useState(null);
-  const [fadeAnim] = useState(new Animated.Value(0));
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
   
@@ -141,7 +138,6 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
       setInfoHoy(obtenerInfoHoyMejorada(horarioParsed));
       
     } catch (error) {
-      console.error('❌ Error cargando horario:', error);
       setError(error.message || 'Error desconocido al cargar horario');
       setScheduleData(obtenerHorarioVacio());
       setResumen({ diasLaborales: 0, totalDias: 7, horasTotales: '0' });
@@ -171,16 +167,6 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
       setScheduleData(obtenerHorarioVacio());
     }
   }, [userData]);
-
-  useEffect(() => {
-    if (!isLoading) {
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [isLoading]);
 
   // Auto-actualizar el turno relevante cada minuto
   useEffect(() => {
@@ -247,13 +233,6 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
     return icons[day] || 'calendar-outline';
   };
 
-  const obtenerSaludo = () => {
-    const hora = new Date().getHours();
-    if (hora < 12) return 'Buenos días';
-    if (hora < 19) return 'Buenas tardes';
-    return 'Buenas noches';
-  };
-
   const handleDayPress = (day) => {
     setSelectedDay(day);
     setModalVisible(true);
@@ -266,7 +245,10 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
   if (isLoading) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
-        <StatusBar barStyle="light-content" backgroundColor="#2563eb" translucent={false} />
+        <StatusBar 
+          barStyle="light-content" 
+          backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
+        />
         <ActivityIndicator size="large" color="#2563eb" />
         <Text style={styles.loadingText}>Cargando tu horario...</Text>
       </View>
@@ -275,34 +257,24 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
 
   return (
     <View style={styles.mainContainer}>
-      <StatusBar barStyle="light-content" backgroundColor="#2563eb" translucent={false} />
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
+      />
       
-      {/* Header con gradiente */}
+      {/* Header - Mismo tamaño que History */}
       <View style={styles.headerWrapper}>
-        <LinearGradient
-          colors={['#2563eb', '#3b82f6']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.header}
-        >
-          <View style={styles.headerContent}>
-            <View style={styles.headerInfo}>
-              <Text style={styles.headerGreeting}>{obtenerSaludo()}</Text>
-              <Text style={styles.headerName} numberOfLines={1}>{userData?.nombre || 'Usuario'}</Text>
-              <View style={styles.headerSubtitle}>
-                <Ionicons name="calendar-outline" size={12} color="#e0f2fe" />
-                <Text style={styles.headerSubtitleText}>Mi Horario Semanal</Text>
-              </View>
-            </View>
-          </View>
-        </LinearGradient>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Horario</Text>
+          <Text style={styles.headerSubtitle}>Tu horario asignado</Text>
+        </View>
       </View>
 
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: 80 + insets.bottom } // Navbar (64px) + margen (16px) + safe area
+          { paddingBottom: 80 + insets.bottom }
         ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -313,221 +285,209 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
           />
         }
       >
-        <Animated.View style={{ opacity: fadeAnim }}>
-          {error && (
-            <View style={styles.errorCard}>
-              <View style={styles.errorIcon}>
-                <Ionicons name="alert-circle" size={24} color="#ef4444" />
-              </View>
-              <Text style={styles.errorText}>{error}</Text>
+        {error && (
+          <View style={styles.errorCard}>
+            <View style={styles.errorIcon}>
+              <Ionicons name="alert-circle" size={24} color="#ef4444" />
             </View>
-          )}
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
 
-          {/* TARJETA DE HOY - TURNO INTELIGENTE */}
-          {infoHoy.trabaja && infoHoy.turnoRelevante ? (
-            <View style={styles.todayCard}>
-              <View style={styles.todayHeader}>
-                <View style={styles.todayBadge}>
-                  <Text style={styles.todayBadgeText}>
-                    {infoHoy.turnoRelevante.estado === 'activo' ? '🔴 ACTIVO' : 'SIGUIENTE'}
-                  </Text>
-                </View>
-                <Text style={styles.todayDate}>
-                  {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+        {/* TARJETA DE HOY - TURNO INTELIGENTE */}
+        {infoHoy.trabaja && infoHoy.turnoRelevante ? (
+          <View style={styles.todayCard}>
+            <View style={styles.todayHeader}>
+              <View style={styles.todayBadge}>
+                <Text style={styles.todayBadgeText}>
+                  {infoHoy.turnoRelevante.estado === 'activo' ? '🔴 ACTIVO' : 'SIGUIENTE'}
                 </Text>
               </View>
+              <Text style={styles.todayDate}>
+                {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </Text>
+            </View>
 
-              {/* Turno Relevante */}
-              <View style={styles.currentShiftContainer}>
-                <View style={styles.shiftTimeRow}>
-                  <View style={styles.shiftTimeBlock}>
-                    <Ionicons name="time-outline" size={24} color="#6366f1" />
-                    <View style={styles.shiftTimeInfo}>
-                      <Text style={styles.shiftLabel}>
-                        {infoHoy.turnoRelevante.estado === 'activo' ? 'En turno' : 'Próximo turno'}
-                      </Text>
-                      <Text style={styles.shiftTime}>
-                        {formatearRangoTiempo(infoHoy.turnoRelevante)}
-                      </Text>
-                    </View>
+            {/* Turno Relevante */}
+            <View style={styles.currentShiftContainer}>
+              <View style={styles.shiftTimeRow}>
+                <View style={styles.shiftTimeBlock}>
+                  <Ionicons name="time-outline" size={24} color="#6366f1" />
+                  <View style={styles.shiftTimeInfo}>
+                    <Text style={styles.shiftLabel}>
+                      {infoHoy.turnoRelevante.estado === 'activo' ? 'En turno' : 'Próximo turno'}
+                    </Text>
+                    <Text style={styles.shiftTime}>
+                      {formatearRangoTiempo(infoHoy.turnoRelevante)}
+                    </Text>
                   </View>
                 </View>
-
-                {/* Mostrar contador de turnos si hay más de uno */}
-                {infoHoy.turnos.length > 1 && (
-                  <TouchableOpacity 
-                    style={styles.moreTurnsButton}
-                    onPress={() => {
-                      const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-                      const nombreHoy = diasSemana[new Date().getDay()];
-                      const diaHoy = scheduleData.find(d => d.day === nombreHoy);
-                      handleDayPress(diaHoy);
-                    }}
-                  >
-                    <Ionicons name="albums-outline" size={18} color="#6366f1" />
-                    <Text style={styles.moreTurnsText}>
-                      {infoHoy.turnos.length} turnos hoy - Ver todos
-                    </Text>
-                    <Ionicons name="chevron-forward" size={18} color="#6366f1" />
-                  </TouchableOpacity>
-                )}
               </View>
 
-              <View style={styles.todayLocation}>
-                <Ionicons name="location" size={16} color="#6366f1" />
-                <Text style={styles.todayLocationText}>Edificio A - Entrada Principal</Text>
-              </View>
-            </View>
-          ) : infoHoy.trabaja ? (
-            <View style={styles.todayCard}>
-              <View style={styles.todayHeader}>
-                <View style={[styles.todayBadge, { backgroundColor: '#6b7280' }]}>
-                  <Text style={styles.todayBadgeText}>FINALIZADO</Text>
-                </View>
-                <Text style={styles.todayDate}>
-                  {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-                </Text>
-              </View>
-              <Text style={styles.finishedText}>Todos los turnos de hoy han finalizado ✓</Text>
-            </View>
-          ) : (
-            <View style={styles.dayOffCard}>
-              <View style={styles.dayOffIcon}>
-                <Ionicons name="cafe-outline" size={48} color="#6366f1" />
-              </View>
-              <Text style={styles.dayOffTitle}>Día de Descanso</Text>
-              <Text style={styles.dayOffText}>Disfruta tu día libre</Text>
-            </View>
-          )}
-
-          {/* Resumen Semanal */}
-          <View style={styles.summarySection}>
-            <View style={styles.summaryCard}>
-              <LinearGradient
-                colors={darkMode ? ['#4f46e5', '#6366f1'] : ['#6366f1', '#818cf8']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.summaryGradient}
-              >
-                <Ionicons name="time-outline" size={28} color="#fff" />
-                <Text style={styles.summaryValue}>{resumen.horasTotales}</Text>
-                <Text style={styles.summaryLabel}>Horas Totales</Text>
-              </LinearGradient>
+              {/* Mostrar contador de turnos si hay más de uno */}
+              {infoHoy.turnos.length > 1 && (
+                <TouchableOpacity 
+                  style={styles.moreTurnsButton}
+                  onPress={() => {
+                    const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                    const nombreHoy = diasSemana[new Date().getDay()];
+                    const diaHoy = scheduleData.find(d => d.day === nombreHoy);
+                    handleDayPress(diaHoy);
+                  }}
+                >
+                  <Ionicons name="albums-outline" size={18} color="#6366f1" />
+                  <Text style={styles.moreTurnsText}>
+                    {infoHoy.turnos.length} turnos hoy - Ver todos
+                  </Text>
+                  <Ionicons name="chevron-forward" size={18} color="#6366f1" />
+                </TouchableOpacity>
+              )}
             </View>
 
-            <View style={styles.summaryCard}>
-              <LinearGradient
-                colors={darkMode ? ['#059669', '#10b981'] : ['#10b981', '#34d399']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.summaryGradient}
-              >
-                <Ionicons name="calendar-outline" size={28} color="#fff" />
-                <Text style={styles.summaryValue}>{resumen.diasLaborales}</Text>
-                <Text style={styles.summaryLabel}>Días Laborales</Text>
-              </LinearGradient>
+            <View style={styles.todayLocation}>
+              <Ionicons name="location" size={16} color="#6366f1" />
+              <Text style={styles.todayLocationText}>Edificio A - Entrada Principal</Text>
+            </View>
+          </View>
+        ) : infoHoy.trabaja ? (
+          <View style={styles.todayCard}>
+            <View style={styles.todayHeader}>
+              <View style={[styles.todayBadge, { backgroundColor: '#6b7280' }]}>
+                <Text style={styles.todayBadgeText}>FINALIZADO</Text>
+              </View>
+              <Text style={styles.todayDate}>
+                {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </Text>
+            </View>
+            <Text style={styles.finishedText}>Todos los turnos de hoy han finalizado ✓</Text>
+          </View>
+        ) : (
+          <View style={styles.dayOffCard}>
+            <View style={styles.dayOffIcon}>
+              <Ionicons name="cafe-outline" size={48} color="#6366f1" />
+            </View>
+            <Text style={styles.dayOffTitle}>Día de Descanso</Text>
+            <Text style={styles.dayOffText}>Disfruta tu día libre</Text>
+          </View>
+        )}
+
+        {/* Resumen Semanal */}
+        <View style={styles.summarySection}>
+          <View style={styles.summaryCard}>
+            <View style={styles.summaryContent}>
+              <Ionicons name="time-outline" size={28} color="#fff" />
+              <Text style={styles.summaryValue}>{resumen.horasTotales}</Text>
+              <Text style={styles.summaryLabel}>Horas Totales</Text>
             </View>
           </View>
 
-          {/* HORARIO SEMANAL - TURNO RELEVANTE POR DÍA */}
-          <View style={styles.scheduleSection}>
-            <View style={styles.scheduleSectionHeader}>
-              <Text style={styles.scheduleSectionTitle}>Horario Semanal</Text>
-              <Text style={styles.scheduleSectionSubtitle}>{obtenerFechaSemana()}</Text>
+          <View style={styles.summaryCard}>
+            <View style={[styles.summaryContent, { backgroundColor: '#10b981' }]}>
+              <Ionicons name="calendar-outline" size={28} color="#fff" />
+              <Text style={styles.summaryValue}>{resumen.diasLaborales}</Text>
+              <Text style={styles.summaryLabel}>Días Laborales</Text>
             </View>
+          </View>
+        </View>
+
+        {/* HORARIO SEMANAL - TURNO RELEVANTE POR DÍA */}
+        <View style={styles.scheduleSection}>
+          <View style={styles.scheduleSectionHeader}>
+            <Text style={styles.scheduleSectionTitle}>Horario Semanal</Text>
+            <Text style={styles.scheduleSectionSubtitle}>{obtenerFechaSemana()}</Text>
+          </View>
+          
+          {scheduleData.map((schedule, index) => {
+            const diasSemana = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+            const hoy = new Date();
+            const diaActual = diasSemana[hoy.getDay()];
+            const isToday = schedule.day.toLowerCase() === diaActual;
             
-            {scheduleData.map((schedule, index) => {
-              const diasSemana = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-              const hoy = new Date();
-              const diaActual = diasSemana[hoy.getDay()];
-              const isToday = schedule.day.toLowerCase() === diaActual;
-              
-              // Obtener turno relevante para este día
-              let turnoMostrar = '---';
-              let tieneMasTurnos = false;
-              
-              if (schedule.active && schedule.turnos && schedule.turnos.length > 0) {
-                if (isToday) {
-                  // Si es hoy, mostrar el turno relevante
-                  const turnoRelevante = obtenerTurnoRelevante(schedule.turnos);
-                  turnoMostrar = turnoRelevante ? formatearRangoTiempo(turnoRelevante) : formatearRangoTiempo(schedule.turnos[0]);
-                } else {
-                  // Si es otro día, mostrar el primer turno
-                  turnoMostrar = formatearRangoTiempo(schedule.turnos[0]);
-                }
-                tieneMasTurnos = schedule.turnos.length > 1;
+            // Obtener turno relevante para este día
+            let turnoMostrar = '---';
+            let tieneMasTurnos = false;
+            
+            if (schedule.active && schedule.turnos && schedule.turnos.length > 0) {
+              if (isToday) {
+                // Si es hoy, mostrar el turno relevante
+                const turnoRelevante = obtenerTurnoRelevante(schedule.turnos);
+                turnoMostrar = turnoRelevante ? formatearRangoTiempo(turnoRelevante) : formatearRangoTiempo(schedule.turnos[0]);
+              } else {
+                // Si es otro día, mostrar el primer turno
+                turnoMostrar = formatearRangoTiempo(schedule.turnos[0]);
               }
-              
-              return (
-                <TouchableOpacity
-                  key={index}
-                  activeOpacity={0.7}
-                  onPress={() => handleDayPress(schedule)}
-                  style={[
-                    styles.scheduleItem,
-                    !schedule.active && styles.scheduleItemInactive,
-                    isToday && styles.scheduleItemToday
-                  ]}
-                >
-                  <View style={styles.scheduleLeft}>
-                    <View style={[
-                      styles.dayIconContainer,
-                      schedule.active ? styles.dayIconActive : styles.dayIconInactive
-                    ]}>
-                      <Ionicons 
-                        name={getDayIcon(schedule.day)} 
-                        size={20} 
-                        color={schedule.active ? '#6366f1' : '#9ca3af'} 
-                      />
-                    </View>
-                    <View style={styles.scheduleInfo}>
-                      <View style={styles.scheduleTopRow}>
-                        <Text style={[
-                          styles.scheduleDay,
-                          !schedule.active && styles.scheduleDayInactive
-                        ]}>
-                          {schedule.day}
-                        </Text>
-                        {isToday && (
-                          <View style={styles.todayDot} />
-                        )}
-                      </View>
+              tieneMasTurnos = schedule.turnos.length > 1;
+            }
+            
+            return (
+              <TouchableOpacity
+                key={index}
+                activeOpacity={0.7}
+                onPress={() => handleDayPress(schedule)}
+                style={[
+                  styles.scheduleItem,
+                  !schedule.active && styles.scheduleItemInactive,
+                  isToday && styles.scheduleItemToday
+                ]}
+              >
+                <View style={styles.scheduleLeft}>
+                  <View style={[
+                    styles.dayIconContainer,
+                    schedule.active ? styles.dayIconActive : styles.dayIconInactive
+                  ]}>
+                    <Ionicons 
+                      name={getDayIcon(schedule.day)} 
+                      size={20} 
+                      color={schedule.active ? '#6366f1' : '#9ca3af'} 
+                    />
+                  </View>
+                  <View style={styles.scheduleInfo}>
+                    <View style={styles.scheduleTopRow}>
                       <Text style={[
-                        styles.scheduleLocation,
-                        !schedule.active && styles.scheduleLocationInactive
+                        styles.scheduleDay,
+                        !schedule.active && styles.scheduleDayInactive
                       ]}>
-                        {schedule.location}
+                        {schedule.day}
                       </Text>
-                      {tieneMasTurnos && (
-                        <View style={styles.multipleTurnsBadge}>
-                          <Ionicons name="albums-outline" size={10} color="#8b5cf6" />
-                          <Text style={styles.multipleTurnsText}>{schedule.turnos.length} turnos</Text>
-                        </View>
+                      {isToday && (
+                        <View style={styles.todayDot} />
                       )}
                     </View>
-                  </View>
-
-                  <View style={styles.scheduleRight}>
                     <Text style={[
-                      styles.scheduleTime,
-                      !schedule.active && styles.scheduleTimeInactive
+                      styles.scheduleLocation,
+                      !schedule.active && styles.scheduleLocationInactive
                     ]}>
-                      {turnoMostrar}
+                      {schedule.location}
                     </Text>
-                    {schedule.hours && schedule.active && (
-                      <View style={styles.hoursChip}>
-                        <Text style={styles.hoursChipText}>{schedule.hours}</Text>
+                    {tieneMasTurnos && (
+                      <View style={styles.multipleTurnsBadge}>
+                        <Ionicons name="albums-outline" size={10} color="#8b5cf6" />
+                        <Text style={styles.multipleTurnsText}>{schedule.turnos.length} turnos</Text>
                       </View>
                     )}
-                    {schedule.active && (
-                      <Ionicons name="chevron-forward" size={16} color="#9ca3af" style={{ marginTop: 4 }} />
-                    )}
                   </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </Animated.View>
+                </View>
+
+                <View style={styles.scheduleRight}>
+                  <Text style={[
+                    styles.scheduleTime,
+                    !schedule.active && styles.scheduleTimeInactive
+                  ]}>
+                    {turnoMostrar}
+                  </Text>
+                  {schedule.hours && schedule.active && (
+                    <View style={styles.hoursChip}>
+                      <Text style={styles.hoursChipText}>{schedule.hours}</Text>
+                    </View>
+                  )}
+                  {schedule.active && (
+                    <Ionicons name="chevron-forward" size={16} color="#9ca3af" style={{ marginTop: 4 }} />
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </ScrollView>
 
       {/* MODAL DE DETALLES DEL DÍA */}
@@ -640,43 +600,21 @@ const scheduleStyles = StyleSheet.create({
     backgroundColor: '#2563eb',
   },
   header: {
+    backgroundColor: '#2563eb',
     paddingTop: Platform.OS === 'android' ? 16 : 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
   },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerInfo: {
-    flex: 1,
-  },
-  headerGreeting: {
-    fontSize: 13,
-    color: '#e0f2fe',
-    fontWeight: '500',
-  },
-  headerName: {
-    fontSize: 19,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginTop: 2,
-    marginBottom: 6,
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 4,
   },
   headerSubtitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-    gap: 4,
-  },
-  headerSubtitleText: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#e0f2fe',
-    fontWeight: '600',
+    fontWeight: '500',
   },
   scrollView: {
     flex: 1,
@@ -849,7 +787,8 @@ const scheduleStyles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  summaryGradient: {
+  summaryContent: {
+    backgroundColor: '#6366f1',
     padding: 20,
     alignItems: 'center',
   },
@@ -1147,6 +1086,14 @@ const scheduleStylesDark = StyleSheet.create({
   loadingContainer: {
     ...scheduleStyles.loadingContainer,
     backgroundColor: '#0f172a',
+  },
+  headerWrapper: {
+    ...scheduleStyles.headerWrapper,
+    backgroundColor: '#1e40af',
+  },
+  header: {
+    ...scheduleStyles.header,
+    backgroundColor: '#1e40af',
   },
   todayCard: {
     ...scheduleStyles.todayCard,

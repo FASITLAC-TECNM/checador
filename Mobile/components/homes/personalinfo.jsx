@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -15,18 +15,21 @@ const obtenerUrlFotoPerfil = (foto) => {
   if (!foto) {
     return null;
   }
-
   if (foto.startsWith('http://') || foto.startsWith('https://')) {
     return foto;
   }
-
   const BASE_URL = 'https://9dm7dqf9-3001.usw3.devtunnels.ms';
   const url = `${BASE_URL}${foto.startsWith('/') ? '' : '/'}${foto}`;
   return url;
 };
 
 export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
+  // Seleccionamos los estilos según el modo
   const styles = darkMode ? personalInfoStylesDark : personalInfoStyles;
+
+  // Estados para controlar "Ver más / Ver menos"
+  const [expandirDeptos, setExpandirDeptos] = useState(false);
+  const [expandirRoles, setExpandirRoles] = useState(false);
 
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
   
@@ -40,6 +43,7 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
 
   const departamentos = empleadoInfo?.departamentos || [];
 
+  // Componente auxiliar para filas simples
   const InfoRow = ({ icon, label, value, valueColor }) => (
     <View style={styles.infoRow}>
       <View style={styles.infoLeft}>
@@ -62,7 +66,7 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
         translucent={false} 
       />
 
-      {/* Header con color sólido */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -75,25 +79,19 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Profile Card Compacta */}
+        {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.profileGradient}>
             <View style={styles.profileHeader}>
               <View style={styles.avatarContainer}>
                 {fotoUrl ? (
-                  <Image
-                    source={{ uri: fotoUrl }}
-                    style={styles.avatarImage}
-                  />
+                  <Image source={{ uri: fotoUrl }} style={styles.avatarImage} />
                 ) : (
                   <View style={styles.avatarPlaceholder}>
                     <Ionicons name="person" size={40} color="#fff" />
                   </View>
                 )}
-                <View style={[
-                  styles.statusIndicator,
-                  { backgroundColor: '#10b981' }
-                ]} />
+                <View style={[styles.statusIndicator, { backgroundColor: '#10b981' }]} />
               </View>
 
               <View style={styles.profileInfo}>
@@ -101,19 +99,13 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
                 <Text style={styles.profileUsername}>@{userData.usuario}</Text>
                 
                 <View style={styles.badgesRow}>
-                  <View style={[
-                    styles.roleBadge,
-                    esEmpleado && styles.roleBadgeEmployee
-                  ]}>
+                  <View style={[styles.roleBadge, esEmpleado && styles.roleBadgeEmployee]}>
                     <Ionicons 
                       name={esEmpleado ? "briefcase" : "person"} 
                       size={10} 
                       color={esEmpleado ? '#166534' : '#2563eb'} 
                     />
-                    <Text style={[
-                      styles.roleText,
-                      esEmpleado && styles.roleTextEmployee
-                    ]}>
+                    <Text style={[styles.roleText, esEmpleado && styles.roleTextEmployee]}>
                       {rolMostrar}
                     </Text>
                   </View>
@@ -123,39 +115,19 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
           </View>
         </View>
 
-        {/* Información Personal */}
+        {/* Sección: Información Personal */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="person-circle" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
             <Text style={styles.sectionTitle}>Información Personal</Text>
           </View>
 
-          <InfoRow
-            icon="person-outline"
-            label="Usuario"
-            value={userData.usuario}
-          />
-
-          <InfoRow
-            icon="mail-outline"
-            label="Email"
-            value={userData.correo}
-          />
-
-          <InfoRow
-            icon="call-outline"
-            label="Teléfono"
-            value={userData.telefono || 'No registrado'}
-          />
-
-          <InfoRow
-            icon="card-outline"
-            label="ID"
-            value={`#${userData.id}`}
-          />
+          <InfoRow icon="person-outline" label="Usuario" value={userData.usuario} />
+          <InfoRow icon="mail-outline" label="Email" value={userData.correo} />
+          <InfoRow icon="call-outline" label="Teléfono" value={userData.telefono || 'No registrado'} />
         </View>
 
-        {/* Información de Empleado */}
+        {/* Sección: Datos Laborales */}
         {esEmpleado && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -163,67 +135,92 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
               <Text style={styles.sectionTitle}>Datos Laborales</Text>
             </View>
 
-            <InfoRow
-              icon="id-card-outline"
-              label="ID Empleado"
-              value={userData.empleado_id ? `#${userData.empleado_id}` : 'No disponible'}
+            <InfoRow 
+              icon="document-text-outline" 
+              label="RFC" 
+              value={userData.rfc || empleadoInfo?.rfc || 'No registrado'} 
+            />
+            <InfoRow 
+              icon="shield-outline" 
+              label="NSS" 
+              value={userData.nss || empleadoInfo?.nss || 'No registrado'} 
             />
 
-            <InfoRow
-              icon="document-text-outline"
-              label="RFC"
-              value={userData.rfc || empleadoInfo?.rfc || 'No registrado'}
-            />
-
-            <InfoRow
-              icon="shield-outline"
-              label="NSS"
-              value={userData.nss || empleadoInfo?.nss || 'No registrado'}
-            />
-
+            {/* DEPARTAMENTOS con "Ver más" */}
             {departamentos.length > 0 && (
-              <View style={styles.infoRow}>
+              <View style={[styles.infoRow, { alignItems: 'flex-start' }]}>
                 <View style={styles.infoLeft}>
                   <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#581c87' : '#f3e8ff' }]}>
                     <Ionicons name="business-outline" size={18} color={darkMode ? '#d8b4fe' : '#9333ea'} />
                   </View>
-                  <Text style={styles.infoLabel}>Departamentos</Text>
+                  <Text style={styles.infoLabel}>Deptos.</Text>
                 </View>
+                
                 <View style={styles.departmentsContainer}>
-                  {departamentos.map((depto, index) => (
+                  {(expandirDeptos ? departamentos : departamentos.slice(0, 3)).map((depto, index) => (
                     <View key={index} style={styles.departmentBadge}>
-                      <Text style={styles.departmentText}>
+                      <Text style={styles.departmentText} numberOfLines={1} ellipsizeMode="tail">
                         {depto.nombre}
                       </Text>
                     </View>
                   ))}
+                  
+                  {departamentos.length > 3 && (
+                    <TouchableOpacity 
+                      onPress={() => setExpandirDeptos(!expandirDeptos)}
+                      style={{ marginTop: 4 }}
+                    >
+                      <Text style={styles.seeMoreText}>
+                        {expandirDeptos ? 'Ver menos' : `+ ${departamentos.length - 3} más...`}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             )}
 
+            {/* ROLES con "Ver más" */}
             {roles.length > 0 && (
-              <View style={styles.infoRow}>
+              <View style={[styles.infoRow, { alignItems: 'flex-start' }]}>
                 <View style={styles.infoLeft}>
                   <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#7f1d1d' : '#fee2e2' }]}>
                     <Ionicons name="shield-checkmark-outline" size={18} color={darkMode ? '#fca5a5' : '#dc2626'} />
                   </View>
                   <Text style={styles.infoLabel}>Roles</Text>
                 </View>
+                
                 <View style={styles.departmentsContainer}>
-                  {roles.map((rol, index) => (
-                    <View key={index} style={[styles.departmentBadge, { backgroundColor: darkMode ? '#7f1d1d' : '#fee2e2' }]}>
-                      <Text style={[styles.departmentText, { color: darkMode ? '#fca5a5' : '#dc2626' }]}>
+                  {(expandirRoles ? roles : roles.slice(0, 3)).map((rol, index) => (
+                    <View 
+                      key={index} 
+                      style={[styles.departmentBadge, { backgroundColor: darkMode ? '#7f1d1d' : '#fee2e2' }]}
+                    >
+                      <Text 
+                        style={[styles.departmentText, { color: darkMode ? '#fca5a5' : '#dc2626' }]}
+                        numberOfLines={1}
+                      >
                         {rol.nombre}
                       </Text>
                     </View>
                   ))}
+                   
+                  {roles.length > 3 && (
+                    <TouchableOpacity 
+                      onPress={() => setExpandirRoles(!expandirRoles)}
+                      style={{ marginTop: 4 }}
+                    >
+                      <Text style={[styles.seeMoreText, { color: darkMode ? '#fca5a5' : '#dc2626' }]}>
+                        {expandirRoles ? 'Ver menos' : `+ ${roles.length - 3} más...`}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             )}
           </View>
         )}
 
-        {/* Acciones Rápidas */}
+        {/* Sección: Acciones */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="settings" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
@@ -265,6 +262,7 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
   );
 };
 
+// --- ESTILOS ---
 const personalInfoStyles = StyleSheet.create({
   container: {
     flex: 1,
@@ -385,27 +383,6 @@ const personalInfoStyles = StyleSheet.create({
   roleTextEmployee: {
     color: '#166534',
   },
-  departmentBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f3e8ff',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-    gap: 4,
-    marginBottom: 4,
-  },
-  departmentText: {
-    color: '#6366f1',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  departmentsContainer: {
-    flexDirection: 'column',
-    alignItems: 'flex-end',
-    gap: 4,
-    maxWidth: '50%',
-  },
   section: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -438,7 +415,8 @@ const personalInfoStyles = StyleSheet.create({
   infoLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    flexShrink: 0, 
+    marginRight: 12, 
   },
   iconCircle: {
     width: 36,
@@ -452,14 +430,40 @@ const personalInfoStyles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
     fontWeight: '500',
-    flex: 1,
   },
   infoValue: {
     fontSize: 14,
     fontWeight: '600',
     color: '#1f2937',
     textAlign: 'right',
-    maxWidth: '50%',
+    flex: 1, 
+  },
+  departmentsContainer: {
+    flex: 1, 
+    flexDirection: 'column',
+    alignItems: 'flex-end', 
+    gap: 4,
+  },
+  departmentBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f3e8ff',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 4,
+    marginBottom: 4,
+    maxWidth: '100%', 
+  },
+  departmentText: {
+    color: '#6366f1',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  seeMoreText: {
+    fontSize: 11, 
+    fontWeight: '600',
+    color: '#9333ea',
   },
   actionButton: {
     flexDirection: 'row',
@@ -522,4 +526,8 @@ const personalInfoStylesDark = StyleSheet.create({
     ...personalInfoStyles.actionText,
     color: '#f9fafb',
   },
+  seeMoreText: {
+    ...personalInfoStyles.seeMoreText,
+    color: '#d8b4fe',
+  }
 });

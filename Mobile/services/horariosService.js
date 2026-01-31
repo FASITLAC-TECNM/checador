@@ -1,14 +1,8 @@
-// services/horariosService.js
-// Servicio para gestión de horarios de empleados
-
 import { getApiEndpoint } from '../config/api.js';
 
 const API_URL = getApiEndpoint('/api');
 
-console.log('📅 Horarios API URL:', API_URL);
-
 /**
- * ⭐ FUNCIÓN PRINCIPAL: Obtener horario de un empleado por su ID
  * Usa la ruta: /api/empleados/:empleadoId/horario
  * @param {string} empleadoId - ID del empleado
  * @param {string} token - Token de autenticación
@@ -16,15 +10,7 @@ console.log('📅 Horarios API URL:', API_URL);
  */
 export const getHorarioPorEmpleado = async (empleadoId, token = null) => {
     try {
-        // ⭐ USAR LA RUTA CORRECTA: /api/empleados/:id/horario
         const url = `${API_URL}/empleados/${empleadoId}/horario`;
-        
-        console.log('═══════════════════════════════════════');
-        console.log('📅 OBTENIENDO HORARIO DEL EMPLEADO');
-        console.log('═══════════════════════════════════════');
-        console.log('📋 Empleado ID:', empleadoId);
-        console.log('📅 URL completa:', url);
-        console.log('🔑 Token:', token ? token.substring(0, 20) + '...' : 'NO HAY TOKEN');
 
         const headers = {
             'Content-Type': 'application/json'
@@ -39,14 +25,11 @@ export const getHorarioPorEmpleado = async (empleadoId, token = null) => {
             headers: headers
         });
 
-        console.log('📥 Status de respuesta:', response.status, response.statusText);
-
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('❌ Error del servidor:', errorText);
             
             if (response.status === 404) {
-                throw new Error('El empleado no tiene horario asignado');
+                throw new Error('No tienes un horario asignado');
             }
             
             if (response.status === 401) {
@@ -57,40 +40,22 @@ export const getHorarioPorEmpleado = async (empleadoId, token = null) => {
         }
 
         const responseText = await response.text();
-        console.log('📄 Respuesta del servidor (primeros 500 chars):', responseText.substring(0, 500));
 
         let data;
         try {
             data = responseText ? JSON.parse(responseText) : {};
         } catch (parseError) {
-            console.error('❌ Error al parsear respuesta:', parseError);
-            console.error('📄 Respuesta completa:', responseText);
             throw new Error(`Respuesta inválida del servidor`);
         }
 
-        console.log('✅ Respuesta parseada correctamente');
-        console.log('📊 Estructura de la respuesta:', Object.keys(data));
-
-        // La respuesta viene en formato: { success: true, data: {...} }
         const horario = data.data || data;
 
-        // Verificar que tengamos configuracion
         if (!horario.configuracion) {
-            console.warn('⚠️ No hay configuracion en la respuesta');
-            console.log('📊 Estructura recibida:', JSON.stringify(horario, null, 2));
             throw new Error('El horario no tiene configuración válida');
         }
 
-        console.log('✅ Configuración encontrada');
-        console.log('📊 Tipo de configuración:', typeof horario.configuracion);
-        console.log('═══════════════════════════════════════');
-
         return horario;
     } catch (error) {
-        console.error('❌ Error completo:', error);
-        console.error('❌ Error message:', error.message);
-        console.error('❌ Error stack:', error.stack);
-        console.log('═══════════════════════════════════════');
         throw error;
     }
 };
@@ -117,13 +82,11 @@ const parsearHorarioNuevo = (configuracionSemanal) => {
         const turnosDelDia = configuracionSemanal[dia] || [];
         const diaActivo = turnosDelDia.length > 0;
         
-        // Convertir formato {inicio, fin} a {entrada, salida}
         const turnos = turnosDelDia.map(turno => ({
             entrada: turno.inicio,
             salida: turno.fin
         }));
 
-        // Determinar tipo de horario (continuo o quebrado)
         const tipo = turnos.length > 1 ? 'quebrado' : 'continuo';
         
         return {
@@ -145,18 +108,13 @@ const parsearHorarioNuevo = (configuracionSemanal) => {
  */
 export const parsearHorario = (horario) => {
     try {
-        console.log('📊 Parseando horario:', horario);
-
         if (!horario) {
-            console.warn('⚠️ No hay horario');
             return obtenerHorarioVacio();
         }
 
-        // Soportar tanto config_excep como configuracion
         const configRaw = horario.configuracion || horario.config_excep;
 
         if (!configRaw) {
-            console.warn('⚠️ No hay config_excep ni configuracion en horario');
             return obtenerHorarioVacio();
         }
 
@@ -166,35 +124,21 @@ export const parsearHorario = (horario) => {
                 ? JSON.parse(configRaw) 
                 : configRaw;
         } catch (parseError) {
-            console.error('❌ Error parseando configuracion:', parseError);
-            console.error('❌ configuracion raw:', configRaw);
             return obtenerHorarioVacio();
         }
 
-        console.log('📊 Configuración parseada:', config);
-        console.log('📊 Keys de config:', Object.keys(config));
-
-        // Verificar si tiene la estructura nueva (configuracion_semanal)
         if (config.configuracion_semanal) {
-            console.log('✅ Usando estructura nueva (configuracion_semanal)');
             return parsearHorarioNuevo(config.configuracion_semanal);
         }
 
-        // Estructura antigua (dias + turnos)
         if (!config.dias || !Array.isArray(config.dias)) {
-            console.warn('⚠️ config.dias no es un array válido');
-            console.warn('⚠️ config completo:', JSON.stringify(config, null, 2));
             return obtenerHorarioVacio();
         }
 
         if (!config.turnos || !Array.isArray(config.turnos)) {
-            console.warn('⚠️ config.turnos no es un array válido');
             return obtenerHorarioVacio();
         }
 
-        console.log('✅ Usando estructura antigua (dias + turnos)');
-
-        // Mapeo de días en español a nombres completos
         const diasMap = {
             'lunes': 'Lunes',
             'martes': 'Martes',
@@ -222,8 +166,6 @@ export const parsearHorario = (horario) => {
             };
         });
     } catch (error) {
-        console.error('❌ Error parseando horario:', error);
-        console.error('❌ Error stack:', error.stack);
         return obtenerHorarioVacio();
     }
 };
@@ -255,7 +197,6 @@ const calcularHorasTurnos = (turnos) => {
     
     turnos.forEach(turno => {
         if (!turno.entrada || !turno.salida) {
-            console.warn('⚠️ Turno sin entrada o salida:', turno);
             return;
         }
 
@@ -328,7 +269,6 @@ export const calcularResumenSemanal = (horarioParsed) => {
             horasTotales: horasTotales.toFixed(1)
         };
     } catch (error) {
-        console.error('❌ Error calculando resumen:', error);
         return {
             diasLaborales: 0,
             totalDias: 7,
@@ -348,11 +288,7 @@ export const getInfoDiaActual = (horarioParsed) => {
         const hoy = new Date().getDay();
         const nombreDiaHoy = diasSemana[hoy];
         
-        console.log('📅 Día actual:', nombreDiaHoy, '(', hoy, ')');
-        
         const diaActual = horarioParsed.find(d => d.day === nombreDiaHoy);
-        
-        console.log('📅 Día encontrado:', diaActual);
         
         if (!diaActual || !diaActual.active) {
             return {
@@ -371,7 +307,6 @@ export const getInfoDiaActual = (horarioParsed) => {
             tipo: diaActual.tipo
         };
     } catch (error) {
-        console.error('❌ Error obteniendo info del día:', error);
         return {
             trabaja: false,
             entrada: null,

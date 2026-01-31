@@ -1,3 +1,4 @@
+// components/RegisterButton.jsx - VERSIÓN COMPLETA CORREGIDA
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -13,6 +14,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { isPointInPolygon, extraerCoordenadas } from '../../services/ubicacionService';
 import { getApiEndpoint } from '../../config/api';
+import { getCredencialesByEmpleado, verificarPin } from '../../services/credencialesService';
+import { getOrdenCredenciales } from '../../services/configurationService';
+import { capturarHuellaDigital } from '../../services/biometricservice';
+import { PinInputModal } from '../settingsPages/PinModal';
 import MapaZonasPermitidas from './MapScreen';
 
 const API_URL = getApiEndpoint('/api');
@@ -22,6 +27,13 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [registrando, setRegistrando] = useState(false);
   const [mostrarMapa, setMostrarMapa] = useState(false);
   const [mostrarDepartamentos, setMostrarDepartamentos] = useState(false);
+  
+  // Estados de autenticación
+  const [mostrarAutenticacion, setMostrarAutenticacion] = useState(false);
+  const [mostrarPinAuth, setMostrarPinAuth] = useState(false);
+  const [credencialesUsuario, setCredencialesUsuario] = useState(null);
+  const [metodosDisponibles, setMetodosDisponibles] = useState([]);
+  const [ordenCredenciales, setOrdenCredenciales] = useState([]);
   
   const [ubicacionActual, setUbicacionActual] = useState(null);
   const [departamentos, setDepartamentos] = useState([]);
@@ -39,6 +51,77 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
   const styles = darkMode ? registerStylesDark : registerStyles;
   const [horaActual, setHoraActual] = useState(new Date());
+
+  // Cargar credenciales y orden al inicio
+  useEffect(() => {
+    cargarCredencialesYOrden();
+  }, []);
+
+  const cargarCredencialesYOrden = async () => {
+    try {
+      console.log('🔐 Cargando credenciales del usuario...');
+      
+      const credsResponse = await getCredencialesByEmpleado(
+        userData.empleado_id,
+        userData.token
+      );
+      
+      setCredencialesUsuario(credsResponse.data || {
+        tiene_dactilar: false,
+        tiene_facial: false,
+        tiene_pin: false
+      });
+
+      const ordenResponse = await getOrdenCredenciales(userData.token);
+      setOrdenCredenciales(ordenResponse.orden || ['pin', 'dactilar', 'facial']);
+      
+      construirMetodosDisponibles(
+        credsResponse.data,
+        ordenResponse.orden || ['pin', 'dactilar', 'facial']
+      );
+      
+    } catch (error) {
+      console.log('⚠️ Usuario sin credenciales configuradas');
+      setCredencialesUsuario({
+        tiene_dactilar: false,
+        tiene_facial: false,
+        tiene_pin: false
+      });
+    }
+  };
+
+  const construirMetodosDisponibles = (credenciales, orden) => {
+    const metodosBase = {
+      'pin': {
+        id: 'pin',
+        nombre: 'PIN',
+        icono: 'keypad',
+        disponible: credenciales?.tiene_pin || false,
+        handler: () => setMostrarPinAuth(true)
+      },
+      'dactilar': {
+        id: 'dactilar',
+        nombre: 'Huella',
+        icono: 'finger-print',
+        disponible: credenciales?.tiene_dactilar || false,
+        handler: handleAutenticacionHuella
+      },
+      'facial': {
+        id: 'facial',
+        nombre: 'Facial',
+        icono: 'scan',
+        disponible: false,
+        handler: null
+      }
+    };
+
+    const metodosOrdenados = orden
+      .map(key => metodosBase[key])
+      .filter(metodo => metodo && metodo.disponible);
+
+    console.log('✅ Métodos disponibles:', metodosOrdenados.map(m => m.nombre));
+    setMetodosDisponibles(metodosOrdenados);
+  };
 
   useEffect(() => {
     const intervalo = setInterval(() => {
@@ -68,9 +151,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const obtenerUltimoRegistro = useCallback(async () => {
     try {
       const empleadoId = userData?.empleado_id;
-      if (!empleadoId) {
-        return null;
-      }
+      if (!empleadoId) return null;
 
       const response = await fetch(
         `${API_URL}/asistencias/empleado/${empleadoId}`,
@@ -82,12 +163,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         }
       );
 
-      if (!response.ok) {
-        return null;
-      }
+      if (!response.ok) return null;
 
       const data = await response.json();
-      
       if (!data.data?.length) return null;
 
       const hoy = new Date().toDateString();
@@ -505,6 +583,196 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }
   }, [ubicacionActual, departamentos]);
 
+  // 🔐 FUNCIÓN CORREGIDA: Verificar autenticación con PIN
+  const handleVerificarPin = async (pin) => {
+    try {
+      console.log('🔐 Verificando PIN...');
+      
+      const resultado = await verificarPin(
+        userData.empleado_id,
+        pin,
+        userData.token
+      );
+
+      if (resultado.success && resultado.data?.valido) {
+        console.log('✅ PIN correcto');
+        setMostrarPinAuth(false);
+        setMostrarAutenticacion(false);
+        
+        // ✅ VALIDAR ubicación antes de proceder
+        if (!ubicacionActual || !ubicacionActual.lat || !ubicacionActual.lng) {
+          throw new Error('No se pudo obtener tu ubicación. Verifica que el GPS esté activado.');
+        }
+        
+        if (!departamentoSeleccionado) {
+          throw new Error('No hay un departamento seleccionado para el registro.');
+        }
+        
+        await procederConRegistro();
+      } else {
+        throw new Error('PIN incorrecto');
+      }
+    } catch (error) {
+      console.error('❌ Error verificando PIN:', error);
+      throw error;
+    }
+  };
+
+  // 🔐 FUNCIÓN CORREGIDA: Autenticación con huella
+  const handleAutenticacionHuella = async () => {
+    try {
+      console.log('👆 Iniciando autenticación con huella...');
+      
+      // ✅ VALIDAR ubicación ANTES de capturar huella
+      if (!ubicacionActual || !ubicacionActual.lat || !ubicacionActual.lng) {
+        Alert.alert(
+          'Ubicación no disponible',
+          'No se pudo obtener tu ubicación. Verifica que el GPS esté activado.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      if (!departamentoSeleccionado) {
+        Alert.alert(
+          'Departamento no seleccionado',
+          'Debes estar dentro de un área permitida para registrar.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      setMostrarAutenticacion(false);
+      setRegistrando(true);
+
+      const resultado = await capturarHuellaDigital(userData.empleado_id);
+      
+      if (resultado.success) {
+        console.log('✅ Huella autenticada');
+        console.log('📍 Ubicación actual:', ubicacionActual);
+        console.log('🏢 Departamento:', departamentoSeleccionado?.nombre);
+        
+        await procederConRegistro();
+      } else {
+        throw new Error('Autenticación fallida');
+      }
+    } catch (error) {
+      console.error('❌ Error en autenticación biométrica:', error);
+      Alert.alert(
+        'Error de Autenticación',
+        error.message || 'No se pudo verificar tu identidad',
+        [{ text: 'OK' }]
+      );
+      setRegistrando(false);
+    }
+  };
+
+  // 🔐 FUNCIÓN CORREGIDA: Proceder con registro después de autenticar
+  const procederConRegistro = async () => {
+    try {
+      // ✅ VALIDACIÓN FINAL de todos los datos necesarios
+      if (!ubicacionActual || !ubicacionActual.lat || !ubicacionActual.lng) {
+        throw new Error('Error: Ubicación no disponible');
+      }
+      
+      if (!departamentoSeleccionado || !departamentoSeleccionado.id) {
+        throw new Error('Error: No hay departamento seleccionado');
+      }
+      
+      setRegistrando(true);
+      
+      const empleadoId = userData.empleado_id;
+      const tipoRegistro = tipoSiguienteRegistro === 'entrada' ? 'Entrada' : 'Salida';
+
+      // ⭐ CORRECCIÓN CRÍTICA: El backend espera "empleado_id" (SIN el prefijo "id_")
+      const payload = {
+        empleado_id: empleadoId,  // ← Cambiado de "id_empleado" a "empleado_id"
+        tipo: tipoRegistro,
+        dispositivo_origen: 'movil',  // ← Campo requerido por el backend
+        metodo_registro: 'Huella',
+        ubicacion: [ubicacionActual.lat, ubicacionActual.lng],
+        departamento_id: departamentoSeleccionado.id
+      };
+
+      console.log('📤 Registrando asistencia con payload corregido:', payload);
+
+      const response = await fetch(`${API_URL}/asistencias/registrar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userData.token}`,
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const responseText = await response.text();
+
+      if (response.status === 502) {
+        throw new Error('El servidor no está disponible en este momento. Por favor intenta de nuevo.');
+      }
+      if (response.status === 500) {
+        throw new Error('Error interno del servidor. Contacta al administrador.');
+      }
+
+      let data;
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch (parseError) {
+        throw new Error('Error del servidor: respuesta inválida');
+      }
+
+      if (!response.ok) {
+        const errorMsg = data.message || data.error || `Error del servidor (${response.status})`;
+        throw new Error(errorMsg);
+      }
+
+      const nuevoUltimo = await obtenerUltimoRegistro();
+      setUltimoRegistroHoy(nuevoUltimo);
+      
+      if (horarioInfo && toleranciaInfo) {
+        const nuevoEstado = calcularEstadoRegistro(nuevoUltimo, horarioInfo, toleranciaInfo);
+        setPuedeRegistrar(nuevoEstado.puedeRegistrar);
+        setTipoSiguienteRegistro(nuevoEstado.tipoRegistro);
+        setEstadoHorario(nuevoEstado.estadoHorario);
+        setJornadaCompletada(nuevoEstado.jornadaCompleta);
+      }
+
+      let estadoTexto = '';
+      let emoji = '✅';
+
+      if (data.registro?.tipo === 'Salida') {
+        estadoTexto = 'salida registrada';
+        emoji = '✅';
+      } else {
+        if (estadoHorario === 'retardo') {
+          estadoTexto = 'retardo';
+          emoji = '⚠️';
+        } else if (estadoHorario === 'falta') {
+          estadoTexto = 'falta';
+          emoji = '❌';
+        } else {
+          estadoTexto = 'puntual';
+          emoji = '✅';
+        }
+      }
+
+      Alert.alert(
+        '¡Éxito!',
+        `${emoji} ${tipoRegistro} registrada como ${estadoTexto}\nDepartamento: ${departamentoSeleccionado.nombre}\nHora: ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
+        [{ text: 'OK' }]
+      );
+
+      if (onRegistroExitoso) {
+        onRegistroExitoso(data);
+      }
+    } catch (err) {
+      console.error('❌ Error completo:', err);
+      Alert.alert('Error', err.message || 'No se pudo registrar', [{ text: 'OK' }]);
+    } finally {
+      setRegistrando(false);
+    }
+  };
+
   const handleRegistro = async () => {
     if (!userData || !userData.empleado_id || !userData.token) {
       console.error('❌ userData incompleto');
@@ -541,121 +809,16 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       return;
     }
 
-    const empleadoId = userData.empleado_id;
-    console.log('✅ Validaciones pasadas, empleadoId:', empleadoId);
-    console.log('✅ Departamento seleccionado:', departamentoSeleccionado.id, departamentoSeleccionado.nombre);
-    
-    let estadoMensaje = '';
-    if (tipoSiguienteRegistro === 'salida') {
-      estadoMensaje = '✅ Salida';
-    } else {
-      if (estadoHorario === 'puntual') estadoMensaje = '✅ Puntual';
-      if (estadoHorario === 'retardo') estadoMensaje = '⚠️ Con retardo';
-      if (estadoHorario === 'falta') estadoMensaje = '❌ Fuera de tolerancia';
+    if (!credencialesUsuario?.tiene_pin && !credencialesUsuario?.tiene_dactilar) {
+      Alert.alert(
+        'Configuración Requerida',
+        'Debes configurar al menos un método de autenticación (PIN o Huella) antes de registrar asistencias.\n\nVe a Configuración > Seguridad para configurar.',
+        [{ text: 'Entendido' }]
+      );
+      return;
     }
 
-    const tipoTexto = tipoSiguienteRegistro === 'entrada' ? 'Entrada' : 'Salida';
-
-    Alert.alert(
-      `Confirmar ${tipoTexto}`,
-      `¿Deseas registrar tu ${tipoTexto.toLowerCase()}?\n\n${estadoMensaje}\n\nDepartamento: ${departamentoSeleccionado.nombre}\nHora: ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Confirmar',
-          onPress: async () => {
-            setRegistrando(true);
-
-            try {
-              // ✨ PAYLOAD ACTUALIZADO - Incluye departamento_id
-              const payload = {
-                empleado_id: empleadoId,
-                dispositivo_origen: 'movil',
-                ubicacion: [ubicacionActual.lat, ubicacionActual.lng],
-                departamento_id: departamentoSeleccionado.id // ✅ AGREGADO
-              };
-
-              console.log('📤 Payload completo:', payload);
-
-              const response = await fetch(`${API_URL}/asistencias/registrar`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${userData.token}`,
-                },
-                body: JSON.stringify(payload)
-              });
-
-              const responseText = await response.text();
-
-              if (response.status === 502) {
-                throw new Error('El servidor no está disponible en este momento. Por favor intenta de nuevo.');
-              }
-              if (response.status === 500) {
-                throw new Error('Error interno del servidor. Contacta al administrador.');
-              }
-
-              let data;
-              try {
-                data = responseText ? JSON.parse(responseText) : {};
-              } catch (parseError) {
-                throw new Error('Error del servidor: respuesta inválida');
-              }
-
-              if (!response.ok) {
-                const errorMsg = data.message || data.error || `Error del servidor (${response.status})`;
-                throw new Error(errorMsg);
-              }
-
-              const nuevoUltimo = await obtenerUltimoRegistro();
-              setUltimoRegistroHoy(nuevoUltimo);
-              
-              if (horarioInfo && toleranciaInfo) {
-                const nuevoEstado = calcularEstadoRegistro(nuevoUltimo, horarioInfo, toleranciaInfo);
-                setPuedeRegistrar(nuevoEstado.puedeRegistrar);
-                setTipoSiguienteRegistro(nuevoEstado.tipoRegistro);
-                setEstadoHorario(nuevoEstado.estadoHorario);
-                setJornadaCompletada(nuevoEstado.jornadaCompleta);
-              }
-
-              let estadoTexto = '';
-              let emoji = '✅';
-
-              if (data.data?.tipo === 'salida') {
-                estadoTexto = 'salida registrada';
-                emoji = '✅';
-              } else {
-                if (data.data?.estado === 'retardo') {
-                  estadoTexto = 'retardo';
-                  emoji = '⚠️';
-                } else if (data.data?.estado === 'falta') {
-                  estadoTexto = 'falta';
-                  emoji = '❌';
-                } else {
-                  estadoTexto = 'puntual';
-                  emoji = '✅';
-                }
-              }
-
-              Alert.alert(
-                '¡Éxito!',
-                `${emoji} ${data.data?.tipo === 'salida' ? 'Salida' : 'Entrada'} registrada como ${estadoTexto}\nDepartamento: ${departamentoSeleccionado.nombre}\nHora: ${new Date(data.data?.fecha_registro).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
-                [{ text: 'OK' }]
-              );
-
-              if (onRegistroExitoso) {
-                onRegistroExitoso(data);
-              }
-            } catch (err) {
-              console.error('❌ Error completo:', err);
-              Alert.alert('Error', err.message || 'No se pudo registrar', [{ text: 'OK' }]);
-            } finally {
-              setRegistrando(false);
-            }
-          }
-        }
-      ]
-    );
+    setMostrarAutenticacion(true);
   };
 
   const getButtonColor = () => {
@@ -856,6 +1019,62 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         </View>
       </View>
 
+      {/* 🔐 MODAL DE SELECCIÓN DE AUTENTICACIÓN */}
+      <Modal
+        visible={mostrarAutenticacion}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setMostrarAutenticacion(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.authModalContent}>
+            <View style={styles.authHeader}>
+              <Ionicons name="shield-checkmark" size={48} color="#3b82f6" />
+              <Text style={styles.authTitle}>Verificar Identidad</Text>
+              <Text style={styles.authSubtitle}>
+                Elige cómo deseas autenticarte
+              </Text>
+            </View>
+
+            <View style={styles.authMethodsContainer}>
+              {metodosDisponibles.map((metodo, index) => (
+                <TouchableOpacity
+                  key={metodo.id}
+                  style={styles.authMethodCard}
+                  onPress={metodo.handler}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.authMethodIcon}>
+                    <Ionicons name={metodo.icono} size={32} color="#3b82f6" />
+                  </View>
+                  <Text style={styles.authMethodName}>{metodo.nombre}</Text>
+                  <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={styles.authCancelButton}
+              onPress={() => setMostrarAutenticacion(false)}
+            >
+              <Text style={styles.authCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 🔐 MODAL DE PIN PARA AUTENTICACIÓN */}
+      <PinInputModal
+        visible={mostrarPinAuth}
+        onClose={() => setMostrarPinAuth(false)}
+        onConfirm={handleVerificarPin}
+        title="Verificar PIN"
+        subtitle="Ingresa tu PIN de seguridad"
+        darkMode={darkMode}
+        requireConfirmation={false}
+      />
+
+      {/* MODALES EXISTENTES - Departamentos y Mapa */}
       {departamentosDisponibles.length > 0 && (
         <Modal
           visible={mostrarDepartamentos}
@@ -967,6 +1186,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   );
 };
 
+// ESTILOS MODO CLARO
 const registerStyles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
@@ -1198,8 +1418,72 @@ const registerStyles = StyleSheet.create({
     color: '#3b82f6',
     fontWeight: '500',
   },
+  authModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 32,
+  },
+  authHeader: {
+    alignItems: 'center',
+    padding: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  authTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  authSubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  authMethodsContainer: {
+    padding: 20,
+    gap: 12,
+  },
+  authMethodCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    gap: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  authMethodIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#eff6ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  authMethodName: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  authCancelButton: {
+    marginHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+  },
+  authCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
 });
 
+// ESTILOS MODO OSCURO
 const registerStylesDark = StyleSheet.create({
   ...registerStyles,
   container: {
@@ -1262,6 +1546,38 @@ const registerStylesDark = StyleSheet.create({
   infoBoxText: {
     ...registerStyles.infoBoxText,
     color: '#93c5fd',
+  },
+  authModalContent: {
+    ...registerStyles.authModalContent,
+    backgroundColor: '#1f2937',
+  },
+  authHeader: {
+    ...registerStyles.authHeader,
+    borderBottomColor: '#374151',
+  },
+  authTitle: {
+    ...registerStyles.authTitle,
+    color: '#fff',
+  },
+  authSubtitle: {
+    ...registerStyles.authSubtitle,
+    color: '#9ca3af',
+  },
+  authMethodCard: {
+    ...registerStyles.authMethodCard,
+    backgroundColor: '#374151',
+  },
+  authMethodName: {
+    ...registerStyles.authMethodName,
+    color: '#fff',
+  },
+  authCancelButton: {
+    ...registerStyles.authCancelButton,
+    backgroundColor: '#374151',
+  },
+  authCancelText: {
+    ...registerStyles.authCancelText,
+    color: '#9ca3af',
   },
 });
 

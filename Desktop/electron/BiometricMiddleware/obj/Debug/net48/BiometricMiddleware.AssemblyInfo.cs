@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("BiometricMiddleware")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("2.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("2.0.0+51086817a26066ac00a871ef049ede362f3226fb")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("2.0.0+38419efdd8532ab860496bdcd37bf242564b0a37")]
 [assembly: System.Reflection.AssemblyProductAttribute("BiometricMiddleware")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BiometricMiddleware")]
 [assembly: System.Reflection.AssemblyVersionAttribute("2.0.0.0")]

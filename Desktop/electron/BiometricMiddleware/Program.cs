@@ -25,23 +25,17 @@ namespace BiometricMiddleware
 
             _fingerprintManager = new FingerprintManager();
 
-            try
+            // Intentar inicializar el lector (no fatal si falla)
+            var readerFound = await _fingerprintManager.Initialize();
+
+            if (!readerFound)
             {
-                await _fingerprintManager.Initialize();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"\n[ERROR FATAL] {ex.Message}");
-                Console.WriteLine("\nPOSIBLES CAUSAS:");
-                Console.WriteLine("   - No hay ningun lector conectado");
-                Console.WriteLine("   - El SDK del lector no esta instalado");
-                Console.WriteLine("   - El lector esta siendo usado por otra aplicacion");
-                Console.WriteLine("   - Drivers del lector no instalados correctamente");
-                Console.WriteLine("\nPresione cualquier tecla para salir...");
-                Console.ReadKey();
-                return;
+                Console.WriteLine("\n[WARN] No se detecto lector biometrico");
+                Console.WriteLine("[INFO] El servidor iniciara de todos modos");
+                Console.WriteLine("[INFO] Conecta un lector y sera detectado automaticamente\n");
             }
 
+            // Siempre iniciar el servidor WebSocket
             await StartWebSocketServer();
         }
 
@@ -130,6 +124,18 @@ namespace BiometricMiddleware
             _fingerprintManager.OnStatusChanged += SendStatusUpdate;
             _fingerprintManager.OnEnrollProgress += SendEnrollProgress;
             _fingerprintManager.OnCaptureComplete += SendCaptureComplete;
+            _fingerprintManager.OnReaderConnectionChanged += SendReaderConnectionChanged;
+        }
+
+        private async Task SendReaderConnectionChanged(bool connected)
+        {
+            await SendMessage(new
+            {
+                type = "readerConnection",
+                connected,
+                message = connected ? "Lector conectado" : "Lector desconectado",
+                timestamp = DateTime.Now
+            });
         }
 
         public async Task HandleMessages()

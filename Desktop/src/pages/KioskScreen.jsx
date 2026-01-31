@@ -53,9 +53,6 @@ export default function KioskScreen() {
   const [usuarioActual, setUsuarioActual] = useState(null); // Almacenar datos del usuario
   const [selectedNotice, setSelectedNotice] = useState(null);
   const [showPinModal, setShowPinModal] = useState(false);
-  const [employeeId, setEmployeeId] = useState("");
-  const [employeePin, setEmployeePin] = useState("");
-  const [showPin, setShowPin] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showBitacora, setShowBitacora] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
@@ -614,13 +611,15 @@ export default function KioskScreen() {
 
       {showPinModal && (
         <PinModal
-          employeeId={employeeId}
-          setEmployeeId={setEmployeeId}
-          employeePin={employeePin}
-          setEmployeePin={setEmployeePin}
-          showPin={showPin}
-          setShowPin={setShowPin}
           onClose={() => setShowPinModal(false)}
+          onSuccess={(data) => {
+            console.log("✅ Asistencia registrada con PIN:", data);
+            agregarEvento({
+              user: data.empleado?.nombre || "Empleado",
+              action: `${data.tipo_movimiento === 'SALIDA' ? 'Salida' : 'Entrada'} registrada - PIN`,
+              type: "success",
+            });
+          }}
         />
       )}
 

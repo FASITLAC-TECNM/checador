@@ -97,7 +97,6 @@ export const HomeScreen = ({ userData, darkMode }) => {
           setInfoHoy({ trabaja: false });
         }
       } catch (error) {
-        console.error('Error cargando horario:', error);
         setInfoHoy(null);
       } finally {
         setLoadingHorario(false);

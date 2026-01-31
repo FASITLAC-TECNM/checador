@@ -11,21 +11,54 @@ namespace BiometricMiddleware
         public event Func<string, string, Task> OnStatusChanged;
         public event Func<int, int, Task> OnEnrollProgress;
         public event Func<string, string, int?, string, Task> OnCaptureComplete;
+        public event Func<bool, Task> OnReaderConnectionChanged;
 
         private IFingerprintReader _reader;
         private Dictionary<string, byte[]> _enrolledTemplates = new Dictionary<string, byte[]>();
+        private System.Threading.Timer _readerCheckTimer;
+        private bool _lastReaderState = false;
 
-        public async Task Initialize()
+        /// <summary>
+        /// Inicializa el FingerprintManager. Retorna true si encontro un lector.
+        /// </summary>
+        public async Task<bool> Initialize()
+        {
+            Console.WriteLine("[INIT] Inicializando BiometricMiddleware...\n");
+
+            var found = await TryDetectReader();
+
+            // Iniciar timer para detectar conexion/desconexion de lectores
+            StartReaderMonitor();
+
+            return found;
+        }
+
+        /// <summary>
+        /// Intenta detectar y conectar un lector biometrico
+        /// </summary>
+        public async Task<bool> TryDetectReader()
         {
             try
             {
-                Console.WriteLine("[INIT] Inicializando BiometricMiddleware...\n");
+                // Si ya tenemos un lector conectado, verificar si sigue conectado
+                if (_reader != null && _reader.IsConnected)
+                {
+                    return true;
+                }
+
+                // Limpiar lector anterior si existe
+                if (_reader != null)
+                {
+                    _reader.Dispose();
+                    _reader = null;
+                }
 
                 _reader = await ReaderFactory.AutoDetectReader();
 
                 if (_reader == null)
                 {
-                    throw new Exception("No se detecto ningun lector biometrico conectado");
+                    await NotifyStatus("noReader", "No hay lector conectado");
+                    return false;
                 }
 
                 _reader.OnStatusChanged += NotifyStatus;
@@ -33,17 +66,55 @@ namespace BiometricMiddleware
                 _reader.OnCaptureComplete += HandleCaptureComplete;
                 _reader.OnFingerDetected += HandleFingerDetected;
 
-                Console.WriteLine("[OK] Sistema inicializado");
+                Console.WriteLine("[OK] Lector detectado");
                 Console.WriteLine($"    Lector: {_reader.ReaderBrand} {_reader.DeviceModel}\n");
 
-                await NotifyStatus("ready", $"Sistema listo - {_reader.ReaderBrand}");
+                await NotifyStatus("ready", $"Lector conectado - {_reader.ReaderBrand}");
+                return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] Inicializacion: {ex.Message}");
-                await NotifyStatus("error", ex.Message);
-                throw;
+                Console.WriteLine($"[ERROR] Deteccion de lector: {ex.Message}");
+                await NotifyStatus("noReader", "No hay lector conectado");
+                return false;
             }
+        }
+
+        /// <summary>
+        /// Inicia el monitoreo periodico de conexion de lectores
+        /// </summary>
+        private void StartReaderMonitor()
+        {
+            _readerCheckTimer = new System.Threading.Timer(async _ =>
+            {
+                try
+                {
+                    bool currentState = _reader != null && _reader.IsConnected;
+
+                    // Si no hay lector, intentar detectar uno
+                    if (!currentState)
+                    {
+                        var found = await TryDetectReader();
+                        currentState = found;
+                    }
+
+                    // Notificar cambio de estado
+                    if (currentState != _lastReaderState)
+                    {
+                        _lastReaderState = currentState;
+                        Console.WriteLine($"[MONITOR] Lector {(currentState ? "CONECTADO" : "DESCONECTADO")}");
+
+                        if (OnReaderConnectionChanged != null)
+                        {
+                            await OnReaderConnectionChanged(currentState);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[MONITOR] Error: {ex.Message}");
+                }
+            }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(3));
         }
 
         public async Task StartEnrollment(string userId)
@@ -54,7 +125,10 @@ namespace BiometricMiddleware
                     throw new ArgumentException("UserId no puede estar vacio");
 
                 if (_reader == null || !_reader.IsConnected)
-                    throw new Exception("Lector no esta conectado");
+                {
+                    await NotifyStatus("noReader", "Conecta un lector biometrico para continuar");
+                    throw new Exception("No hay lector conectado. Conecta uno e intenta de nuevo.");
+                }
 
                 Console.WriteLine($"[ENROLL] Iniciando para: {userId}");
                 await _reader.StartEnrollment(userId);
@@ -88,7 +162,10 @@ namespace BiometricMiddleware
                     throw new ArgumentException("UserId no puede estar vacio");
 
                 if (_reader == null || !_reader.IsConnected)
-                    throw new Exception("Lector no esta conectado");
+                {
+                    await NotifyStatus("noReader", "Conecta un lector biometrico para continuar");
+                    throw new Exception("No hay lector conectado. Conecta uno e intenta de nuevo.");
+                }
 
                 if (!_enrolledTemplates.ContainsKey(userId))
                     throw new Exception($"Usuario {userId} no tiene huella registrada");
@@ -110,7 +187,10 @@ namespace BiometricMiddleware
             try
             {
                 if (_reader == null || !_reader.IsConnected)
-                    throw new Exception("Lector no esta conectado");
+                {
+                    await NotifyStatus("noReader", "Conecta un lector biometrico para continuar");
+                    throw new Exception("No hay lector conectado. Conecta uno e intenta de nuevo.");
+                }
 
                 if (templates == null || templates.Count == 0)
                     throw new Exception("No hay templates para identificar");
@@ -220,6 +300,7 @@ namespace BiometricMiddleware
 
         public void Dispose()
         {
+            _readerCheckTimer?.Dispose();
             _reader?.Dispose();
         }
     }

@@ -11,6 +11,11 @@ import { BottomNavigation } from './components/homes/nav';
 import { OnboardingNavigator } from './components/devicesetup/onBoardNavigator';
 import { verificarDispositivoActivo, getSolicitudPorToken } from './services/solicitudMovilService';
 
+const STORAGE_KEYS = {
+  DARK_MODE: '@dark_mode',
+  TERMS_ACCEPTED: '@terms_accepted',
+};
+
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentScreen, setCurrentScreen] = useState('home');
@@ -132,10 +137,16 @@ export default function App() {
 
   const checkAppState = async () => {
     try {
-      const deviceCompleted = await AsyncStorage.getItem('@onboarding_completed');
+      const [deviceCompleted, savedDarkMode] = await Promise.all([
+        AsyncStorage.getItem('@onboarding_completed'),
+        AsyncStorage.getItem(STORAGE_KEYS.DARK_MODE),
+      ]);
       
       setIsLoggedIn(false);
       setDeviceRegistered(deviceCompleted === 'true');
+      if (savedDarkMode !== null) {
+        setDarkMode(savedDarkMode === 'true');
+      }
       setIsLoading(false);
 
     } catch (error) {
@@ -143,6 +154,16 @@ export default function App() {
       setIsLoggedIn(false);
       setDeviceRegistered(false);
       setIsLoading(false);
+    }
+  };
+
+  const handleToggleDarkMode = async () => {
+    const newValue = !darkMode;
+    setDarkMode(newValue);
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.DARK_MODE, String(newValue));
+    } catch (error) {
+      console.error('Error guardando modo oscuro:', error);
     }
   };
 
@@ -261,14 +282,14 @@ export default function App() {
         edges={['top']}
       >
         {currentScreen === 'home' && <HomeScreen userData={userData} darkMode={darkMode} />}
-        {currentScreen === 'history' && <HistoryScreen darkMode={darkMode} />}
+        {currentScreen === 'history' && <HistoryScreen darkMode={darkMode} userData={userData} />}
         {currentScreen === 'schedule' && <ScheduleScreen userData={userData} darkMode={darkMode} />}
         {currentScreen === 'settings' && (
           <SettingsScreen
             userData={userData}
             email={userData.correo}
             darkMode={darkMode}
-            onToggleDarkMode={() => setDarkMode(!darkMode)}
+            onToggleDarkMode={handleToggleDarkMode}
             onLogout={handleLogout}
           />
         )}

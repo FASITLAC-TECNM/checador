@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,28 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const TERMS_ACCEPTED_KEY = '@terms_accepted';
 
 export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
   const [expandedSections, setExpandedSections] = useState({});
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  // Cargar estado guardado al montar
+  useEffect(() => {
+    const cargarEstado = async () => {
+      try {
+        const savedState = await AsyncStorage.getItem(TERMS_ACCEPTED_KEY);
+        if (savedState === 'true') {
+          setAcceptedTerms(true);
+        }
+      } catch (error) {
+        console.error('Error cargando estado de términos:', error);
+      }
+    };
+    cargarEstado();
+  }, []);
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -21,13 +39,30 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
     }));
   };
 
+  // Guardar en AsyncStorage cuando cambia
+  const handleToggleAcceptance = async () => {
+    const newValue = !acceptedTerms;
+    setAcceptedTerms(newValue);
+    try {
+      await AsyncStorage.setItem(TERMS_ACCEPTED_KEY, String(newValue));
+    } catch (error) {
+      console.error('Error guardando aceptación de términos:', error);
+    }
+  };
+
   const onAccept = () => {
     if (acceptedTerms) {
       onBack();
     }
   };
 
-  const onDecline = () => {
+  const onDecline = async () => {
+    try {
+      await AsyncStorage.removeItem(TERMS_ACCEPTED_KEY);
+      setAcceptedTerms(false);
+    } catch (error) {
+      console.error('Error al rechazar términos:', error);
+    }
     onBack();
   };
 
@@ -124,7 +159,7 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
         translucent={false} 
       />
       
-      {/* Header estandarizado - Sin gradiente */}
+      {/* Header estandarizado */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
@@ -143,7 +178,7 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Card de introducción moderna */}
+        {/* Card de introducción */}
         <View style={styles.introCard}>
           <View style={styles.introHeader}>
             <View style={styles.introIconContainer}>
@@ -167,7 +202,7 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
           </Text>
         </View>
 
-        {/* Secciones Expandibles Modernas */}
+        {/* Secciones Expandibles */}
         {sections.map((section, index) => (
           <TouchableOpacity
             key={section.id}
@@ -206,7 +241,7 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
           </TouchableOpacity>
         ))}
 
-        {/* Checkbox de Aceptación Moderno */}
+        {/* Checkbox de Aceptación */}
         <View style={styles.acceptanceCard}>
           <View style={[
             styles.acceptanceGradient,
@@ -214,7 +249,7 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
           ]}>
             <TouchableOpacity
               style={styles.checkboxContainer}
-              onPress={() => setAcceptedTerms(!acceptedTerms)}
+              onPress={handleToggleAcceptance}
               activeOpacity={0.7}
             >
               <View style={styles.checkboxWrapper}>
@@ -237,9 +272,8 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
           </View>
         </View>
 
-        {/* Botones de Acción Mejorados */}
+        {/* Botones de Acción */}
         <View style={styles.buttonContainer}>
-          {/* Botón Aceptar - Solo visible si acepta términos */}
           {acceptedTerms && (
             <TouchableOpacity
               style={styles.acceptButton}
@@ -254,7 +288,6 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
             </TouchableOpacity>
           )}
 
-          {/* Mensaje cuando no ha aceptado */}
           {!acceptedTerms && (
             <View style={styles.acceptDisabledCard}>
               <View style={styles.acceptDisabledContent}>
@@ -269,7 +302,6 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
             </View>
           )}
 
-          {/* Botón Rechazar */}
           <TouchableOpacity
             style={styles.declineButton}
             onPress={onDecline}
@@ -282,7 +314,7 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Footer con ícono */}
+        {/* Footer */}
         <View style={styles.footer}>
           <Ionicons name="information-circle" size={20} color="#2563eb" />
           <Text style={styles.footerText}>

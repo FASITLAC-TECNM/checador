@@ -1,5 +1,7 @@
-// components/RegisterButton.jsx - VERSIÓN COMPLETA CORREGIDA
-import React, { useState, useEffect, useCallback } from 'react';
+// components/RegisterButton.jsx - VERSIÓN SIMPLIFICADA
+// FIX: Eliminar validaciones redundantes - el botón ya validó todo
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -48,6 +50,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [tipoSiguienteRegistro, setTipoSiguienteRegistro] = useState('entrada');
   const [estadoHorario, setEstadoHorario] = useState(null);
   const [jornadaCompletada, setJornadaCompletada] = useState(false);
+
+  // ⭐ useRef para capturar valores antes de operaciones asíncronas
+  const datosRegistroRef = useRef({
+    ubicacion: null,
+    departamento: null
+  });
 
   const styles = darkMode ? registerStylesDark : registerStyles;
   const [horaActual, setHoraActual] = useState(new Date());
@@ -583,7 +591,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }
   }, [ubicacionActual, departamentos]);
 
-  // 🔐 FUNCIÓN CORREGIDA: Verificar autenticación con PIN
+  // 🔐 Verificar PIN
   const handleVerificarPin = async (pin) => {
     try {
       console.log('🔐 Verificando PIN...');
@@ -599,15 +607,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         setMostrarPinAuth(false);
         setMostrarAutenticacion(false);
         
-        // ✅ VALIDAR ubicación antes de proceder
-        if (!ubicacionActual || !ubicacionActual.lat || !ubicacionActual.lng) {
-          throw new Error('No se pudo obtener tu ubicación. Verifica que el GPS esté activado.');
-        }
-        
-        if (!departamentoSeleccionado) {
-          throw new Error('No hay un departamento seleccionado para el registro.');
-        }
-        
+        // ⭐ NO validar nada más - proceder directo
         await procederConRegistro();
       } else {
         throw new Error('PIN incorrecto');
@@ -618,65 +618,92 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }
   };
 
-  // 🔐 FUNCIÓN CORREGIDA: Autenticación con huella
+  // 🔐 FUNCIÓN SIMPLIFICADA: Ya no valida nada, solo captura huella
   const handleAutenticacionHuella = async () => {
     try {
       console.log('👆 Iniciando autenticación con huella...');
+      console.log('📊 Datos desde ref:', {
+        ubicacion: datosRegistroRef.current.ubicacion,
+        departamento: datosRegistroRef.current.departamento?.nombre
+      });
       
-      // ✅ VALIDAR ubicación ANTES de capturar huella
-      if (!ubicacionActual || !ubicacionActual.lat || !ubicacionActual.lng) {
-        Alert.alert(
-          'Ubicación no disponible',
-          'No se pudo obtener tu ubicación. Verifica que el GPS esté activado.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-      
-      if (!departamentoSeleccionado) {
-        Alert.alert(
-          'Departamento no seleccionado',
-          'Debes estar dentro de un área permitida para registrar.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-      
+      // Cerrar modal
       setMostrarAutenticacion(false);
+      
+      // Mostrar indicador de carga
       setRegistrando(true);
 
+      console.log('🔐 Capturando huella digital...');
       const resultado = await capturarHuellaDigital(userData.empleado_id);
       
       if (resultado.success) {
-        console.log('✅ Huella autenticada');
-        console.log('📍 Ubicación actual:', ubicacionActual);
-        console.log('🏢 Departamento:', departamentoSeleccionado?.nombre);
+        console.log('✅ Huella autenticada correctamente');
         
+        // ⭐ PROCEDER DIRECTO - Sin validaciones redundantes
         await procederConRegistro();
       } else {
-        throw new Error('Autenticación fallida');
+        throw new Error('Autenticación biométrica fallida');
       }
     } catch (error) {
-      console.error('❌ Error en autenticación biométrica:', error);
+      console.error('❌ Error en autenticación con huella:', error);
+      
+      let mensaje = 'No se pudo verificar tu identidad';
+      
+      if (error.message?.includes('cancelada') || error.message?.includes('cancel')) {
+        mensaje = 'Autenticación cancelada';
+      } else if (error.message?.includes('sensor') || error.message?.includes('hardware')) {
+        mensaje = 'No se detectó el sensor de huella. Verifica que tu dispositivo tenga sensor biométrico.';
+      } else if (error.message) {
+        mensaje = error.message;
+      }
+      
       Alert.alert(
         'Error de Autenticación',
-        error.message || 'No se pudo verificar tu identidad',
+        mensaje,
         [{ text: 'OK' }]
       );
       setRegistrando(false);
     }
   };
 
-  // 🔐 FUNCIÓN CORREGIDA: Proceder con registro después de autenticar
+  // 🔐 FUNCIÓN SIMPLIFICADA: Proceder con registro
   const procederConRegistro = async () => {
     try {
-      // ✅ VALIDACIÓN FINAL de todos los datos necesarios
-      if (!ubicacionActual || !ubicacionActual.lat || !ubicacionActual.lng) {
-        throw new Error('Error: Ubicación no disponible');
+      console.log('📋 Iniciando registro de asistencia...');
+      
+      // ⭐ USAR DATOS DESDE REF (capturados antes de abrir modal)
+      const departamento = datosRegistroRef.current.departamento;
+      let ubicacionFinal = datosRegistroRef.current.ubicacion;
+      
+      console.log('📊 Datos desde ref:', {
+        ubicacion: ubicacionFinal,
+        departamento: departamento?.nombre
+      });
+      
+      // ⭐ Obtener ubicación FRESCA justo antes de registrar
+      try {
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+          maximumAge: 3000, // Máximo 3 segundos de antigüedad
+        });
+        
+        ubicacionFinal = {
+          lat: location.coords.latitude,
+          lng: location.coords.longitude
+        };
+        
+        console.log('✅ Ubicación GPS actualizada:', ubicacionFinal);
+      } catch (locationError) {
+        console.warn('⚠️ No se pudo refrescar ubicación, usando la capturada:', ubicacionFinal);
       }
       
-      if (!departamentoSeleccionado || !departamentoSeleccionado.id) {
-        throw new Error('Error: No hay departamento seleccionado');
+      // Validación de seguridad
+      if (!ubicacionFinal || !ubicacionFinal.lat || !ubicacionFinal.lng) {
+        throw new Error('No se pudo obtener la ubicación');
+      }
+      
+      if (!departamento || !departamento.id) {
+        throw new Error('No se pudo obtener el departamento');
       }
       
       setRegistrando(true);
@@ -684,17 +711,16 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const empleadoId = userData.empleado_id;
       const tipoRegistro = tipoSiguienteRegistro === 'entrada' ? 'Entrada' : 'Salida';
 
-      // ⭐ CORRECCIÓN CRÍTICA: El backend espera "empleado_id" (SIN el prefijo "id_")
       const payload = {
-        empleado_id: empleadoId,  // ← Cambiado de "id_empleado" a "empleado_id"
+        empleado_id: empleadoId,
         tipo: tipoRegistro,
-        dispositivo_origen: 'movil',  // ← Campo requerido por el backend
+        dispositivo_origen: 'movil',
         metodo_registro: 'Huella',
-        ubicacion: [ubicacionActual.lat, ubicacionActual.lng],
-        departamento_id: departamentoSeleccionado.id
+        ubicacion: [ubicacionFinal.lat, ubicacionFinal.lng],
+        departamento_id: departamento.id
       };
 
-      console.log('📤 Registrando asistencia con payload corregido:', payload);
+      console.log('📤 Payload para registro:', payload);
 
       const response = await fetch(`${API_URL}/asistencias/registrar`, {
         method: 'POST',
@@ -758,7 +784,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       Alert.alert(
         '¡Éxito!',
-        `${emoji} ${tipoRegistro} registrada como ${estadoTexto}\nDepartamento: ${departamentoSeleccionado.nombre}\nHora: ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
+        `${emoji} ${tipoRegistro} registrada como ${estadoTexto}\nDepartamento: ${departamento.nombre}\nHora: ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
         [{ text: 'OK' }]
       );
 
@@ -774,6 +800,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   };
 
   const handleRegistro = async () => {
+    // ⭐ TODAS LAS VALIDACIONES ESTÁN AQUÍ - Una sola vez
     if (!userData || !userData.empleado_id || !userData.token) {
       console.error('❌ userData incompleto');
       Alert.alert('Error', 'No se pudo identificar tu información de usuario. Intenta cerrar sesión y volver a iniciar.');
@@ -818,6 +845,19 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       return;
     }
 
+    // ⭐ CAPTURAR datos en ref ANTES de mostrar modal
+    datosRegistroRef.current = {
+      ubicacion: ubicacionActual,
+      departamento: departamentoSeleccionado
+    };
+
+    // ✅ Todo validado - Mostrar opciones de autenticación
+    console.log('✅ Validaciones pasadas, mostrando modal de autenticación');
+    console.log('📊 Datos capturados en ref:', {
+      ubicacion: datosRegistroRef.current.ubicacion,
+      departamento: datosRegistroRef.current.departamento?.nombre
+    });
+    
     setMostrarAutenticacion(true);
   };
 
@@ -1019,7 +1059,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         </View>
       </View>
 
-      {/* 🔐 MODAL DE SELECCIÓN DE AUTENTICACIÓN */}
+      {/* MODAL DE SELECCIÓN DE AUTENTICACIÓN */}
       <Modal
         visible={mostrarAutenticacion}
         animationType="slide"
@@ -1063,7 +1103,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         </View>
       </Modal>
 
-      {/* 🔐 MODAL DE PIN PARA AUTENTICACIÓN */}
+      {/* MODAL DE PIN */}
       <PinInputModal
         visible={mostrarPinAuth}
         onClose={() => setMostrarPinAuth(false)}
@@ -1074,7 +1114,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         requireConfirmation={false}
       />
 
-      {/* MODALES EXISTENTES - Departamentos y Mapa */}
+      {/* MODALES - Departamentos y Mapa */}
       {departamentosDisponibles.length > 0 && (
         <Modal
           visible={mostrarDepartamentos}
@@ -1185,6 +1225,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     </>
   );
 };
+
+// [... ESTILOS SIN CAMBIOS - Copiar todos los estilos del archivo anterior ...]
 
 // ESTILOS MODO CLARO
 const registerStyles = StyleSheet.create({

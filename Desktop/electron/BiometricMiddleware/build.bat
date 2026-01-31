@@ -1,35 +1,36 @@
 @echo off
-REM Script para compilar BiometricMiddleware desde código fuente
+chcp 65001 >nul 2>&1
+REM Script para compilar BiometricMiddleware desde codigo fuente
 
 echo.
-echo ╔════════════════════════════════════════════════════════╗
-echo ║   Compilando BiometricMiddleware desde código fuente   ║
-echo ╚════════════════════════════════════════════════════════╝
+echo ============================================================
+echo    Compilando BiometricMiddleware desde codigo fuente
+echo ============================================================
 echo.
 
-REM Verificar que .NET SDK esté instalado
+REM Verificar que .NET SDK este instalado
 where dotnet >nul 2>nul
 if %errorlevel% neq 0 (
-    echo ❌ Error: .NET SDK no está instalado
+    echo [ERROR] .NET SDK no esta instalado
     echo.
-    echo 💡 Descarga e instala .NET SDK desde:
+    echo Descarga e instala .NET SDK desde:
     echo    https://dotnet.microsoft.com/download
     echo.
     pause
     exit /b 1
 )
 
-echo ✅ .NET SDK encontrado
+echo [OK] .NET SDK encontrado
 dotnet --version
 
-REM Verificar que las DLLs de DigitalPersona estén disponibles
+REM Verificar que las DLLs de DigitalPersona esten disponibles
 set DPFP_DLL="C:\Program Files\DigitalPersona\One Touch SDK\.NET\Bin\DPFPShrNET.dll"
 if not exist %DPFP_DLL% (
     echo.
-    echo ⚠️  ADVERTENCIA: SDK de DigitalPersona no encontrado
+    echo [WARN] SDK de DigitalPersona no encontrado
     echo    Ruta esperada: %DPFP_DLL%
     echo.
-    echo 💡 Si usas lector DigitalPersona, instala el SDK desde:
+    echo Si usas lector DigitalPersona, instala el SDK desde:
     echo    https://www.digitalpersona.com/developers/
     echo.
     echo    Continuando de todos modos...
@@ -37,7 +38,7 @@ if not exist %DPFP_DLL% (
 )
 
 echo.
-echo 🔧 Compilando proyecto...
+echo [BUILD] Compilando proyecto...
 echo.
 
 REM Compilar el proyecto
@@ -45,32 +46,30 @@ dotnet build BiometricMiddleware.csproj -c Release -p:Platform=x86
 
 if %errorlevel% neq 0 (
     echo.
-    echo ❌ Error al compilar
+    echo [ERROR] Error al compilar
     echo.
     pause
     exit /b 1
 )
 
 echo.
-echo ✅ Compilación exitosa
+echo [OK] Compilacion exitosa
 echo.
 
 REM Crear carpeta de salida si no existe
 if not exist "bin" mkdir bin
 
-REM Copiar ejecutable
-copy "bin\Release\net48\BiometricMiddleware.exe" "bin\BiometricMiddleware.exe" >nul
+REM Copiar ejecutable (x86 porque se compila con Platform=x86)
+copy "bin\x86\Release\net48\BiometricMiddleware.exe" "bin\BiometricMiddleware.exe" >nul
 
 REM Copiar DLLs necesarias
-copy "bin\Release\net48\*.dll" "bin\" >nul
+copy "bin\x86\Release\net48\*.dll" "bin\" >nul
 
-echo 📦 Archivos copiados a: electron\BiometricMiddleware\bin\
+echo [OK] Archivos copiados a: electron\BiometricMiddleware\bin\
 echo.
-echo ✅ Proceso completado
+echo [OK] Proceso completado
 echo.
-echo 💡 Para ejecutar el middleware:
-echo    1. Asegúrate de que el lector esté conectado
+echo Para ejecutar el middleware:
+echo    1. Asegurate de que el lector este conectado
 echo    2. Ejecuta: bin\BiometricMiddleware.exe
 echo.
-
-pause

@@ -20,11 +20,95 @@ let biometricProcess = null;
 app.commandLine.appendSwitch("log-level", "3");
 
 /**
+ * Función para compilar el BiometricMiddleware si no existe el ejecutable
+ * @returns {boolean} - true si el ejecutable existe o se compiló correctamente
+ */
+function buildBiometricMiddlewareIfNeeded() {
+  const middlewarePath = path.join(
+    __dirname,
+    "BiometricMiddleware",
+    "bin",
+    "BiometricMiddleware.exe",
+  );
+
+  // Si ya existe el ejecutable, no hacer nada
+  if (fs.existsSync(middlewarePath)) {
+    console.log("[BIOMETRIC] Ejecutable encontrado:", middlewarePath);
+    return true;
+  }
+
+  console.log("[BIOMETRIC] Ejecutable no encontrado, iniciando compilacion...");
+
+  const middlewareDir = path.join(__dirname, "BiometricMiddleware");
+
+  // Verificar que existe el proyecto
+  const csprojPath = path.join(middlewareDir, "BiometricMiddleware.csproj");
+  if (!fs.existsSync(csprojPath)) {
+    console.error("[ERROR] BiometricMiddleware.csproj no encontrado en:", csprojPath);
+    return false;
+  }
+
+  try {
+    console.log("[BIOMETRIC] Compilando con dotnet build...");
+
+    // Ejecutar dotnet build directamente
+    execSync("dotnet build BiometricMiddleware.csproj -c Release -p:Platform=x86", {
+      cwd: middlewareDir,
+      stdio: "inherit",
+      encoding: "utf8",
+    });
+
+    // Crear carpeta bin si no existe
+    const binDir = path.join(middlewareDir, "bin");
+    if (!fs.existsSync(binDir)) {
+      fs.mkdirSync(binDir, { recursive: true });
+    }
+
+    // Copiar ejecutable y DLLs (x86 porque se compila con Platform=x86)
+    const releaseDir = path.join(middlewareDir, "bin", "x86", "Release", "net48");
+    const exeSrc = path.join(releaseDir, "BiometricMiddleware.exe");
+
+    if (fs.existsSync(exeSrc)) {
+      fs.copyFileSync(exeSrc, middlewarePath);
+      console.log("[OK] Ejecutable copiado a:", middlewarePath);
+
+      // Copiar DLLs
+      const files = fs.readdirSync(releaseDir);
+      for (const file of files) {
+        if (file.endsWith(".dll")) {
+          fs.copyFileSync(path.join(releaseDir, file), path.join(binDir, file));
+        }
+      }
+      console.log("[OK] DLLs copiadas");
+    }
+
+    // Verificar que se creó el ejecutable
+    if (fs.existsSync(middlewarePath)) {
+      console.log("[OK] BiometricMiddleware compilado exitosamente");
+      return true;
+    } else {
+      console.error("[ERROR] La compilacion termino pero no se creo el ejecutable");
+      return false;
+    }
+  } catch (error) {
+    console.error("[ERROR] Error al compilar BiometricMiddleware:", error.message);
+    console.error("[INFO] Asegurate de tener .NET SDK instalado");
+    return false;
+  }
+}
+
+/**
  * Función para iniciar el BiometricMiddleware como administrador
  */
 function startBiometricMiddleware() {
   try {
-    // Ejecutable compilado en Debug/net48
+    // Compilar si es necesario
+    if (!buildBiometricMiddlewareIfNeeded()) {
+      console.error("[ERROR] No se pudo obtener el ejecutable de BiometricMiddleware");
+      return;
+    }
+
+    // Ejecutable compilado
     const middlewarePath = path.join(
       __dirname,
       "BiometricMiddleware",
@@ -32,15 +116,6 @@ function startBiometricMiddleware() {
       "BiometricMiddleware.exe",
     );
     const workingDir = path.join(__dirname, "BiometricMiddleware", "bin");
-
-    // Verificar que el archivo existe
-    if (!fs.existsSync(middlewarePath)) {
-      console.error(
-        "[ERROR] BiometricMiddleware.exe no encontrado en:",
-        middlewarePath,
-      );
-      return;
-    }
 
     console.log(
       "[BIOMETRIC] Iniciando BiometricMiddleware desde:",

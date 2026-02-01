@@ -122,6 +122,22 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
     }
   ];
 
+  // ─── FIX iOS: esquema de URL según plataforma ──────────────────────────────
+  // Android soporta: whatsapp://send?phone=NUMERO&text=TEXTO
+  // iOS NO soporta el parámetro &text= con ese esquema.
+  // iOS requiere: https://api.whatsapp.com/send?phone=NUMERO&text=TEXTO
+  // canOpenURL en iOS solo devuelve true si el esquema está en Info.plist,
+  // y whatsapp:// con &text= no se resuelve correctamente.
+  // El esquema https://api.whatsapp.com es un universal link que WhatsApp
+  // intercepta nativo en iOS y abre la conversación con el texto prellenado.
+  const getWhatsAppURL = (phone, text) => {
+    if (Platform.OS === 'android') {
+      return `whatsapp://send?phone=${phone}&text=${encodeURIComponent(text)}`;
+    }
+    // iOS: usar universal link de WhatsApp
+    return `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(text)}`;
+  };
+
   const getContactOptions = () => {
     const options = [];
 
@@ -135,25 +151,35 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
         displayPhone: empresaData.telefono,
         icon: "logo-whatsapp",
         color: "#25D366",
-        action: () => {
+        action: async () => {
           const message = `Hola, soy ${userData?.nombre || 'Usuario'}, necesito ayuda con la App de Asistencia.`;
-          const url = `whatsapp://send?phone=${phoneClean}&text=${encodeURIComponent(message)}`;
-          
-          Linking.canOpenURL(url)
-            .then((supported) => {
-              if (supported) {
-                return Linking.openURL(url);
-              } else {
+          const url = getWhatsAppURL(phoneClean, message);
+
+          try {
+            // En iOS con el esquema https no tiene sentido canOpenURL
+            // porque siempre retorna true para https.
+            // En Android canOpenURL con whatsapp:// es útil para
+            // verificar que WhatsApp esté instalado.
+            if (Platform.OS === 'android') {
+              const supported = await Linking.canOpenURL(`whatsapp://`);
+              if (!supported) {
                 Alert.alert(
-                  "WhatsApp no disponible", 
-                  "WhatsApp no está instalado en tu dispositivo"
+                  'WhatsApp no disponible',
+                  'WhatsApp no está instalado en tu dispositivo'
                 );
+                return;
               }
-            })
-            .catch((err) => {
-              console.error('[Support] Error abriendo WhatsApp:', err);
-              Alert.alert("Error", "No se pudo abrir WhatsApp");
-            });
+            }
+
+            await Linking.openURL(url);
+          } catch (err) {
+            console.error('[Support] Error abriendo WhatsApp:', err);
+            // En iOS, si openURL falla con el universal link, WhatsApp no está instalado
+            Alert.alert(
+              'WhatsApp no disponible',
+              'No se pudo abrir WhatsApp. Verifica que esté instalado en tu dispositivo.'
+            );
+          }
         }
       });
     }

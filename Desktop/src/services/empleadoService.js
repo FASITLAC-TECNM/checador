@@ -196,10 +196,152 @@ export const getIncidenciasEmpleado = async (empleadoId) => {
   }
 };
 
+/**
+ * Obtener los departamentos asignados a un empleado por su empleado_id
+ * Flujo: GET /api/empleados/{empleado_id}/departamentos → departamentos completos
+ * @param {string} empleadoId - ID del empleado
+ * @returns {Promise<Array>} - Lista de departamentos con datos completos
+ */
+export const getDepartamentosPorEmpleadoId = async (empleadoId) => {
+  try {
+    if (!empleadoId) {
+      console.warn("⚠️ No se proporcionó empleado_id");
+      return [];
+    }
+
+    const token = localStorage.getItem("auth_token");
+    console.log(`🏢 Obteniendo departamentos del empleado ${empleadoId}...`);
+
+    // Intentar obtener departamentos del empleado desde el endpoint específico
+    const response = await fetch(
+      `${API_URL}${API_CONFIG.ENDPOINTS.EMPLEADOS}/${empleadoId}/departamentos`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      }
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+      const departamentos = data.data || data;
+      console.log("✅ Departamentos obtenidos:", departamentos);
+      return Array.isArray(departamentos) ? departamentos : [];
+    }
+
+    // Si el endpoint específico no existe, intentar con query params
+    console.log("⚠️ Endpoint específico no disponible, intentando alternativa...");
+    const altResponse = await fetch(
+      `${API_URL}${API_CONFIG.ENDPOINTS.DEPARTAMENTOS}?empleado_id=${empleadoId}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      }
+    );
+
+    if (altResponse.ok) {
+      const altData = await altResponse.json();
+      const departamentos = altData.data || altData;
+      console.log("✅ Departamentos obtenidos (alternativo):", departamentos);
+      return Array.isArray(departamentos) ? departamentos : [];
+    }
+
+    console.warn("⚠️ No se pudieron obtener departamentos");
+    return [];
+  } catch (err) {
+    console.error("❌ Error al obtener departamentos del empleado:", err);
+    return [];
+  }
+};
+
+/**
+ * Obtener los departamentos asignados a un empleado desde un array
+ * Flujo: empleados_departamentos (FK empleado_id) → departamentos (datos completos)
+ * @param {Array} departamentosAsignados - Array de departamentos del empleado (de empleados_departamentos)
+ * @returns {Promise<Array>} - Lista de departamentos con datos completos
+ */
+export const getDepartamentosEmpleado = async (departamentosAsignados) => {
+  try {
+    if (!departamentosAsignados || departamentosAsignados.length === 0) {
+      return [];
+    }
+
+    const token = localStorage.getItem("auth_token");
+
+    // Por cada departamento_id, obtener el registro completo de la tabla departamentos
+    const promesas = departamentosAsignados.map(async (depto) => {
+      try {
+        const deptoId = depto.departamento_id || depto.id;
+        const response = await fetch(
+          `${API_URL}${API_CONFIG.ENDPOINTS.DEPARTAMENTOS}/${deptoId}`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              ...(token && { Authorization: `Bearer ${token}` }),
+            },
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          return data.data || data;
+        }
+        return null;
+      } catch (err) {
+        console.warn(`⚠️ Error obteniendo departamento:`, err);
+        return null;
+      }
+    });
+
+    const resultados = await Promise.all(promesas);
+    return resultados.filter((depto) => depto !== null);
+  } catch (err) {
+    console.error("❌ Error al obtener departamentos del empleado:", err);
+    return [];
+  }
+};
+
+/**
+ * Obtener un departamento por su ID
+ * @param {string} departamentoId - ID del departamento
+ * @returns {Promise<Object>} - Datos del departamento
+ */
+export const getDepartamentoById = async (departamentoId) => {
+  try {
+    const token = localStorage.getItem("auth_token");
+
+    const response = await fetch(
+      `${API_URL}${API_CONFIG.ENDPOINTS.DEPARTAMENTOS}/${departamentoId}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Departamento no encontrado");
+    }
+
+    const data = await response.json();
+    return data.data || data;
+  } catch (error) {
+    console.error("❌ Error al obtener departamento:", error);
+    throw error;
+  }
+};
+
 export default {
   getEmpleadoById,
   getHorarioById,
   getEmpleadoConHorario,
   getAsistenciasEmpleado,
   getIncidenciasEmpleado,
+  getDepartamentosEmpleado,
+  getDepartamentosPorEmpleadoId,
+  getDepartamentoById,
 };

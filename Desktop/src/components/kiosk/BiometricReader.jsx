@@ -357,6 +357,11 @@ export default function BiometricReader({
         }
         break;
 
+      case "cacheReloaded":
+        addMessage(`✅ Caché actualizado: ${data.templatesCount} huellas`, "success");
+        console.log("[CACHE] Caché de templates recargado:", data);
+        break;
+
       case "error":
         addMessage(`❌ Error: ${data.message}`, "error");
         setCurrentOperation("None");
@@ -414,6 +419,11 @@ export default function BiometricReader({
         if (result.success) {
           addMessage("✅ Huella guardada en PostgreSQL", "success");
           addMessage(`📊 Tamaño: ${result.data.template_size} bytes`, "info");
+
+          // Recargar el caché de templates para incluir la nueva huella
+          const API_URL = "https://9dm7dqf9-3002.usw3.devtunnels.ms/api";
+          sendCommand("reloadTemplates", { apiUrl: API_URL });
+          addMessage("🔄 Actualizando caché de huellas...", "info");
 
           if (onEnrollmentSuccess) {
             onEnrollmentSuccess({

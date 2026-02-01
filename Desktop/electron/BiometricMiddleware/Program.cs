@@ -116,6 +116,12 @@ namespace BiometricMiddleware
         private readonly FingerprintManager _fingerprintManager;
         private static readonly HttpClient _httpClient = new HttpClient();
 
+        // Caché estática de templates - compartida entre todas las conexiones
+        private static Dictionary<string, byte[]> _templatesCache = null;
+        private static string _cachedApiUrl = null;
+        private static DateTime _cacheLoadedAt = DateTime.MinValue;
+        private static readonly object _cacheLock = new object();
+
         public WebSocketConnection(WebSocket webSocket, FingerprintManager fingerprintManager)
         {
             _webSocket = webSocket;
@@ -180,6 +186,14 @@ namespace BiometricMiddleware
 
                     case "startIdentification":
                         await StartIdentificationWithDbTemplates(request.ApiUrl);
+                        break;
+
+                    case "reloadTemplates":
+                        await ReloadTemplatesCache(request.ApiUrl);
+                        break;
+
+                    case "cacheStatus":
+                        await SendCacheStatus();
                         break;
 
                     case "stopCapture":
@@ -307,76 +321,38 @@ namespace BiometricMiddleware
                     return;
                 }
 
-                // Usar el endpoint público de credenciales
-                Console.WriteLine($"[API] Cargando templates desde: {apiUrl}/credenciales/publico/lista");
-                await SendStatusUpdate("loading", "Cargando huellas registradas...");
+                Dictionary<string, byte[]> templates;
 
-                var response = await _httpClient.GetAsync($"{apiUrl}/credenciales/publico/lista");
-
-                if (!response.IsSuccessStatusCode)
+                // Verificar si ya tenemos templates en caché
+                lock (_cacheLock)
                 {
-                    Console.WriteLine($"[API] Error: {response.StatusCode}");
-                    await SendError($"Error HTTP: {response.StatusCode}");
-                    return;
-                }
-
-                var json = await response.Content.ReadAsStringAsync();
-                var result = JsonConvert.DeserializeObject<CredencialesResponse>(json);
-
-                if (result?.Data == null || result.Data.Count == 0)
-                {
-                    Console.WriteLine("[API] No hay credenciales registradas");
-                    await SendError("No hay huellas registradas en el sistema");
-                    return;
-                }
-
-                // Filtrar solo los que tienen huella dactilar
-                var usuariosConHuella = result.Data.FindAll(c => c.TieneDactilar);
-
-                if (usuariosConHuella.Count == 0)
-                {
-                    Console.WriteLine("[API] No hay usuarios con huella dactilar");
-                    await SendError("No hay huellas dactilares registradas en el sistema");
-                    return;
-                }
-
-                Console.WriteLine($"[API] {usuariosConHuella.Count} usuarios con huella encontrados");
-
-                var templates = new Dictionary<string, byte[]>();
-
-                foreach (var credencial in usuariosConHuella)
-                {
-                    try
+                    if (_templatesCache != null && _templatesCache.Count > 0 && _cachedApiUrl == apiUrl)
                     {
-                        // Obtener el template del empleado (ruta pública)
-                        var templateResponse = await _httpClient.GetAsync($"{apiUrl}/credenciales/publico/dactilar/{credencial.EmpleadoId}");
-
-                        if (templateResponse.IsSuccessStatusCode)
-                        {
-                            var templateJson = await templateResponse.Content.ReadAsStringAsync();
-                            var templateResult = JsonConvert.DeserializeObject<DactilarResponse>(templateJson);
-
-                            if (templateResult?.Success == true && templateResult?.Data?.Dactilar != null)
-                            {
-                                var templateBytes = Convert.FromBase64String(templateResult.Data.Dactilar);
-                                templates[$"emp_{credencial.EmpleadoId}"] = templateBytes;
-                                Console.WriteLine($"   [OK] emp_{credencial.EmpleadoId}: {templateBytes.Length} bytes");
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"   [ERROR] emp_{credencial.EmpleadoId}: {ex.Message}");
+                        templates = _templatesCache;
+                        Console.WriteLine($"[CACHE] Usando {templates.Count} templates en caché (cargados: {_cacheLoadedAt:HH:mm:ss})");
+                        await SendStatusUpdate("identifying", $"Coloca tu dedo en el lector ({templates.Count} usuarios)");
+                        await _fingerprintManager.StartIdentificationWithTemplates(templates);
+                        return;
                     }
                 }
 
-                if (templates.Count == 0)
+                // Si no hay caché, cargar desde la API
+                templates = await LoadTemplatesFromApi(apiUrl);
+
+                if (templates == null || templates.Count == 0)
                 {
-                    await SendError("No se pudieron cargar los templates");
-                    return;
+                    return; // Error ya fue enviado por LoadTemplatesFromApi
                 }
 
-                Console.WriteLine($"[OK] {templates.Count} templates cargados\n");
+                // Guardar en caché
+                lock (_cacheLock)
+                {
+                    _templatesCache = templates;
+                    _cachedApiUrl = apiUrl;
+                    _cacheLoadedAt = DateTime.Now;
+                }
+
+                Console.WriteLine($"[OK] {templates.Count} templates cargados y guardados en caché\n");
                 await SendStatusUpdate("identifying", $"Coloca tu dedo en el lector ({templates.Count} usuarios)");
 
                 await _fingerprintManager.StartIdentificationWithTemplates(templates);
@@ -386,6 +362,143 @@ namespace BiometricMiddleware
                 Console.WriteLine($"[ERROR] {ex.Message}");
                 await SendError($"Error cargando huellas: {ex.Message}");
             }
+        }
+
+        private async Task ReloadTemplatesCache(string apiUrl)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(apiUrl))
+                {
+                    await SendError("API URL no proporcionada para recargar caché");
+                    return;
+                }
+
+                Console.WriteLine("[CACHE] Recargando templates desde la API...");
+                await SendStatusUpdate("reloading", "Recargando huellas registradas...");
+
+                // Cargar nuevos templates
+                var templates = await LoadTemplatesFromApi(apiUrl);
+
+                if (templates == null || templates.Count == 0)
+                {
+                    return; // Error ya fue enviado
+                }
+
+                // Actualizar caché
+                lock (_cacheLock)
+                {
+                    _templatesCache = templates;
+                    _cachedApiUrl = apiUrl;
+                    _cacheLoadedAt = DateTime.Now;
+                }
+
+                Console.WriteLine($"[CACHE] Caché actualizado: {templates.Count} templates\n");
+
+                await SendMessage(new
+                {
+                    type = "cacheReloaded",
+                    templatesCount = templates.Count,
+                    loadedAt = _cacheLoadedAt,
+                    message = $"Caché actualizado con {templates.Count} templates"
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] ReloadTemplatesCache: {ex.Message}");
+                await SendError($"Error recargando caché: {ex.Message}");
+            }
+        }
+
+        private async Task SendCacheStatus()
+        {
+            lock (_cacheLock)
+            {
+                var status = new
+                {
+                    type = "cacheStatus",
+                    hasCache = _templatesCache != null && _templatesCache.Count > 0,
+                    templatesCount = _templatesCache?.Count ?? 0,
+                    apiUrl = _cachedApiUrl,
+                    loadedAt = _cacheLoadedAt != DateTime.MinValue ? _cacheLoadedAt.ToString("yyyy-MM-dd HH:mm:ss") : null
+                };
+
+                SendMessage(status).Wait();
+            }
+        }
+
+        private async Task<Dictionary<string, byte[]>> LoadTemplatesFromApi(string apiUrl)
+        {
+            // Usar el endpoint público de credenciales
+            Console.WriteLine($"[API] Cargando templates desde: {apiUrl}/credenciales/publico/lista");
+            await SendStatusUpdate("loading", "Cargando huellas registradas...");
+
+            var response = await _httpClient.GetAsync($"{apiUrl}/credenciales/publico/lista");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"[API] Error: {response.StatusCode}");
+                await SendError($"Error HTTP: {response.StatusCode}");
+                return null;
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var result = JsonConvert.DeserializeObject<CredencialesResponse>(json);
+
+            if (result?.Data == null || result.Data.Count == 0)
+            {
+                Console.WriteLine("[API] No hay credenciales registradas");
+                await SendError("No hay huellas registradas en el sistema");
+                return null;
+            }
+
+            // Filtrar solo los que tienen huella dactilar
+            var usuariosConHuella = result.Data.FindAll(c => c.TieneDactilar);
+
+            if (usuariosConHuella.Count == 0)
+            {
+                Console.WriteLine("[API] No hay usuarios con huella dactilar");
+                await SendError("No hay huellas dactilares registradas en el sistema");
+                return null;
+            }
+
+            Console.WriteLine($"[API] {usuariosConHuella.Count} usuarios con huella encontrados");
+
+            var templates = new Dictionary<string, byte[]>();
+
+            foreach (var credencial in usuariosConHuella)
+            {
+                try
+                {
+                    // Obtener el template del empleado (ruta pública)
+                    var templateResponse = await _httpClient.GetAsync($"{apiUrl}/credenciales/publico/dactilar/{credencial.EmpleadoId}");
+
+                    if (templateResponse.IsSuccessStatusCode)
+                    {
+                        var templateJson = await templateResponse.Content.ReadAsStringAsync();
+                        var templateResult = JsonConvert.DeserializeObject<DactilarResponse>(templateJson);
+
+                        if (templateResult?.Success == true && templateResult?.Data?.Dactilar != null)
+                        {
+                            var templateBytes = Convert.FromBase64String(templateResult.Data.Dactilar);
+                            templates[$"emp_{credencial.EmpleadoId}"] = templateBytes;
+                            Console.WriteLine($"   [OK] emp_{credencial.EmpleadoId}: {templateBytes.Length} bytes");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"   [ERROR] emp_{credencial.EmpleadoId}: {ex.Message}");
+                }
+            }
+
+            if (templates.Count == 0)
+            {
+                await SendError("No se pudieron cargar los templates");
+                return null;
+            }
+
+            return templates;
         }
     }
 

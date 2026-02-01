@@ -31,12 +31,9 @@ import EmployeeInfo from "../components/session/EmployeeInfo";
 import NoEmployeeInfo from "../components/session/NoEmployeeInfo";
 import BiometricReader from "../components/kiosk/BiometricReader";
 import RegisterFaceModal from "../components/kiosk/RegisterFaceModal";
-import AsistenciaHuella from "../components/kiosk/AsistenciaHuella";
-import { useAuth } from "../context/AuthContext";
 import { getEmpleadoConHorario, getDepartamentosPorEmpleadoId } from "../services/empleadoService";
 
 export default function SessionScreen({ onLogout, usuario }) {
-  const { updateEmpleadoData } = useAuth();
   const [time, setTime] = useState(new Date());
   const [selectedNotice, setSelectedNotice] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -692,22 +689,6 @@ export default function SessionScreen({ onLogout, usuario }) {
           loading={loadingEmpleado}
         />
       )}
-
-      {/* Lector de huella en modo background - siempre activo */}
-      <AsistenciaHuella
-        isOpen={true}
-        backgroundMode={true}
-        onSuccess={(data) => {
-          console.log("✅ Asistencia registrada:", data);
-        }}
-        onLoginRequest={(usuarioData) => {
-          console.log("🔐 Login solicitado:", usuarioData);
-          // Actualizar datos del empleado si es necesario
-          if (updateEmpleadoData) {
-            updateEmpleadoData(usuarioData);
-          }
-        }}
-      />
     </div>
   );
 }

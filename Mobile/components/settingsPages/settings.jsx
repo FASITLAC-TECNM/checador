@@ -272,18 +272,6 @@ export const SettingsScreen = ({
             <Ionicons name="apps" size={18} color={darkMode ? '#3794fd' : '#6366f1'} />
             <Text style={styles.sectionTitle}>Aplicación</Text>
           </View>
-            <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
-            <View style={styles.settingLeft}>
-              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#881337' : '#ffe4e6' }]}>
-                <Ionicons name="shield-checkmark-outline" size={22} color={darkMode ? '#fda4af' : '#e11d48'} />
-              </View>
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Privacidad</Text>
-                <Text style={styles.settingSubtitle}>Permisos y datos</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-          </TouchableOpacity>
           <TouchableOpacity 
             style={styles.settingItem} 
             onPress={() => setShowSupport(true)}

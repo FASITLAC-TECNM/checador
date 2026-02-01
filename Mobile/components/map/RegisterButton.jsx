@@ -1,5 +1,6 @@
 // components/RegisterButton.jsx - VERSIÓN SIMPLIFICADA
 // FIX: Eliminar validaciones redundantes - el botón ya validó todo
+// FIX iOS: Modal apilado PIN - cerrar modal de autenticación antes de abrir PinInputModal
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -98,6 +99,18 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }
   };
 
+  // ─── FIX iOS: handler del PIN extraído como función del componente ─────────
+  // Esto garantiza que setMostrarAutenticacion y setMostrarPinAuth
+  // siempre apunten a los setters actuales del componente,
+  // y el setTimeout da tiempo a iOS para desmontar el primer Modal
+  // antes de montar el segundo.
+  const handleAutenticacionPin = useCallback(() => {
+    setMostrarAutenticacion(false);
+    setTimeout(() => {
+      setMostrarPinAuth(true);
+    }, 150);
+  }, []);
+
   const construirMetodosDisponibles = (credenciales, orden) => {
     const metodosBase = {
       'pin': {
@@ -105,7 +118,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         nombre: 'PIN',
         icono: 'keypad',
         disponible: credenciales?.tiene_pin || false,
-        handler: () => setMostrarPinAuth(true)
+        handler: handleAutenticacionPin   // ← usa la función estable del componente
       },
       'dactilar': {
         id: 'dactilar',
@@ -1225,8 +1238,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     </>
   );
 };
-
-// [... ESTILOS SIN CAMBIOS - Copiar todos los estilos del archivo anterior ...]
 
 // ESTILOS MODO CLARO
 const registerStyles = StyleSheet.create({

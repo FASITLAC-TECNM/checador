@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Switch,
   Platform,
   Alert,
   ActivityIndicator,
@@ -18,7 +17,6 @@ import {
   checkBiometricSupport,
   capturarHuellaDigital,
   capturarReconocimientoFacial,
-  verificarHuellaLocal,
   limpiarDatosLocales,
 } from '../../services/biometricservice';
 
@@ -42,29 +40,52 @@ import {
 import { FacialCaptureScreen } from '../../services/FacialCaptureScreen';
 import { PinInputModal } from './PinModal';
 
+// ─── Constantes de color por estado ─────────────────────────────────────────
+const ESTADO_COLORES = {
+  activo: {
+    bg: '#16a34a',
+    bgPressed: '#15803d',
+    texto: '#fff',
+    icono: '#fff',
+  },
+  inactivo: {
+    bg: '#6b7280',
+    bgPressed: '#4b5563',
+    texto: '#fff',
+    icono: '#fff',
+  },
+  noDisponible: {
+    bg: '#dc2626',
+    bgPressed: '#b91c1c',
+    texto: '#fff',
+    icono: '#fff',
+  },
+};
+
 export const SecurityScreen = ({ darkMode, onBack, userData }) => {
-  const [biometricEnabled, setBiometricEnabled] = useState(false);
-  const [faceIdEnabled, setFaceIdEnabled] = useState(false);
-  const [pinEnabled, setPinEnabled] = useState(false);
-  
-  // Estados de carga
-  const [isLoadingBiometric, setIsLoadingBiometric] = useState(false);
-  const [isLoadingFace, setIsLoadingFace] = useState(false);
-  const [isLoadingPin, setIsLoadingPin] = useState(false);
-  const [isLoadingCredentials, setIsLoadingCredentials] = useState(true);
-  
-  // Soporte de hardware
-  const [biometricSupport, setBiometricSupport] = useState(null);
-  
-  // Credenciales existentes
+  // ─── Estado de credenciales ───────────────────────────────────────────
   const [hasFingerprint, setHasFingerprint] = useState(false);
   const [hasFacial, setHasFacial] = useState(false);
   const [hasPin, setHasPin] = useState(false);
-  
-  // Estado para mostrar captura facial
+
+  // ─── Carga inicial ────────────────────────────────────────────────────
+  const [isLoadingCredentials, setIsLoadingCredentials] = useState(true);
+
+  // ─── Soporte de hardware ──────────────────────────────────────────────
+  const [biometricSupport, setBiometricSupport] = useState(null);
+
+  // ─── Estados de procesamiento por método ──────────────────────────────
+  const [procesandoHuella, setProcesandoHuella] = useState(false);
+  const [procesandoFacial, setProcesandoFacial] = useState(false);
+  const [procesandoPin, setProcesandoPin] = useState(false);
+
+  // ─── Feedback de presión ──────────────────────────────────────────────
+  const [presionado, setPresionado] = useState(null);
+
+  // ─── Captura facial ───────────────────────────────────────────────────
   const [showFacialCapture, setShowFacialCapture] = useState(false);
-  
-  // Estado para mostrar modal de PIN
+
+  // ─── Modal PIN ────────────────────────────────────────────────────────
   const [showPinModal, setShowPinModal] = useState(false);
   const [isChangingPin, setIsChangingPin] = useState(false);
 
@@ -74,23 +95,20 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
     initializeSecurity();
   }, []);
 
+  // ─── Inicialización ─────────────────────────────────────────────────────
   const initializeSecurity = async () => {
-    try {      
-      // 1. Verificar soporte biométrico del dispositivo
+    try {
       const support = await checkBiometricSupport();
       setBiometricSupport(support);
 
-      // 2. Obtener empleado_id del usuario
-      const empleadoId = userData?.empleado?.id || 
-                        userData?.empleado_id || 
-                        userData?.id;
-            
+      const empleadoId =
+        userData?.empleado?.id || userData?.empleado_id || userData?.id;
+
       if (!empleadoId) {
         setIsLoadingCredentials(false);
         return;
       }
 
-      // 3. Verificar credenciales existentes en el backend
       const token = await AsyncStorage.getItem('userToken');
       if (!token) {
         setIsLoadingCredentials(false);
@@ -98,179 +116,122 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       }
 
       const credenciales = await getCredencialesByEmpleado(empleadoId, token);
-      
-      if (credenciales.success && credenciales.data) {
-        // Establecer estados basados en las credenciales REALES del backend
-        const tieneDactilar = credenciales.data.tiene_dactilar || false;
-        const tieneFacial = credenciales.data.tiene_facial || false;
-        const tienePin = credenciales.data.tiene_pin || false;
-        
-        setHasFingerprint(tieneDactilar);
-        setHasFacial(tieneFacial);
-        setHasPin(tienePin);
-        
-        setBiometricEnabled(tieneDactilar);
-        setFaceIdEnabled(tieneFacial);
-        setPinEnabled(tienePin);
-        
-        console.log('[Security] 📊 Credenciales cargadas:', {
-          dactilar: tieneDactilar,
-          facial: tieneFacial,
-          pin: tienePin
-        });
-      } else {
-        // Sin credenciales registradas - TODO DESACTIVADO
-        setHasFingerprint(false);
-        setHasFacial(false);
-        setHasPin(false);
-        setBiometricEnabled(false);
-        setFaceIdEnabled(false);
-        setPinEnabled(false);
-        
-        console.log('[Security] ℹ️ Usuario sin credenciales registradas');
-      }
 
+      if (credenciales.success && credenciales.data) {
+        setHasFingerprint(credenciales.data.tiene_dactilar || false);
+        setHasFacial(credenciales.data.tiene_facial || false);
+        setHasPin(credenciales.data.tiene_pin || false);
+      }
     } catch (error) {
       if (error.message !== 'Credenciales no encontradas') {
-        console.error('❌ Error crítico inicializando seguridad:', error);
-        Alert.alert(
-          'Error',
-          'No se pudo cargar la configuración de seguridad'
-        );
+        console.error('❌ Error inicializando seguridad:', error);
+        Alert.alert('Error', 'No se pudo cargar la configuración de seguridad');
       }
     } finally {
       setIsLoadingCredentials(false);
     }
   };
 
-  const handleBiometricToggle = async (value) => {
-    if (!biometricSupport?.supported) {
+  // ─── Determinar estado visual ───────────────────────────────────────────
+  // activo      → tiene la credencial registrada
+  // inactivo    → puede registrarla (hardware OK o no necesita hardware)
+  // noDisponible → el hardware no lo soporta
+  const getEstado = (tipo) => {
+    switch (tipo) {
+      case 'dactilar':
+        if (hasFingerprint) return 'activo';
+        if (!biometricSupport?.hasFingerprint) return 'noDisponible';
+        return 'inactivo';
+
+      case 'facial':
+        if (hasFacial) return 'activo';
+        // Facial siempre disponible porque tiene el fallback de cámara manual
+        return 'inactivo';
+
+      case 'pin':
+        if (hasPin) return 'activo';
+        return 'inactivo';
+
+      default:
+        return 'inactivo';
+    }
+  };
+
+  // ─── Obtener empleadoId (helper) ────────────────────────────────────────
+  const getEmpleadoId = () =>
+    userData?.empleado?.id || userData?.empleado_id || userData?.id;
+
+  // ─── HUELLA DIGITAL ─────────────────────────────────────────────────────
+  const handleHuellaPress = async () => {
+    const estado = getEstado('dactilar');
+
+    if (estado === 'noDisponible') {
       Alert.alert(
         'No disponible',
-        biometricSupport?.message || 'Tu dispositivo no soporta autenticación biométrica'
+        biometricSupport?.message ||
+          'Tu dispositivo no tiene sensor de huellas dactilares compatible.'
       );
       return;
     }
 
-    if (!biometricSupport?.hasFingerprint) {
-      Alert.alert(
-        'No disponible',
-        'Tu dispositivo no tiene lector de huellas dactilares'
-      );
-      return;
-    }
-
-    if (value) {
-      await enrollFingerprint();
-    } else {
+    // Si ya la tiene → ofrecer eliminar
+    if (estado === 'activo') {
       await removeFingerprint();
+      return;
     }
+
+    // Si no la tiene → enrollar
+    await enrollFingerprint();
   };
 
   const enrollFingerprint = async () => {
-    setIsLoadingBiometric(true);
-    
-    try {
-      const empleadoId = userData?.empleado?.id || 
-                        userData?.empleado_id || 
-                        userData?.id;
-      
-      if (!empleadoId) {
-        throw new Error('No se encontró el ID del empleado');
-      }
+    setProcesandoHuella(true);
+    const empleadoId = getEmpleadoId();
 
-      Alert.alert(
-        '🔐 Registrar Huella Digital',
-        'Coloca tu dedo en el sensor cuando se te indique',
-        [
-          {
-            text: 'Cancelar',
-            style: 'cancel',
-            onPress: () => setIsLoadingBiometric(false),
-          },
-          {
-            text: 'Continuar',
-            onPress: async () => {
-              try {                
-                const resultado = await capturarHuellaDigital(empleadoId);
-                const token = await AsyncStorage.getItem('userToken');
-                const response = await guardarDactilar(
-                  empleadoId,
-                  resultado.template,
-                  token
-                );
-
-                if (response.success) {
-                  setBiometricEnabled(true);
-                  setHasFingerprint(true);
-                                    
-                  Alert.alert(
-                    '✅ ¡Éxito!',
-                    'Tu huella digital ha sido registrada correctamente'
-                  );
-                } else {
-                  throw new Error(response.message);
-                }
-
-              } catch (error) {
-                console.error('❌ Error en captura:', error);
-                Alert.alert(
-                  'Error',
-                  error.message || 'No se pudo registrar la huella digital'
-                );
-                setBiometricEnabled(false);
-              } finally {
-                setIsLoadingBiometric(false);
-              }
-            },
-          },
-        ]
-      );
-    } catch (error) {
-      console.error('❌ Error preparando captura:', error);
-      Alert.alert('Error', error.message);
-      setIsLoadingBiometric(false);
+    if (!empleadoId) {
+      Alert.alert('Error', 'No se encontró el ID del empleado');
+      setProcesandoHuella(false);
+      return;
     }
-  };
 
-  const removeFingerprint = async () => {
     Alert.alert(
-      '⚠️ Eliminar Huella Digital',
-      '¿Estás seguro de que deseas eliminar tu huella digital?',
+      '🔐 Registrar Huella Digital',
+      'Coloca tu dedo en el sensor cuando se te indique',
       [
         {
           text: 'Cancelar',
           style: 'cancel',
+          onPress: () => setProcesandoHuella(false),
         },
         {
-          text: 'Eliminar',
-          style: 'destructive',
+          text: 'Continuar',
           onPress: async () => {
-            setIsLoadingBiometric(true);
-            
             try {
-              const empleadoId = userData?.empleado?.id || 
-                                userData?.empleado_id || 
-                                userData?.id;
+              const resultado = await capturarHuellaDigital(empleadoId);
               const token = await AsyncStorage.getItem('userToken');
-
-              await eliminarCredencial(empleadoId, 'dactilar', token);
-              await limpiarDatosLocales(empleadoId);
-
-              setBiometricEnabled(false);
-              setHasFingerprint(false);
-
-              Alert.alert(
-                '✅ Eliminado',
-                'Tu huella digital ha sido eliminada'
+              const response = await guardarDactilar(
+                empleadoId,
+                resultado.template,
+                token
               );
 
+              if (response.success) {
+                setHasFingerprint(true);
+                Alert.alert(
+                  '✅ ¡Éxito!',
+                  'Tu huella digital ha sido registrada correctamente'
+                );
+              } else {
+                throw new Error(response.message);
+              }
             } catch (error) {
-              console.error('❌ Error eliminando huella:', error);
-              Alert.alert('Error', 'No se pudo eliminar la huella digital');
-              setBiometricEnabled(true);
+              console.error('❌ Error en captura:', error);
+              Alert.alert(
+                'Error',
+                error.message || 'No se pudo registrar la huella digital'
+              );
             } finally {
-              setIsLoadingBiometric(false);
+              setProcesandoHuella(false);
             }
           },
         },
@@ -278,53 +239,76 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
     );
   };
 
-  const handleFaceIdToggle = async (value) => {
-    if (value) {
-      // Mostrar opciones: Nativo o Cámara
-      const options = [
+  const removeFingerprint = async () => {
+    Alert.alert(
+      '⚠️ Eliminar Huella Digital',
+      '¿Estás seguro de que deseas eliminar tu huella digital?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Cancelar',
-          style: 'cancel'
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            setProcesandoHuella(true);
+            try {
+              const empleadoId = getEmpleadoId();
+              const token = await AsyncStorage.getItem('userToken');
+              await eliminarCredencial(empleadoId, 'dactilar', token);
+              await limpiarDatosLocales(empleadoId);
+              setHasFingerprint(false);
+              Alert.alert('✅ Eliminado', 'Tu huella digital ha sido eliminada');
+            } catch (error) {
+              console.error('❌ Error eliminando huella:', error);
+              Alert.alert('Error', 'No se pudo eliminar la huella digital');
+            } finally {
+              setProcesandoHuella(false);
+            }
+          },
         },
-        {
-          text: '📸 Captura con Cámara',
-          onPress: () => enrollFaceIdCamera()
-        }
-      ];
+      ]
+    );
+  };
 
-      // Solo agregar opción nativa si el dispositivo la soporta
-      if (biometricSupport?.hasFaceId) {
-        options.push({
-          text: '🔐 Face ID Nativo',
-          onPress: () => enrollFaceIdNative()
-        });
-      }
+  // ─── RECONOCIMIENTO FACIAL ──────────────────────────────────────────────
+  const handleFacialPress = async () => {
+    const estado = getEstado('facial');
 
-      Alert.alert(
-        'Reconocimiento Facial',
-        'Elige el método de registro',
-        options
-      );
-    } else {
+    // Si ya lo tiene → ofrecer eliminar
+    if (estado === 'activo') {
       await removeFaceId();
+      return;
     }
+
+    // Si no lo tiene → ofrecer métodos de registro
+    const options = [{ text: 'Cancelar', style: 'cancel' }];
+
+    options.push({
+      text: '📸 Captura con Cámara',
+      onPress: () => enrollFaceIdCamera(),
+    });
+
+    if (biometricSupport?.hasFaceId) {
+      options.push({
+        text: '🔐 Face ID Nativo',
+        onPress: () => enrollFaceIdNative(),
+      });
+    }
+
+    Alert.alert('Reconocimiento Facial', 'Elige el método de registro', options);
   };
 
   const enrollFaceIdCamera = async () => {
     try {
-      // Verificar permisos de cámara
       const permission = await requestCameraPermission();
-      
       if (!permission.granted) {
         Alert.alert(
           'Permisos necesarios',
-          permission.message || 'Se necesita acceso a la cámara para usar reconocimiento facial'
+          permission.message ||
+            'Se necesita acceso a la cámara para usar reconocimiento facial'
         );
         return;
       }
-
       setShowFacialCapture(true);
-
     } catch (error) {
       console.error('❌ Error preparando cámara:', error);
       Alert.alert('Error', 'No se pudo acceder a la cámara');
@@ -333,65 +317,49 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
 
   const handleFacialCaptureComplete = async (captureData) => {
     setShowFacialCapture(false);
-    setIsLoadingFace(true);
+    setProcesandoFacial(true);
 
     try {
-      const empleadoId = userData?.empleado?.id || 
-                        userData?.empleado_id || 
-                        userData?.id;
+      const empleadoId = getEmpleadoId();
+      if (!empleadoId) throw new Error('No se encontró el ID del empleado');
 
-      if (!empleadoId) {
-        throw new Error('No se encontró el ID del empleado');
-      }
-      // Procesar datos del rostro
       const faceFeatures = processFaceData(captureData.faceData);
-      
-      // Validar calidad
       const validation = validateFaceQuality(faceFeatures);
-      
+
       if (!validation.isValid) {
-        Alert.alert(
-          'Calidad insuficiente',
-          validation.errors.join('\n'),
-          [{ text: 'Intentar de nuevo', onPress: () => setShowFacialCapture(true) }]
-        );
-        setIsLoadingFace(false);
+        Alert.alert('Calidad insuficiente', validation.errors.join('\n'), [
+          { text: 'Intentar de nuevo', onPress: () => setShowFacialCapture(true) },
+        ]);
+        setProcesandoFacial(false);
         return;
       }
+
       const resultado = await generateFacialTemplate(
         faceFeatures,
         captureData.photoUri,
         empleadoId
       );
 
-      // Guardar en el backend
       const token = await AsyncStorage.getItem('userToken');
-      const response = await guardarFacial(
-        empleadoId,
-        resultado.template,
-        token
-      );
+      const response = await guardarFacial(empleadoId, resultado.template, token);
 
       if (response.success) {
-        setFaceIdEnabled(true);
-        setHasFacial(true);        
+        setHasFacial(true);
         Alert.alert(
           '✅ ¡Éxito!',
-          'Tu reconocimiento facial ha sido registrado correctamente usando la cámara'
+          'Tu reconocimiento facial ha sido registrado correctamente'
         );
       } else {
         throw new Error(response.message);
       }
-
     } catch (error) {
       console.error('❌ Error procesando captura facial:', error);
       Alert.alert(
         'Error',
         error.message || 'No se pudo procesar el reconocimiento facial'
       );
-      setFaceIdEnabled(false);
     } finally {
-      setIsLoadingFace(false);
+      setProcesandoFacial(false);
     }
   };
 
@@ -400,44 +368,29 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
   };
 
   const enrollFaceIdNative = async () => {
-    setIsLoadingFace(true);
-    
+    setProcesandoFacial(true);
     try {
-      const empleadoId = userData?.empleado?.id || 
-                        userData?.empleado_id || 
-                        userData?.id;
-      
-      if (!empleadoId) {
-        throw new Error('No se encontró el ID del empleado');
-      }
+      const empleadoId = getEmpleadoId();
+      if (!empleadoId) throw new Error('No se encontró el ID del empleado');
+
       const resultado = await capturarReconocimientoFacial(empleadoId);
       const token = await AsyncStorage.getItem('userToken');
-      const response = await guardarFacial(
-        empleadoId,
-        resultado.template,
-        token
-      );
+      const response = await guardarFacial(empleadoId, resultado.template, token);
 
       if (response.success) {
-        setFaceIdEnabled(true);
         setHasFacial(true);
-        Alert.alert(
-          '✅ ¡Éxito!',
-          'Tu Face ID ha sido registrado correctamente'
-        );
+        Alert.alert('✅ ¡Éxito!', 'Tu Face ID ha sido registrado correctamente');
       } else {
         throw new Error(response.message);
       }
-
     } catch (error) {
       console.error('❌ Error en captura facial nativa:', error);
       Alert.alert(
         'Error',
         error.message || 'No se pudo registrar el reconocimiento facial'
       );
-      setFaceIdEnabled(false);
     } finally {
-      setIsLoadingFace(false);
+      setProcesandoFacial(false);
     }
   };
 
@@ -446,38 +399,31 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       '⚠️ Eliminar Reconocimiento Facial',
       '¿Estás seguro de que deseas eliminar tu reconocimiento facial?',
       [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
+        { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Eliminar',
           style: 'destructive',
           onPress: async () => {
-            setIsLoadingFace(true);
-            
+            setProcesandoFacial(true);
             try {
-              const empleadoId = userData?.empleado?.id || 
-                                userData?.empleado_id || 
-                                userData?.id;
+              const empleadoId = getEmpleadoId();
               const token = await AsyncStorage.getItem('userToken');
-
               await eliminarCredencial(empleadoId, 'facial', token);
               await limpiarDatosLocales(empleadoId);
               await clearLocalFacialData(empleadoId);
-              setFaceIdEnabled(false);
               setHasFacial(false);
               Alert.alert(
                 '✅ Eliminado',
                 'Tu reconocimiento facial ha sido eliminado'
               );
-
             } catch (error) {
               console.error('❌ Error eliminando facial:', error);
-              Alert.alert('Error', 'No se pudo eliminar el reconocimiento facial');
-              setFaceIdEnabled(true);
+              Alert.alert(
+                'Error',
+                'No se pudo eliminar el reconocimiento facial'
+              );
             } finally {
-              setIsLoadingFace(false);
+              setProcesandoFacial(false);
             }
           },
         },
@@ -485,58 +431,61 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
     );
   };
 
-  const handlePinToggle = async (value) => {
-    if (value) {
-      // Configurar nuevo PIN
-      setIsChangingPin(false);
-      setShowPinModal(true);
-    } else {
-      await removePin();
+  // ─── PIN ────────────────────────────────────────────────────────────────
+  const handlePinPress = () => {
+    const estado = getEstado('pin');
+
+    // Si ya lo tiene → ofrecer cambiar o eliminar
+    if (estado === 'activo') {
+      Alert.alert('PIN de Seguridad', '¿Qué deseas hacer?', [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cambiar PIN',
+          onPress: () => {
+            setIsChangingPin(true);
+            setShowPinModal(true);
+          },
+        },
+        {
+          text: 'Eliminar PIN',
+          style: 'destructive',
+          onPress: () => removePin(),
+        },
+      ]);
+      return;
     }
+
+    // Si no lo tiene → configurar nuevo
+    setIsChangingPin(false);
+    setShowPinModal(true);
   };
 
   const handlePinConfirm = async (pin) => {
-    setIsLoadingPin(true);
-    
+    setProcesandoPin(true);
     try {
-      const empleadoId = userData?.empleado?.id || 
-                        userData?.empleado_id || 
-                        userData?.id;
-      
-      if (!empleadoId) {
-        throw new Error('No se encontró el ID del empleado');
-      }
+      const empleadoId = getEmpleadoId();
+      if (!empleadoId) throw new Error('No se encontró el ID del empleado');
 
       const token = await AsyncStorage.getItem('userToken');
       const response = await guardarPin(empleadoId, pin, token);
 
       if (response.success) {
-        setPinEnabled(true);
         setHasPin(true);
-        
-        console.log('[Security] ✅ PIN guardado exitosamente');
-        
         Alert.alert(
           '✅ ¡Éxito!',
-          isChangingPin ? 'Tu PIN ha sido actualizado correctamente' : 'Tu PIN ha sido configurado correctamente'
+          isChangingPin
+            ? 'Tu PIN ha sido actualizado correctamente'
+            : 'Tu PIN ha sido configurado correctamente'
         );
       } else {
         throw new Error(response.message);
       }
-
     } catch (error) {
       console.error('❌ Error guardando PIN:', error);
-      setPinEnabled(false);
-      setHasPin(false);
       throw error;
     } finally {
-      setIsLoadingPin(false);
+      setProcesandoPin(false);
     }
-  };
-
-  const handleChangePin = () => {
-    setIsChangingPin(true);
-    setShowPinModal(true);
   };
 
   const removePin = async () => {
@@ -544,45 +493,28 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       '⚠️ Eliminar PIN',
       '¿Estás seguro de que deseas eliminar tu PIN de seguridad?',
       [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
+        { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Eliminar',
           style: 'destructive',
           onPress: async () => {
-            setIsLoadingPin(true);
-            
+            setProcesandoPin(true);
             try {
-              const empleadoId = userData?.empleado?.id || 
-                                userData?.empleado_id || 
-                                userData?.id;
+              const empleadoId = getEmpleadoId();
               const token = await AsyncStorage.getItem('userToken');
-
               const response = await eliminarCredencial(empleadoId, 'pin', token);
 
               if (response.success) {
-                setPinEnabled(false);
                 setHasPin(false);
-                
-                console.log('[Security] ✅ PIN eliminado exitosamente');
-
-                Alert.alert(
-                  '✅ Eliminado',
-                  'Tu PIN ha sido eliminado'
-                );
+                Alert.alert('✅ Eliminado', 'Tu PIN ha sido eliminado');
               } else {
                 throw new Error(response.message);
               }
-
             } catch (error) {
               console.error('❌ Error eliminando PIN:', error);
               Alert.alert('Error', 'No se pudo eliminar el PIN');
-              setPinEnabled(true);
-              setHasPin(true);
             } finally {
-              setIsLoadingPin(false);
+              setProcesandoPin(false);
             }
           },
         },
@@ -590,7 +522,7 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
     );
   };
 
-  // Si está mostrando la captura facial, renderizar solo esa pantalla
+  // ─── Si está en captura facial, renderizar solo esa pantalla ─────────────
   if (showFacialCapture) {
     return (
       <FacialCaptureScreen
@@ -601,10 +533,10 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
     );
   }
 
+  // ─── Loading ────────────────────────────────────────────────────────────
   if (isLoadingCredentials) {
     return (
       <View style={styles.container}>
-        {/* Header mientras carga */}
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={onBack} style={styles.backButton}>
@@ -617,7 +549,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
             <View style={styles.headerPlaceholder} />
           </View>
         </View>
-        
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2563eb" />
           <Text style={styles.loadingText}>
@@ -628,12 +559,46 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
     );
   }
 
+  // ─── Datos de los métodos para renderizar ──────────────────────────────
+  const metodos = [
+    {
+      id: 'dactilar',
+      nombre: 'Huella Digital',
+      icono: 'finger-print',
+      estado: getEstado('dactilar'),
+      procesando: procesandoHuella,
+      handler: handleHuellaPress,
+    },
+    {
+      id: 'facial',
+      nombre: 'Reconocimiento Facial',
+      icono: 'scan',
+      estado: getEstado('facial'),
+      procesando: procesandoFacial,
+      handler: handleFacialPress,
+    },
+    {
+      id: 'pin',
+      nombre: 'PIN de Seguridad',
+      icono: 'keypad',
+      estado: getEstado('pin'),
+      procesando: procesandoPin,
+      handler: handlePinPress,
+    },
+  ];
+
+  // ─── RENDER PRINCIPAL ───────────────────────────────────────────────────
   return (
     <View style={styles.container}>
-      {/* Header estandarizado - Sin gradiente */}
+      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <TouchableOpacity onPress={onBack} style={styles.backButton} activeOpacity={0.7}>
+          <TouchableOpacity
+            onPress={onBack}
+            style={styles.backButton}
+            activeOpacity={0.6}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
           <View style={styles.headerTextContainer}>
@@ -650,312 +615,87 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       >
         {/* Info Card */}
         <View style={styles.infoCard}>
-          <View style={styles.infoGradient}>
-            <Ionicons
-              name="shield-checkmark"
-              size={32}
-              color={darkMode ? '#93c5fd' : '#2563eb'}
-            />
-            <Text style={styles.infoTitle}>Protege tu cuenta</Text>
-            <Text style={styles.infoText}>
-              Elige los métodos de autenticación que prefieras para acceder a tu cuenta
-            </Text>
-          </View>
+          <Ionicons
+            name="shield-checkmark"
+            size={32}
+            color={darkMode ? '#93c5fd' : '#2563eb'}
+          />
+          <Text style={styles.infoTitle}>Protege tu cuenta</Text>
+          <Text style={styles.infoText}>
+            Elige los métodos de autenticación que prefieras para acceder a tu cuenta
+          </Text>
         </View>
 
-        {/* Device Support Info */}
-        {biometricSupport && !biometricSupport.supported && (
-          <View style={styles.warningCard}>
-            <Ionicons name="warning" size={24} color="#f59e0b" />
-            <Text style={styles.warningText}>
-              {biometricSupport.message}
-            </Text>
-          </View>
-        )}
+        {/* Botones de métodos */}
+        <View style={styles.metodosContainer}>
+          {metodos.map((metodo) => {
+            const colores = ESTADO_COLORES[metodo.estado];
+            const estaPresionado = presionado === metodo.id;
 
-        {/* Authentication Methods Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons
-              name="finger-print"
-              size={20}
-              color={darkMode ? '#818cf8' : '#6366f1'}
-            />
-            <Text style={styles.sectionTitle}>Métodos de Autenticación</Text>
-          </View>
-
-          {/* Biometric Authentication */}
-          <View style={styles.methodCard}>
-            <View style={styles.methodHeader}>
-              <View style={styles.methodLeft}>
-                <View
-                  style={[
-                    styles.iconCircle,
-                    { backgroundColor: darkMode ? '#4338ca' : '#eef2ff' },
-                  ]}
-                >
-                  <Ionicons
-                    name="finger-print"
-                    size={26}
-                    color={darkMode ? '#c7d2fe' : '#6366f1'}
-                  />
-                </View>
-                <View style={styles.methodInfo}>
-                  <Text style={styles.methodTitle}>Huella Digital</Text>
-                  <Text style={styles.methodSubtitle}>
-                    {hasFingerprint ? 'Huella registrada ✓' : 'Usa tu huella para acceder'}
-                  </Text>
-                </View>
-              </View>
-              {isLoadingBiometric ? (
-                <ActivityIndicator size="small" color="#6366f1" />
-              ) : (
-                <Switch
-                  value={biometricEnabled}
-                  onValueChange={handleBiometricToggle}
-                  trackColor={{ false: '#d1d5db', true: '#6366f1' }}
-                  thumbColor={biometricEnabled ? '#fff' : '#f3f4f6'}
-                  ios_backgroundColor="#d1d5db"
-                  disabled={!biometricSupport?.hasFingerprint}
-                />
-              )}
-            </View>
-            {biometricEnabled && (
-              <View style={styles.methodDetails}>
-                <View style={styles.detailRow}>
-                  <Ionicons name="checkmark-circle" size={18} color="#10b981" />
-                  <Text style={styles.detailText}>Rápido y seguro</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Ionicons name="checkmark-circle" size={18} color="#10b981" />
-                  <Text style={styles.detailText}>
-                    Huella registrada en el dispositivo
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Ionicons name="information-circle" size={18} color="#3b82f6" />
-                  <Text style={styles.detailText}>
-                    Sincronizado con el servidor
-                  </Text>
-                </View>
-              </View>
-            )}
-          </View>
-
-          {/* Face ID */}
-          <View style={styles.methodCard}>
-            <View style={styles.methodHeader}>
-              <View style={styles.methodLeft}>
-                <View
-                  style={[
-                    styles.iconCircle,
-                    { backgroundColor: darkMode ? '#065f46' : '#d1fae5' },
-                  ]}
-                >
-                  <Ionicons
-                    name="scan"
-                    size={26}
-                    color={darkMode ? '#6ee7b7' : '#059669'}
-                  />
-                </View>
-                <View style={styles.methodInfo}>
-                  <Text style={styles.methodTitle}>Reconocimiento Facial</Text>
-                  <Text style={styles.methodSubtitle}>
-                    {hasFacial ? 'Rostro registrado ✓' : 'Desbloquea con tu rostro'}
-                  </Text>
-                </View>
-              </View>
-              {isLoadingFace ? (
-                <ActivityIndicator size="small" color="#10b981" />
-              ) : (
-                <Switch
-                  value={faceIdEnabled}
-                  onValueChange={handleFaceIdToggle}
-                  trackColor={{ false: '#d1d5db', true: '#10b981' }}
-                  thumbColor={faceIdEnabled ? '#fff' : '#f3f4f6'}
-                  ios_backgroundColor="#d1d5db"
-                />
-              )}
-            </View>
-            {faceIdEnabled && (
-              <View style={styles.methodDetails}>
-                <View style={styles.detailRow}>
-                  <Ionicons name="checkmark-circle" size={18} color="#10b981" />
-                  <Text style={styles.detailText}>Sin contacto</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Ionicons name="checkmark-circle" size={18} color="#10b981" />
-                  <Text style={styles.detailText}>
-                    Mayor nivel de seguridad
-                  </Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Ionicons name="information-circle" size={18} color="#3b82f6" />
-                  <Text style={styles.detailText}>
-                    Sincronizado con el servidor
-                  </Text>
-                </View>
-              </View>
-            )}
-          </View>
-
-          {/* PIN */}
-          <View style={styles.methodCard}>
-            <View style={styles.methodHeader}>
-              <View style={styles.methodLeft}>
-                <View
-                  style={[
-                    styles.iconCircle,
-                    { backgroundColor: darkMode ? '#78350f' : '#fef3c7' },
-                  ]}
-                >
-                  <Ionicons
-                    name="keypad"
-                    size={26}
-                    color={darkMode ? '#fde047' : '#d97706'}
-                  />
-                </View>
-                <View style={styles.methodInfo}>
-                  <Text style={styles.methodTitle}>PIN de Seguridad</Text>
-                  <Text style={styles.methodSubtitle}>
-                    {hasPin ? 'PIN configurado ✓' : 'Código de 6 dígitos'}
-                  </Text>
-                </View>
-              </View>
-              {isLoadingPin ? (
-                <ActivityIndicator size="small" color="#d97706" />
-              ) : (
-                <Switch
-                  value={pinEnabled}
-                  onValueChange={handlePinToggle}
-                  trackColor={{ false: '#d1d5db', true: '#d97706' }}
-                  thumbColor={pinEnabled ? '#fff' : '#f3f4f6'}
-                  ios_backgroundColor="#d1d5db"
-                />
-              )}
-            </View>
-            {pinEnabled && (
-              <View style={styles.methodDetails}>
-                <View style={styles.detailRow}>
-                  <Ionicons name="checkmark-circle" size={18} color="#10b981" />
-                  <Text style={styles.detailText}>PIN de 6 dígitos configurado</Text>
-                </View>
-                <View style={styles.detailRow}>
-                  <Ionicons name="information-circle" size={18} color="#3b82f6" />
-                  <Text style={styles.detailText}>
-                    Usa tu PIN para acceder rápidamente
-                  </Text>
-                </View>
-                <TouchableOpacity 
-                  style={styles.changePinButton} 
-                  activeOpacity={0.7}
-                  onPress={handleChangePin}
-                >
-                  <Text style={styles.changePinText}>Cambiar PIN</Text>
-                  <Ionicons name="chevron-forward" size={18} color="#6366f1" />
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* Additional Security Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons
-              name="shield-outline"
-              size={20}
-              color={darkMode ? '#818cf8' : '#6366f1'}
-            />
-            <Text style={styles.sectionTitle}>Seguridad Adicional</Text>
-          </View>
-
-          <TouchableOpacity style={styles.optionItem} activeOpacity={0.7}>
-            <View style={styles.optionLeft}>
-              <View
+            return (
+              <TouchableOpacity
+                key={metodo.id}
+                activeOpacity={1}
+                disabled={metodo.procesando}
+                onPressIn={() => setPresionado(metodo.id)}
+                onPressOut={() => setPresionado(null)}
+                onPress={() => metodo.handler()}
                 style={[
-                  styles.iconCircle,
-                  { backgroundColor: darkMode ? '#581c87' : '#f3e8ff' },
+                  styles.botonMetodo,
+                  {
+                    backgroundColor: estaPresionado
+                      ? colores.bgPressed
+                      : colores.bg,
+                  },
                 ]}
+                hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}
               >
-                <Ionicons
-                  name="time-outline"
-                  size={22}
-                  color={darkMode ? '#d8b4fe' : '#9333ea'}
-                />
-              </View>
-              <View style={styles.optionInfo}>
-                <Text style={styles.optionTitle}>Tiempo de Bloqueo</Text>
-                <Text style={styles.optionSubtitle}>
-                  Bloqueo automático después de 5 minutos
-                </Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-          </TouchableOpacity>
+                {/* Icono */}
+                <View style={styles.botonIconContainer}>
+                  {metodo.procesando ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Ionicons
+                      name={metodo.icono}
+                      size={30}
+                      color={colores.icono}
+                    />
+                  )}
+                </View>
 
-          <TouchableOpacity style={styles.optionItem} activeOpacity={0.7}>
-            <View style={styles.optionLeft}>
-              <View
-                style={[
-                  styles.iconCircle,
-                  { backgroundColor: darkMode ? '#7c2d12' : '#fed7aa' },
-                ]}
-              >
-                <Ionicons
-                  name="warning-outline"
-                  size={22}
-                  color={darkMode ? '#fb923c' : '#ea580c'}
-                />
-              </View>
-              <View style={styles.optionInfo}>
-                <Text style={styles.optionTitle}>Intentos Fallidos</Text>
-                <Text style={styles.optionSubtitle}>
-                  Bloquear después de 3 intentos
+                {/* Nombre */}
+                <Text
+                  style={[styles.botonNombre, { color: colores.texto }]}
+                >
+                  {metodo.nombre}
                 </Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-          </TouchableOpacity>
-        </View>
 
-        {/* Security Tips */}
-        <View style={styles.tipsCard}>
-          <View style={styles.tipsHeader}>
-            <Ionicons
-              name="bulb"
-              size={22}
-              color={darkMode ? '#fbbf24' : '#f59e0b'}
-            />
-            <Text style={styles.tipsTitle}>Consejos de Seguridad</Text>
-          </View>
-          <View style={styles.tipItem}>
-            <Ionicons name="ellipse" size={8} color="#6b7280" />
-            <Text style={styles.tipText}>
-              Habilita múltiples métodos de autenticación para mayor seguridad
-            </Text>
-          </View>
-          <View style={styles.tipItem}>
-            <Ionicons name="ellipse" size={8} color="#6b7280" />
-            <Text style={styles.tipText}>
-              Nunca compartas tu PIN con nadie
-            </Text>
-          </View>
-          <View style={styles.tipItem}>
-            <Ionicons name="ellipse" size={8} color="#6b7280" />
-            <Text style={styles.tipText}>
-              Tus datos biométricos se almacenan de forma segura
-            </Text>
-          </View>
+                {/* Indicador derecho */}
+                <View style={styles.botonIndicador}>
+                  {metodo.estado === 'activo' ? (
+                    <Ionicons name="checkmark-circle" size={26} color="#fff" />
+                  ) : metodo.estado === 'noDisponible' ? (
+                    <Ionicons name="ban" size={26} color="rgba(255,255,255,0.7)" />
+                  ) : (
+                    <Ionicons
+                      name="add-circle-outline"
+                      size={26}
+                      color="rgba(255,255,255,0.8)"
+                    />
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </ScrollView>
 
-      {/* Modal de PIN */}
+      {/* Modal de PIN — fuera del ScrollView para que funcione en iOS */}
       <PinInputModal
         visible={showPinModal}
         onClose={() => setShowPinModal(false)}
         onConfirm={handlePinConfirm}
-        title={isChangingPin ? "Cambiar PIN" : "Configurar PIN"}
+        title={isChangingPin ? 'Cambiar PIN' : 'Configurar PIN'}
         subtitle="Ingresa un PIN de 6 dígitos"
         darkMode={darkMode}
         requireConfirmation={true}
@@ -965,11 +705,14 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
   );
 };
 
+// ─── ESTILOS LIGHT ──────────────────────────────────────────────────────────
 const securityStyles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
   },
+
+  // Header
   header: {
     backgroundColor: '#2563eb',
     paddingTop: Platform.OS === 'android' ? 16 : 50,
@@ -994,18 +737,20 @@ const securityStyles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     color: '#fff',
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#e0f2fe',
+    color: '#bfdbfe',
     marginTop: 2,
   },
   headerPlaceholder: {
     width: 40,
   },
+
+  // Loading
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1016,27 +761,28 @@ const securityStyles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
   },
+
+  // Scroll
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 120,
+    paddingBottom: Platform.OS === 'ios' ? 100 : 60,
   },
+
+  // Info card superior
   infoCard: {
-    borderRadius: 20,
-    marginBottom: 24,
-    overflow: 'hidden',
     backgroundColor: '#dbeafe',
-  },
-  infoGradient: {
-    padding: 24,
+    borderRadius: 18,
+    padding: 22,
     alignItems: 'center',
+    marginBottom: 24,
   },
   infoTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: '#1f2937',
-    marginTop: 12,
-    marginBottom: 8,
+    marginTop: 10,
+    marginBottom: 6,
   },
   infoText: {
     fontSize: 14,
@@ -1044,170 +790,92 @@ const securityStyles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  warningCard: {
+
+  // Contenedor de botones
+  metodosContainer: {
+    gap: 12,
+    marginBottom: 24,
+  },
+
+  // Botón de método
+  botonMetodo: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fffbeb',
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#fef3c7',
-    gap: 12,
-  },
-  warningText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#92400e',
-    lineHeight: 18,
-  },
-  section: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 18,
-    gap: 8,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#1f2937',
-  },
-  methodCard: {
-    marginBottom: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  methodHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  methodLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  iconCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+  botonIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 16,
   },
-  methodInfo: {
+  botonNombre: {
     flex: 1,
-  },
-  methodTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 4,
   },
-  methodSubtitle: {
-    fontSize: 13,
-    color: '#6b7280',
+  botonIndicador: {
+    // espacio para ícono de estado
   },
-  methodDetails: {
-    marginTop: 16,
-    marginLeft: 68,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+
+  // Leyenda
+  leyendaContainer: {
+    gap: 6,
+    marginBottom: 24,
+    paddingLeft: 2,
   },
-  detailRow: {
+  leyendaFila: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
     gap: 8,
   },
-  detailText: {
-    fontSize: 13,
+  leyendaPunto: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  leyendaTexto: {
+    fontSize: 12,
     color: '#6b7280',
   },
-  changePinButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f9fafb',
-    padding: 12,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  changePinText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6366f1',
-  },
-  optionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-  },
-  optionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  optionInfo: {
-    flex: 1,
-  },
-  optionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 3,
-  },
-  optionSubtitle: {
-    fontSize: 13,
-    color: '#6b7280',
-  },
+
+  // Tips
   tipsCard: {
     backgroundColor: '#fffbeb',
     borderRadius: 16,
-    padding: 20,
+    padding: 18,
     borderWidth: 1,
     borderColor: '#fef3c7',
   },
   tipsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
     gap: 8,
   },
   tipsTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: '#92400e',
-  },
-  tipItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-    gap: 12,
-    paddingLeft: 4,
   },
   tipText: {
     fontSize: 13,
     color: '#78350f',
-    flex: 1,
-    lineHeight: 18,
+    lineHeight: 19,
   },
 });
 
+// ─── ESTILOS DARK ───────────────────────────────────────────────────────────
 const securityStylesDark = StyleSheet.create({
   ...securityStyles,
   container: {
@@ -1228,55 +896,14 @@ const securityStylesDark = StyleSheet.create({
   },
   infoText: {
     ...securityStyles.infoText,
-    color: '#d1d5db',
+    color: '#cbd5e1',
   },
-  warningCard: {
-    ...securityStyles.warningCard,
-    backgroundColor: '#422006',
-    borderColor: '#713f12',
-  },
-  warningText: {
-    ...securityStyles.warningText,
-    color: '#fef08a',
-  },
-  section: {
-    ...securityStyles.section,
-    backgroundColor: '#1e293b',
-  },
-  sectionTitle: {
-    ...securityStyles.sectionTitle,
-    color: '#f9fafb',
-  },
-  methodCard: {
-    ...securityStyles.methodCard,
-    borderBottomColor: '#334155',
-  },
-  methodTitle: {
-    ...securityStyles.methodTitle,
-    color: '#f9fafb',
-  },
-  methodSubtitle: {
-    ...securityStyles.methodSubtitle,
+  loadingText: {
+    ...securityStyles.loadingText,
     color: '#9ca3af',
   },
-  methodDetails: {
-    ...securityStyles.methodDetails,
-    borderTopColor: '#334155',
-  },
-  detailText: {
-    ...securityStyles.detailText,
-    color: '#9ca3af',
-  },
-  changePinButton: {
-    ...securityStyles.changePinButton,
-    backgroundColor: '#334155',
-  },
-  optionTitle: {
-    ...securityStyles.optionTitle,
-    color: '#f9fafb',
-  },
-  optionSubtitle: {
-    ...securityStyles.optionSubtitle,
+  leyendaTexto: {
+    ...securityStyles.leyendaTexto,
     color: '#9ca3af',
   },
   tipsCard: {

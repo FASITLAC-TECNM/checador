@@ -378,18 +378,6 @@ export default function SessionScreen({ onLogout, usuario }) {
                     </div>
                   )}
 
-                  {/* Horario - Solo empleados */}
-                  {isEmployee && userHorario && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <div className="flex items-center justify-center w-7 h-7 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
-                        <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                      </div>
-                      <div>
-                        <span className="text-text-tertiary text-xs">Horario</span>
-                        <p className="text-text-primary font-medium -mt-0.5">{userHorario.hora_entrada} - {userHorario.hora_salida}</p>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>

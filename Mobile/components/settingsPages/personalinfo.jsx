@@ -11,15 +11,20 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const obtenerUrlFotoPerfil = (foto) => {
+const obtenerUrlFotoPerfil = (foto) => {  
   if (!foto) {
     return null;
+  }
+  if (foto.startsWith('data:image/')) {
+    return foto;
   }
   if (foto.startsWith('http://') || foto.startsWith('https://')) {
     return foto;
   }
   const BASE_URL = 'https://9dm7dqf9-3001.usw3.devtunnels.ms';
   const url = `${BASE_URL}${foto.startsWith('/') ? '' : '/'}${foto}`;
+  
+  console.log('🖼️ [obtenerUrlFotoPerfil] URL construida:', url);
   return url;
 };
 

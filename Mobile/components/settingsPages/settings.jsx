@@ -11,23 +11,26 @@ import {
   Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { PersonalInfoScreen } from '../homes/personalinfo';
+import { PersonalInfoScreen } from './personalinfo';
 import { TermsAndConditionsScreen } from './TermsAndConditionsScreen';
 import { SupportScreen } from './SupportScreen';
 import { SecurityScreen } from './SecurityScreen';
 import { IncidenciasScreen } from './IncidentScreen';
 
-const obtenerUrlFotoPerfil = (foto) => {
+const obtenerUrlFotoPerfil = (foto) => {  
   if (!foto) {
     return null;
   }
-  
+  if (foto.startsWith('data:image/')) {
+    return foto;
+  }
   if (foto.startsWith('http://') || foto.startsWith('https://')) {
     return foto;
   }
-  
-  const BASE_URL = 'https://9dm7dqf9-3002.usw3.devtunnels.ms/';
+  const BASE_URL = 'https://9dm7dqf9-3001.usw3.devtunnels.ms';
   const url = `${BASE_URL}${foto.startsWith('/') ? '' : '/'}${foto}`;
+  
+  console.log('🖼️ [obtenerUrlFotoPerfil] URL construida:', url);
   return url;
 };
 
@@ -312,31 +315,32 @@ export const SettingsScreen = ({
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
-        </View>
-
+        </View>       
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="information-circle" size={18} color={darkMode ? '#3794fd' : '#6366f1'} />
-            <Text style={styles.sectionTitle}>Información</Text>
-          </View>
-          
+            <Ionicons 
+              name="information-circle" 
+              size={18} 
+              color={darkMode ? '#3794fd' : '#6366f1'} 
+            />
+            <Text style={styles.sectionTitle}>Información de la App</Text>
+          </View> 
           <View style={styles.infoRow}>
             <View style={styles.infoLeft}>
               <Ionicons name="code-slash" size={18} color="#6b7280" />
-              <Text style={styles.infoLabel}>Versión de la app</Text>
+              <Text style={styles.infoLabel}>Versión</Text>
             </View>
             <Text style={styles.infoValue}>1.0.0</Text>
-          </View>
-          
-          <View style={styles.infoDivider} />
-          
+          </View>   
+          <View style={styles.infoDivider} /> 
           <View style={styles.infoRow}>
             <View style={styles.infoLeft}>
-              <Ionicons name="calendar" size={18} color="#6b7280" />
-              <Text style={styles.infoLabel}>Última actualización</Text>
+              <Ionicons name="construct" size={18} color="#6b7280" />
+              <Text style={styles.infoLabel}>Build</Text>
             </View>
-            <Text style={styles.infoValue}>29/01/2026</Text>
+             <Text style={styles.infoValue}>01/02/2026</Text>
           </View>
+          <View style={styles.infoDivider} />
         </View>
 
         {/* Logout Button */}

@@ -2,9 +2,22 @@ import { getApiEndpoint } from '../config/api.js';
 
 const API_URL = getApiEndpoint('/api');
 
-export const getEmpleados = async () => {
+/**
+ * Obtiene todos los empleados
+ */
+export const getEmpleados = async (token, params = {}) => {
     try {
-        const response = await fetch(`${API_URL}/empleados`);
+        const queryParams = new URLSearchParams(params).toString();
+        const url = queryParams ? `${API_URL}/empleados?${queryParams}` : `${API_URL}/empleados`;
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
         if (!response.ok) throw new Error('Error al obtener empleados');
         return await response.json();
     } catch (error) {
@@ -13,9 +26,19 @@ export const getEmpleados = async () => {
     }
 };
 
-export const getEmpleado = async (id) => {
+/**
+ * Obtiene un empleado por ID (incluye foto de perfil)
+ */
+export const getEmpleado = async (id, token) => {
     try {
-        const response = await fetch(`${API_URL}/empleados/${id}`);
+        const response = await fetch(`${API_URL}/empleados/${id}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
         if (!response.ok) throw new Error('Error al obtener empleado');
         return await response.json();
     } catch (error) {
@@ -24,6 +47,10 @@ export const getEmpleado = async (id) => {
     }
 };
 
+/**
+ * Obtiene un empleado por ID con validación completa
+ * Esta función incluye TODA la información del usuario + empleado + foto
+ */
 export const getEmpleadoById = async (empleadoId, token) => {
     try {
         if (!empleadoId) {
@@ -64,14 +91,70 @@ export const getEmpleadoById = async (empleadoId, token) => {
         return data;
 
     } catch (error) {
-        console.error('[empleadoService] Error:', error.message);
+        console.error('[empleadoService] Error en getEmpleadoById:', error.message);
         throw error;
     }
 };
 
-export const getEmpleadoPorUsuario = async (idUsuario) => {
+/**
+ * Obtiene datos completos del usuario por ID (incluye datos de empleado si aplica)
+ * IMPORTANTE: Esta función obtiene la foto desde usuarios, no desde empleados
+ */
+export const getUsuarioCompleto = async (usuarioId, token) => {
     try {
-        const response = await fetch(`${API_URL}/empleados/usuario/${idUsuario}`);
+        if (!usuarioId) {
+            throw new Error('usuario_id es requerido');
+        }
+
+        if (!token) {
+            throw new Error('Token de autenticación no disponible');
+        }
+
+        const response = await fetch(`${API_URL}/usuarios/${usuarioId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                throw new Error('Usuario no encontrado');
+            }
+            if (response.status === 401) {
+                throw new Error('No autorizado - Token inválido');
+            }
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.message || 'Error al obtener usuario');
+        }
+
+        return data;
+
+    } catch (error) {
+        console.error('[empleadoService] Error en getUsuarioCompleto:', error.message);
+        throw error;
+    }
+};
+
+/**
+ * Obtiene empleado por usuario_id
+ */
+export const getEmpleadoPorUsuario = async (idUsuario, token) => {
+    try {
+        const response = await fetch(`${API_URL}/empleados/usuario/${idUsuario}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
         if (!response.ok) throw new Error('Error al obtener empleado');
         return await response.json();
     } catch (error) {
@@ -80,7 +163,10 @@ export const getEmpleadoPorUsuario = async (idUsuario) => {
     }
 };
 
-export const crearEmpleado = async (empleado) => {
+/**
+ * Crea un nuevo empleado
+ */
+export const crearEmpleado = async (empleado, token) => {
     try {
         if (!empleado.id_usuario) {
             throw new Error('El ID de usuario es obligatorio');
@@ -106,6 +192,7 @@ export const crearEmpleado = async (empleado) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify(empleadoDB),
         });
@@ -122,7 +209,10 @@ export const crearEmpleado = async (empleado) => {
     }
 };
 
-export const actualizarEmpleado = async (id, empleado) => {
+/**
+ * Actualiza un empleado
+ */
+export const actualizarEmpleado = async (id, empleado, token) => {
     try {
         if (empleado.nss && empleado.nss.length !== 11) {
             throw new Error('El NSS debe tener exactamente 11 dígitos');
@@ -137,13 +227,15 @@ export const actualizarEmpleado = async (id, empleado) => {
         const empleadoDB = {
             nss: empleado.nss,
             rfc: empleado.rfc?.toUpperCase(),
-            pin: empleado.pin
+            pin: empleado.pin,
+            horario_id: empleado.horario_id
         };
 
         const response = await fetch(`${API_URL}/empleados/${id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify(empleadoDB),
         });
@@ -160,10 +252,17 @@ export const actualizarEmpleado = async (id, empleado) => {
     }
 };
 
-export const eliminarEmpleado = async (id) => {
+/**
+ * Elimina un empleado
+ */
+export const eliminarEmpleado = async (id, token) => {
     try {
         const response = await fetch(`${API_URL}/empleados/${id}`, {
             method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
         });
 
         if (!response.ok) throw new Error('Error al eliminar empleado');
@@ -174,7 +273,10 @@ export const eliminarEmpleado = async (id) => {
     }
 };
 
-export const validarPinEmpleado = async (idEmpleado, pin) => {
+/**
+ * Valida el PIN de un empleado
+ */
+export const validarPinEmpleado = async (idEmpleado, pin, token) => {
     try {
         if (!pin || pin.length !== 4) {
             throw new Error('El PIN debe tener 4 dígitos');
@@ -184,6 +286,7 @@ export const validarPinEmpleado = async (idEmpleado, pin) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ pin }),
         });
@@ -200,9 +303,19 @@ export const validarPinEmpleado = async (idEmpleado, pin) => {
     }
 };
 
-export const getEmpleadoConPermisos = async (id) => {
+/**
+ * Obtiene empleado con permisos
+ */
+export const getEmpleadoConPermisos = async (id, token) => {
     try {
-        const response = await fetch(`${API_URL}/empleados/${id}/permisos`);
+        const response = await fetch(`${API_URL}/empleados/${id}/permisos`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
         if (!response.ok) throw new Error('Error al obtener empleado con permisos');
         return await response.json();
     } catch (error) {
@@ -211,9 +324,19 @@ export const getEmpleadoConPermisos = async (id) => {
     }
 };
 
-export const getStats = async () => {
+/**
+ * Obtiene estadísticas de empleados
+ */
+export const getStats = async (token) => {
     try {
-        const response = await fetch(`${API_URL}/empleados/stats`);
+        const response = await fetch(`${API_URL}/empleados/stats`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
         if (!response.ok) throw new Error('Error al obtener estadísticas');
         return await response.json();
     } catch (error) {
@@ -222,9 +345,19 @@ export const getStats = async () => {
     }
 };
 
-export const buscarPorNSS = async (nss) => {
+/**
+ * Busca empleado por NSS
+ */
+export const buscarPorNSS = async (nss, token) => {
     try {
-        const response = await fetch(`${API_URL}/empleados/nss/${nss}`);
+        const response = await fetch(`${API_URL}/empleados/buscar/nss/${nss}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
         if (!response.ok) throw new Error('Error al buscar empleado por NSS');
         return await response.json();
     } catch (error) {
@@ -233,9 +366,19 @@ export const buscarPorNSS = async (nss) => {
     }
 };
 
-export const buscarPorRFC = async (rfc) => {
+/**
+ * Busca empleado por RFC
+ */
+export const buscarPorRFC = async (rfc, token) => {
     try {
-        const response = await fetch(`${API_URL}/empleados/rfc/${rfc.toUpperCase()}`);
+        const response = await fetch(`${API_URL}/empleados/buscar/rfc/${rfc.toUpperCase()}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
         if (!response.ok) throw new Error('Error al buscar empleado por RFC');
         return await response.json();
     } catch (error) {
@@ -244,9 +387,19 @@ export const buscarPorRFC = async (rfc) => {
     }
 };
 
-export const getEmpleadosConUsuarios = async () => {
+/**
+ * Obtiene empleados con información de usuarios
+ */
+export const getEmpleadosConUsuarios = async (token) => {
     try {
-        const response = await fetch(`${API_URL}/empleados/completo`);
+        const response = await fetch(`${API_URL}/empleados/completo`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
         if (!response.ok) throw new Error('Error al obtener empleados completos');
         return await response.json();
     } catch (error) {
@@ -255,14 +408,24 @@ export const getEmpleadosConUsuarios = async () => {
     }
 };
 
-export const validarNSSUnico = async (nss, idEmpleadoExcluir = null) => {
+/**
+ * Valida que un NSS sea único
+ */
+export const validarNSSUnico = async (nss, idEmpleadoExcluir = null, token) => {
     try {
         const params = new URLSearchParams({ nss });
         if (idEmpleadoExcluir) {
             params.append('excluir_id', idEmpleadoExcluir);
         }
 
-        const response = await fetch(`${API_URL}/empleados/validar/nss?${params.toString()}`);
+        const response = await fetch(`${API_URL}/empleados/validar/nss?${params.toString()}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
         if (!response.ok) throw new Error('Error al validar NSS');
         return await response.json();
     } catch (error) {
@@ -271,14 +434,24 @@ export const validarNSSUnico = async (nss, idEmpleadoExcluir = null) => {
     }
 };
 
-export const validarRFCUnico = async (rfc, idEmpleadoExcluir = null) => {
+/**
+ * Valida que un RFC sea único
+ */
+export const validarRFCUnico = async (rfc, idEmpleadoExcluir = null, token) => {
     try {
         const params = new URLSearchParams({ rfc: rfc.toUpperCase() });
         if (idEmpleadoExcluir) {
             params.append('excluir_id', idEmpleadoExcluir);
         }
 
-        const response = await fetch(`${API_URL}/empleados/validar/rfc?${params.toString()}`);
+        const response = await fetch(`${API_URL}/empleados/validar/rfc?${params.toString()}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
         if (!response.ok) throw new Error('Error al validar RFC');
         return await response.json();
     } catch (error) {
@@ -287,12 +460,16 @@ export const validarRFCUnico = async (rfc, idEmpleadoExcluir = null) => {
     }
 };
 
-export const cambiarEstadoEmpleado = async (id, estado, motivo = null) => {
+/**
+ * Cambia el estado de un empleado
+ */
+export const cambiarEstadoEmpleado = async (id, estado, motivo = null, token) => {
     try {
         const response = await fetch(`${API_URL}/empleados/${id}/estado`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ estado, motivo }),
         });
@@ -309,10 +486,41 @@ export const cambiarEstadoEmpleado = async (id, estado, motivo = null) => {
     }
 };
 
-export const getHistorialEstadoEmpleado = async (id) => {
+/**
+ * Obtiene el historial de estado de un empleado
+ */
+export const getHistorialEstadoEmpleado = async (id, token) => {
     try {
-        const response = await fetch(`${API_URL}/empleados/${id}/historial-estado`);
+        const response = await fetch(`${API_URL}/empleados/${id}/historial-estado`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
         if (!response.ok) throw new Error('Error al obtener historial de estado');
+        return await response.json();
+    } catch (error) {
+        console.error('Error:', error);
+        throw error;
+    }
+};
+
+/**
+ * Obtiene el horario de un empleado
+ */
+export const getHorarioDeEmpleado = async (empleadoId, token) => {
+    try {
+        const response = await fetch(`${API_URL}/empleados/${empleadoId}/horario`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) throw new Error('Error al obtener horario');
         return await response.json();
     } catch (error) {
         console.error('Error:', error);
@@ -324,6 +532,7 @@ export default {
     getEmpleados,
     getEmpleado,
     getEmpleadoById,
+    getUsuarioCompleto, // NUEVA FUNCIÓN para obtener usuario completo con foto
     getEmpleadoPorUsuario,
     getEmpleadoConPermisos,
     getStats,
@@ -337,5 +546,6 @@ export default {
     validarNSSUnico,
     validarRFCUnico,
     cambiarEstadoEmpleado,
-    getHistorialEstadoEmpleado
+    getHistorialEstadoEmpleado,
+    getHorarioDeEmpleado
 };

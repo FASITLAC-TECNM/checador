@@ -10,6 +10,7 @@ import {
   StatusBar,
   Platform,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -34,15 +35,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
                         userData?.empleado?.empresa_id ||
                         null;
       
-      console.log('[Support] 🔍 userData recibido:', {
-        tiene_empresa_id: !!userData?.empresa_id,
-        tiene_empresa: !!userData?.empresa,
-        tiene_empleado: !!userData?.empleado,
-        empresaId_final: empresaId
-      });
-      
       if (!empresaId) {
-        console.warn('[Support] ⚠️ No se encontró empresa_id en userData');
         setIsLoading(false);
         return;
       }
@@ -50,28 +43,17 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
       const token = await AsyncStorage.getItem('userToken');
       
       if (!token) {
-        console.warn('[Support] ⚠️ No hay token disponible');
         setIsLoading(false);
         return;
       }
-
-      console.log('[Support] 🔍 Cargando datos de empresa:', empresaId);
 
       const response = await getEmpresaById(empresaId, token);
 
       if (response.success && response.data) {
         setEmpresaData(response.data);
-        console.log('[Support] ✅ Datos de empresa cargados:', {
-          nombre: response.data.nombre,
-          telefono: response.data.telefono,
-          correo: response.data.correo
-        });
-      } else {
-        console.error('[Support] ❌ Error en respuesta:', response.message);
       }
 
     } catch (error) {
-      console.error('[Support] ❌ Error cargando datos de empresa:', error);
       if (error.message !== 'Empresa no encontrada') {
         Alert.alert(
           'Error',
@@ -98,26 +80,14 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
     },
     {
       id: 3,
-      pregunta: "¿Cómo cambio mi foto de perfil?",
-      respuesta: "Ve a Configuración > Información Personal y presiona sobre tu foto actual. Podrás tomar una nueva foto o seleccionar una de tu galería.",
-      icon: "camera"
-    },
-    {
-      id: 4,
-      pregunta: "¿Qué hago si olvidé mi contraseña?",
-      respuesta: "En la pantalla de inicio de sesión, presiona 'Olvidé mi contraseña'. Recibirás un correo con instrucciones para restablecerla.",
-      icon: "lock-closed"
-    },
-    {
-      id: 5,
       pregunta: "¿Cómo veo mi historial de registros?",
-      respuesta: "Ve a la pestaña de Reportes para ver todos tus registros de entrada y salida. Puedes filtrar por fecha y exportar tus datos.",
+      respuesta: "Ve a la opcion de Historial para ver todos tus registros de entrada y salida.",
       icon: "time"
     },
     {
-      id: 6,
+      id: 4,
       pregunta: "La app se cierra inesperadamente",
-      respuesta: "Intenta cerrar completamente la app y volver a abrirla. Si el problema persiste, verifica que tengas la última versión instalada o contacta a soporte.",
+      respuesta: "Intenta cerrar completamente la app y volver a abrirla. Si el problema persiste, verifica que tengas la última versión instalada o contacta a FASITLAC.",
       icon: "alert-circle"
     }
   ];
@@ -137,10 +107,6 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
         color: "#25D366",
         action: () => {
           const message = `Hola, soy ${userData?.nombre || 'Usuario'}, necesito ayuda con la App de Asistencia.`;
-
-          // FIX iOS: solo esta línea cambia según plataforma.
-          // Android: whatsapp://send soporta &text= correctamente.
-          // iOS: whatsapp:// NO resuelve &text=, se necesita el universal link.
           const url = Platform.OS === 'ios'
             ? `https://api.whatsapp.com/send?phone=${phoneClean}&text=${encodeURIComponent(message)}`
             : `whatsapp://send?phone=${phoneClean}&text=${encodeURIComponent(message)}`;
@@ -156,8 +122,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
                 );
               }
             })
-            .catch((err) => {
-              console.error('[Support] Error abriendo WhatsApp:', err);
+            .catch(() => {
               Alert.alert("Error", "No se pudo abrir WhatsApp");
             });
         }
@@ -176,8 +141,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
           const body = `Hola,\n\nSoy ${userData?.nombre || 'Usuario'} (${userData?.correo || 'correo@ejemplo.com'}).\n\nNecesito ayuda con:\n\n`;
           const url = `mailto:${empresaData.correo}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
           
-          Linking.openURL(url).catch((err) => {
-            console.error('[Support] Error abriendo correo:', err);
+          Linking.openURL(url).catch(() => {
             Alert.alert("Error", "No se pudo abrir el cliente de correo");
           });
         }
@@ -192,7 +156,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
         title: "Teléfono",
         subtitle: empresaData.telefono,
         icon: "call",
-        color: "#059669",
+        color: "#a1afff",
         action: () => {
           Alert.alert(
             "Llamar a Soporte",
@@ -202,8 +166,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
               { 
                 text: "Llamar", 
                 onPress: () => {
-                  Linking.openURL(`tel:${phoneClean}`).catch((err) => {
-                    console.error('[Support] Error realizando llamada:', err);
+                  Linking.openURL(`tel:${phoneClean}`).catch(() => {
                     Alert.alert("Error", "No se pudo realizar la llamada");
                   });
                 }
@@ -231,7 +194,6 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
           backgroundColor={darkMode ? "#1e40af" : "#2563eb"} 
         />
         
-        {/* Header mientras carga */}
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={onBack} style={styles.backButton}>
@@ -260,7 +222,6 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
         backgroundColor={darkMode ? "#1e40af" : "#2563eb"} 
       />
       
-      {/* Header estandarizado - Sin gradiente */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
@@ -283,11 +244,19 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
         <View style={styles.quickHelpCard}>
           <View style={styles.quickHelpGradient}>
             <View style={styles.quickHelpIconContainer}>
-              <Ionicons 
-                name="help-circle" 
-                size={48} 
-                color={darkMode ? '#93c5fd' : '#2563eb'} 
-              />
+              {empresaData?.logo ? (
+                <Image 
+                  source={{ uri: empresaData.logo }}
+                  style={styles.empresaLogo}
+                  resizeMode="contain"
+                />
+              ) : (
+                <Ionicons 
+                  name="help-circle" 
+                  size={48} 
+                  color={darkMode ? '#93c5fd' : '#2563eb'} 
+                />
+              )}
             </View>
             <Text style={styles.quickHelpTitle}>
               ¿Necesitas ayuda inmediata?
@@ -304,7 +273,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
               <Ionicons 
                 name="chatbubbles" 
                 size={18} 
-                color={darkMode ? '#818cf8' : '#6366f1'} 
+                color={darkMode ? '#3794fd' : '#6366f1'} 
               />
               <Text style={styles.sectionTitle}>Contáctanos</Text>
             </View>
@@ -347,7 +316,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
             <Ionicons 
               name="help-buoy" 
               size={18} 
-              color={darkMode ? '#818cf8' : '#6366f1'} 
+              color={darkMode ? '#3794fd' : '#6366f1'} 
             />
             <Text style={styles.sectionTitle}>Preguntas Frecuentes</Text>
           </View>
@@ -387,62 +356,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
             </TouchableOpacity>
           ))}
         </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons 
-              name="information-circle" 
-              size={18} 
-              color={darkMode ? '#818cf8' : '#6366f1'} 
-            />
-            <Text style={styles.sectionTitle}>Información de la App</Text>
-          </View>
-          
-          <View style={styles.infoRow}>
-            <View style={styles.infoLeft}>
-              <Ionicons name="code-slash" size={18} color="#6b7280" />
-              <Text style={styles.infoLabel}>Versión</Text>
-            </View>
-            <Text style={styles.infoValue}>1.0.0</Text>
-          </View>
-          
-          <View style={styles.infoDivider} />
-          
-          <View style={styles.infoRow}>
-            <View style={styles.infoLeft}>
-              <Ionicons name="construct" size={18} color="#6b7280" />
-              <Text style={styles.infoLabel}>Build</Text>
-            </View>
-            <Text style={styles.infoValue}>2024.01.23</Text>
-          </View>
-
-          <View style={styles.infoDivider} />
-          
-          <View style={styles.infoRow}>
-            <View style={styles.infoLeft}>
-              <Ionicons name="business" size={18} color="#6b7280" />
-              <Text style={styles.infoLabel}>Empresa</Text>
-            </View>
-            <Text style={styles.infoValue} numberOfLines={1}>
-              {empresaData?.nombre || 'N/A'}
-            </Text>
-          </View>
-
-          <View style={styles.infoDivider} />
-          
-          <View style={styles.infoRow}>
-            <View style={styles.infoLeft}>
-              <Ionicons name="shield-checkmark" size={18} color="#6b7280" />
-              <Text style={styles.infoLabel}>Estado</Text>
-            </View>
-            <View style={styles.statusBadge}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>Operativo</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={{ height: 40 }} />
+        <View style={styles.bottomSpacer} />
       </ScrollView>
     </View>
   );
@@ -504,7 +418,6 @@ const supportStyles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 40,
   },
   quickHelpCard: {
     borderRadius: 20,
@@ -529,6 +442,10 @@ const supportStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+  },
+  empresaLogo: {
+    width: 60,
+    height: 60,
   },
   quickHelpTitle: {
     fontSize: 20,
@@ -712,6 +629,9 @@ const supportStyles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#059669',
+  },
+  bottomSpacer: {
+    height: 100,
   },
 });
 

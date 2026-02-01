@@ -9,12 +9,20 @@ import { ScheduleScreen } from './components/homes/schedule';
 import { SettingsScreen } from './components/settingsPages/settings';
 import { BottomNavigation } from './components/homes/nav';
 import { OnboardingNavigator } from './components/devicesetup/onBoardNavigator';
-import { verificarDispositivoActivo, getSolicitudPorToken } from './services/solicitudMovilService';
+import { getSolicitudPorToken } from './services/solicitudMovilService';
+import { getUsuarioCompleto } from './services/empleadoServices'; 
 
 const STORAGE_KEYS = {
   DARK_MODE: '@dark_mode',
-  TERMS_ACCEPTED: '@terms_accepted',
+  USER_DATA: '@user_data',
+  USER_TOKEN: 'userToken',
+  SOLICITUD_ID: '@solicitud_id',
+  TOKEN_SOLICITUD: '@token_solicitud',
+  ONBOARDING_COMPLETED: '@onboarding_completed'
 };
+
+const USER_DATA_REFRESH_INTERVAL = 60000;
+const DEVICE_VERIFICATION_INTERVAL = 120000;
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -26,6 +34,7 @@ export default function App() {
   
   const appState = useRef(AppState.currentState);
   const verificationInterval = useRef(null);
+  const userDataRefreshInterval = useRef(null);
 
   useEffect(() => {
     checkAppState();
@@ -34,21 +43,23 @@ export default function App() {
     
     return () => {
       subscription?.remove();
-      if (verificationInterval.current) {
-        clearInterval(verificationInterval.current);
-      }
+      clearInterval(verificationInterval.current);
+      clearInterval(userDataRefreshInterval.current);
     };
   }, []);
 
   useEffect(() => {
     if (isLoggedIn && deviceRegistered) {
       startDeviceVerification();
+      startUserDataRefresh();
     } else {
       stopDeviceVerification();
+      stopUserDataRefresh();
     }
     
     return () => {
       stopDeviceVerification();
+      stopUserDataRefresh();
     };
   }, [isLoggedIn, deviceRegistered]);
 
@@ -59,17 +70,14 @@ export default function App() {
       isLoggedIn &&
       deviceRegistered
     ) {
-      await verificarEstadoDispositivo();
+      await Promise.all([verificarEstadoDispositivo(), refreshUserData()]);
     }
     appState.current = nextAppState;
   };
 
   const startDeviceVerification = () => {
     verificarEstadoDispositivo();
-    
-    verificationInterval.current = setInterval(() => {
-      verificarEstadoDispositivo();
-    }, 120000);
+    verificationInterval.current = setInterval(verificarEstadoDispositivo, DEVICE_VERIFICATION_INTERVAL);
   };
 
   const stopDeviceVerification = () => {
@@ -79,80 +87,112 @@ export default function App() {
     }
   };
 
+  const startUserDataRefresh = () => {
+    refreshUserData();
+    userDataRefreshInterval.current = setInterval(refreshUserData, USER_DATA_REFRESH_INTERVAL);
+  };
+
+  const stopUserDataRefresh = () => {
+    if (userDataRefreshInterval.current) {
+      clearInterval(userDataRefreshInterval.current);
+      userDataRefreshInterval.current = null;
+    }
+  };
+
+  const refreshUserData = async () => {
+    try {
+      const [storedUserData, token] = await Promise.all([
+        AsyncStorage.getItem(STORAGE_KEYS.USER_DATA),
+        AsyncStorage.getItem(STORAGE_KEYS.USER_TOKEN)
+      ]);
+      
+      const currentUserData = JSON.parse(storedUserData);
+      const usuarioId = currentUserData.id || currentUserData.usuario_id;
+
+      const response = await getUsuarioCompleto(usuarioId, token);
+      
+      if (response.success && response.data) {
+        const updatedUserData = {
+          ...response.data,
+          token: token,
+          ...Object.keys(currentUserData).reduce((acc, key) => {
+            if (!response.data[key] && currentUserData[key]) {
+              acc[key] = currentUserData[key];
+            }
+            return acc;
+          }, {})
+        };
+
+        await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(updatedUserData));
+        setUserData(updatedUserData);
+      }
+    } catch (error) {
+      // Silent error
+    }
+  };
+
   const verificarEstadoDispositivo = async () => {
     try {
       const [solicitudId, tokenSolicitud, onboardingCompleted] = await Promise.all([
-        AsyncStorage.getItem('@solicitud_id'),
-        AsyncStorage.getItem('@token_solicitud'),
-        AsyncStorage.getItem('@onboarding_completed')
+        AsyncStorage.getItem(STORAGE_KEYS.SOLICITUD_ID),
+        AsyncStorage.getItem(STORAGE_KEYS.TOKEN_SOLICITUD),
+        AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETED)
       ]);
 
-      if (onboardingCompleted !== 'true') {
-        return;
-      }
-
-      if (!solicitudId || !tokenSolicitud) {
-        await handleDeviceInvalidated('No se encontró información del dispositivo registrado');
+      if (onboardingCompleted !== 'true' || !solicitudId || !tokenSolicitud) {
+        if (onboardingCompleted === 'true') {
+          await handleDeviceInvalidated('No se encontró información del dispositivo registrado');
+        }
         return;
       }
 
       const response = await getSolicitudPorToken(tokenSolicitud);
       const estadoLower = response.estado?.toLowerCase();
 
-      if (estadoLower === 'aceptado') {
-        return;
-      } else if (estadoLower === 'pendiente') {
-        await handleDeviceInvalidated('Tu dispositivo está pendiente de aprobación nuevamente');
-      } else if (estadoLower === 'rechazado') {
-        await handleDeviceInvalidated('Tu dispositivo fue rechazado por el administrador');
-      } else {
-        await handleDeviceInvalidated('El estado de tu dispositivo ha cambiado');
-      }
+      if (estadoLower === 'aceptado') return;
+
+      const mensajes = {
+        pendiente: 'Tu dispositivo está pendiente de aprobación nuevamente',
+        rechazado: 'Tu dispositivo fue rechazado por el administrador'
+      };
+
+      await handleDeviceInvalidated(mensajes[estadoLower] || 'El estado de tu dispositivo ha cambiado');
 
     } catch (error) {
       if (error.code === 'SOLICITUD_NOT_FOUND' || error.status === 404) {
         await handleDeviceInvalidated('Tu registro de dispositivo fue eliminado');
-        return;
       }
     }
   };
 
   const handleDeviceInvalidated = async (mensaje) => {
-    try {
-      await AsyncStorage.removeItem('@onboarding_completed');
-      stopDeviceVerification();
-      setDeviceRegistered(false);
-      
-      Alert.alert(
-        'Registro de Dispositivo Requerido',
-        mensaje + '\n\nDebes registrar nuevamente este dispositivo para continuar.',
-        [{ text: 'Entendido' }],
-        { cancelable: false }
-      );
-      
-    } catch (error) {
-      console.error('Error manejando invalidación del dispositivo:', error);
-    }
+    await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
+    stopDeviceVerification();
+    stopUserDataRefresh();
+    setDeviceRegistered(false);
+    
+    Alert.alert(
+      'Registro de Dispositivo Requerido',
+      `${mensaje}\n\nDebes registrar nuevamente este dispositivo para continuar.`,
+      [{ text: 'Entendido' }],
+      { cancelable: false }
+    );
   };
 
   const checkAppState = async () => {
     try {
       const [deviceCompleted, savedDarkMode] = await Promise.all([
-        AsyncStorage.getItem('@onboarding_completed'),
+        AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETED),
         AsyncStorage.getItem(STORAGE_KEYS.DARK_MODE),
       ]);
       
       setIsLoggedIn(false);
       setDeviceRegistered(deviceCompleted === 'true');
-      if (savedDarkMode !== null) {
-        setDarkMode(savedDarkMode === 'true');
-      }
-      setIsLoading(false);
-
+      setDarkMode(savedDarkMode === 'true');
     } catch (error) {
-      console.error('Error verificando estado de la app:', error);
       setIsLoggedIn(false);
       setDeviceRegistered(false);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -160,26 +200,22 @@ export default function App() {
   const handleToggleDarkMode = async () => {
     const newValue = !darkMode;
     setDarkMode(newValue);
-    try {
-      await AsyncStorage.setItem(STORAGE_KEYS.DARK_MODE, String(newValue));
-    } catch (error) {
-      console.error('Error guardando modo oscuro:', error);
-    }
+    await AsyncStorage.setItem(STORAGE_KEYS.DARK_MODE, String(newValue));
   };
 
   const handleLoginSuccess = async (data) => {
     try {
       if (data.token) {
-        await AsyncStorage.setItem('userToken', data.token);
+        await AsyncStorage.setItem(STORAGE_KEYS.USER_TOKEN, data.token);
       }
 
-      await AsyncStorage.setItem('@user_data', JSON.stringify(data));
+      await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(data));
       setUserData(data);
 
-      const deviceCompleted = await AsyncStorage.getItem('@onboarding_completed');
+      const deviceCompleted = await AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
       
       if (deviceCompleted === 'true') {
-        const tokenSolicitud = await AsyncStorage.getItem('@token_solicitud');
+        const tokenSolicitud = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN_SOLICITUD);
         
         if (tokenSolicitud) {
           try {
@@ -188,62 +224,54 @@ export default function App() {
             
             if (estadoLower === 'aceptado') {
               setDeviceRegistered(true);
-              setIsLoggedIn(true);
             } else {
-              await AsyncStorage.removeItem('@onboarding_completed');
+              await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
               setDeviceRegistered(false);
-              setIsLoggedIn(true);
             }
           } catch (error) {
             if (error.code === 'SOLICITUD_NOT_FOUND' || error.status === 404) {
-              await AsyncStorage.removeItem('@onboarding_completed');
+              await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
             }
             setDeviceRegistered(false);
-            setIsLoggedIn(true);
           }
         } else {
-          await AsyncStorage.removeItem('@onboarding_completed');
+          await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
           setDeviceRegistered(false);
-          setIsLoggedIn(true);
         }
       } else {
         setDeviceRegistered(false);
-        setIsLoggedIn(true);
       }
+      
+      setIsLoggedIn(true);
     } catch (error) {
-      console.error('Error en handleLoginSuccess:', error);
+      // Silent error
     }
   };
 
-  const handleOnboardingComplete = async (onboardingData) => {
-    try {
-      await AsyncStorage.setItem('@onboarding_completed', 'true');
-      setDeviceRegistered(true);
-    } catch (error) {
-      console.error('Error completando onboarding:', error);
-    }
+  const handleOnboardingComplete = async () => {
+    await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETED, 'true');
+    setDeviceRegistered(true);
   };
 
   const handleLogout = async () => {
-    try {
-      stopDeviceVerification();
-      
-      await AsyncStorage.removeItem('userToken');
-      await AsyncStorage.removeItem('@user_data');
-      
-      setIsLoggedIn(false);
-      setCurrentScreen('home');
-      setUserData(null);
-    } catch (error) {
-      console.error('Error en logout:', error);
-    }
+    stopDeviceVerification();
+    stopUserDataRefresh();
+    
+    await Promise.all([
+      AsyncStorage.removeItem(STORAGE_KEYS.USER_TOKEN),
+      AsyncStorage.removeItem(STORAGE_KEYS.USER_DATA)
+    ]);
+    
+    setIsLoggedIn(false);
+    setCurrentScreen('home');
+    setUserData(null);
   };
 
   if (isLoading) {
     return (
       <SafeAreaProvider>
         <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
-        <View style={appStyles.loadingContainer}>
+        <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2563eb" />
         </View>
       </SafeAreaProvider>
@@ -278,7 +306,7 @@ export default function App() {
         backgroundColor={darkMode ? "#1e40af" : "#2563eb"} 
       />
       <SafeAreaView
-        style={[appStyles.container, darkMode && appStyles.containerDark]}
+        style={[styles.container, darkMode && styles.containerDark]}
         edges={['top']}
       >
         {currentScreen === 'home' && <HomeScreen userData={userData} darkMode={darkMode} />}
@@ -304,7 +332,7 @@ export default function App() {
   );
 }
 
-const appStyles = StyleSheet.create({
+const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f3f4f6',

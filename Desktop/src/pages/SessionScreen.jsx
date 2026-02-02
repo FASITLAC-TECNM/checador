@@ -673,8 +673,7 @@ export default function SessionScreen({ onLogout, usuario }) {
       {showHorarioModal && (
         <HorarioModal
           onClose={() => setShowHorarioModal(false)}
-          horario={userHorario}
-          loading={loadingEmpleado}
+          usuario={datosCompletos}
         />
       )}
     </div>

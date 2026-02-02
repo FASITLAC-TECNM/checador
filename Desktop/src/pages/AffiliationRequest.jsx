@@ -55,6 +55,11 @@ export default function AffiliationRequest({ onComplete }) {
         if (solicitud.escritorio_id) {
           localStorage.setItem("escritorio_id", solicitud.escritorio_id);
         }
+        // Guardar el auth_token si viene en la respuesta
+        if (solicitud.auth_token || solicitud.token) {
+          localStorage.setItem("auth_token", solicitud.auth_token || solicitud.token);
+          console.log("🔑 Token de autenticación guardado");
+        }
         limpiarSolicitudGuardada();
       } else if (estado === "rechazado") {
         setRequestStatus("rejected");

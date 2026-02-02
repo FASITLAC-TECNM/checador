@@ -28,6 +28,52 @@ export default function PinModal({ onClose, onSuccess }) {
     return fecha.getHours() * 60 + fecha.getMinutes();
   };
 
+  /**
+   * Convierte hora en formato "HH:MM" a minutos del día
+   */
+  const horaAMinutos = (hora) => {
+    const [h, m] = hora.split(':').map(Number);
+    return h * 60 + m;
+  };
+
+  /**
+   * Fusiona bloques consecutivos del horario.
+   * Si el fin de un bloque coincide con el inicio del siguiente, se fusionan.
+   * @param {Array} bloques - Array de objetos {entrada: "HH:MM", salida: "HH:MM"}
+   * @returns {Array} - Array de bloques fusionados
+   */
+  const fusionarBloquesConsecutivos = (bloques) => {
+    if (!bloques || bloques.length === 0) return [];
+    if (bloques.length === 1) return bloques;
+
+    // Ordenar bloques por hora de entrada
+    const bloquesOrdenados = [...bloques].sort((a, b) => {
+      return horaAMinutos(a.entrada) - horaAMinutos(b.entrada);
+    });
+
+    const bloquesFusionados = [];
+    let bloqueActual = { ...bloquesOrdenados[0] };
+
+    for (let i = 1; i < bloquesOrdenados.length; i++) {
+      const bloqueSiguiente = bloquesOrdenados[i];
+
+      // Verificar si son consecutivos (fin del actual = inicio del siguiente)
+      if (bloqueActual.salida === bloqueSiguiente.entrada) {
+        // Fusionar: mantener entrada del actual, actualizar salida al del siguiente
+        bloqueActual.salida = bloqueSiguiente.salida;
+      } else {
+        // No son consecutivos, guardar el actual y empezar uno nuevo
+        bloquesFusionados.push(bloqueActual);
+        bloqueActual = { ...bloqueSiguiente };
+      }
+    }
+
+    // Agregar el último bloque
+    bloquesFusionados.push(bloqueActual);
+
+    return bloquesFusionados;
+  };
+
   // === FUNCIONES DE OBTENCIÓN DE DATOS ===
 
   const obtenerUltimoRegistro = useCallback(async (empleadoId) => {
@@ -64,6 +110,11 @@ export default function PinModal({ onClose, onSuccess }) {
     }
   }, []);
 
+  /**
+   * Obtiene el horario del empleado y fusiona bloques consecutivos.
+   * Después de fusionar, solo se requiere una entrada al inicio del primer bloque
+   * y una salida al fin del último bloque fusionado.
+   */
   const obtenerHorario = useCallback(async (empleadoId) => {
     try {
       if (!empleadoId) return null;
@@ -90,15 +141,25 @@ export default function PinModal({ onClose, onSuccess }) {
       }
 
       if (!turnosHoy.length) {
-        return { trabaja: false, turnos: [] };
+        return { trabaja: false, turnos: [], turnosOriginales: [] };
       }
+
+      // Guardar turnos originales antes de fusionar (para referencia)
+      const turnosOriginales = [...turnosHoy];
+
+      // Fusionar bloques consecutivos
+      const turnosFusionados = fusionarBloquesConsecutivos(turnosHoy);
+
+      console.log('Turnos originales:', turnosOriginales);
+      console.log('Turnos fusionados:', turnosFusionados);
 
       return {
         trabaja: true,
-        turnos: turnosHoy,
-        entrada: turnosHoy[0].entrada,
-        salida: turnosHoy[turnosHoy.length - 1].salida,
-        tipo: turnosHoy.length > 1 ? 'quebrado' : 'continuo'
+        turnos: turnosFusionados, // Usamos los turnos fusionados
+        turnosOriginales: turnosOriginales, // Guardamos los originales por referencia
+        entrada: turnosFusionados[0].entrada,
+        salida: turnosFusionados[turnosFusionados.length - 1].salida,
+        tipo: turnosFusionados.length > 1 ? 'quebrado' : 'continuo'
       };
     } catch (err) {
       console.error('Error obteniendo horario:', err);
@@ -106,28 +167,72 @@ export default function PinModal({ onClose, onSuccess }) {
     }
   }, []);
 
+  /**
+   * Obtiene la tolerancia aplicable al empleado basándose en el rol con mayor jerarquía.
+   * El rol con MENOR número tiene MAYOR jerarquía.
+   * Busca en la tabla tolerancias la que corresponda a ese rol_id.
+   */
   const obtenerTolerancia = useCallback(async (usuarioId) => {
     const defaultTolerancia = {
       minutos_retardo: 10,
       minutos_falta: 30,
       permite_registro_anticipado: true,
-      minutos_anticipado_max: 60
+      minutos_anticipado_max: 60,
+      aplica_tolerancia_entrada: true,
+      aplica_tolerancia_salida: true
     };
 
     try {
       if (!usuarioId) return defaultTolerancia;
 
+      // 1. Obtener todos los roles del usuario
       const rolesResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.USUARIOS}/${usuarioId}/roles`);
-      const roles = rolesResponse.data || [];
+      const roles = rolesResponse.data || rolesResponse || [];
 
-      const rolConTolerancia = roles
-        .filter(r => r.tolerancia_id)
-        .sort((a, b) => b.posicion - a.posicion)[0];
+      if (!roles.length) {
+        console.log('Usuario sin roles asignados, usando tolerancia por defecto');
+        return defaultTolerancia;
+      }
 
-      if (!rolConTolerancia) return defaultTolerancia;
+      // 2. Identificar el rol con menor número (mayor jerarquía)
+      // Convertimos el rol_id a número para comparar correctamente
+      const rolMayorJerarquia = roles.reduce((mayor, actual) => {
+        const idActual = typeof actual.rol_id === 'string' ? parseInt(actual.rol_id, 10) : actual.rol_id;
+        const idMayor = typeof mayor.rol_id === 'string' ? parseInt(mayor.rol_id, 10) : mayor.rol_id;
 
-      const toleranciaResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.TOLERANCIAS}/${rolConTolerancia.tolerancia_id}`);
-      return toleranciaResponse.data || toleranciaResponse;
+        // Si el ID es alfanumérico, comparamos como string
+        if (isNaN(idActual) || isNaN(idMayor)) {
+          return actual.rol_id < mayor.rol_id ? actual : mayor;
+        }
+
+        return idActual < idMayor ? actual : mayor;
+      });
+
+      if (!rolMayorJerarquia?.rol_id) {
+        console.log('No se pudo determinar rol con mayor jerarquía');
+        return defaultTolerancia;
+      }
+
+      console.log('Rol con mayor jerarquía:', rolMayorJerarquia.rol_id);
+
+      // 3. Buscar en tolerancias la que corresponda a ese rol_id
+      const toleranciasResponse = await fetchApi(API_CONFIG.ENDPOINTS.TOLERANCIAS);
+      const tolerancias = toleranciasResponse.data || toleranciasResponse || [];
+
+      // Buscar tolerancia que tenga el rol_id correspondiente
+      const toleranciaDelRol = tolerancias.find(t => t.rol_id === rolMayorJerarquia.rol_id);
+
+      if (!toleranciaDelRol) {
+        console.log('No se encontró tolerancia para el rol:', rolMayorJerarquia.rol_id);
+        return defaultTolerancia;
+      }
+
+      console.log('Tolerancia encontrada:', toleranciaDelRol);
+
+      return {
+        ...defaultTolerancia,
+        ...toleranciaDelRol
+      };
     } catch (err) {
       console.error('Error obteniendo tolerancia:', err);
       return defaultTolerancia;
@@ -154,77 +259,123 @@ export default function PinModal({ onClose, onSuccess }) {
 
   // === FUNCIONES DE VALIDACIÓN ===
 
+  /**
+   * Valida si el empleado puede registrar entrada y determina la clasificación:
+   * - 'entrada': Llegada dentro de la tolerancia permitida
+   * - 'retardo': Llegada después del tiempo máximo de tolerancia de entrada
+   * - 'falta': No registra entrada dentro del tiempo límite definido por minutos_falta
+   */
   const validarEntrada = (horario, tolerancia, minutosActuales) => {
     let hayTurnoFuturo = false;
+    const aplicaToleranciaEntrada = tolerancia.aplica_tolerancia_entrada !== false;
 
     for (const turno of horario.turnos) {
-      const [hE, mE] = turno.entrada.split(':').map(Number);
-      const minEntrada = hE * 60 + mE;
+      const minEntrada = horaAMinutos(turno.entrada);
+      const minSalida = horaAMinutos(turno.salida);
 
-      const ventanaInicio = minEntrada - (tolerancia.minutos_anticipado_max || 60);
-      const ventanaRetardo = minEntrada + tolerancia.minutos_retardo;
+      // Calcular ventanas de tiempo
+      const ventanaAnticipada = minEntrada - (tolerancia.minutos_anticipado_max || 60);
+      const ventanaRetardo = minEntrada + (aplicaToleranciaEntrada ? tolerancia.minutos_retardo : 0);
       const ventanaFalta = minEntrada + tolerancia.minutos_falta;
 
-      if (minutosActuales >= ventanaInicio && minutosActuales <= ventanaRetardo) {
+      // Verificar si hay un turno futuro
+      if (minutosActuales < ventanaAnticipada) {
+        hayTurnoFuturo = true;
+        continue;
+      }
+
+      // Caso 1: Llegada puntual (dentro de tolerancia de entrada)
+      // Desde registro anticipado hasta fin de tolerancia de retardo
+      if (minutosActuales >= ventanaAnticipada && minutosActuales <= ventanaRetardo) {
         return {
           puedeRegistrar: true,
           tipoRegistro: 'entrada',
+          clasificacion: 'entrada', // Clasificación según requisitos
           estadoHorario: 'puntual',
-          jornadaCompleta: false
+          jornadaCompleta: false,
+          turnoActual: turno
         };
       }
 
+      // Caso 2: Retardo (después de tolerancia pero antes de falta)
       if (minutosActuales > ventanaRetardo && minutosActuales <= ventanaFalta) {
         return {
           puedeRegistrar: true,
           tipoRegistro: 'entrada',
+          clasificacion: 'retardo', // Clasificación según requisitos
           estadoHorario: 'retardo',
-          jornadaCompleta: false
+          jornadaCompleta: false,
+          turnoActual: turno
         };
       }
 
-      if (minutosActuales > ventanaFalta) {
-        const [hS, mS] = turno.salida.split(':').map(Number);
-        const minSalida = hS * 60 + mS;
-
-        if (minutosActuales <= minSalida) {
-          return {
-            puedeRegistrar: true,
-            tipoRegistro: 'entrada',
-            estadoHorario: 'falta',
-            jornadaCompleta: false
-          };
-        }
-      }
-
-      if (minutosActuales < ventanaInicio) {
-        hayTurnoFuturo = true;
+      // Caso 3: Falta (después del límite de falta pero aún en horario de trabajo)
+      if (minutosActuales > ventanaFalta && minutosActuales <= minSalida) {
+        return {
+          puedeRegistrar: true,
+          tipoRegistro: 'entrada',
+          clasificacion: 'falta', // Clasificación según requisitos
+          estadoHorario: 'falta',
+          jornadaCompleta: false,
+          turnoActual: turno
+        };
       }
     }
 
     return {
       puedeRegistrar: false,
       tipoRegistro: 'entrada',
+      clasificacion: null,
       estadoHorario: 'fuera_horario',
       jornadaCompleta: false,
       hayTurnoFuturo: hayTurnoFuturo
     };
   };
 
-  const validarSalida = (horario, minutosActuales) => {
+  /**
+   * Valida si el empleado puede registrar salida y determina la clasificación:
+   * - 'salida_puntual': Salida dentro de la tolerancia de salida permitida
+   * - 'salida_temprana': Salida antes del horario (fuera de la tolerancia permitida)
+   */
+  const validarSalida = (horario, tolerancia, minutosActuales) => {
+    const aplicaToleranciaSalida = tolerancia.aplica_tolerancia_salida !== false;
+
     for (const turno of horario.turnos) {
-      const [hS, mS] = turno.salida.split(':').map(Number);
-      const minSalida = hS * 60 + mS;
+      const minEntrada = horaAMinutos(turno.entrada);
+      const minSalida = horaAMinutos(turno.salida);
 
-      const ventanaSalidaInicio = minSalida - 10;
-      const ventanaSalidaFin = minSalida + 5;
+      // Verificar que estamos dentro del rango del turno (después de entrada)
+      if (minutosActuales < minEntrada) {
+        continue;
+      }
 
-      if (minutosActuales >= ventanaSalidaInicio && minutosActuales <= ventanaSalidaFin) {
+      // Calcular ventanas de salida
+      // Tolerancia de salida: se puede salir X minutos antes sin penalización
+      const toleranciaSalidaMinutos = aplicaToleranciaSalida ? (tolerancia.minutos_retardo || 10) : 0;
+      const ventanaSalidaPuntualInicio = minSalida - toleranciaSalidaMinutos;
+      const ventanaSalidaFin = minSalida + 30; // Margen después de hora de salida
+
+      // Caso 1: Salida puntual (dentro de la tolerancia de salida)
+      if (minutosActuales >= ventanaSalidaPuntualInicio && minutosActuales <= ventanaSalidaFin) {
         return {
           puedeRegistrar: true,
           tipoRegistro: 'salida',
+          clasificacion: 'salida_puntual', // Clasificación según requisitos
           estadoHorario: 'puntual',
-          jornadaCompleta: false
+          jornadaCompleta: false,
+          turnoActual: turno
+        };
+      }
+
+      // Caso 2: Salida temprana (antes de la tolerancia de salida)
+      if (minutosActuales >= minEntrada && minutosActuales < ventanaSalidaPuntualInicio) {
+        return {
+          puedeRegistrar: true,
+          tipoRegistro: 'salida',
+          clasificacion: 'salida_temprana', // Clasificación según requisitos
+          estadoHorario: 'temprana',
+          jornadaCompleta: false,
+          turnoActual: turno
         };
       }
     }
@@ -232,16 +383,24 @@ export default function PinModal({ onClose, onSuccess }) {
     return {
       puedeRegistrar: false,
       tipoRegistro: 'salida',
+      clasificacion: null,
       estadoHorario: 'fuera_horario',
       jornadaCompleta: false
     };
   };
 
+  /**
+   * Calcula el estado actual del registro basándose en:
+   * - Último registro del día (si existe)
+   * - Horario con bloques fusionados
+   * - Tolerancia según rol de mayor jerarquía
+   */
   const calcularEstadoRegistro = useCallback((ultimo, horario, tolerancia) => {
     if (!horario?.trabaja) {
       return {
         puedeRegistrar: false,
         tipoRegistro: 'entrada',
+        clasificacion: null,
         estadoHorario: 'fuera_horario',
         jornadaCompleta: false
       };
@@ -250,6 +409,7 @@ export default function PinModal({ onClose, onSuccess }) {
     const ahora = getMinutosDelDia();
     const totalTurnos = horario.turnos.length;
 
+    // Si no hay registros hoy, debe registrar entrada
     if (!ultimo) {
       return validarEntrada(horario, tolerancia, ahora);
     }
@@ -257,11 +417,14 @@ export default function PinModal({ onClose, onSuccess }) {
     const registrosHoy = ultimo.totalRegistrosHoy || 1;
     const turnosCompletados = Math.floor(registrosHoy / 2);
 
+    // Si el último registro fue entrada, debe registrar salida
     if (ultimo.tipo === 'entrada') {
-      return validarSalida(horario, ahora);
+      return validarSalida(horario, tolerancia, ahora);
     }
 
+    // Si el último registro fue salida
     if (ultimo.tipo === 'salida') {
+      // Verificar si ya completó todos los turnos (bloques fusionados)
       if (turnosCompletados >= totalTurnos) {
         const resultadoEntrada = validarEntrada(horario, tolerancia, ahora);
 
@@ -269,6 +432,7 @@ export default function PinModal({ onClose, onSuccess }) {
           return {
             puedeRegistrar: false,
             tipoRegistro: 'entrada',
+            clasificacion: null,
             estadoHorario: 'completado',
             jornadaCompleta: true
           };
@@ -277,6 +441,7 @@ export default function PinModal({ onClose, onSuccess }) {
         return resultadoEntrada;
       }
 
+      // Aún hay turnos pendientes, verificar si puede registrar entrada
       return validarEntrada(horario, tolerancia, ahora);
     }
 
@@ -421,14 +586,22 @@ export default function PinModal({ onClose, onSuccess }) {
       console.log("📝 Registrando asistencia...");
       const departamentoId = await obtenerDepartamentoEmpleado(empleadoId);
 
+      // Construir payload con clasificación según las reglas de negocio
+      // La clasificación determina el tipo de registro:
+      // - Para entradas: 'entrada', 'retardo', 'falta'
+      // - Para salidas: 'salida_puntual', 'salida_temprana'
       const payload = {
         empleado_id: empleadoId,
-        dispositivo_origen: 'escritorio',
+        dispositivo_origen: 'escritorio', // Siempre en minúsculas
         metodo_registro: 'PIN',
-        departamento_id: departamentoId
+        departamento_id: departamentoId,
+        tipo: estadoActual?.tipoRegistro || 'entrada', // 'entrada' o 'salida'
+        clasificacion: estadoActual?.clasificacion || 'entrada', // Clasificación específica
+        estado: estadoActual?.estadoHorario || 'puntual' // Estado del horario
       };
 
       console.log("📤 Enviando registro:", payload);
+      console.log("📊 Clasificación:", estadoActual?.clasificacion);
 
       const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ASISTENCIAS}/registrar`, {
         method: 'POST',
@@ -454,35 +627,62 @@ export default function PinModal({ onClose, onSuccess }) {
       }
 
       // 5. Procesar resultado exitoso
-      const tipoMovimiento = data.data?.tipo === 'salida' ? 'SALIDA' : 'ENTRADA';
+      // Usar la clasificación calculada localmente o la que devuelve el servidor
+      const clasificacionFinal = data.data?.clasificacion || estadoActual?.clasificacion || 'entrada';
+      const tipoRegistro = data.data?.tipo || estadoActual?.tipoRegistro || 'entrada';
+      const tipoMovimiento = tipoRegistro === 'salida' ? 'SALIDA' : 'ENTRADA';
+
+      // Determinar texto y emoji según la clasificación
       let estadoTexto = '';
       let emoji = '✅';
+      let tipoEvento = 'success';
 
-      if (data.data?.tipo === 'salida') {
-        estadoTexto = 'salida registrada';
-        emoji = '✅';
-      } else {
-        if (data.data?.estado === 'retardo') {
-          estadoTexto = 'con retardo';
-          emoji = '⚠️';
-        } else if (data.data?.estado === 'falta') {
-          estadoTexto = 'fuera de tolerancia';
-          emoji = '❌';
-        } else {
+      switch (clasificacionFinal) {
+        case 'entrada':
           estadoTexto = 'puntual';
           emoji = '✅';
-        }
+          break;
+        case 'retardo':
+          estadoTexto = 'con retardo';
+          emoji = '⚠️';
+          tipoEvento = 'warning';
+          break;
+        case 'falta':
+          estadoTexto = 'fuera de tolerancia (falta)';
+          emoji = '❌';
+          tipoEvento = 'warning';
+          break;
+        case 'salida_puntual':
+          estadoTexto = 'salida puntual';
+          emoji = '✅';
+          break;
+        case 'salida_temprana':
+          estadoTexto = 'salida anticipada';
+          emoji = '⚠️';
+          tipoEvento = 'warning';
+          break;
+        default:
+          estadoTexto = tipoRegistro === 'salida' ? 'salida registrada' : 'entrada registrada';
+          emoji = '✅';
       }
 
       agregarEvento({
         user: empleadoData?.nombre || usuarioOCorreo,
         action: `${tipoMovimiento === 'SALIDA' ? 'Salida' : 'Entrada'} registrada (${estadoTexto}) - PIN`,
-        type: "success",
+        type: tipoEvento,
       });
 
-      // Mensaje de voz
-      const successMessage = `Registro exitoso, ${empleadoData?.nombre || 'empleado'}`;
-      const utterance = new SpeechSynthesisUtterance(successMessage);
+      // Mensaje de voz con información de la clasificación
+      let voiceMessage = `Registro exitoso, ${empleadoData?.nombre || 'empleado'}`;
+      if (clasificacionFinal === 'retardo') {
+        voiceMessage = `Registro con retardo, ${empleadoData?.nombre || 'empleado'}`;
+      } else if (clasificacionFinal === 'falta') {
+        voiceMessage = `Registro fuera de tolerancia, ${empleadoData?.nombre || 'empleado'}`;
+      } else if (clasificacionFinal === 'salida_temprana') {
+        voiceMessage = `Salida anticipada, ${empleadoData?.nombre || 'empleado'}`;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(voiceMessage);
       utterance.lang = "es-MX";
       utterance.rate = 0.9;
       window.speechSynthesis.speak(utterance);
@@ -495,17 +695,20 @@ export default function PinModal({ onClose, onSuccess }) {
         hora: data.data?.fecha_registro
           ? new Date(data.data.fecha_registro).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
           : horaActual,
-        estado: data.data?.estado || 'puntual',
+        estado: data.data?.estado || estadoActual?.estadoHorario || 'puntual',
         estadoTexto: estadoTexto,
+        clasificacion: clasificacionFinal,
       });
 
-      // Callback de éxito
+      // Callback de éxito con clasificación
       if (onSuccess) {
         onSuccess({
           empleado: empleadoData,
           tipo_movimiento: tipoMovimiento,
           hora: horaActual,
           estado: data.data?.estado,
+          clasificacion: clasificacionFinal,
+          dispositivo_origen: 'escritorio',
         });
       }
 
@@ -673,8 +876,22 @@ export default function PinModal({ onClose, onSuccess }) {
             >
               {result.success ? (
                 <>
-                  <CheckCircle className="w-16 h-16 mx-auto mb-3 text-green-600 dark:text-green-400" />
-                  <p className="text-green-800 dark:text-green-300 font-bold text-lg mb-1">
+                  {/* Icono según clasificación */}
+                  {result.clasificacion === 'retardo' || result.clasificacion === 'salida_temprana' ? (
+                    <AlertTriangle className="w-16 h-16 mx-auto mb-3 text-yellow-600 dark:text-yellow-400" />
+                  ) : result.clasificacion === 'falta' ? (
+                    <XCircle className="w-16 h-16 mx-auto mb-3 text-red-600 dark:text-red-400" />
+                  ) : (
+                    <CheckCircle className="w-16 h-16 mx-auto mb-3 text-green-600 dark:text-green-400" />
+                  )}
+
+                  <p className={`font-bold text-lg mb-1 ${
+                    result.clasificacion === 'falta'
+                      ? "text-red-800 dark:text-red-300"
+                      : result.clasificacion === 'retardo' || result.clasificacion === 'salida_temprana'
+                      ? "text-yellow-800 dark:text-yellow-300"
+                      : "text-green-800 dark:text-green-300"
+                  }`}>
                     Asistencia Registrada
                   </p>
                   {result.empleado?.nombre && (
@@ -688,11 +905,18 @@ export default function PinModal({ onClose, onSuccess }) {
                         {result.tipoMovimiento === "ENTRADA" ? "Entrada" : "Salida"}{" "}
                         registrada {result.hora && `a las ${result.hora}`}
                       </p>
+                      {/* Badge de clasificación */}
                       <span
                         className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${
-                          result.estado === "puntual"
+                          result.clasificacion === "entrada" || result.clasificacion === "salida_puntual"
                             ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
-                            : result.estado === "retardo"
+                            : result.clasificacion === "retardo" || result.clasificacion === "salida_temprana"
+                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
+                            : result.clasificacion === "falta"
+                            ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
+                            : result.estado === "puntual"
+                            ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
+                            : result.estado === "retardo" || result.estado === "temprana"
                             ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
                             : result.estado === "falta"
                             ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"

@@ -37,6 +37,7 @@ export default function AsistenciaHuella({
   const [result, setResult] = useState(null); // { success: boolean, message: string, empleado?: object }
   const [countdown, setCountdown] = useState(6); // Contador de 6 segundos
   const [loginHabilitado, setLoginHabilitado] = useState(false); // Prevenir login automático
+  const [identificando, setIdentificando] = useState(false); // Estado para mostrar pantalla de "Identificando..."
 
   const [messages, setMessages] = useState([]);
 
@@ -431,6 +432,7 @@ export default function AsistenciaHuella({
     closeModalRef.current = () => {
       // SIEMPRE deshabilitar login al cerrar para prevenir llamadas automáticas
       setLoginHabilitado(false);
+      setIdentificando(false);
 
       if (backgroundModeRef.current) {
         // En modo background, solo ocultar el modal y reiniciar
@@ -455,8 +457,10 @@ export default function AsistenciaHuella({
   useEffect(() => {
     // Activar countdown cuando hay éxito O cuando no puede registrar (fuera de horario)
     // O error con empleado identificado O cualquier error en modo background
+    // O huella no reconocida
     const debeIniciarCountdown = result?.success ||
       result?.noPuedeRegistrar ||
+      result?.noReconocida || // Huella no reconocida
       (result && !result.success && result.empleadoId) ||
       (backgroundMode && result && !result.success); // En background, cerrar automáticamente cualquier error
 
@@ -633,6 +637,9 @@ export default function AsistenciaHuella({
 
         console.log("📋 No puede registrar:", resultadoNoPuedeRegistrar);
 
+        // Desactivar pantalla de identificando
+        setIdentificando(false);
+
         // IMPORTANTE: Establecer el resultado PRIMERO, luego mostrar el modal
         setResult(resultadoNoPuedeRegistrar);
 
@@ -737,6 +744,9 @@ export default function AsistenciaHuella({
       console.log("📋 Asistencia registrada exitosamente:", nuevoResultado);
       console.log("📋 backgroundMode:", backgroundMode, "- Mostrando modal...");
 
+      // Desactivar pantalla de identificando
+      setIdentificando(false);
+
       // IMPORTANTE: Establecer el resultado PRIMERO, luego mostrar el modal
       setResult(nuevoResultado);
 
@@ -774,6 +784,9 @@ export default function AsistenciaHuella({
       };
 
       console.log("📋 Error en registro:", resultadoError);
+
+      // Desactivar pantalla de identificando
+      setIdentificando(false);
 
       // IMPORTANTE: Establecer el resultado PRIMERO, luego mostrar el modal
       setResult(resultadoError);
@@ -923,8 +936,11 @@ export default function AsistenciaHuella({
         console.log("📨 captureComplete recibido:", data);
 
         if (data.result === "identificationSuccess") {
-          // En modo background, NO mostrar modal aquí - esperar al resultado final
-          // El modal se mostrará cuando setResult sea llamado en registrarAsistencia
+          // Mostrar inmediatamente pantalla de "Identificando..." en modo background
+          if (backgroundMode) {
+            setIdentificando(true);
+            setShowModal(true);
+          }
 
           // Huella identificada - registrar asistencia
           addMessage(`✅ Huella reconocida: ${data.userId}`, "success");
@@ -937,6 +953,7 @@ export default function AsistenciaHuella({
             registrarAsistencia(empleadoId, data.matchScore || 100);
           } else {
             addMessage("❌ No se pudo extraer el ID del empleado", "error");
+            setIdentificando(false);
 
             // En modo background, mostrar modal con el error
             if (backgroundMode) {
@@ -952,18 +969,30 @@ export default function AsistenciaHuella({
           }
 
         } else if (data.result === "identificationFailed") {
-          // Huella no reconocida - reiniciar silenciosamente sin mostrar modal
-          console.log("⚠️ Huella no reconocida, reiniciando identificación...");
+          // Huella no reconocida - mostrar mensaje y cerrar automáticamente
+          console.log("⚠️ Huella no reconocida");
+          addMessage("❌ Huella no reconocida en el sistema", "error");
+
+          // Mostrar modal con mensaje de error
+          if (backgroundMode) {
+            setShowModal(true);
+          }
+
+          setResult({
+            success: false,
+            message: "Huella no reconocida en el sistema",
+            noReconocida: true, // Marcador especial para huella no identificada
+          });
+
           setCurrentOperation("None");
           setStatus("ready");
           hasStartedIdentification.current = false;
-          // Reiniciar identificación automáticamente después de un breve delay
-          setTimeout(() => {
-            if (wsRef.current?.readyState === WebSocket.OPEN) {
-              startIdentification();
-            }
-          }, 500);
         }
+        break;
+
+      case "cacheReloaded":
+        addMessage(`✅ Caché actualizado: ${data.templatesCount} huellas`, "success");
+        console.log("[CACHE] Caché de templates recargado:", data);
         break;
 
       case "error":
@@ -1149,7 +1178,25 @@ export default function AsistenciaHuella({
             </div>
 
             {/* Main Action Area */}
-            {!result ? (
+            {identificando ? (
+              /* Pantalla de Identificando... */
+              <div className="bg-gray-50 dark:bg-slate-700/50 rounded-xl p-6">
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-8 text-center">
+                  <div className="relative">
+                    <Fingerprint className="w-24 h-24 mx-auto mb-4 text-blue-600 dark:text-blue-400 animate-pulse" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-32 h-32 border-4 border-blue-300 dark:border-blue-600 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin"></div>
+                    </div>
+                  </div>
+                  <p className="text-gray-900 dark:text-white font-bold text-xl mb-2 mt-4">
+                    Identificando...
+                  </p>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm">
+                    Por favor espera mientras verificamos tu identidad
+                  </p>
+                </div>
+              </div>
+            ) : !result ? (
               <div className="bg-gray-50 dark:bg-slate-700/50 rounded-xl p-6">
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 text-center mb-4">
                   <Fingerprint
@@ -1349,6 +1396,39 @@ export default function AsistenciaHuella({
                         </span>
                       </div>
                     )}
+                  </>
+                ) : result.noReconocida ? (
+                  /* Huella no reconocida */
+                  <>
+                    <XCircle className="w-16 h-16 mx-auto mb-3 text-red-600 dark:text-red-400" />
+                    <p className="text-red-800 dark:text-red-300 font-bold text-lg mb-2">
+                      Huella No Reconocida
+                    </p>
+                    <p className="text-gray-700 dark:text-gray-300 text-sm mb-4">
+                      Tu huella no se encuentra registrada en el sistema
+                    </p>
+
+                    {/* Contador de cierre automático */}
+                    <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm mb-4">
+                      <Timer className="w-4 h-4" />
+                      <span>
+                        Esta ventana se cerrará en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setResult(null);
+                        hasStartedIdentification.current = false;
+                        // Reiniciar identificación automáticamente
+                        if (connected && readerConnected) {
+                          setTimeout(() => startIdentification(), 300);
+                        }
+                      }}
+                      className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                      Intentar de nuevo
+                    </button>
                   </>
                 ) : (
                   /* Error real */

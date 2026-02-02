@@ -195,7 +195,11 @@ export const AuthProvider = ({ children }) => {
           console.log("📋 Buscando empleado por empleado_id:", usuario.empleado_id);
           const datosCompletos = await getEmpleadoConHorario(usuario);
           if (datosCompletos) {
-            empleadoCompleto = { ...usuario, ...datosCompletos };
+            empleadoCompleto = {
+              ...usuario,
+              ...datosCompletos,
+              es_empleado: true, // Siempre marcar como empleado en auth biométrica
+            };
           }
         }
         // Si no tiene empleado_id pero tiene id (usuario_id), buscar empleado por usuario_id
@@ -239,6 +243,12 @@ export const AuthProvider = ({ children }) => {
           "⚠️ No se pudieron obtener datos completos del empleado:",
           err,
         );
+      }
+
+      // Asegurar que siempre esté marcado como empleado en auth biométrica
+      // (solo empleados pueden tener huella/rostro registrado)
+      if (!empleadoCompleto.es_empleado) {
+        empleadoCompleto.es_empleado = true;
       }
 
       console.log("✅ Datos completos del empleado:", empleadoCompleto);

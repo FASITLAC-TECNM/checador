@@ -1,4 +1,5 @@
-import { Building2, Info } from "lucide-react";
+import { useState } from "react";
+import { Building2, Info, X, HelpCircle } from "lucide-react";
 import StepIndicator from "./StepIndicator";
 
 export default function AffiliationStep({
@@ -8,6 +9,8 @@ export default function AffiliationStep({
   onPrevious,
   onShowWelcome,
 }) {
+  const [showHelpModal, setShowHelpModal] = useState(false);
+
   return (
     <div className="h-screen w-screen bg-bg-primary flex flex-col overflow-hidden">
       {/* Barra de progreso fija */}
@@ -61,7 +64,10 @@ export default function AffiliationStep({
 
             <div className="text-center text-sm text-text-secondary pt-4">
               ¿No conoce el ID de su empresa?{" "}
-              <button className="text-blue-600 hover:underline font-medium">
+              <button
+                onClick={() => setShowHelpModal(true)}
+                className="text-blue-600 hover:underline font-medium"
+              >
                 Click aquí
               </button>{" "}
               para soporte
@@ -113,6 +119,78 @@ export default function AffiliationStep({
           </button>
         </div>
       </div>
+
+      {/* Modal de ayuda para conocer el ID de empresa */}
+      {showHelpModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-purple-600 to-purple-500 dark:from-purple-800 dark:to-purple-900 p-5">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <HelpCircle className="w-7 h-7 text-white" />
+                  <div>
+                    <h3 className="text-xl font-bold text-white">
+                      ¿Cómo obtener el ID?
+                    </h3>
+                    <p className="text-purple-100 dark:text-purple-200 text-sm mt-1">
+                      Sugerencias para conocer su ID de empresa
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowHelpModal(false)}
+                  className="text-white hover:bg-white/20 dark:hover:bg-white/10 rounded-lg p-2 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div className="p-5">
+              <ul className="space-y-3">
+                <li className="flex items-start gap-3 p-3 bg-bg-secondary rounded-lg border border-border-subtle">
+                  <span className="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                    1
+                  </span>
+                  <p className="text-text-primary text-sm">
+                    Revise el <strong>contrato de licencia</strong> con FASITLAC
+                  </p>
+                </li>
+                <li className="flex items-start gap-3 p-3 bg-bg-secondary rounded-lg border border-border-subtle">
+                  <span className="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                    2
+                  </span>
+                  <p className="text-text-primary text-sm">
+                    Revise el <strong>manual de usuario</strong> en el apartado
+                    "Creación de una empresa"
+                  </p>
+                </li>
+                <li className="flex items-start gap-3 p-3 bg-bg-secondary rounded-lg border border-border-subtle">
+                  <span className="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                    3
+                  </span>
+                  <p className="text-text-primary text-sm">
+                    Contacte al <strong>administrador del sistema</strong> en su
+                    institución/empresa
+                  </p>
+                </li>
+              </ul>
+            </div>
+
+            {/* Footer */}
+            <div className="bg-bg-secondary p-4 border-t border-border-subtle">
+              <button
+                onClick={() => setShowHelpModal(false)}
+                className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white rounded-xl font-bold transition-all"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

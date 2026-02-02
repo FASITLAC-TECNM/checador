@@ -620,6 +620,13 @@ export default function KioskScreen() {
               type: "success",
             });
           }}
+          onLoginRequest={(usuarioData) => {
+            // Login directo con los datos del usuario autenticado
+            console.log("🔐 Login directo desde PIN:", usuarioData);
+            setShowPinModal(false);
+            // Llamar directamente a handleLoginSuccess con los datos del usuario
+            handleLoginSuccess(usuarioData);
+          }}
         />
       )}
 

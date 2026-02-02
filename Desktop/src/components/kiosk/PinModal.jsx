@@ -1,9 +1,9 @@
-import { User, Lock, Eye, EyeOff, X, Clock, CheckCircle, XCircle, Loader2, Timer, AlertTriangle } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { User, Lock, Eye, EyeOff, X, Clock, CheckCircle, XCircle, Loader2, Timer, AlertTriangle, LogIn } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { API_CONFIG, fetchApi } from "../../config/apiEndPoint";
 import { agregarEvento } from "../../services/bitacoraService";
 
-export default function PinModal({ onClose, onSuccess }) {
+export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
   const [showPassword, setShowPassword] = useState(false);
   const [usuarioOCorreo, setUsuarioOCorreo] = useState("");
   const [pin, setPin] = useState("");
@@ -11,6 +11,15 @@ export default function PinModal({ onClose, onSuccess }) {
   const [result, setResult] = useState(null);
   const [countdown, setCountdown] = useState(6);
   const [errorMessage, setErrorMessage] = useState("");
+
+  // Refs para el countdown
+  const countdownRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+
+  // Mantener referencia actualizada de onClose
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   // Estados para lógica de asistencia
   const [horarioInfo, setHorarioInfo] = useState(null);
@@ -37,41 +46,60 @@ export default function PinModal({ onClose, onSuccess }) {
   };
 
   /**
-   * Fusiona bloques consecutivos del horario.
-   * Si el fin de un bloque coincide con el inicio del siguiente, se fusionan.
-   * @param {Array} bloques - Array de objetos {entrada: "HH:MM", salida: "HH:MM"}
-   * @returns {Array} - Array de bloques fusionados
+   * Agrupa turnos concatenados del horario.
+   * Si la diferencia entre salida de un turno y entrada del siguiente es <= 15 min,
+   * se consideran parte del mismo grupo (turno continuo).
+   * @param {Array} turnos - Array de objetos {entrada: "HH:MM", salida: "HH:MM"}
+   * @returns {Array} - Array de grupos, donde cada grupo es un array de turnos
    */
-  const fusionarBloquesConsecutivos = (bloques) => {
-    if (!bloques || bloques.length === 0) return [];
-    if (bloques.length === 1) return bloques;
+  const agruparTurnosConcatenados = (turnos) => {
+    if (!turnos || turnos.length === 0) return [];
+    if (turnos.length === 1) return [[turnos[0]]];
 
-    // Ordenar bloques por hora de entrada
-    const bloquesOrdenados = [...bloques].sort((a, b) => {
+    // Ordenar turnos por hora de entrada
+    const turnosOrdenados = [...turnos].sort((a, b) => {
       return horaAMinutos(a.entrada) - horaAMinutos(b.entrada);
     });
 
-    const bloquesFusionados = [];
-    let bloqueActual = { ...bloquesOrdenados[0] };
+    const grupos = [];
+    let grupoActual = [turnosOrdenados[0]];
 
-    for (let i = 1; i < bloquesOrdenados.length; i++) {
-      const bloqueSiguiente = bloquesOrdenados[i];
+    for (let i = 1; i < turnosOrdenados.length; i++) {
+      const turnoAnterior = grupoActual[grupoActual.length - 1];
+      const turnoActual = turnosOrdenados[i];
 
-      // Verificar si son consecutivos (fin del actual = inicio del siguiente)
-      if (bloqueActual.salida === bloqueSiguiente.entrada) {
-        // Fusionar: mantener entrada del actual, actualizar salida al del siguiente
-        bloqueActual.salida = bloqueSiguiente.salida;
+      const minutosSalida = horaAMinutos(turnoAnterior.salida);
+      const minutosEntrada = horaAMinutos(turnoActual.entrada);
+      const diferencia = minutosEntrada - minutosSalida;
+
+      // Si la diferencia es <= 15 min, se considera el mismo grupo (turno continuo)
+      if (diferencia <= 15) {
+        grupoActual.push(turnoActual);
       } else {
-        // No son consecutivos, guardar el actual y empezar uno nuevo
-        bloquesFusionados.push(bloqueActual);
-        bloqueActual = { ...bloqueSiguiente };
+        grupos.push(grupoActual);
+        grupoActual = [turnoActual];
       }
     }
 
-    // Agregar el último bloque
-    bloquesFusionados.push(bloqueActual);
+    grupos.push(grupoActual);
+    return grupos; // [[turno1, turno2], [turno3]] = 2 grupos
+  };
 
-    return bloquesFusionados;
+  /**
+   * Obtiene la hora de entrada y salida de un grupo de turnos.
+   * Entrada: hora de entrada del primer turno del grupo
+   * Salida: hora de salida del último turno del grupo
+   * @param {Array} grupo - Array de turnos que forman un grupo
+   * @returns {Object} - {entrada: "HH:MM", salida: "HH:MM"}
+   */
+  const getEntradaSalidaGrupo = (grupo) => {
+    if (!grupo || grupo.length === 0) {
+      return { entrada: '00:00', salida: '23:59' };
+    }
+    return {
+      entrada: grupo[0].entrada,
+      salida: grupo[grupo.length - 1].salida
+    };
   };
 
   // === FUNCIONES DE OBTENCIÓN DE DATOS ===
@@ -141,25 +169,32 @@ export default function PinModal({ onClose, onSuccess }) {
       }
 
       if (!turnosHoy.length) {
-        return { trabaja: false, turnos: [], turnosOriginales: [] };
+        return { trabaja: false, turnos: [], gruposTurnos: [], turnosOriginales: [] };
       }
 
-      // Guardar turnos originales antes de fusionar (para referencia)
+      // Guardar turnos originales antes de agrupar (para referencia)
       const turnosOriginales = [...turnosHoy];
 
-      // Fusionar bloques consecutivos
-      const turnosFusionados = fusionarBloquesConsecutivos(turnosHoy);
+      // Agrupar turnos concatenados (diferencia <= 15 min = mismo grupo)
+      const gruposTurnos = agruparTurnosConcatenados(turnosHoy);
 
       console.log('Turnos originales:', turnosOriginales);
-      console.log('Turnos fusionados:', turnosFusionados);
+      console.log('Grupos de turnos:', gruposTurnos);
+
+      // Obtener entrada del primer grupo y salida del último grupo
+      const primerGrupo = gruposTurnos[0];
+      const ultimoGrupo = gruposTurnos[gruposTurnos.length - 1];
+      const entradaGeneral = getEntradaSalidaGrupo(primerGrupo).entrada;
+      const salidaGeneral = getEntradaSalidaGrupo(ultimoGrupo).salida;
 
       return {
         trabaja: true,
-        turnos: turnosFusionados, // Usamos los turnos fusionados
-        turnosOriginales: turnosOriginales, // Guardamos los originales por referencia
-        entrada: turnosFusionados[0].entrada,
-        salida: turnosFusionados[turnosFusionados.length - 1].salida,
-        tipo: turnosFusionados.length > 1 ? 'quebrado' : 'continuo'
+        turnos: turnosOriginales, // Turnos individuales originales
+        gruposTurnos: gruposTurnos, // Grupos de turnos para la lógica de asistencia
+        turnosOriginales: turnosOriginales,
+        entrada: entradaGeneral,
+        salida: salidaGeneral,
+        tipo: gruposTurnos.length > 1 ? 'quebrado' : 'continuo'
       };
     } catch (err) {
       console.error('Error obteniendo horario:', err);
@@ -261,63 +296,64 @@ export default function PinModal({ onClose, onSuccess }) {
 
   /**
    * Valida si el empleado puede registrar entrada y determina la clasificación:
-   * - 'entrada': Llegada dentro de la tolerancia permitida
-   * - 'retardo': Llegada después del tiempo máximo de tolerancia de entrada
-   * - 'falta': No registra entrada dentro del tiempo límite definido por minutos_falta
+   * - 'entrada': Llegada dentro de la tolerancia permitida (puntual)
+   * - 'retardo': Llegada después del tiempo de retardo pero antes de falta
+   * - 'falta': Llegada después del tiempo de falta pero antes del fin de turno
    */
   const validarEntrada = (horario, tolerancia, minutosActuales) => {
     let hayTurnoFuturo = false;
-    const aplicaToleranciaEntrada = tolerancia.aplica_tolerancia_entrada !== false;
 
-    for (const turno of horario.turnos) {
-      const minEntrada = horaAMinutos(turno.entrada);
-      const minSalida = horaAMinutos(turno.salida);
+    // Recorrer cada grupo de turnos del día
+    for (const grupo of horario.gruposTurnos) {
+      const { entrada: horaEntrada, salida: horaSalida } = getEntradaSalidaGrupo(grupo);
 
-      // Calcular ventanas de tiempo
-      const ventanaAnticipada = minEntrada - (tolerancia.minutos_anticipado_max || 60);
-      const ventanaRetardo = minEntrada + (aplicaToleranciaEntrada ? tolerancia.minutos_retardo : 0);
-      const ventanaFalta = minEntrada + tolerancia.minutos_falta;
+      const minEntrada = horaAMinutos(horaEntrada);
+      const minSalida = horaAMinutos(horaSalida);
 
-      // Verificar si hay un turno futuro
-      if (minutosActuales < ventanaAnticipada) {
+      // Ventanas de tiempo basadas en tolerancia del sistema
+      const ventanaInicio = minEntrada - (tolerancia.minutos_anticipado_max || 60);
+      const ventanaRetardo = minEntrada + (tolerancia.minutos_retardo || 10);
+      const ventanaFalta = minEntrada + (tolerancia.minutos_falta || 30);
+
+      // Verificar si hay un grupo/turno futuro
+      if (minutosActuales < ventanaInicio) {
         hayTurnoFuturo = true;
         continue;
       }
 
-      // Caso 1: Llegada puntual (dentro de tolerancia de entrada)
-      // Desde registro anticipado hasta fin de tolerancia de retardo
-      if (minutosActuales >= ventanaAnticipada && minutosActuales <= ventanaRetardo) {
+      // PUNTUAL: dentro del rango anticipado hasta retardo
+      if (minutosActuales >= ventanaInicio && minutosActuales <= ventanaRetardo) {
         return {
           puedeRegistrar: true,
           tipoRegistro: 'entrada',
-          clasificacion: 'entrada', // Clasificación según requisitos
+          clasificacion: 'entrada',
           estadoHorario: 'puntual',
           jornadaCompleta: false,
-          turnoActual: turno
+          grupoActual: grupo
         };
       }
 
-      // Caso 2: Retardo (después de tolerancia pero antes de falta)
+      // RETARDO: después del tiempo de retardo pero antes de falta
       if (minutosActuales > ventanaRetardo && minutosActuales <= ventanaFalta) {
         return {
           puedeRegistrar: true,
           tipoRegistro: 'entrada',
-          clasificacion: 'retardo', // Clasificación según requisitos
+          clasificacion: 'retardo',
           estadoHorario: 'retardo',
           jornadaCompleta: false,
-          turnoActual: turno
+          grupoActual: grupo
         };
       }
 
-      // Caso 3: Falta (después del límite de falta pero aún en horario de trabajo)
+      // FALTA: después del tiempo de falta pero antes de fin de turno
       if (minutosActuales > ventanaFalta && minutosActuales <= minSalida) {
         return {
           puedeRegistrar: true,
           tipoRegistro: 'entrada',
-          clasificacion: 'falta', // Clasificación según requisitos
+          clasificacion: 'falta',
           estadoHorario: 'falta',
           jornadaCompleta: false,
-          turnoActual: turno
+          grupoActual: grupo
         };
       }
     }
@@ -334,48 +370,98 @@ export default function PinModal({ onClose, onSuccess }) {
 
   /**
    * Valida si el empleado puede registrar salida y determina la clasificación:
-   * - 'salida_puntual': Salida dentro de la tolerancia de salida permitida
-   * - 'salida_temprana': Salida antes del horario (fuera de la tolerancia permitida)
+   * - 'salida_puntual': Salida dentro de la ventana de salida permitida
+   * - 'salida_temprana': Salida antes de la ventana (pero cumple tiempo mínimo)
+   * - 'tiempo_insuficiente': No ha trabajado el tiempo mínimo requerido
    */
-  const validarSalida = (horario, tolerancia, minutosActuales) => {
-    const aplicaToleranciaSalida = tolerancia.aplica_tolerancia_salida !== false;
+  const validarSalida = (horario, tolerancia, minutosActuales, ultimoRegistro = null) => {
+    // Validación: Tiempo mínimo trabajado basado en TOLERANCIA
+    if (ultimoRegistro && ultimoRegistro.tipo === 'entrada') {
+      const ahora = new Date();
+      const horaUltimoRegistro = ultimoRegistro.fecha_registro instanceof Date
+        ? ultimoRegistro.fecha_registro
+        : new Date(ultimoRegistro.fecha_registro);
+      const diferenciaMinutos = (ahora - horaUltimoRegistro) / 1000 / 60;
 
-    for (const turno of horario.turnos) {
-      const minEntrada = horaAMinutos(turno.entrada);
-      const minSalida = horaAMinutos(turno.salida);
+      const totalRegistros = ultimoRegistro.totalRegistrosHoy || 1;
+      const gruposCompletados = Math.floor(totalRegistros / 2);
 
-      // Verificar que estamos dentro del rango del turno (después de entrada)
-      if (minutosActuales < minEntrada) {
-        continue;
+      // Obtener el grupo actual basado en registros completados
+      const grupoActual = horario.gruposTurnos[gruposCompletados] || horario.gruposTurnos[0];
+      const { entrada: horaEntrada, salida: horaSalida } = getEntradaSalidaGrupo(grupoActual);
+
+      const minEntrada = horaAMinutos(horaEntrada);
+      const minSalida = horaAMinutos(horaSalida);
+      const duracionTurno = minSalida - minEntrada;
+
+      // USAR TOLERANCIA DEL SISTEMA
+      const toleranciaSalidaAnticipada = tolerancia.aplica_tolerancia_salida === false
+        ? 0
+        : (tolerancia.minutos_anticipado_salida || tolerancia.minutos_retardo || 10);
+
+      const tiempoMinimoRequerido = Math.max(5, duracionTurno - toleranciaSalidaAnticipada);
+
+      // Si no ha trabajado el tiempo mínimo, NO puede salir
+      if (diferenciaMinutos < tiempoMinimoRequerido) {
+        const minutosRestantes = Math.ceil(tiempoMinimoRequerido - diferenciaMinutos);
+        return {
+          puedeRegistrar: false,
+          tipoRegistro: 'salida',
+          clasificacion: null,
+          estadoHorario: 'tiempo_insuficiente',
+          jornadaCompleta: false,
+          mensajeEspera: `Espera ${minutosRestantes} min más`,
+          minutosRestantes: minutosRestantes
+        };
       }
+    }
 
-      // Calcular ventanas de salida
-      // Tolerancia de salida: se puede salir X minutos antes sin penalización
-      const toleranciaSalidaMinutos = aplicaToleranciaSalida ? (tolerancia.minutos_retardo || 10) : 0;
-      const ventanaSalidaPuntualInicio = minSalida - toleranciaSalidaMinutos;
-      const ventanaSalidaFin = minSalida + 30; // Margen después de hora de salida
+    // Validación de ventana de salida
+    const toleranciaSalida = tolerancia?.aplica_tolerancia_salida === false
+      ? 0
+      : (tolerancia?.minutos_anticipado_salida || tolerancia?.minutos_retardo || 10);
 
-      // Caso 1: Salida puntual (dentro de la tolerancia de salida)
-      if (minutosActuales >= ventanaSalidaPuntualInicio && minutosActuales <= ventanaSalidaFin) {
+    for (const grupo of horario.gruposTurnos) {
+      const { salida: horaSalida, entrada: horaEntrada } = getEntradaSalidaGrupo(grupo);
+      const minSalida = horaAMinutos(horaSalida);
+      const minEntrada = horaAMinutos(horaEntrada);
+
+      const ventanaSalidaInicio = minSalida - toleranciaSalida;
+      const ventanaSalidaFin = minSalida + 5; // 5 min después de hora de salida
+
+      // Salida puntual: dentro de la ventana de salida
+      if (minutosActuales >= ventanaSalidaInicio && minutosActuales <= ventanaSalidaFin) {
         return {
           puedeRegistrar: true,
           tipoRegistro: 'salida',
-          clasificacion: 'salida_puntual', // Clasificación según requisitos
+          clasificacion: 'salida_puntual',
           estadoHorario: 'puntual',
           jornadaCompleta: false,
-          turnoActual: turno
+          grupoActual: grupo
         };
       }
 
-      // Caso 2: Salida temprana (antes de la tolerancia de salida)
-      if (minutosActuales >= minEntrada && minutosActuales < ventanaSalidaPuntualInicio) {
+      // Salida temprana: antes de la ventana pero después de la entrada
+      if (minutosActuales >= minEntrada && minutosActuales < ventanaSalidaInicio) {
         return {
           puedeRegistrar: true,
           tipoRegistro: 'salida',
-          clasificacion: 'salida_temprana', // Clasificación según requisitos
+          clasificacion: 'salida_temprana',
           estadoHorario: 'temprana',
           jornadaCompleta: false,
-          turnoActual: turno
+          grupoActual: grupo
+        };
+      }
+
+      // Salida tardía: después de la ventana de fin
+      if (minutosActuales > ventanaSalidaFin) {
+        return {
+          puedeRegistrar: true,
+          tipoRegistro: 'salida',
+          clasificacion: 'salida_puntual', // Se considera puntual aunque sea tarde
+          estadoHorario: 'puntual',
+          jornadaCompleta: false,
+          grupoActual: grupo
         };
       }
     }
@@ -392,11 +478,11 @@ export default function PinModal({ onClose, onSuccess }) {
   /**
    * Calcula el estado actual del registro basándose en:
    * - Último registro del día (si existe)
-   * - Horario con bloques fusionados
+   * - Horario con grupos de turnos concatenados
    * - Tolerancia según rol de mayor jerarquía
    */
   const calcularEstadoRegistro = useCallback((ultimo, horario, tolerancia) => {
-    if (!horario?.trabaja) {
+    if (!horario?.trabaja || !horario?.gruposTurnos?.length) {
       return {
         puedeRegistrar: false,
         tipoRegistro: 'entrada',
@@ -407,41 +493,43 @@ export default function PinModal({ onClose, onSuccess }) {
     }
 
     const ahora = getMinutosDelDia();
-    const totalTurnos = horario.turnos.length;
+    const totalGrupos = horario.gruposTurnos.length;
 
-    // Si no hay registros hoy, debe registrar entrada
+    // Si no hay registro previo hoy, debe registrar entrada
     if (!ultimo) {
       return validarEntrada(horario, tolerancia, ahora);
     }
 
     const registrosHoy = ultimo.totalRegistrosHoy || 1;
-    const turnosCompletados = Math.floor(registrosHoy / 2);
+    const gruposCompletados = Math.floor(registrosHoy / 2);
 
-    // Si el último registro fue entrada, debe registrar salida
+    // Si última fue ENTRADA → debe registrar SALIDA
     if (ultimo.tipo === 'entrada') {
-      return validarSalida(horario, tolerancia, ahora);
+      return validarSalida(horario, tolerancia, ahora, ultimo);
     }
 
-    // Si el último registro fue salida
+    // Si última fue SALIDA → debe registrar ENTRADA
     if (ultimo.tipo === 'salida') {
-      // Verificar si ya completó todos los turnos (bloques fusionados)
-      if (turnosCompletados >= totalTurnos) {
+      // Si completó todos los grupos de turnos
+      if (gruposCompletados >= totalGrupos) {
         const resultadoEntrada = validarEntrada(horario, tolerancia, ahora);
 
+        // Si no hay turno futuro, jornada completa
         if (!resultadoEntrada.hayTurnoFuturo) {
           return {
             puedeRegistrar: false,
             tipoRegistro: 'entrada',
             clasificacion: null,
             estadoHorario: 'completado',
-            jornadaCompleta: true
+            jornadaCompleta: true,
+            mensaje: 'Jornada completada por hoy'
           };
         }
 
         return resultadoEntrada;
       }
 
-      // Aún hay turnos pendientes, verificar si puede registrar entrada
+      // Aún hay grupos pendientes, verificar si puede registrar entrada
       return validarEntrada(horario, tolerancia, ahora);
     }
 
@@ -560,9 +648,11 @@ export default function PinModal({ onClose, onSuccess }) {
       if (estadoActual && !estadoActual.puedeRegistrar) {
         let mensaje = "No puedes registrar en este momento";
         if (estadoActual.jornadaCompleta) {
-          mensaje = "Ya completaste tu jornada de hoy";
+          mensaje = estadoActual.mensaje || "Ya completaste tu jornada de hoy";
         } else if (estadoActual.estadoHorario === 'fuera_horario') {
           mensaje = "Estás fuera del horario de registro";
+        } else if (estadoActual.estadoHorario === 'tiempo_insuficiente') {
+          mensaje = estadoActual.mensajeEspera || `Debes esperar ${estadoActual.minutosRestantes || 'más'} minutos`;
         }
 
         agregarEvento({
@@ -575,8 +665,11 @@ export default function PinModal({ onClose, onSuccess }) {
           success: false,
           message: mensaje,
           empleado: empleadoData,
+          usuario: usuarioData,
+          token: token,
           estadoHorario: estadoActual?.estadoHorario,
           noPuedeRegistrar: true,
+          minutosRestantes: estadoActual?.minutosRestantes,
         });
 
         return;
@@ -691,6 +784,8 @@ export default function PinModal({ onClose, onSuccess }) {
         success: true,
         message: "Asistencia registrada",
         empleado: empleadoData,
+        usuario: usuarioData,
+        token: token,
         tipoMovimiento: tipoMovimiento,
         hora: data.data?.fecha_registro
           ? new Date(data.data.fecha_registro).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
@@ -733,26 +828,38 @@ export default function PinModal({ onClose, onSuccess }) {
 
   // Countdown para cierre automático
   useEffect(() => {
-    if (result?.success || result?.noPuedeRegistrar) {
-      setCountdown(6);
-
-      const interval = setInterval(() => {
-        setCountdown((prev) => {
-          const newValue = prev - 1;
-          if (newValue <= 0) {
-            clearInterval(interval);
-            setTimeout(() => {
-              onClose();
-            }, 500);
-            return 0;
-          }
-          return newValue;
-        });
-      }, 1000);
-
-      return () => clearInterval(interval);
+    // Limpiar intervalo anterior si existe
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
     }
-  }, [result?.success, result?.noPuedeRegistrar, onClose]);
+
+    if (result?.success || result?.noPuedeRegistrar) {
+      let count = 6;
+      setCountdown(count);
+
+      countdownRef.current = setInterval(() => {
+        count -= 1;
+        setCountdown(count);
+
+        if (count <= 0) {
+          clearInterval(countdownRef.current);
+          countdownRef.current = null;
+          // Usar la referencia actualizada
+          if (onCloseRef.current) {
+            onCloseRef.current();
+          }
+        }
+      }, 1000);
+    }
+
+    return () => {
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+      }
+    };
+  }, [result?.success, result?.noPuedeRegistrar]);
 
   // Reintentar después de error
   const handleRetry = () => {
@@ -934,6 +1041,40 @@ export default function PinModal({ onClose, onSuccess }) {
                       Esta ventana se cerrará en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
                     </span>
                   </div>
+
+                  {/* Botón para iniciar sesión */}
+                  {onLoginRequest && (
+                    <button
+                      onClick={() => {
+                        if (countdownRef.current) {
+                          clearInterval(countdownRef.current);
+                          countdownRef.current = null;
+                        }
+                        // Construir objeto usuario con la estructura que espera SessionScreen
+                        const usuarioParaSesion = {
+                          // Datos del usuario autenticado
+                          ...result.usuario,
+                          // Datos del empleado
+                          ...result.empleado,
+                          // Asegurar que es_empleado esté definido
+                          es_empleado: true,
+                          // Asegurar empleado_id
+                          empleado_id: result.empleado?.id || result.usuario?.empleado_id,
+                          // Nombre para mostrar
+                          nombre: result.empleado?.nombre || result.usuario?.nombre || result.usuario?.username,
+                          // Token de autenticación
+                          token: result.token
+                        };
+                        console.log("📤 Datos para sesión:", usuarioParaSesion);
+                        onLoginRequest(usuarioParaSesion);
+                        onClose();
+                      }}
+                      className="mt-4 w-full py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
+                    >
+                      <LogIn className="w-4 h-4" />
+                      Iniciar Sesión
+                    </button>
+                  )}
                 </>
               ) : result.noPuedeRegistrar ? (
                 <>
@@ -953,11 +1094,15 @@ export default function PinModal({ onClose, onSuccess }) {
                     className={`inline-block mt-3 px-3 py-1 rounded-full text-xs font-semibold ${
                       result.estadoHorario === "completado"
                         ? "bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300"
+                        : result.estadoHorario === "tiempo_insuficiente"
+                        ? "bg-orange-100 text-orange-800 dark:bg-orange-800/30 dark:text-orange-300"
                         : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
                     }`}
                   >
                     {result.estadoHorario === "completado"
                       ? "Jornada completada"
+                      : result.estadoHorario === "tiempo_insuficiente"
+                      ? `Espera ${result.minutosRestantes || ''} min`
                       : "Fuera de horario"}
                   </span>
 
@@ -967,6 +1112,40 @@ export default function PinModal({ onClose, onSuccess }) {
                       Esta ventana se cerrará en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
                     </span>
                   </div>
+
+                  {/* Botón para iniciar sesión */}
+                  {onLoginRequest && (
+                    <button
+                      onClick={() => {
+                        if (countdownRef.current) {
+                          clearInterval(countdownRef.current);
+                          countdownRef.current = null;
+                        }
+                        // Construir objeto usuario con la estructura que espera SessionScreen
+                        const usuarioParaSesion = {
+                          // Datos del usuario autenticado
+                          ...result.usuario,
+                          // Datos del empleado
+                          ...result.empleado,
+                          // Asegurar que es_empleado esté definido
+                          es_empleado: true,
+                          // Asegurar empleado_id
+                          empleado_id: result.empleado?.id || result.usuario?.empleado_id,
+                          // Nombre para mostrar
+                          nombre: result.empleado?.nombre || result.usuario?.nombre || result.usuario?.username,
+                          // Token de autenticación
+                          token: result.token
+                        };
+                        console.log("📤 Datos para sesión:", usuarioParaSesion);
+                        onLoginRequest(usuarioParaSesion);
+                        onClose();
+                      }}
+                      className="mt-4 w-full py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
+                    >
+                      <LogIn className="w-4 h-4" />
+                      Iniciar Sesión
+                    </button>
+                  )}
                 </>
               ) : (
                 <>

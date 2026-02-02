@@ -330,16 +330,29 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
       // Ventanas de tiempo basadas en tolerancia del sistema
       const ventanaInicio = minEntrada - (tolerancia.minutos_anticipado_max || 60);
       const ventanaRetardo = minEntrada + (tolerancia.minutos_retardo || 10);
-      const ventanaFalta = minEntrada + (tolerancia.minutos_falta || 30);
+      // La ventana de falta NO puede exceder la hora de salida del turno
+      const ventanaFalta = Math.min(minEntrada + (tolerancia.minutos_falta || 30), minSalida);
+
+      console.log('   Grupo:', horaEntrada, '-', horaSalida);
+      console.log('   Ventanas: inicio=', ventanaInicio, 'retardo=', ventanaRetardo, 'falta=', ventanaFalta, 'salida=', minSalida);
+      console.log('   Hora actual:', minutosActuales);
+
+      // Si ya pasó la hora de salida de este turno, este grupo ya no es válido
+      if (minutosActuales > minSalida) {
+        console.log('   ⏭️ Turno ya terminó, saltando...');
+        continue;
+      }
 
       // Verificar si hay un grupo/turno futuro
       if (minutosActuales < ventanaInicio) {
         hayTurnoFuturo = true;
+        console.log('   ⏳ Turno futuro detectado');
         continue;
       }
 
       // PUNTUAL: dentro del rango anticipado hasta retardo
       if (minutosActuales >= ventanaInicio && minutosActuales <= ventanaRetardo) {
+        console.log('   ✅ Entrada puntual');
         return {
           puedeRegistrar: true,
           tipoRegistro: 'entrada',
@@ -352,6 +365,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
 
       // RETARDO: después del tiempo de retardo pero antes de falta
       if (minutosActuales > ventanaRetardo && minutosActuales <= ventanaFalta) {
+        console.log('   ⚠️ Entrada con retardo');
         return {
           puedeRegistrar: true,
           tipoRegistro: 'entrada',
@@ -364,6 +378,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
 
       // FALTA: después del tiempo de falta pero antes de fin de turno
       if (minutosActuales > ventanaFalta && minutosActuales <= minSalida) {
+        console.log('   ❌ Entrada como falta');
         return {
           puedeRegistrar: true,
           tipoRegistro: 'entrada',

@@ -13,6 +13,7 @@ import { cerrarSesion } from "../services/biometricAuthService";
 import { useConnectivity } from "../hooks/useConnectivity";
 import { ConnectionStatusPanel } from "../components/common/ConnectionStatus";
 import AsistenciaHuella from "../components/kiosk/AsistenciaHuella";
+import AsistenciaFacial from "../components/kiosk/AsistenciaFacial";
 import { useCamera } from "../context/CameraContext";
 
 export default function KioskScreen() {
@@ -63,6 +64,7 @@ export default function KioskScreen() {
   const [isClosing, setIsClosing] = useState(false);
   const hasProcessedCapture = useRef(false);
   const [showBiometricReader, setShowBiometricReader] = useState(false);
+  const [showAsistenciaFacial, setShowAsistenciaFacial] = useState(false);
 
   // Obtener métodos activos ordenados
   const getActiveMethods = () => {
@@ -294,13 +296,14 @@ export default function KioskScreen() {
 
   // Manejar login exitoso
   const handleLoginSuccess = (usuario) => {
-    console.log("✅ Login exitoso:", usuario);
+    console.log("Login exitoso:", usuario);
 
     // IMPORTANTE: Cerrar TODOS los modales antes de cambiar el estado de login
     setShowLoginModal(false);
     setShowBiometricReader(false);
     setShowCamera(false);
     setShowPinModal(false);
+    setShowAsistenciaFacial(false);
 
     setUsuarioActual(usuario);
     setIsLoggedIn(true);
@@ -316,13 +319,14 @@ export default function KioskScreen() {
 
   // Manejar logout
   const handleLogout = async () => {
-    console.log("🚪 Cerrando sesión");
+    console.log("Cerrando sesion");
     // IMPORTANTE: Cerrar todos los modales para evitar que queden abiertos
     setShowLoginModal(false);
     setShowBiometricReader(false);
     setShowCamera(false);
     setShowPinModal(false);
     setShowBitacora(false);
+    setShowAsistenciaFacial(false);
 
     // Limpiar estado de React
     setIsLoggedIn(false);
@@ -342,8 +346,7 @@ export default function KioskScreen() {
 
   // Manejadores para cada método de checado
   const handleFacialCheck = () => {
-    setCameraMode("asistencia");
-    setShowCamera(true);
+    setShowAsistenciaFacial(true);
   };
 
   const handleFingerprintCheck = () => {
@@ -373,13 +376,14 @@ export default function KioskScreen() {
 
   // Manejar solicitud de login desde el modal de asistencia
   const handleFingerprintLoginRequest = (usuarioCompleto) => {
-    console.log("🔐 Inicio de sesión desde huella - Datos completos:", usuarioCompleto);
+    console.log("Inicio de sesion desde huella - Datos completos:", usuarioCompleto);
 
     // IMPORTANTE: Cerrar TODOS los modales para evitar conflictos
     setShowBiometricReader(false);
     setShowLoginModal(false);
     setShowCamera(false);
     setShowPinModal(false);
+    setShowAsistenciaFacial(false);
 
     // Mensaje de bienvenida
     const nombreUsuario = usuarioCompleto?.nombre || usuarioCompleto?.username || "Usuario";
@@ -396,6 +400,47 @@ export default function KioskScreen() {
     agregarEvento({
       user: nombreUsuario,
       action: "Inicio de sesión exitoso - Huella digital",
+      type: "success",
+    });
+  };
+
+  // Manejar registro exitoso de facial
+  const handleFacialSuccess = async (data) => {
+    console.log("Asistencia registrada con facial:", data);
+
+    agregarEvento({
+      user: data.empleado?.nombre || "Empleado",
+      action: `${data.tipo_movimiento === 'SALIDA' ? 'Salida' : 'Entrada'} registrada - Reconocimiento facial`,
+      type: "success",
+    });
+  };
+
+  // Manejar solicitud de login desde el modal de asistencia facial
+  const handleFacialLoginRequest = (usuarioCompleto) => {
+    console.log("Inicio de sesion desde facial - Datos completos:", usuarioCompleto);
+
+    // Cerrar todos los modales
+    setShowAsistenciaFacial(false);
+    setShowBiometricReader(false);
+    setShowLoginModal(false);
+    setShowCamera(false);
+    setShowPinModal(false);
+
+    // Mensaje de bienvenida
+    const nombreUsuario = usuarioCompleto?.nombre || usuarioCompleto?.username || "Usuario";
+    const welcomeMessage = `Bienvenido ${nombreUsuario}`;
+    const utterance = new SpeechSynthesisUtterance(welcomeMessage);
+    utterance.lang = "es-MX";
+    utterance.rate = 0.9;
+    window.speechSynthesis.speak(utterance);
+
+    // Establecer usuario y abrir sesion
+    setUsuarioActual(usuarioCompleto);
+    setIsLoggedIn(true);
+
+    agregarEvento({
+      user: nombreUsuario,
+      action: "Inicio de sesion exitoso - Reconocimiento facial",
       type: "success",
     });
   };
@@ -672,6 +717,16 @@ export default function KioskScreen() {
           onClose={() => setShowBiometricReader(false)}
           onSuccess={handleFingerprintSuccess}
           onLoginRequest={handleFingerprintLoginRequest}
+        />
+      )}
+
+      {/* Modal de AsistenciaFacial para registro de asistencia con reconocimiento facial */}
+      {showAsistenciaFacial && (
+        <AsistenciaFacial
+          isOpen={showAsistenciaFacial}
+          onClose={() => setShowAsistenciaFacial(false)}
+          onSuccess={handleFacialSuccess}
+          onLoginRequest={handleFacialLoginRequest}
         />
       )}
     </div>

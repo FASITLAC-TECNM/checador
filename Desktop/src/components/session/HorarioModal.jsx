@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { X, Clock, Calendar, Sun, Coffee } from "lucide-react";
+import { X, Clock, Calendar, Sun, Coffee, Timer } from "lucide-react";
 import {
   getHorarioPorEmpleado,
   parsearHorario,
@@ -21,15 +21,11 @@ export default function HorarioModal({ onClose, usuario }) {
     { key: "Domingo", abrev: "DOM" },
   ];
 
-  // Obtener el día actual
   const hoy = new Date().getDay();
   const diaActualIndex = hoy === 0 ? 6 : hoy - 1;
-
-  // Obtener empleado_id
   const empleadoId = usuario?.empleado_id || usuario?.id || usuario?.empleadoInfo?.id;
   const token = localStorage.getItem('auth_token');
 
-  // Cargar horario
   useEffect(() => {
     const cargarHorario = async () => {
       if (!empleadoId) {
@@ -37,82 +33,66 @@ export default function HorarioModal({ onClose, usuario }) {
         setError('No se encontró ID del empleado');
         return;
       }
-
       try {
         setLoading(true);
         setError(null);
         const horario = await getHorarioPorEmpleado(empleadoId, token);
         setHorarioRaw(horario);
       } catch (err) {
-        console.error('Error cargando horario:', err.message);
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
-
     cargarHorario();
   }, [empleadoId, token]);
 
-  // Parsear horario
-  const horarioParsed = useMemo(() => {
-    if (!horarioRaw) return null;
-    return parsearHorario(horarioRaw);
-  }, [horarioRaw]);
-
-  // Resumen semanal
-  const resumen = useMemo(() => {
-    if (!horarioParsed) return { diasLaborales: 0, horasTotales: '0' };
-    return calcularResumenSemanal(horarioParsed);
-  }, [horarioParsed]);
-
-  // Obtener info del día
-  const getDiaInfo = (nombreDia) => {
-    if (!horarioParsed) return null;
-    return horarioParsed.find(d => d.day === nombreDia);
-  };
+  const horarioParsed = useMemo(() => horarioRaw ? parsearHorario(horarioRaw) : null, [horarioRaw]);
+  const resumen = useMemo(() => horarioParsed ? calcularResumenSemanal(horarioParsed) : { diasLaborales: 0, horasTotales: '0' }, [horarioParsed]);
+  const getDiaInfo = (nombreDia) => horarioParsed?.find(d => d.day === nombreDia);
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                <Calendar className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-white">Mi Horario Semanal</h3>
-                <p className="text-blue-100 text-sm">{resumen.horasTotales}h semanales · {resumen.diasLaborales} días laborales</p>
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 md:p-4 font-sans">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-5xl w-full overflow-hidden border border-slate-200 dark:border-slate-700">
+        
+        {/* Header Compacto Estilo Obscuro */}
+        <div className="bg-[#0f172a] px-5 py-4 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="p-2.5 bg-slate-800 rounded-lg shadow-inner">
+              <Calendar className="w-5 h-5 text-indigo-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Mi Horario Semanal</h3>
+              <div className="flex items-center gap-3 mt-0.5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                  <Timer className="w-3 h-3" /> {resumen.horasTotales} Horas Totales
+                </span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> {resumen.diasLaborales} Días Laborales
+                </span>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="text-white/80 hover:text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
           </div>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Body */}
-        <div className="p-6">
+        <div className="p-4 bg-slate-50/50 dark:bg-slate-800/50">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-text-secondary ml-4">Cargando horario...</p>
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
             </div>
           ) : error ? (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Clock className="w-8 h-8 text-amber-600" />
+            <div className="text-center py-16">
+              <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center mx-auto mb-3">
+                <Clock className="w-6 h-6 text-slate-400" />
               </div>
-              <p className="text-text-primary font-semibold mb-1">Sin horario asignado</p>
-              <p className="text-text-secondary text-sm">{error}</p>
+              <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest">{error}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-7 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
               {diasSemana.map((dia, index) => {
                 const diaInfo = getDiaInfo(dia.key);
                 const activo = diaInfo?.active || false;
@@ -122,65 +102,57 @@ export default function HorarioModal({ onClose, usuario }) {
                 return (
                   <div
                     key={dia.key}
-                    className={`
-                      rounded-xl p-4 transition-all min-h-[180px] flex flex-col
-                      ${esHoy
-                        ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-400'
-                        : activo
-                          ? 'bg-bg-secondary border border-border-subtle hover:border-blue-300'
-                          : 'bg-bg-tertiary/50 border border-transparent'
-                      }
+                    className={`relative rounded-lg p-3 flex flex-col min-h-[160px] md:min-h-[220px] transition-all border
+                      ${esHoy ? 'bg-white dark:bg-slate-800 border-indigo-500 shadow-md ring-1 ring-indigo-500/20' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'}
+                      ${!activo && !esHoy ? 'bg-slate-50 dark:bg-slate-800/50 opacity-80' : ''}
                     `}
                   >
-                    {/* Header del día */}
-                    <div className="text-center mb-3">
-                      <p className={`text-xs font-bold tracking-wider ${esHoy ? 'text-blue-100' : 'text-text-secondary'}`}>
+                    {/* Indicador HOY */}
+                    {esHoy && (
+                      <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-indigo-600 text-[9px] font-black text-white px-2 py-0.5 rounded shadow-sm flex items-center gap-1 uppercase tracking-tighter">
+                        <Sun className="w-2.5 h-2.5" /> Hoy
+                      </div>
+                    )}
+
+                    {/* Día Header */}
+                    <div className="text-center border-b border-slate-100 dark:border-slate-700 pb-2 mb-3">
+                      <p className={`text-[10px] font-black uppercase tracking-widest ${esHoy ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500'}`}>
                         {dia.abrev}
                       </p>
-                      <p className={`text-sm font-semibold mt-0.5 ${esHoy ? 'text-white' : 'text-text-primary'}`}>
+                      <p className={`text-xs font-bold ${esHoy ? 'text-slate-900 dark:text-slate-100' : 'text-slate-700 dark:text-slate-300'}`}>
                         {dia.key}
                       </p>
-                      {esHoy && (
-                        <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-white/20 rounded-full text-[10px] font-bold text-white">
-                          <Sun className="w-3 h-3" /> HOY
-                        </span>
-                      )}
                     </div>
 
-                    {/* Contenido */}
-                    <div className="flex-1 flex flex-col justify-center">
+                    {/* Turnos */}
+                    <div className="flex-1 space-y-2">
                       {activo ? (
-                        <div className="space-y-2">
-                          {turnos.map((turno, idx) => (
-                            <div
-                              key={idx}
-                              className={`
-                                text-center rounded-lg py-2 px-1
-                                ${esHoy ? 'bg-white/20' : 'bg-bg-primary border border-border-subtle'}
-                              `}
-                            >
-                              <p className={`text-xs font-medium ${esHoy ? 'text-blue-100' : 'text-text-secondary'}`}>
-                                {turnos.length > 1 ? `Turno ${idx + 1}` : 'Jornada'}
-                              </p>
-                              <p className={`text-sm font-bold ${esHoy ? 'text-white' : 'text-text-primary'}`}>
-                                {turno.entrada}
-                              </p>
-                              <p className={`text-[10px] ${esHoy ? 'text-blue-200' : 'text-text-secondary'}`}>a</p>
-                              <p className={`text-sm font-bold ${esHoy ? 'text-white' : 'text-text-primary'}`}>
-                                {turno.salida}
-                              </p>
-                            </div>
-                          ))}
-                          {/* Total horas del día */}
-                          <p className={`text-center text-xs font-semibold mt-1 ${esHoy ? 'text-blue-100' : 'text-blue-600'}`}>
-                            {diaInfo?.hours}
-                          </p>
-                        </div>
+                        <>
+                          <div className="space-y-1.5">
+                            {turnos.map((turno, idx) => (
+                              <div key={idx} className="bg-slate-50 dark:bg-slate-700/50 border border-slate-100 dark:border-slate-600 rounded-md p-1.5 text-center group">
+                                <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tighter leading-none mb-1">
+                                  {turnos.length > 1 ? `T${idx + 1}` : 'Turno'}
+                                </p>
+                                <div className="flex items-center justify-center gap-1">
+                                  <span className="text-[11px] font-black text-slate-800 dark:text-slate-200">{turno.entrada}</span>
+                                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold">-</span>
+                                  <span className="text-[11px] font-black text-slate-800 dark:text-slate-200">{turno.salida}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          {/* Horas Totales Día */}
+                          <div className="mt-auto pt-2 flex items-center justify-center gap-1 border-t border-slate-50 dark:border-slate-700">
+                            <Clock className="w-3 h-3 text-indigo-500 dark:text-indigo-400 opacity-70" />
+                            <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400">{diaInfo?.hours}</span>
+                          </div>
+                        </>
                       ) : (
-                        <div className="text-center">
-                          <Coffee className={`w-6 h-6 mx-auto mb-1 ${esHoy ? 'text-white/60' : 'text-text-disabled'}`} />
-                          <p className={`text-xs font-medium ${esHoy ? 'text-white/60' : 'text-text-disabled'}`}>
-                            Descanso
+                        <div className="flex-1 flex flex-col items-center justify-center opacity-30">
+                          <Coffee className="w-5 h-5 text-slate-400 dark:text-slate-500 mb-1" />
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 text-center leading-tight">
+                            Libre
                           </p>
                         </div>
                       )}
@@ -193,12 +165,12 @@ export default function HorarioModal({ onClose, usuario }) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 pb-6">
+        <div className="px-5 pb-5 pt-2 bg-slate-50/50 dark:bg-slate-800/50">
           <button
             onClick={onClose}
-            className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold transition-all"
+            className="w-full py-2.5 bg-[#0f172a] dark:bg-slate-200 hover:bg-slate-800 dark:hover:bg-slate-300 text-white dark:text-slate-900 rounded-lg font-bold text-xs uppercase tracking-[0.2em] transition-all shadow-lg active:scale-[0.99]"
           >
-            Cerrar
+            Cerrar Ventana
           </button>
         </div>
       </div>

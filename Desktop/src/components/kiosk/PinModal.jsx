@@ -120,7 +120,15 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
 
       if (!registrosHoy.length) return null;
 
-      const ultimo = registrosHoy[0];
+      // IMPORTANTE: Ordenar registros por fecha descendente para obtener el más reciente
+      const registrosOrdenados = registrosHoy.sort((a, b) => {
+        return new Date(b.fecha_registro) - new Date(a.fecha_registro);
+      });
+
+      const ultimo = registrosOrdenados[0];
+
+      console.log('📊 Registros de hoy:', registrosOrdenados.length);
+      console.log('📊 Último registro:', ultimo.tipo, '-', new Date(ultimo.fecha_registro).toLocaleTimeString());
 
       return {
         tipo: ultimo.tipo,
@@ -130,7 +138,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
           hour: '2-digit',
           minute: '2-digit'
         }),
-        totalRegistrosHoy: registrosHoy.length
+        totalRegistrosHoy: registrosOrdenados.length
       };
     } catch (err) {
       console.error('Error obteniendo último registro:', err);
@@ -299,12 +307,21 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
    * - 'entrada': Llegada dentro de la tolerancia permitida (puntual)
    * - 'retardo': Llegada después del tiempo de retardo pero antes de falta
    * - 'falta': Llegada después del tiempo de falta pero antes del fin de turno
+   * @param {Object} horario - Información del horario con gruposTurnos
+   * @param {Object} tolerancia - Configuración de tolerancia
+   * @param {number} minutosActuales - Minutos del día actual
+   * @param {number} grupoInicio - Índice del grupo desde donde empezar a validar (default 0)
    */
-  const validarEntrada = (horario, tolerancia, minutosActuales) => {
+  const validarEntrada = (horario, tolerancia, minutosActuales, grupoInicio = 0) => {
     let hayTurnoFuturo = false;
 
-    // Recorrer cada grupo de turnos del día
-    for (const grupo of horario.gruposTurnos) {
+    // Recorrer grupos de turnos desde el índice indicado
+    const gruposAValidar = horario.gruposTurnos.slice(grupoInicio);
+
+    console.log('🔍 Validando entrada desde grupo:', grupoInicio, 'de', horario.gruposTurnos.length);
+    console.log('🔍 Grupos a validar:', gruposAValidar.length);
+
+    for (const grupo of gruposAValidar) {
       const { entrada: horaEntrada, salida: horaSalida } = getEntradaSalidaGrupo(grupo);
 
       const minEntrada = horaAMinutos(horaEntrada);
@@ -375,6 +392,26 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
    * - 'tiempo_insuficiente': No ha trabajado el tiempo mínimo requerido
    */
   const validarSalida = (horario, tolerancia, minutosActuales, ultimoRegistro = null) => {
+    // Calcular el grupo actual basado en registros completados
+    const totalRegistros = ultimoRegistro?.totalRegistrosHoy || 1;
+    const gruposCompletados = Math.floor(totalRegistros / 2);
+
+    // El grupo actual es donde está trabajando (después de la última salida)
+    // Si totalRegistros es impar (ej: 1, 3, 5), está en medio de un turno
+    const grupoActualIndex = gruposCompletados;
+    const grupoActual = horario.gruposTurnos[grupoActualIndex] || horario.gruposTurnos[0];
+    const { entrada: horaEntrada, salida: horaSalida } = getEntradaSalidaGrupo(grupoActual);
+
+    const minEntrada = horaAMinutos(horaEntrada);
+    const minSalida = horaAMinutos(horaSalida);
+    const duracionTurno = minSalida - minEntrada;
+
+    console.log('🔍 Validando salida:');
+    console.log('   - Grupo actual:', grupoActualIndex);
+    console.log('   - Entrada grupo:', horaEntrada, '(', minEntrada, 'min)');
+    console.log('   - Salida grupo:', horaSalida, '(', minSalida, 'min)');
+    console.log('   - Hora actual:', minutosActuales, 'min');
+
     // Validación: Tiempo mínimo trabajado basado en TOLERANCIA
     if (ultimoRegistro && ultimoRegistro.tipo === 'entrada') {
       const ahora = new Date();
@@ -383,17 +420,6 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
         : new Date(ultimoRegistro.fecha_registro);
       const diferenciaMinutos = (ahora - horaUltimoRegistro) / 1000 / 60;
 
-      const totalRegistros = ultimoRegistro.totalRegistrosHoy || 1;
-      const gruposCompletados = Math.floor(totalRegistros / 2);
-
-      // Obtener el grupo actual basado en registros completados
-      const grupoActual = horario.gruposTurnos[gruposCompletados] || horario.gruposTurnos[0];
-      const { entrada: horaEntrada, salida: horaSalida } = getEntradaSalidaGrupo(grupoActual);
-
-      const minEntrada = horaAMinutos(horaEntrada);
-      const minSalida = horaAMinutos(horaSalida);
-      const duracionTurno = minSalida - minEntrada;
-
       // USAR TOLERANCIA DEL SISTEMA
       const toleranciaSalidaAnticipada = tolerancia.aplica_tolerancia_salida === false
         ? 0
@@ -401,9 +427,13 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
 
       const tiempoMinimoRequerido = Math.max(5, duracionTurno - toleranciaSalidaAnticipada);
 
+      console.log('   - Tiempo trabajado:', Math.round(diferenciaMinutos), 'min');
+      console.log('   - Tiempo mínimo requerido:', tiempoMinimoRequerido, 'min');
+
       // Si no ha trabajado el tiempo mínimo, NO puede salir
       if (diferenciaMinutos < tiempoMinimoRequerido) {
         const minutosRestantes = Math.ceil(tiempoMinimoRequerido - diferenciaMinutos);
+        console.log('   ❌ Tiempo insuficiente, faltan:', minutosRestantes, 'min');
         return {
           puedeRegistrar: false,
           tipoRegistro: 'salida',
@@ -416,56 +446,56 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
       }
     }
 
-    // Validación de ventana de salida
+    // Validación de ventana de salida - SOLO para el grupo actual
     const toleranciaSalida = tolerancia?.aplica_tolerancia_salida === false
       ? 0
       : (tolerancia?.minutos_anticipado_salida || tolerancia?.minutos_retardo || 10);
 
-    for (const grupo of horario.gruposTurnos) {
-      const { salida: horaSalida, entrada: horaEntrada } = getEntradaSalidaGrupo(grupo);
-      const minSalida = horaAMinutos(horaSalida);
-      const minEntrada = horaAMinutos(horaEntrada);
+    const ventanaSalidaInicio = minSalida - toleranciaSalida;
+    const ventanaSalidaFin = minSalida + 60; // 60 min después de hora de salida (más permisivo)
 
-      const ventanaSalidaInicio = minSalida - toleranciaSalida;
-      const ventanaSalidaFin = minSalida + 5; // 5 min después de hora de salida
+    console.log('   - Ventana salida:', ventanaSalidaInicio, '-', ventanaSalidaFin, 'min');
 
-      // Salida puntual: dentro de la ventana de salida
-      if (minutosActuales >= ventanaSalidaInicio && minutosActuales <= ventanaSalidaFin) {
-        return {
-          puedeRegistrar: true,
-          tipoRegistro: 'salida',
-          clasificacion: 'salida_puntual',
-          estadoHorario: 'puntual',
-          jornadaCompleta: false,
-          grupoActual: grupo
-        };
-      }
-
-      // Salida temprana: antes de la ventana pero después de la entrada
-      if (minutosActuales >= minEntrada && minutosActuales < ventanaSalidaInicio) {
-        return {
-          puedeRegistrar: true,
-          tipoRegistro: 'salida',
-          clasificacion: 'salida_temprana',
-          estadoHorario: 'temprana',
-          jornadaCompleta: false,
-          grupoActual: grupo
-        };
-      }
-
-      // Salida tardía: después de la ventana de fin
-      if (minutosActuales > ventanaSalidaFin) {
-        return {
-          puedeRegistrar: true,
-          tipoRegistro: 'salida',
-          clasificacion: 'salida_puntual', // Se considera puntual aunque sea tarde
-          estadoHorario: 'puntual',
-          jornadaCompleta: false,
-          grupoActual: grupo
-        };
-      }
+    // Salida puntual: dentro de la ventana de salida
+    if (minutosActuales >= ventanaSalidaInicio && minutosActuales <= ventanaSalidaFin) {
+      console.log('   ✅ Salida puntual');
+      return {
+        puedeRegistrar: true,
+        tipoRegistro: 'salida',
+        clasificacion: 'salida_puntual',
+        estadoHorario: 'puntual',
+        jornadaCompleta: false,
+        grupoActual: grupoActual
+      };
     }
 
+    // Salida tardía: después de la ventana de fin pero en el mismo día
+    if (minutosActuales > ventanaSalidaFin) {
+      console.log('   ✅ Salida tardía (permitida)');
+      return {
+        puedeRegistrar: true,
+        tipoRegistro: 'salida',
+        clasificacion: 'salida_puntual', // Se considera puntual aunque sea tarde
+        estadoHorario: 'puntual',
+        jornadaCompleta: false,
+        grupoActual: grupoActual
+      };
+    }
+
+    // Salida temprana: antes de la ventana pero después de la entrada
+    if (minutosActuales >= minEntrada && minutosActuales < ventanaSalidaInicio) {
+      console.log('   ⚠️ Salida temprana');
+      return {
+        puedeRegistrar: true,
+        tipoRegistro: 'salida',
+        clasificacion: 'salida_temprana',
+        estadoHorario: 'temprana',
+        jornadaCompleta: false,
+        grupoActual: grupoActual
+      };
+    }
+
+    console.log('   ❌ Fuera de horario');
     return {
       puedeRegistrar: false,
       tipoRegistro: 'salida',
@@ -483,6 +513,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
    */
   const calcularEstadoRegistro = useCallback((ultimo, horario, tolerancia) => {
     if (!horario?.trabaja || !horario?.gruposTurnos?.length) {
+      console.log('⚠️ No trabaja hoy o no hay grupos de turnos');
       return {
         puedeRegistrar: false,
         tipoRegistro: 'entrada',
@@ -495,27 +526,50 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
     const ahora = getMinutosDelDia();
     const totalGrupos = horario.gruposTurnos.length;
 
+    console.log('📊 Estado actual:');
+    console.log('   - Hora actual (minutos):', ahora);
+    console.log('   - Total grupos:', totalGrupos);
+    console.log('   - Último registro:', ultimo ? `${ultimo.tipo} - ${ultimo.hora}` : 'ninguno');
+
     // Si no hay registro previo hoy, debe registrar entrada
     if (!ultimo) {
-      return validarEntrada(horario, tolerancia, ahora);
+      console.log('📊 Sin registros hoy, validando entrada desde grupo 0');
+      return validarEntrada(horario, tolerancia, ahora, 0);
     }
 
     const registrosHoy = ultimo.totalRegistrosHoy || 1;
     const gruposCompletados = Math.floor(registrosHoy / 2);
 
+    console.log('   - Registros hoy:', registrosHoy);
+    console.log('   - Grupos completados:', gruposCompletados);
+
     // Si última fue ENTRADA → debe registrar SALIDA
     if (ultimo.tipo === 'entrada') {
+      console.log('📊 Último fue entrada, validando salida');
       return validarSalida(horario, tolerancia, ahora, ultimo);
     }
 
-    // Si última fue SALIDA → debe registrar ENTRADA
+    // Si última fue SALIDA → debe registrar ENTRADA del siguiente grupo
     if (ultimo.tipo === 'salida') {
-      // Si completó todos los grupos de turnos
-      if (gruposCompletados >= totalGrupos) {
-        const resultadoEntrada = validarEntrada(horario, tolerancia, ahora);
+      console.log('📊 Último fue salida, verificando si hay más grupos');
 
-        // Si no hay turno futuro, jornada completa
+      // Verificar si completó todos los grupos de turnos
+      if (gruposCompletados >= totalGrupos) {
+        console.log('📊 Todos los grupos completados (', gruposCompletados, '>=', totalGrupos, ')');
+
+        // Verificar si realmente estamos fuera de todos los horarios
+        // Esto maneja el caso donde los registros fueron hechos pero aún hay ventana de tiempo
+        const resultadoEntrada = validarEntrada(horario, tolerancia, ahora, 0);
+
+        // Si estamos dentro de alguna ventana de entrada válida, permitir (puede ser corrección)
+        if (resultadoEntrada.puedeRegistrar) {
+          console.log('📊 Aún hay ventana de entrada disponible, permitiendo registro');
+          return resultadoEntrada;
+        }
+
+        // Si no hay turno futuro y no puede registrar, jornada completa
         if (!resultadoEntrada.hayTurnoFuturo) {
+          console.log('📊 Jornada realmente completada');
           return {
             puedeRegistrar: false,
             tipoRegistro: 'entrada',
@@ -526,14 +580,18 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
           };
         }
 
+        // Hay turno futuro, permitir esperar
+        console.log('📊 Hay turno futuro, esperando...');
         return resultadoEntrada;
       }
 
       // Aún hay grupos pendientes, verificar si puede registrar entrada
-      return validarEntrada(horario, tolerancia, ahora);
+      // Empezar desde el siguiente grupo no completado
+      console.log('📊 Validando entrada para grupo', gruposCompletados);
+      return validarEntrada(horario, tolerancia, ahora, gruposCompletados);
     }
 
-    return validarEntrada(horario, tolerancia, ahora);
+    return validarEntrada(horario, tolerancia, ahora, 0);
   }, []);
 
   const cargarDatosHorario = useCallback(async (empleadoId, usuarioId) => {

@@ -763,9 +763,13 @@ export default function BiometricReader({
                     )}
 
                     {idEmpleado && (
-                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-center">
-                        <p className="text-gray-900 dark:text-white font-medium">
-                          Empleado: <strong className="text-blue-600 dark:text-blue-400">#{idEmpleado}</strong>
+                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 text-center">
+                        <Fingerprint className="w-16 h-16 mx-auto mb-3 text-blue-600 dark:text-blue-400" />
+                        <p className="text-gray-900 dark:text-white font-medium mb-1">
+                          Coloca tu dedo en el lector
+                        </p>
+                        <p className="text-gray-600 dark:text-gray-400 text-sm">
+                          Se requieren 4 muestras para el registro
                         </p>
                       </div>
                     )}

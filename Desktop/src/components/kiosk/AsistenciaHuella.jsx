@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Fingerprint,
   Wifi,
@@ -14,6 +14,14 @@ import {
 } from "lucide-react";
 import { guardarSesion } from "../../services/biometricAuthService";
 import { API_CONFIG, fetchApi } from "../../config/apiEndPoint";
+import {
+  cargarDatosAsistencia,
+  obtenerDepartamentoEmpleado,
+  registrarAsistenciaEnServidor,
+  obtenerInfoClasificacion,
+  obtenerUltimoRegistro,
+  calcularEstadoRegistro
+} from "../../services/asistenciaLogicService";
 
 export default function AsistenciaHuella({
   isOpen = false,
@@ -58,6 +66,7 @@ export default function AsistenciaHuella({
   const countdownIntervalRef = useRef(null);
   const onCloseRef = useRef(onClose);
   const backgroundModeRef = useRef(backgroundMode);
+  const isProcessingAttendanceRef = useRef(false); // Ref para prevenir llamadas duplicadas
   const MAX_RECONNECT_ATTEMPTS = 5;
 
   // Mantener las refs actualizadas
@@ -66,312 +75,23 @@ export default function AsistenciaHuella({
     backgroundModeRef.current = backgroundMode;
   }, [onClose]);
 
-  // === FUNCIONES DE UTILIDAD PARA HORARIOS ===
-
-  // Obtener día de la semana
-  const getDiaSemana = () => {
-    const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-    return dias[new Date().getDay()];
-  };
-
-  // Convertir hora a minutos del día
-  const getMinutosDelDia = (fecha = new Date()) => {
-    return fecha.getHours() * 60 + fecha.getMinutes();
-  };
-
-  // === FUNCIONES DE OBTENCIÓN DE DATOS ===
-
-  // Obtener último registro del día para un empleado
-  const obtenerUltimoRegistro = useCallback(async (empleadoId) => {
-    try {
-      if (!empleadoId) return null;
-
-      const response = await fetchApi(`${API_CONFIG.ENDPOINTS.ASISTENCIAS}/empleado/${empleadoId}`);
-
-      if (!response.data?.length) return null;
-
-      // Filtrar registros de hoy
-      const hoy = new Date().toDateString();
-      const registrosHoy = response.data.filter(registro => {
-        const fechaRegistro = new Date(registro.fecha_registro);
-        return fechaRegistro.toDateString() === hoy;
-      });
-
-      if (!registrosHoy.length) return null;
-
-      const ultimo = registrosHoy[0];
-
-      return {
-        tipo: ultimo.tipo,
-        estado: ultimo.estado,
-        fecha_registro: new Date(ultimo.fecha_registro),
-        hora: new Date(ultimo.fecha_registro).toLocaleTimeString('es-MX', {
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-        totalRegistrosHoy: registrosHoy.length
-      };
-    } catch (err) {
-      console.error('Error obteniendo último registro:', err);
-      return null;
-    }
-  }, []);
-
-  // Obtener horario del empleado
-  const obtenerHorario = useCallback(async (empleadoId) => {
-    try {
-      if (!empleadoId) return null;
-
-      const response = await fetchApi(`${API_CONFIG.ENDPOINTS.EMPLEADOS}/${empleadoId}/horario`);
-      const horario = response.data || response.horario || response;
-
-      if (!horario?.configuracion) return null;
-
-      let config = typeof horario.configuracion === 'string'
-        ? JSON.parse(horario.configuracion)
-        : horario.configuracion;
-
-      const diaHoy = getDiaSemana();
-      let turnosHoy = [];
-
-      // Extraer turnos según configuración
-      if (config.configuracion_semanal?.[diaHoy]) {
-        turnosHoy = config.configuracion_semanal[diaHoy].map(t => ({
-          entrada: t.inicio,
-          salida: t.fin
-        }));
-      } else if (config.dias?.includes(diaHoy)) {
-        turnosHoy = config.turnos || [];
-      }
-
-      if (!turnosHoy.length) {
-        return { trabaja: false, turnos: [] };
-      }
-
-      return {
-        trabaja: true,
-        turnos: turnosHoy,
-        entrada: turnosHoy[0].entrada,
-        salida: turnosHoy[turnosHoy.length - 1].salida,
-        tipo: turnosHoy.length > 1 ? 'quebrado' : 'continuo'
-      };
-    } catch (err) {
-      console.error('Error obteniendo horario:', err);
-      return null;
-    }
-  }, []);
-
-  // Obtener tolerancia del usuario
-  const obtenerTolerancia = useCallback(async (usuarioId) => {
-    const defaultTolerancia = {
-      minutos_retardo: 10,
-      minutos_falta: 30,
-      permite_registro_anticipado: true,
-      minutos_anticipado_max: 60
-    };
-
-    try {
-      if (!usuarioId) return defaultTolerancia;
-
-      const rolesResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.USUARIOS}/${usuarioId}/roles`);
-      const roles = rolesResponse.data || [];
-
-      const rolConTolerancia = roles
-        .filter(r => r.tolerancia_id)
-        .sort((a, b) => b.posicion - a.posicion)[0];
-
-      if (!rolConTolerancia) return defaultTolerancia;
-
-      const toleranciaResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.TOLERANCIAS}/${rolConTolerancia.tolerancia_id}`);
-      return toleranciaResponse.data || toleranciaResponse;
-    } catch (err) {
-      console.error('Error obteniendo tolerancia:', err);
-      return defaultTolerancia;
-    }
-  }, []);
-
-  // Obtener departamento activo del empleado
-  const obtenerDepartamentoEmpleado = useCallback(async (empleadoId) => {
-    try {
-      if (!empleadoId) return null;
-
-      // Intentar obtener departamentos del empleado
-      const response = await fetchApi(`${API_CONFIG.ENDPOINTS.EMPLEADOS}/${empleadoId}/departamentos`);
-      const departamentos = response.data || response;
-
-      if (!departamentos?.length) return null;
-
-      // Buscar el departamento activo (es_activo = true)
-      const departamentoActivo = departamentos.find(d => d.es_activo === true || d.es_activo === 1);
-
-      return departamentoActivo?.departamento_id || departamentos[0]?.departamento_id || null;
-    } catch (err) {
-      console.error('Error obteniendo departamento del empleado:', err);
-      return null;
-    }
-  }, []);
-
-  // === FUNCIONES DE VALIDACIÓN ===
-
-  // Validar si puede registrar entrada
-  const validarEntrada = (horario, tolerancia, minutosActuales) => {
-    let hayTurnoFuturo = false;
-
-    for (const turno of horario.turnos) {
-      const [hE, mE] = turno.entrada.split(':').map(Number);
-      const minEntrada = hE * 60 + mE;
-
-      const ventanaInicio = minEntrada - (tolerancia.minutos_anticipado_max || 60);
-      const ventanaRetardo = minEntrada + tolerancia.minutos_retardo;
-      const ventanaFalta = minEntrada + tolerancia.minutos_falta;
-
-      if (minutosActuales >= ventanaInicio && minutosActuales <= ventanaRetardo) {
-        return {
-          puedeRegistrar: true,
-          tipoRegistro: 'entrada',
-          estadoHorario: 'puntual',
-          jornadaCompleta: false
-        };
-      }
-
-      if (minutosActuales > ventanaRetardo && minutosActuales <= ventanaFalta) {
-        return {
-          puedeRegistrar: true,
-          tipoRegistro: 'entrada',
-          estadoHorario: 'retardo',
-          jornadaCompleta: false
-        };
-      }
-
-      if (minutosActuales > ventanaFalta) {
-        const [hS, mS] = turno.salida.split(':').map(Number);
-        const minSalida = hS * 60 + mS;
-
-        if (minutosActuales <= minSalida) {
-          return {
-            puedeRegistrar: true,
-            tipoRegistro: 'entrada',
-            estadoHorario: 'falta',
-            jornadaCompleta: false
-          };
-        }
-      }
-
-      if (minutosActuales < ventanaInicio) {
-        hayTurnoFuturo = true;
-      }
-    }
-
-    return {
-      puedeRegistrar: false,
-      tipoRegistro: 'entrada',
-      estadoHorario: 'fuera_horario',
-      jornadaCompleta: false,
-      hayTurnoFuturo: hayTurnoFuturo
-    };
-  };
-
-  // Validar si puede registrar salida
-  const validarSalida = (horario, minutosActuales) => {
-    for (const turno of horario.turnos) {
-      const [hS, mS] = turno.salida.split(':').map(Number);
-      const minSalida = hS * 60 + mS;
-
-      const ventanaSalidaInicio = minSalida - 10;
-      const ventanaSalidaFin = minSalida + 5;
-
-      if (minutosActuales >= ventanaSalidaInicio && minutosActuales <= ventanaSalidaFin) {
-        return {
-          puedeRegistrar: true,
-          tipoRegistro: 'salida',
-          estadoHorario: 'puntual',
-          jornadaCompleta: false
-        };
-      }
-    }
-
-    return {
-      puedeRegistrar: false,
-      tipoRegistro: 'salida',
-      estadoHorario: 'fuera_horario',
-      jornadaCompleta: false
-    };
-  };
-
-  // Calcular estado actual del registro
-  const calcularEstadoRegistro = useCallback((ultimo, horario, tolerancia) => {
-    if (!horario?.trabaja) {
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'fuera_horario',
-        jornadaCompleta: false
-      };
-    }
-
-    const ahora = getMinutosDelDia();
-    const totalTurnos = horario.turnos.length;
-
-    // Si no hay registros previos, validar entrada
-    if (!ultimo) {
-      return validarEntrada(horario, tolerancia, ahora);
-    }
-
-    const registrosHoy = ultimo.totalRegistrosHoy || 1;
-    const turnosCompletados = Math.floor(registrosHoy / 2);
-
-    // Si último registro fue entrada, siguiente es salida
-    if (ultimo.tipo === 'entrada') {
-      return validarSalida(horario, ahora);
-    }
-
-    // Si último registro fue salida
-    if (ultimo.tipo === 'salida') {
-      // Verificar si completó todos los turnos
-      if (turnosCompletados >= totalTurnos) {
-        const resultadoEntrada = validarEntrada(horario, tolerancia, ahora);
-
-        if (!resultadoEntrada.hayTurnoFuturo) {
-          return {
-            puedeRegistrar: false,
-            tipoRegistro: 'entrada',
-            estadoHorario: 'completado',
-            jornadaCompleta: true
-          };
-        }
-
-        return resultadoEntrada;
-      }
-
-      // Siguiente turno
-      return validarEntrada(horario, tolerancia, ahora);
-    }
-
-    return validarEntrada(horario, tolerancia, ahora);
-  }, []);
-
-  // Cargar datos de horario para un empleado
-  const cargarDatosHorario = useCallback(async (empleadoId, usuarioId) => {
+  // Cargar datos de horario para un empleado usando el servicio compartido
+  const cargarDatosHorario = async (empleadoId, usuarioId) => {
     setCargandoDatosHorario(true);
 
     try {
-      const [ultimo, horario, tolerancia] = await Promise.all([
-        obtenerUltimoRegistro(empleadoId),
-        obtenerHorario(empleadoId),
-        obtenerTolerancia(usuarioId)
-      ]);
+      const datosAsistencia = await cargarDatosAsistencia(empleadoId, usuarioId);
 
-      setUltimoRegistroHoy(ultimo);
-      setHorarioInfo(horario);
-      setToleranciaInfo(tolerancia);
+      setUltimoRegistroHoy(datosAsistencia.ultimo);
+      setHorarioInfo(datosAsistencia.horario);
+      setToleranciaInfo(datosAsistencia.tolerancia);
 
-      if (horario && tolerancia) {
-        const estado = calcularEstadoRegistro(ultimo, horario, tolerancia);
-        setPuedeRegistrar(estado.puedeRegistrar);
-        setTipoSiguienteRegistro(estado.tipoRegistro);
-        setEstadoHorario(estado.estadoHorario);
-        setJornadaCompletada(estado.jornadaCompleta);
-        return estado;
+      if (datosAsistencia.estado) {
+        setPuedeRegistrar(datosAsistencia.estado.puedeRegistrar);
+        setTipoSiguienteRegistro(datosAsistencia.estado.tipoRegistro);
+        setEstadoHorario(datosAsistencia.estado.estadoHorario);
+        setJornadaCompletada(datosAsistencia.estado.jornadaCompleta);
+        return datosAsistencia.estado;
       }
 
       return null;
@@ -381,9 +101,8 @@ export default function AsistenciaHuella({
     } finally {
       setCargandoDatosHorario(false);
     }
-  }, [obtenerUltimoRegistro, obtenerHorario, obtenerTolerancia, calcularEstadoRegistro]);
+  };
 
-  
   // Reset de loginHabilitado al montar el componente (prevenir login automático)
   useEffect(() => {
     // Solo resetear loginHabilitado al montar para prevenir login automático
@@ -433,6 +152,8 @@ export default function AsistenciaHuella({
       // SIEMPRE deshabilitar login al cerrar para prevenir llamadas automáticas
       setLoginHabilitado(false);
       setIdentificando(false);
+      // Resetear ref de procesamiento para permitir nuevos registros
+      isProcessingAttendanceRef.current = false;
 
       if (backgroundModeRef.current) {
         // En modo background, solo ocultar el modal y reiniciar
@@ -582,6 +303,7 @@ export default function AsistenciaHuella({
   };
 
   // Registrar asistencia después de identificación exitosa (API REAL)
+  // NOTA: La protección contra duplicados se hace en handleServerMessage ANTES de llamar aquí
   const registrarAsistencia = async (empleadoId, matchScore) => {
     setProcessingAttendance(true);
     addMessage("📝 Cargando datos del empleado...", "info");
@@ -618,9 +340,11 @@ export default function AsistenciaHuella({
       if (estadoActual && !estadoActual.puedeRegistrar) {
         let mensaje = "No puedes registrar en este momento";
         if (estadoActual.jornadaCompleta) {
-          mensaje = "Ya completaste tu jornada de hoy";
+          mensaje = estadoActual.mensaje || "Ya completaste tu jornada de hoy";
         } else if (estadoActual.estadoHorario === 'fuera_horario') {
           mensaje = "Estás fuera del horario de registro";
+        } else if (estadoActual.estadoHorario === 'tiempo_insuficiente') {
+          mensaje = estadoActual.mensajeEspera || `Debes esperar ${estadoActual.minutosRestantes || 'más'} minutos`;
         }
 
         addMessage(`⚠️ ${mensaje}`, "warning");
@@ -633,6 +357,7 @@ export default function AsistenciaHuella({
           empleadoId: empleadoId,
           estadoHorario: estadoActual?.estadoHorario,
           noPuedeRegistrar: true,
+          minutosRestantes: estadoActual?.minutosRestantes,
         };
 
         console.log("📋 No puede registrar:", resultadoNoPuedeRegistrar);
@@ -656,40 +381,19 @@ export default function AsistenciaHuella({
 
       addMessage("📝 Registrando asistencia...", "info");
 
-      // Obtener departamento del empleado
+      // Obtener departamento del empleado usando el servicio compartido
       const departamentoId = await obtenerDepartamentoEmpleado(empleadoIdNumerico);
 
-      // Llamar a la API para registrar asistencia
-      // empleado_id es CHAR(8), usar el código del empleado
-      // dispositivo_origen ENUM solo acepta 'movil' o 'escritorio'
-      const payload = {
-        empleado_id: empleadoData.id,
-        dispositivo_origen: 'escritorio',
-        departamento_id: departamentoId
-      };
-
-      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ASISTENCIAS}/registrar`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('auth_token') || ''}`,
-        },
-        body: JSON.stringify(payload)
+      // Registrar asistencia usando el servicio compartido
+      const data = await registrarAsistenciaEnServidor({
+        empleadoId: empleadoData.id,
+        departamentoId,
+        tipoRegistro: estadoActual?.tipoRegistro || 'entrada',
+        clasificacion: estadoActual?.clasificacion || 'entrada',
+        estadoHorario: estadoActual?.estadoHorario || 'puntual',
+        metodoRegistro: 'HUELLA',
+        token: localStorage.getItem('auth_token') || ''
       });
-
-      const responseText = await response.text();
-      let data;
-
-      try {
-        data = responseText ? JSON.parse(responseText) : {};
-      } catch (parseError) {
-        throw new Error('Error del servidor: respuesta inválida');
-      }
-
-      if (!response.ok) {
-        const errorMsg = data.message || data.error || `Error del servidor (${response.status})`;
-        throw new Error(errorMsg);
-      }
 
       // Actualizar último registro después de registrar
       const nuevoUltimo = await obtenerUltimoRegistro(empleadoIdNumerico);
@@ -704,28 +408,15 @@ export default function AsistenciaHuella({
         setJornadaCompletada(nuevoEstado.jornadaCompleta);
       }
 
-      // Determinar tipo y estado del registro
-      const tipoMovimiento = data.data?.tipo === 'salida' ? 'SALIDA' : 'ENTRADA';
-      let estadoTexto = '';
-      let emoji = '✅';
+      // Usar la clasificación calculada localmente o la que devuelve el servidor
+      const clasificacionFinal = data.data?.clasificacion || estadoActual?.clasificacion || 'entrada';
+      const tipoRegistro = data.data?.tipo || estadoActual?.tipoRegistro || 'entrada';
+      const tipoMovimiento = tipoRegistro === 'salida' ? 'SALIDA' : 'ENTRADA';
 
-      if (data.data?.tipo === 'salida') {
-        estadoTexto = 'salida registrada';
-        emoji = '✅';
-      } else {
-        if (data.data?.estado === 'retardo') {
-          estadoTexto = 'con retardo';
-          emoji = '⚠️';
-        } else if (data.data?.estado === 'falta') {
-          estadoTexto = 'fuera de tolerancia';
-          emoji = '❌';
-        } else {
-          estadoTexto = 'puntual';
-          emoji = '✅';
-        }
-      }
+      // Obtener texto y emoji según la clasificación usando el servicio compartido
+      const { estadoTexto, tipoEvento } = obtenerInfoClasificacion(clasificacionFinal, tipoRegistro);
 
-      addMessage(`${emoji} ${tipoMovimiento === 'SALIDA' ? 'Salida' : 'Entrada'} registrada (${estadoTexto})`, "success");
+      addMessage(`${tipoMovimiento === 'SALIDA' ? 'Salida' : 'Entrada'} registrada (${estadoTexto})`, tipoEvento);
 
       // Preparar el resultado ANTES de mostrar el modal
       const nuevoResultado = {
@@ -737,8 +428,9 @@ export default function AsistenciaHuella({
         hora: data.data?.fecha_registro
           ? new Date(data.data.fecha_registro).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
           : horaActual,
-        estado: data.data?.estado || 'puntual',
+        estado: data.data?.estado || estadoActual?.estadoHorario || 'puntual',
         estadoTexto: estadoTexto,
+        clasificacion: clasificacionFinal,
       };
 
       console.log("📋 Asistencia registrada exitosamente:", nuevoResultado);
@@ -799,6 +491,8 @@ export default function AsistenciaHuella({
         }, 50);
       }
     } finally {
+      // NO resetear isProcessingAttendanceRef aquí - solo se resetea cuando se cierra el modal
+      // Esto previene que mensajes duplicados del servidor creen múltiples registros
       setProcessingAttendance(false);
       setCurrentOperation("None");
       setStatus("ready");
@@ -936,6 +630,15 @@ export default function AsistenciaHuella({
         console.log("📨 captureComplete recibido:", data);
 
         if (data.result === "identificationSuccess") {
+          // PROTECCIÓN: Verificar si ya hay un registro en proceso ANTES de hacer cualquier cosa
+          if (isProcessingAttendanceRef.current) {
+            console.log('⚠️ [Huella] Ignorando captureComplete duplicado - ya hay registro en proceso');
+            break; // Salir del case sin hacer nada
+          }
+
+          // Marcar inmediatamente que estamos procesando (ANTES de cualquier async)
+          isProcessingAttendanceRef.current = true;
+
           // Mostrar inmediatamente pantalla de "Identificando..." en modo background
           if (backgroundMode) {
             setIdentificando(true);
@@ -954,6 +657,7 @@ export default function AsistenciaHuella({
           } else {
             addMessage("❌ No se pudo extraer el ID del empleado", "error");
             setIdentificando(false);
+            isProcessingAttendanceRef.current = false; // Resetear solo en error
 
             // En modo background, mostrar modal con el error
             if (backgroundMode) {
@@ -1068,6 +772,8 @@ export default function AsistenciaHuella({
   const handleCloseModal = () => {
     // SIEMPRE deshabilitar login al cerrar para prevenir llamadas automáticas
     setLoginHabilitado(false);
+    // Resetear ref de procesamiento para permitir nuevos registros
+    isProcessingAttendanceRef.current = false;
 
     if (backgroundMode) {
       // En modo background, solo ocultar el modal y reiniciar para siguiente lectura
@@ -1255,8 +961,22 @@ export default function AsistenciaHuella({
               >
                 {result.success ? (
                   <>
-                    <CheckCircle className="w-16 h-16 mx-auto mb-3 text-green-600 dark:text-green-400" />
-                    <p className="text-green-800 dark:text-green-300 font-bold text-lg mb-1">
+                    {/* Icono según clasificación */}
+                    {result.clasificacion === 'retardo' || result.clasificacion === 'salida_temprana' ? (
+                      <AlertTriangle className="w-16 h-16 mx-auto mb-3 text-yellow-600 dark:text-yellow-400" />
+                    ) : result.clasificacion === 'falta' ? (
+                      <XCircle className="w-16 h-16 mx-auto mb-3 text-red-600 dark:text-red-400" />
+                    ) : (
+                      <CheckCircle className="w-16 h-16 mx-auto mb-3 text-green-600 dark:text-green-400" />
+                    )}
+
+                    <p className={`font-bold text-lg mb-1 ${
+                      result.clasificacion === 'falta'
+                        ? "text-red-800 dark:text-red-300"
+                        : result.clasificacion === 'retardo' || result.clasificacion === 'salida_temprana'
+                        ? "text-yellow-800 dark:text-yellow-300"
+                        : "text-green-800 dark:text-green-300"
+                    }`}>
                       Asistencia Registrada
                     </p>
                     {result.empleado?.nombre && (
@@ -1270,12 +990,18 @@ export default function AsistenciaHuella({
                           {result.tipoMovimiento === "ENTRADA" ? "Entrada" : "Salida"}{" "}
                           registrada {result.hora && `a las ${result.hora}`}
                         </p>
-                        {/* Badge de estado */}
+                        {/* Badge de clasificación */}
                         <span
                           className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${
-                            result.estado === "puntual"
+                            result.clasificacion === "entrada" || result.clasificacion === "salida_puntual"
                               ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
-                              : result.estado === "retardo"
+                              : result.clasificacion === "retardo" || result.clasificacion === "salida_temprana"
+                              ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
+                              : result.clasificacion === "falta"
+                              ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
+                              : result.estado === "puntual"
+                              ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
+                              : result.estado === "retardo" || result.estado === "temprana"
                               ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
                               : result.estado === "falta"
                               ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
@@ -1348,11 +1074,15 @@ export default function AsistenciaHuella({
                       className={`inline-block mt-3 px-3 py-1 rounded-full text-xs font-semibold ${
                         result.estadoHorario === "completado"
                           ? "bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300"
+                          : result.estadoHorario === "tiempo_insuficiente"
+                          ? "bg-orange-100 text-orange-800 dark:bg-orange-800/30 dark:text-orange-300"
                           : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
                       }`}
                     >
                       {result.estadoHorario === "completado"
                         ? "Jornada completada"
+                        : result.estadoHorario === "tiempo_insuficiente"
+                        ? `Espera ${result.minutosRestantes || ''} min`
                         : "Fuera de horario"}
                     </span>
 

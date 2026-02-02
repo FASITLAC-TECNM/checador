@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { X, Calendar, Clock, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, ArrowDown, ArrowUp, RefreshCw } from "lucide-react";
+import { X, Calendar, Clock, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, ArrowDown, ArrowUp, RefreshCw, CalendarDays } from "lucide-react";
 import { API_CONFIG, fetchApi } from "../../config/apiEndPoint";
 
 export default function HistorialModal({ onClose, usuario }) {
@@ -8,7 +8,6 @@ export default function HistorialModal({ onClose, usuario }) {
   const [asistencias, setAsistencias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showCalendar, setShowCalendar] = useState(true);
   const [estadisticas, setEstadisticas] = useState({
     puntuales: 0,
     retardos: 0,
@@ -22,7 +21,6 @@ export default function HistorialModal({ onClose, usuario }) {
 
   const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
-  // Cargar asistencias del mes
   const cargarAsistencias = useCallback(async () => {
     if (!usuario?.empleado_id) {
       setLoading(false);
@@ -32,32 +30,17 @@ export default function HistorialModal({ onClose, usuario }) {
     try {
       const primerDia = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
       const ultimoDia = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
-
       const fechaInicio = primerDia.toISOString().split('T')[0];
       const fechaFin = ultimoDia.toISOString().split('T')[0];
 
       const url = `${API_CONFIG.ENDPOINTS.ASISTENCIAS}/empleado/${usuario.empleado_id}?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
-
       const response = await fetchApi(url);
 
-      if (response?.data && Array.isArray(response.data)) {
-        const asistenciasOrdenadas = response.data.sort((a, b) =>
-          new Date(b.fecha_registro) - new Date(a.fecha_registro)
-        );
-
-        setAsistencias(asistenciasOrdenadas);
-        calcularEstadisticas(asistenciasOrdenadas);
-      } else if (Array.isArray(response)) {
-        const asistenciasOrdenadas = response.sort((a, b) =>
-          new Date(b.fecha_registro) - new Date(a.fecha_registro)
-        );
-
-        setAsistencias(asistenciasOrdenadas);
-        calcularEstadisticas(asistenciasOrdenadas);
-      } else {
-        setAsistencias([]);
-        setEstadisticas({ puntuales: 0, retardos: 0, faltas: 0 });
-      }
+      let data = Array.isArray(response?.data) ? response.data : (Array.isArray(response) ? response : []);
+      
+      const asistenciasOrdenadas = data.sort((a, b) => new Date(b.fecha_registro) - new Date(a.fecha_registro));
+      setAsistencias(asistenciasOrdenadas);
+      calcularEstadisticas(asistenciasOrdenadas);
     } catch (error) {
       console.error('Error cargando asistencias:', error);
       setAsistencias([]);
@@ -67,10 +50,8 @@ export default function HistorialModal({ onClose, usuario }) {
     }
   }, [usuario, currentMonth]);
 
-  // Calcular estadísticas
   const calcularEstadisticas = (data) => {
     const stats = { puntuales: 0, retardos: 0, faltas: 0 };
-
     data.forEach(registro => {
       if (registro.tipo === 'entrada') {
         if (registro.estado === 'puntual') stats.puntuales++;
@@ -78,7 +59,6 @@ export default function HistorialModal({ onClose, usuario }) {
         if (registro.estado === 'falta') stats.faltas++;
       }
     });
-
     setEstadisticas(stats);
   };
 
@@ -99,31 +79,17 @@ export default function HistorialModal({ onClose, usuario }) {
     setLoading(true);
   };
 
-  // Generar días del calendario
   const generarDiasCalendario = () => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
-    const primerDia = new Date(year, month, 1);
-    const ultimoDia = new Date(year, month + 1, 0);
-    const diasEnMes = ultimoDia.getDate();
-    const primerDiaSemana = primerDia.getDay();
-
+    const primerDiaSemana = new Date(year, month, 1).getDay();
+    const diasEnMes = new Date(year, month + 1, 0).getDate();
     const dias = [];
-
-    // Días vacíos al inicio
-    for (let i = 0; i < primerDiaSemana; i++) {
-      dias.push(null);
-    }
-
-    // Días del mes
-    for (let dia = 1; dia <= diasEnMes; dia++) {
-      dias.push(dia);
-    }
-
+    for (let i = 0; i < primerDiaSemana; i++) dias.push(null);
+    for (let dia = 1; dia <= diasEnMes; dia++) dias.push(dia);
     return dias;
   };
 
-  // Obtener estado del día (puntual, retardo, falta)
   const getEstadoDia = (dia) => {
     if (!dia) return null;
     const fecha = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia);
@@ -131,286 +97,192 @@ export default function HistorialModal({ onClose, usuario }) {
       const registroFecha = new Date(registro.fecha_registro);
       return registroFecha.toDateString() === fecha.toDateString() && registro.tipo === 'entrada';
     });
-
     if (registrosDia.length === 0) return null;
-
-    // Prioridad: falta > retardo > puntual
     if (registrosDia.some(r => r.estado === 'falta')) return 'falta';
     if (registrosDia.some(r => r.estado === 'retardo')) return 'retardo';
-    if (registrosDia.some(r => r.estado === 'puntual')) return 'puntual';
-
-    return null;
+    return 'puntual';
   };
 
-  // Seleccionar día
   const seleccionarDia = (dia) => {
     if (!dia) return;
     const fecha = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia);
-
-    // Si ya está seleccionado, deseleccionar
-    if (selectedDate && selectedDate.toDateString() === fecha.toDateString()) {
-      setSelectedDate(null);
-    } else {
-      setSelectedDate(fecha);
-    }
+    setSelectedDate(selectedDate?.toDateString() === fecha.toDateString() ? null : fecha);
   };
 
-  // Filtrar registros por día seleccionado
-  const getRegistrosDia = () => {
-    if (!selectedDate) return asistencias;
-
-    return asistencias.filter(registro => {
-      const registroFecha = new Date(registro.fecha_registro);
-      return registroFecha.toDateString() === selectedDate.toDateString();
-    });
-  };
+  const registrosFiltrados = selectedDate 
+    ? asistencias.filter(r => new Date(r.fecha_registro).toDateString() === selectedDate.toDateString())
+    : asistencias;
 
   const formatearFecha = (fechaStr) => {
     const fecha = new Date(fechaStr);
-    const dia = fecha.getDate().toString().padStart(2, '0');
-    const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
-    return `${dia}/${mes}`;
+    return `${fecha.getDate().toString().padStart(2, '0')}/${(fecha.getMonth() + 1).toString().padStart(2, '0')}`;
   };
 
   const formatearHora = (fechaStr) => {
-    const fecha = new Date(fechaStr);
-    return fecha.toLocaleTimeString('es-MX', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
+    return new Date(fechaStr).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
   };
 
   const obtenerColorEstado = (estado) => {
     switch (estado) {
-      case 'puntual': return { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200', dot: 'bg-green-500' };
-      case 'retardo': return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', dot: 'bg-yellow-500' };
-      case 'falta': return { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200', dot: 'bg-red-500' };
-      default: return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', dot: 'bg-gray-500' };
+      case 'puntual': return { bg: 'bg-emerald-50 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-100 dark:border-emerald-800', dot: 'bg-emerald-500' };
+      case 'retardo': return { bg: 'bg-amber-50 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-400', border: 'border-amber-100 dark:border-amber-800', dot: 'bg-amber-500' };
+      case 'falta': return { bg: 'bg-red-50 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', border: 'border-red-100 dark:border-red-800', dot: 'bg-red-500' };
+      default: return { bg: 'bg-slate-50 dark:bg-slate-800', text: 'text-slate-700 dark:text-slate-300', border: 'border-slate-100 dark:border-slate-700', dot: 'bg-slate-400' };
     }
   };
 
-  const getEstadoIcon = (estado) => {
-    switch (estado) {
-      case 'puntual': return '✓';
-      case 'retardo': return '⏱';
-      case 'falta': return '✕';
-      default: return '';
-    }
-  };
-
-  const registrosFiltrados = getRegistrosDia();
   const hoy = new Date();
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-green-600 to-green-500 p-6 flex-shrink-0">
-          <div className="flex items-start justify-between">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700">
+        
+        {/* Header Obscuro */}
+        <div className="bg-[#0f172a] px-5 py-4 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-slate-800 rounded-lg">
+              <CalendarDays className="w-5 h-5 text-slate-200" />
+            </div>
             <div>
-              <h3 className="text-2xl font-bold text-white mb-1">
-                Historial de Asistencias
-              </h3>
-              <p className="text-green-100 text-sm">
-                Registro de entradas y salidas
-              </p>
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Historial de Asistencia</h3>
+              <p className="text-slate-400 text-[10px] uppercase font-medium">Registro de entradas y salidas</p>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={onRefresh}
-                disabled={refreshing}
-                className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
-              >
-                <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
-              </button>
-              <button
-                onClick={onClose}
-                className="text-white hover:bg-white/20 rounded-lg p-2 transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={onRefresh} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all">
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+            <button onClick={onClose} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all">
+              <X className="w-5 h-5" />
+            </button>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex-1 flex items-center justify-center py-20">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-              <p className="text-text-secondary">Cargando asistencias...</p>
-            </div>
+          <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-800 py-20">
+            <div className="w-8 h-8 border-2 border-slate-900 dark:border-slate-200 border-t-transparent rounded-full animate-spin"></div>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto p-6">
-            {/* Navegación de mes */}
-            <div className="flex items-center justify-between bg-bg-secondary rounded-xl p-4 mb-4">
-              <button
-                onClick={() => cambiarMes(-1)}
-                className="p-2 hover:bg-bg-primary rounded-lg transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5 text-text-primary" />
-              </button>
+          <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+            
+            {/* Panel Izquierdo: Calendario y Stats */}
+            <div className="w-full md:w-[350px] border-r border-slate-100 dark:border-slate-700 p-5 flex flex-col gap-5 bg-white dark:bg-slate-900">
 
-              <button
-                onClick={() => setShowCalendar(!showCalendar)}
-                className="flex items-center gap-2 px-4 py-2 hover:bg-bg-primary rounded-lg transition-colors"
-              >
-                <span className="text-lg font-bold text-text-primary">
+              {/* Navegación Mes */}
+              <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700">
+                <button onClick={() => cambiarMes(-1)} className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-md shadow-sm text-slate-500 dark:text-slate-400"><ChevronLeft className="w-4 h-4" /></button>
+                <span className="font-bold text-slate-800 dark:text-slate-200 text-[11px] uppercase tracking-tighter">
                   {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
                 </span>
-                <ChevronLeft className={`w-4 h-4 text-text-secondary transition-transform ${showCalendar ? 'rotate-90' : '-rotate-90'}`} />
-              </button>
-
-              <button
-                onClick={() => cambiarMes(1)}
-                disabled={currentMonth.getMonth() >= hoy.getMonth() && currentMonth.getFullYear() >= hoy.getFullYear()}
-                className="p-2 hover:bg-bg-primary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronRight className="w-5 h-5 text-text-primary" />
-              </button>
-            </div>
-
-            {/* Calendario */}
-            {showCalendar && (
-              <div className="bg-bg-secondary rounded-xl p-4 mb-4">
-                {/* Nombres de días */}
-                <div className="grid grid-cols-7 mb-2">
-                  {dayNames.map((day, index) => (
-                    <div key={index} className="text-center py-2">
-                      <span className="text-xs font-semibold text-text-secondary">{day}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Días del mes */}
-                <div className="grid grid-cols-7 gap-1">
-                  {generarDiasCalendario().map((dia, index) => {
-                    const estado = getEstadoDia(dia);
-                    const isSelected = selectedDate && dia === selectedDate.getDate() &&
-                      currentMonth.getMonth() === selectedDate.getMonth() &&
-                      currentMonth.getFullYear() === selectedDate.getFullYear();
-                    const isToday = dia &&
-                      hoy.toDateString() === new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia).toDateString();
-
-                    return (
-                      <button
-                        key={index}
-                        onClick={() => seleccionarDia(dia)}
-                        disabled={!dia}
-                        className={`
-                          aspect-square flex flex-col items-center justify-center rounded-lg transition-all relative
-                          ${!dia ? 'cursor-default' : 'hover:bg-bg-primary cursor-pointer'}
-                          ${isSelected ? 'bg-green-500 text-white' : ''}
-                          ${isToday && !isSelected ? 'ring-2 ring-green-500' : ''}
-                        `}
-                      >
-                        {dia && (
-                          <>
-                            <span className={`text-sm font-medium ${isSelected ? 'text-white' : isToday ? 'text-green-600 font-bold' : 'text-text-primary'}`}>
-                              {dia}
-                            </span>
-                            {estado && !isSelected && (
-                              <div className={`w-1.5 h-1.5 rounded-full mt-0.5 ${obtenerColorEstado(estado).dot}`} />
-                            )}
-                          </>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
+                <button
+                  onClick={() => cambiarMes(1)}
+                  disabled={currentMonth.getMonth() >= hoy.getMonth() && currentMonth.getFullYear() >= hoy.getFullYear()}
+                  className="p-1.5 hover:bg-white dark:hover:bg-slate-700 rounded-md shadow-sm text-slate-500 dark:text-slate-400 disabled:opacity-20"
+                ><ChevronRight className="w-4 h-4" /></button>
               </div>
-            )}
 
-            {/* Estadísticas */}
-            <div className="flex gap-3 mb-4">
-              <div className="flex-1 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                <span className="text-sm font-semibold text-green-700">{estadisticas.puntuales} Puntual{estadisticas.puntuales !== 1 ? 'es' : ''}</span>
-              </div>
-              <div className="flex-1 flex items-center gap-2 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
-                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                <span className="text-sm font-semibold text-yellow-700">{estadisticas.retardos} Retardo{estadisticas.retardos !== 1 ? 's' : ''}</span>
-              </div>
-              <div className="flex-1 flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                <span className="text-sm font-semibold text-red-700">{estadisticas.faltas} Falta{estadisticas.faltas !== 1 ? 's' : ''}</span>
-              </div>
-            </div>
-
-            {/* Encabezado de registros */}
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-lg font-bold text-text-primary">
-                {selectedDate
-                  ? `${selectedDate.getDate()} de ${monthNames[selectedDate.getMonth()]}`
-                  : 'Todos los registros'
-                }
-              </h4>
-              <span className="text-sm text-text-secondary">
-                {registrosFiltrados.length} {registrosFiltrados.length === 1 ? 'registro' : 'registros'}
-              </span>
-            </div>
-
-            {/* Lista de registros */}
-            {registrosFiltrados.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <Calendar className="w-16 h-16 text-text-secondary/30 mb-4" />
-                <p className="text-lg font-semibold text-text-secondary">Sin registros</p>
-                <p className="text-sm text-text-secondary/70">
-                  {selectedDate ? 'No hay registros para este día' : 'No hay registros este mes'}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {registrosFiltrados.map((registro, index) => {
-                  const colorEstado = obtenerColorEstado(registro.estado);
+              {/* Grid Calendario */}
+              <div className="grid grid-cols-7 gap-1">
+                {dayNames.map(d => <div key={d} className="text-center text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase py-1">{d}</div>)}
+                {generarDiasCalendario().map((dia, i) => {
+                  const estado = getEstadoDia(dia);
+                  const isSelected = selectedDate?.getDate() === dia && currentMonth.getMonth() === selectedDate.getMonth();
+                  const isToday = dia && hoy.toDateString() === new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia).toDateString();
 
                   return (
-                    <div
-                      key={registro.id || index}
-                      className="flex items-center gap-4 bg-bg-secondary rounded-xl p-4 hover:bg-bg-secondary/80 transition-colors"
+                    <button
+                      key={i}
+                      onClick={() => seleccionarDia(dia)}
+                      disabled={!dia}
+                      className={`relative aspect-square rounded-lg text-xs font-bold flex items-center justify-center transition-all
+                        ${!dia ? 'bg-transparent' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}
+                        ${isSelected ? 'bg-slate-900 dark:bg-slate-200 text-white dark:text-slate-900 shadow-lg' : 'text-slate-500 dark:text-slate-400'}
+                        ${isToday && !isSelected ? 'border-2 border-slate-900 dark:border-slate-200' : ''}
+                      `}
                     >
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${registro.tipo === 'entrada' ? 'bg-green-100' : 'bg-blue-100'}`}>
-                        {registro.tipo === 'entrada' ? (
-                          <ArrowDown className="w-5 h-5 text-green-600" />
-                        ) : (
-                          <ArrowUp className="w-5 h-5 text-blue-600" />
-                        )}
-                      </div>
-
-                      <div className="flex-1">
-                        <p className="font-semibold text-text-primary">
-                          {registro.tipo === 'entrada' ? 'Entrada' : 'Salida'}
-                        </p>
-                        <div className="flex items-center gap-2 text-sm text-text-secondary">
-                          <span className="font-medium">{formatearHora(registro.fecha_registro)}</span>
-                          <span>•</span>
-                          <span>{formatearFecha(registro.fecha_registro)}</span>
-                        </div>
-                      </div>
-
-                      {registro.tipo === 'entrada' && registro.estado && (
-                        <div className={`px-3 py-1.5 rounded-lg ${colorEstado.bg} ${colorEstado.border} border`}>
-                          <span className={`text-sm font-semibold ${colorEstado.text}`}>
-                            {getEstadoIcon(registro.estado)} {registro.estado.charAt(0).toUpperCase() + registro.estado.slice(1)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                      {dia}
+                      {estado && !isSelected && <div className={`absolute bottom-1 w-1 h-1 rounded-full ${obtenerColorEstado(estado).dot}`} />}
+                    </button>
                   );
                 })}
               </div>
-            )}
+
+              {/* Estadísticas: Diseño anterior (Píldoras) */}
+              <div className="flex flex-col gap-2 mt-auto">
+                <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 rounded-lg px-3 py-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex-1">Puntuales</span>
+                  <span className="text-xs font-black text-emerald-700 dark:text-emerald-400">{estadisticas.puntuales}</span>
+                </div>
+                <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800 rounded-lg px-3 py-2">
+                  <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                  <span className="text-xs font-bold text-amber-700 dark:text-amber-400 flex-1">Retardos</span>
+                  <span className="text-xs font-black text-amber-700 dark:text-amber-400">{estadisticas.retardos}</span>
+                </div>
+                <div className="flex items-center gap-3 bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-800 rounded-lg px-3 py-2">
+                  <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                  <span className="text-xs font-bold text-red-700 dark:text-red-400 flex-1">Faltas</span>
+                  <span className="text-xs font-black text-red-700 dark:text-red-400">{estadisticas.faltas}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Panel Derecho: Lista */}
+            <div className="flex-1 flex flex-col min-h-0 bg-slate-50/50 dark:bg-slate-800/50">
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm sticky top-0 z-10 flex justify-between items-center">
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 text-[11px] uppercase tracking-widest">
+                  {selectedDate ? `REGISTROS DEL DÍA ${selectedDate.getDate()}` : 'Actividad reciente'}
+                </h4>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded uppercase">
+                  {registrosFiltrados.length} Registros
+                </span>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-5 space-y-2">
+                {registrosFiltrados.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-300 dark:text-slate-600 py-10">
+                    <Clock className="w-10 h-10 mb-2 opacity-10" />
+                    <p className="text-[10px] font-bold uppercase tracking-widest">Sin actividad</p>
+                  </div>
+                ) : (
+                  registrosFiltrados.map((registro, idx) => {
+                    const color = obtenerColorEstado(registro.estado);
+                    return (
+                      <div key={idx} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-lg flex items-center gap-4 hover:border-slate-300 dark:hover:border-slate-600 transition-colors shadow-sm">
+                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${registro.tipo === 'entrada' ? 'bg-slate-900 dark:bg-slate-200 text-white dark:text-slate-900' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}>
+                          {registro.tipo === 'entrada' ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                            {registro.tipo === 'entrada' ? 'Entrada' : 'Salida'}
+                          </p>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                            <span className="font-bold text-slate-600 dark:text-slate-300 italic">{formatearHora(registro.fecha_registro)}</span>
+                            <span>•</span>
+                            <span>{formatearFecha(registro.fecha_registro)}</span>
+                          </div>
+                        </div>
+                        {registro.tipo === 'entrada' && (
+                          <div className={`${color.bg} ${color.text} text-[9px] font-black px-2 py-0.5 rounded border ${color.border} uppercase`}>
+                            {registro.estado}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
           </div>
         )}
 
         {/* Footer */}
-        <div className="p-6 bg-bg-secondary border-t border-border-subtle flex-shrink-0">
+        <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-700 shrink-0">
           <button
             onClick={onClose}
-            className="w-full py-3 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white rounded-xl font-bold text-base shadow-lg transition-all"
+            className="w-full py-3 bg-slate-900 dark:bg-slate-200 hover:bg-slate-800 dark:hover:bg-slate-300 text-white dark:text-slate-900 rounded-lg font-bold text-xs uppercase tracking-widest transition-all shadow-md active:scale-[0.99]"
           >
-            CERRAR
+            Cerrar Historial
           </button>
         </div>
       </div>

@@ -279,6 +279,15 @@ export default function BiometricReader({
 
         if (data.readerConnected) {
           addMessage("✅ Lector de huellas conectado", "success");
+          // En modo auth, iniciar identificación automáticamente cuando el lector esté listo
+          if (mode === "auth" && data.currentOperation === "None") {
+            setTimeout(() => {
+              const API_URL = "https://9dm7dqf9-3002.usw3.devtunnels.ms/api";
+              sendCommand("startIdentification", { apiUrl: API_URL });
+              setCurrentOperation("Identifying");
+              addMessage("🔍 Esperando huella...", "info");
+            }, 500);
+          }
         } else {
           addMessage("⚠️ Sin lector de huellas detectado", "warning");
         }
@@ -354,6 +363,16 @@ export default function BiometricReader({
           addMessage("❌ Huella no reconocida en el sistema", "error");
           setCurrentOperation("None");
           setStatus("ready");
+
+          // En modo auth, reiniciar identificación automáticamente para seguir esperando
+          if (mode === "auth") {
+            setTimeout(() => {
+              const API_URL = "https://9dm7dqf9-3002.usw3.devtunnels.ms/api";
+              sendCommand("startIdentification", { apiUrl: API_URL });
+              setCurrentOperation("Identifying");
+              addMessage("🔍 Esperando huella...", "info");
+            }, 1000);
+          }
         }
         break;
 
@@ -796,40 +815,34 @@ export default function BiometricReader({
                   </div>
                 )}
 
-                <div className="flex gap-3">
-                  {currentOperation !== "Enrollment" ? (
-                    <button
-                      onClick={startEnrollment}
-                      disabled={
-                        !connected ||
-                        !readerConnected ||
-                        isProcessing ||
-                        (mode === "enroll" && !idEmpleado && !inputIdEmpleado)
-                      }
-                      className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                    >
-                      {mode === "auth" ? (
-                        <>
-                          <LogIn className="w-5 h-5" />
-                          Iniciar Autenticación
-                        </>
-                      ) : (
-                        <>
-                          <UserPlus className="w-5 h-5" />
-                          Iniciar Registro
-                        </>
-                      )}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={cancelEnrollment}
-                      className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                    >
-                      <X className="w-5 h-5" />
-                      Cancelar
-                    </button>
-                  )}
-                </div>
+                {/* Solo mostrar botones en modo enroll o cuando hay operación en curso */}
+                {(mode === "enroll" || currentOperation === "Enrollment") && (
+                  <div className="flex gap-3">
+                    {currentOperation !== "Enrollment" ? (
+                      <button
+                        onClick={startEnrollment}
+                        disabled={
+                          !connected ||
+                          !readerConnected ||
+                          isProcessing ||
+                          !idEmpleado && !inputIdEmpleado
+                        }
+                        className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                      >
+                        <UserPlus className="w-5 h-5" />
+                        Iniciar Registro
+                      </button>
+                    ) : (
+                      <button
+                        onClick={cancelEnrollment}
+                        className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                      >
+                        <X className="w-5 h-5" />
+                        Cancelar
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {mode === "enroll" && !idEmpleado && !inputIdEmpleado && (
                   <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">

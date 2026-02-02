@@ -1417,14 +1417,7 @@ export default function AsistenciaHuella({
                     </div>
 
                     <button
-                      onClick={() => {
-                        setResult(null);
-                        hasStartedIdentification.current = false;
-                        // Reiniciar identificación automáticamente
-                        if (connected && readerConnected) {
-                          setTimeout(() => startIdentification(), 300);
-                        }
-                      }}
+                      onClick={handleCloseModal}
                       className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-sm font-medium transition-colors"
                     >
                       Intentar de nuevo
@@ -1493,15 +1486,7 @@ export default function AsistenciaHuella({
                     )}
 
                     <button
-                      onClick={() => {
-                        setResult(null);
-                        setLoginHabilitado(false);
-                        hasStartedIdentification.current = false;
-                        // Reiniciar identificación automáticamente
-                        if (connected && readerConnected) {
-                          setTimeout(() => startIdentification(), 300);
-                        }
-                      }}
+                      onClick={handleCloseModal}
                       className="mt-4 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-sm font-medium transition-colors"
                     >
                       Intentar de nuevo

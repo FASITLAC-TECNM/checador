@@ -11,10 +11,6 @@ export const registrarAsistencia = async (empleadoId, ubicacion, token, departam
             departamento_id: departamentoId
         };
 
-        console.log('📤 Servicio - Enviando asistencia:', payload);
-        console.log('📍 Servicio - URL:', `${API_URL}/asistencias/registrar`);
-        console.log('🔑 Servicio - Token:', token ? 'Presente ✅' : 'Ausente ❌');
-
         const response = await fetch(`${API_URL}/asistencias/registrar`, {
             method: 'POST',
             headers: {
@@ -24,10 +20,7 @@ export const registrarAsistencia = async (empleadoId, ubicacion, token, departam
             body: JSON.stringify(payload)
         });
 
-        console.log('📊 Servicio - Status:', response.status);
-
         const responseText = await response.text();
-        console.log('📥 Servicio - Respuesta:', responseText);
 
         if (!response.ok) {
             let errorData;
@@ -40,11 +33,8 @@ export const registrarAsistencia = async (empleadoId, ubicacion, token, departam
         }
 
         const data = JSON.parse(responseText);
-        console.log('✅ Servicio - Datos parseados:', data);
-
         return data;
     } catch (error) {
-        console.error('❌ Servicio - Error:', error);
         throw error;
     }
 };
@@ -95,7 +85,7 @@ export const getUltimoRegistroHoy = async (empleadoId, token) => {
         const fechaRegistro = new Date(ultimaAsistencia.fecha_registro);
         
         return {
-            tipo: ultimaAsistencia.tipo === 'entrada' ? 'Entrada' : 'Salida',
+            tipo: ultimaAsistencia.tipo,
             hora: fechaRegistro.toLocaleTimeString('es-MX', { 
                 hour: '2-digit', 
                 minute: '2-digit' 

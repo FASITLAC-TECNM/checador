@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { X, Sliders, Save, Bell, Moon, Globe, Volume2, Camera, Fingerprint, User, ChevronUp, ChevronDown } from "lucide-react";
+import { X, Sliders, Save, Moon, Volume2, Camera, Fingerprint, User, ChevronUp, ChevronDown } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
 
 export default function PreferenciasModal({ onClose, onBack }) {
   const { isDarkMode, setDarkMode } = useTheme();
   const [showSaveMessage, setShowSaveMessage] = useState(false);
 
-  // Valores por defecto
+  // Valores por defecto (Sin notificaciones ni idioma)
   const defaultPreferences = {
-    notifications: true,
     darkMode: false,
-    language: "es",
     soundEnabled: true,
     checkMethods: {
       facial: { enabled: true, order: 1 },
@@ -25,16 +23,13 @@ export default function PreferenciasModal({ onClose, onBack }) {
     if (savedPreferences) {
       try {
         const parsed = JSON.parse(savedPreferences);
-        // Asegurar que todos los campos tengan un valor definido
         return {
-          notifications: parsed.notifications ?? defaultPreferences.notifications,
           darkMode: isDarkMode,
-          language: parsed.language ?? defaultPreferences.language,
           soundEnabled: parsed.soundEnabled ?? defaultPreferences.soundEnabled,
           checkMethods: parsed.checkMethods ?? defaultPreferences.checkMethods,
         };
       } catch (error) {
-        // Error al cargar preferencias, usar valores por defecto
+        // Error al cargar, se usa el retorno por defecto de abajo
       }
     }
     return {
@@ -69,7 +64,6 @@ export default function PreferenciasModal({ onClose, onBack }) {
     const methods = { ...preferences.checkMethods };
     const currentOrder = methods[methodName].order;
 
-    // Encontrar el método con el que intercambiar
     const otherMethod = Object.keys(methods).find(
       key => methods[key].order === currentOrder + direction
     );
@@ -94,7 +88,6 @@ export default function PreferenciasModal({ onClose, onBack }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      {/* Mensaje de guardado exitoso */}
       {showSaveMessage && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-pulse">
           <Save className="w-5 h-5" />
@@ -127,35 +120,7 @@ export default function PreferenciasModal({ onClose, onBack }) {
 
         {/* Body - Scrollable */}
         <div className="p-3 space-y-2 flex-1 overflow-y-auto">
-          {/* Notificaciones */}
-          <div className="bg-bg-secondary border-2 border-purple-200 dark:border-purple-800 rounded-2xl p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Bell className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                <div>
-                  <h4 className="font-semibold text-text-primary text-sm">Notificaciones</h4>
-                  <p className="text-xs text-text-secondary">
-                    Recibir alertas y avisos del sistema
-                  </p>
-                </div>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={preferences.notifications}
-                  onChange={(e) =>
-                    setPreferences({
-                      ...preferences,
-                      notifications: e.target.checked,
-                    })
-                  }
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-bg-tertiary peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 dark:peer-focus:ring-purple-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-bg-primary after:border-border-subtle after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600 dark:peer-checked:bg-purple-700"></div>
-              </label>
-            </div>
-          </div>
-
+          
           {/* Modo Oscuro */}
           <div className="bg-bg-secondary border-2 border-purple-200 dark:border-purple-800 rounded-2xl p-3">
             <div className="flex items-center justify-between">
@@ -209,27 +174,6 @@ export default function PreferenciasModal({ onClose, onBack }) {
             </div>
           </div>
 
-          {/* Idioma */}
-          <div className="bg-bg-secondary border-2 border-purple-200 dark:border-purple-800 rounded-2xl p-3">
-            <div className="flex items-start gap-2">
-              <Globe className="w-4 h-4 text-purple-600 dark:text-purple-400 mt-1" />
-              <div className="flex-1">
-                <h4 className="font-semibold text-text-primary mb-1.5 text-sm">Idioma</h4>
-                <select
-                  value={preferences.language}
-                  onChange={(e) =>
-                    setPreferences({ ...preferences, language: e.target.value })
-                  }
-                  className="w-full px-3 py-1.5 text-sm bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-text-primary"
-                >
-                  <option value="es" className="bg-bg-primary text-text-primary">Español</option>
-                  <option value="en" className="bg-bg-primary text-text-primary">English</option>
-                  <option value="fr" className="bg-bg-primary text-text-primary">Français</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
           {/* Métodos de Checado */}
           <div className="bg-bg-secondary border-2 border-purple-200 dark:border-purple-800 rounded-2xl p-3">
             <h4 className="font-semibold text-text-primary mb-3 text-sm flex items-center gap-2">
@@ -262,7 +206,6 @@ export default function PreferenciasModal({ onClose, onBack }) {
                         {methodInfo.label}
                       </span>
 
-                      {/* Botones de orden */}
                       <div className="flex flex-col">
                         <button
                           type="button"
@@ -282,7 +225,6 @@ export default function PreferenciasModal({ onClose, onBack }) {
                         </button>
                       </div>
 
-                      {/* Toggle */}
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
                           type="checkbox"

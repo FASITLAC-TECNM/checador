@@ -54,9 +54,6 @@ export default function AsistenciaFacial({
   const isProcessingRef = useRef(false);
   const captureIntervalRef = useRef(null);
   const timeoutRef = useRef(null);
-  const videoRef = useRef(null);
-  const [videoReady, setVideoReady] = useState(false);
-
   // Hook de camara singleton
   const { initCamera, releaseCamera } = useCamera();
 
@@ -91,47 +88,40 @@ export default function AsistenciaFacial({
     };
   }, []);
 
-  // Cargar modelos al montar
+  // Cargar modelos e iniciar camara al montar (patron identico a FacialAuthModal)
   useEffect(() => {
     if (!shouldMaintainConnection) return;
+
     loadModels();
-  }, [shouldMaintainConnection, loadModels]);
 
-  // Iniciar camara cuando el video este montado
-  useEffect(() => {
-    if (!shouldMaintainConnection || !videoReady || !videoRef.current) return;
-
-    let mounted = true;
-
+    // Iniciar camara directamente, igual que FacialAuthModal
     initCamera()
       .then((mediaStream) => {
-        if (mounted && videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
-          console.log("Camara conectada al video element");
+        const video = document.getElementById("facialAttendanceVideo");
+        if (video) {
+          video.srcObject = mediaStream;
         }
       })
       .catch((err) => {
         console.error("Error accediendo a la camara:", err);
-        if (mounted) {
-          setErrorMessage("No se pudo acceder a la camara");
-          setStep("error");
-          if (backgroundMode) setShowModal(true);
-        }
+        setErrorMessage("No se pudo acceder a la camara");
+        setStep("error");
+        if (backgroundMode) setShowModal(true);
       });
+  }, [loadModels, initCamera]);
 
-    return () => {
-      mounted = false;
-      if (!backgroundMode) {
-        releaseCamera();
-      }
-    };
-  }, [shouldMaintainConnection, videoReady, initCamera, releaseCamera, backgroundMode]);
-
-  // Iniciar deteccion facial
+  // Limpiar camara al desmontar (patron identico a FacialAuthModal)
   useEffect(() => {
-    if (step !== "capturing" || !modelsLoaded || !shouldMaintainConnection || !videoReady) return;
+    return () => {
+      releaseCamera();
+    };
+  }, [releaseCamera]);
 
-    const video = videoRef.current;
+  // Iniciar deteccion facial (patron identico a FacialAuthModal)
+  useEffect(() => {
+    if (step !== "capturing" || !modelsLoaded || !shouldMaintainConnection) return;
+
+    const video = document.getElementById("facialAttendanceVideo");
     if (!video) return;
 
     let capturado = false;
@@ -212,7 +202,7 @@ export default function AsistenciaFacial({
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       stopFaceDetection();
     };
-  }, [step, modelsLoaded, shouldMaintainConnection, backgroundMode, stopFaceDetection, videoReady]);
+  }, [step, modelsLoaded, shouldMaintainConnection, backgroundMode, stopFaceDetection]);
 
   // Identificar usuario y registrar asistencia
   const identificarYRegistrar = async (descriptorBase64) => {
@@ -518,11 +508,10 @@ export default function AsistenciaFacial({
     }
   };
 
-  // Cerrar modal
+  // Cerrar modal (patron identico a FacialAuthModal)
   const handleCloseModal = () => {
     setLoginHabilitado(false);
     isProcessingRef.current = false;
-    setVideoReady(false);
 
     if (backgroundMode) {
       setShowModal(false);
@@ -538,13 +527,25 @@ export default function AsistenciaFacial({
     }
   };
 
-  // Reintentar
+  // Reintentar (patron identico a FacialAuthModal)
   const handleRetry = () => {
     setStep("capturing");
     setResult(null);
     setErrorMessage("");
     isProcessingRef.current = false;
-    // videoReady se actualizara automaticamente cuando el video se monte
+
+    // Reiniciar camara directamente
+    initCamera()
+      .then((mediaStream) => {
+        const video = document.getElementById("facialAttendanceVideo");
+        if (video) {
+          video.srcObject = mediaStream;
+        }
+      })
+      .catch((err) => {
+        setErrorMessage("No se pudo acceder a la camara");
+        setStep("error");
+      });
   };
 
   // No renderizar si no debe mantener conexion
@@ -610,12 +611,6 @@ export default function AsistenciaFacial({
             <div className="space-y-4">
               <div className="relative bg-black rounded-xl overflow-hidden w-full" style={{ aspectRatio: "4/3", minHeight: "280px" }}>
                 <video
-                  ref={(el) => {
-                    videoRef.current = el;
-                    if (el && !videoReady) {
-                      setVideoReady(true);
-                    }
-                  }}
                   id="facialAttendanceVideo"
                   autoPlay
                   playsInline

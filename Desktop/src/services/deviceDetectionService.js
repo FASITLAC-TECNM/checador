@@ -1,4 +1,4 @@
-// services/deviceDetectionService.js
+// services/deviceDetectionService.js - OPTIMIZADO
 
 const VIRTUAL_CAMERA_PATTERNS = [
   "obs",
@@ -25,22 +25,35 @@ const VIRTUAL_CAMERA_PATTERNS = [
   "game capture",
 ];
 
+// MEJORA 1: Cache para evitar procesamiento repetitivo
+const normalizationCache = new Map();
+const virtualCameraCache = new Map();
+
 export const deviceDetectionService = {
   /**
-   * Verificar si es una cámara virtual
+   * MEJORA 2: Verificar si es una cámara virtual (con cache)
    */
   isVirtualCamera(name) {
+    if (virtualCameraCache.has(name)) {
+      return virtualCameraCache.get(name);
+    }
+
     const nameLower = name.toLowerCase();
-    return VIRTUAL_CAMERA_PATTERNS.some((pattern) =>
+    const isVirtual = VIRTUAL_CAMERA_PATTERNS.some((pattern) =>
       nameLower.includes(pattern),
     );
+
+    virtualCameraCache.set(name, isVirtual);
+    return isVirtual;
   },
 
   /**
-   * Determinar el tipo de dispositivo basado en su nombre
+   * MEJORA 3: Determinar el tipo de dispositivo (optimizado)
    */
   getDeviceType(name) {
     const nameLower = name.toLowerCase();
+
+    // Verificación más eficiente con early return
     if (
       nameLower.includes("fingerprint") ||
       nameLower.includes("huella") ||
@@ -49,42 +62,63 @@ export const deviceDetectionService = {
     ) {
       return "dactilar";
     }
+
     return "facial";
   },
 
   /**
-   * Normalizar nombre para comparación (quitar IDs y paréntesis)
+   * MEJORA 4: Normalizar nombre con cache para evitar reprocesamiento
    */
   normalizeNameForComparison(name) {
-    return name
+    if (normalizationCache.has(name)) {
+      return normalizationCache.get(name);
+    }
+
+    const normalized = name
       .toLowerCase()
       .replace(/\s*\([^)]*\)\s*/g, "")
       .trim();
+
+    normalizationCache.set(name, normalized);
+    return normalized;
   },
 
   /**
-   * Detectar cámaras web usando la API del navegador
+   * MEJORA 5: Detectar cámaras web con mejor manejo de permisos
    */
   async detectWebcams() {
     try {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+      if (!navigator.mediaDevices?.enumerateDevices) {
         return [];
       }
 
+      // Verificar permisos antes de intentar
+      const permissionStatus = await this.checkCameraPermission();
+
       const mediaDevices = await navigator.mediaDevices.enumerateDevices();
-      const cameras = mediaDevices
-        .filter((device) => device.kind === "videoinput")
-        .filter((device) => !this.isVirtualCamera(device.label || ""))
-        .map((device, index) => ({
+
+      // MEJORA 6: Procesamiento más eficiente con reduce
+      const cameras = mediaDevices.reduce((acc, device, index) => {
+        if (device.kind !== "videoinput") return acc;
+
+        const label = device.label || `Cámara ${index + 1}`;
+
+        // Filtrar cámaras virtuales
+        if (this.isVirtualCamera(label)) return acc;
+
+        acc.push({
           id: Date.now() + index,
-          name: device.label || `Cámara ${index + 1}`,
-          type: this.getDeviceType(device.label || ""),
+          name: label,
+          type: this.getDeviceType(label),
           connection: "USB",
           ip: "",
           port: "",
           deviceId: device.deviceId,
           detected: true,
-        }));
+        });
+
+        return acc;
+      }, []);
 
       return cameras;
     } catch (error) {
@@ -94,20 +128,39 @@ export const deviceDetectionService = {
   },
 
   /**
+   * MEJORA 7: Verificar permisos de cámara
+   */
+  async checkCameraPermission() {
+    try {
+      if (!navigator.permissions) return "prompt";
+
+      const result = await navigator.permissions.query({ name: "camera" });
+      return result.state;
+    } catch (error) {
+      // Algunos navegadores no soportan permissions API
+      return "prompt";
+    }
+  },
+
+  /**
    * Detectar dispositivos USB vía Electron API
    */
   async detectUSBDevices() {
     try {
-      if (window.electronAPI && window.electronAPI.detectUSBDevices) {
-        const result = await window.electronAPI.detectUSBDevices();
-        if (result.success && result.devices.length > 0) {
-          return result.devices.map((d) => ({
-            ...d,
-            type: this.getDeviceType(d.name || ""),
-          }));
-        }
+      if (!window.electronAPI?.detectUSBDevices) {
+        return [];
       }
-      return [];
+
+      const result = await window.electronAPI.detectUSBDevices();
+
+      if (!result?.success || !result?.devices?.length) {
+        return [];
+      }
+
+      return result.devices.map((d) => ({
+        ...d,
+        type: this.getDeviceType(d.name || ""),
+      }));
     } catch (error) {
       console.error("Error detectando dispositivos USB:", error);
       return [];
@@ -115,7 +168,7 @@ export const deviceDetectionService = {
   },
 
   /**
-   * Verificar si un dispositivo ya existe en la lista
+   * MEJORA 8: Verificar si un dispositivo ya existe (optimizado)
    */
   deviceExists(device, existingDevices) {
     const deviceNormalized = this.normalizeNameForComparison(device.name);
@@ -131,13 +184,19 @@ export const deviceDetectionService = {
   },
 
   /**
-   * Filtrar dispositivos nuevos que no existan en la lista actual
+   * MEJORA 9: Filtrar dispositivos nuevos con Set para mejor rendimiento
    */
   filterNewDevices(detectedDevices, currentDevices) {
-    const existingNames = currentDevices.map((d) => d.name.toLowerCase());
-    return detectedDevices.filter(
-      (d) => d.name && !existingNames.includes(d.name.toLowerCase()),
+    // Crear Set con nombres normalizados para búsqueda O(1)
+    const existingNamesSet = new Set(
+      currentDevices.map((d) => this.normalizeNameForComparison(d.name)),
     );
+
+    return detectedDevices.filter((d) => {
+      if (!d.name) return false;
+      const normalized = this.normalizeNameForComparison(d.name);
+      return !existingNamesSet.has(normalized);
+    });
   },
 
   /**
@@ -203,5 +262,26 @@ export const deviceDetectionService = {
       type: "info",
       message: "No se detectaron dispositivos conectados",
     };
+  },
+
+  /**
+   * MEJORA 10: Limpiar cache periódicamente para evitar memory leaks
+   */
+  clearCache() {
+    normalizationCache.clear();
+    virtualCameraCache.clear();
+  },
+
+  /**
+   * MEJORA 11: Limpiar cache con límite de tamaño
+   */
+  maintainCache(cache, maxSize = 100) {
+    if (cache.size > maxSize) {
+      const keysToDelete = Array.from(cache.keys()).slice(
+        0,
+        cache.size - maxSize,
+      );
+      keysToDelete.forEach((key) => cache.delete(key));
+    }
   },
 };

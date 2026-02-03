@@ -102,12 +102,6 @@ export default function DevicesStep({
                       )}
                       Detectar
                     </button>
-                    <button
-                      onClick={addDevice}
-                      className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
-                    >
-                      + Agregar
-                    </button>
                   </div>
                 )}
               </div>

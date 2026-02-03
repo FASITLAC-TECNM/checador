@@ -10,8 +10,8 @@ const API_URL = getApiEndpoint("/api");
  * @returns {string} - Token de 6 caracteres alfanuméricos
  */
 const generarToken = () => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let token = '';
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let token = "";
   for (let i = 0; i < 6; i++) {
     token += chars.charAt(Math.floor(Math.random() * chars.length));
   }
@@ -38,12 +38,13 @@ export const crearSolicitudAfiliacion = async (datos) => {
     const token = generarToken();
 
     // Formatear dispositivos para el campo dispositivos_temp
-    const dispositivosTemp = datos.dispositivos?.map(d => ({
-      nombre: d.name?.substring(0, 55) || "",
-      tipo: d.type || "facial",
-      ip: d.ip?.substring(0, 12) || "",
-      puerto: d.port?.substring(0, 55) || ""
-    })) || [];
+    const dispositivosTemp =
+      datos.dispositivos?.map((d) => ({
+        nombre: d.name?.substring(0, 55) || "",
+        tipo: d.type || "facial",
+        ip: d.ip?.substring(0, 12) || "",
+        puerto: d.port?.substring(0, 55) || "",
+      })) || [];
 
     const solicitud = {
       tipo: "escritorio",
@@ -74,13 +75,20 @@ export const crearSolicitudAfiliacion = async (datos) => {
     const resultado = await response.json();
     console.log("✅ Solicitud creada exitosamente:", resultado);
     console.log("📦 Estructura resultado.data:", resultado.data);
-    console.log("📦 Todos los campos de data:", JSON.stringify(resultado.data, null, 2));
+    console.log(
+      "📦 Todos los campos de data:",
+      JSON.stringify(resultado.data, null, 2),
+    );
 
     // El backend devuelve { success, message, data: { id, token, ... } }
     const solicitudData = resultado.data || resultado;
-    const solicitudId = solicitudData.id || solicitudData.solicitud_id || solicitudData.insertId;
+    const solicitudId =
+      solicitudData.id || solicitudData.solicitud_id || solicitudData.insertId;
     // Usar el token que devuelve el backend (convertir a string por si es número)
-    const tokenBackend = solicitudData.token?.toString() || solicitudData.verification_token?.toString() || solicitudData.codigo?.toString();
+    const tokenBackend =
+      solicitudData.token?.toString() ||
+      solicitudData.verification_token?.toString() ||
+      solicitudData.codigo?.toString();
     const tokenFinal = tokenBackend || token;
 
     console.log("🆔 ID extraído:", solicitudId);
@@ -161,12 +169,9 @@ export const limpiarSolicitudGuardada = () => {
  */
 export const cancelarSolicitud = async (solicitudId) => {
   try {
-    const response = await fetch(
-      `${API_URL}/solicitudes/${solicitudId}`,
-      {
-        method: "DELETE",
-      }
-    );
+    const response = await fetch(`${API_URL}/solicitudes/${solicitudId}`, {
+      method: "DELETE",
+    });
 
     if (!response.ok) {
       throw new Error("Error al cancelar la solicitud");

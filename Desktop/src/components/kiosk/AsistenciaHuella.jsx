@@ -128,17 +128,14 @@ export default function AsistenciaHuella({
     }
 
     return () => {
-      // Solo desconectar si no estamos en modo background
-      if (!backgroundMode) {
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current);
-        }
-        if (wsRef.current) {
-          wsRef.current.close();
-        }
-        if (countdownIntervalRef.current) {
-          clearInterval(countdownIntervalRef.current);
-        }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
       }
     };
   }, [shouldMaintainConnection, backgroundMode]);
@@ -614,12 +611,21 @@ export default function AsistenciaHuella({
 
         if (data.readerConnected) {
           addMessage("✅ Lector de huellas conectado", "success");
-          // Iniciar identificación automáticamente cuando el lector está listo
-          if (!hasStartedIdentification.current && data.currentOperation === "None") {
-            hasStartedIdentification.current = true;
-            setTimeout(() => {
-              startIdentification();
-            }, 500);
+          if (!hasStartedIdentification.current) {
+            if (data.currentOperation === "None") {
+              // Lector listo, iniciar identificación
+              hasStartedIdentification.current = true;
+              setTimeout(() => {
+                startIdentification();
+              }, 500);
+            } else {
+              // Servidor en otro modo (enrollment previo o Identifying huérfano), forzar reset
+              sendCommand("stopCapture");
+              hasStartedIdentification.current = true;
+              setTimeout(() => {
+                startIdentification();
+              }, 800);
+            }
           }
         } else {
           addMessage("⚠️ Sin lector de huellas detectado", "warning");

@@ -29,7 +29,7 @@ import PreferenciasModal from "../components/session/PreferenciasModal";
 import HorarioModal from "../components/session/HorarioModal";
 import EmployeeInfo from "../components/session/EmployeeInfo";
 import NoEmployeeInfo from "../components/session/NoEmployeeInfo";
-import BiometricReader from "../components/kiosk/BiometricReader";
+import BiometricEnroll from "../components/kiosk/BiometricEnroll";
 import RegisterFaceModal from "../components/kiosk/RegisterFaceModal";
 import { getEmpleadoConHorario, getDepartamentosPorEmpleadoId } from "../services/empleadoService";
 
@@ -647,9 +647,9 @@ export default function SessionScreen({ onLogout, usuario }) {
         </div>
       )}
 
-      {/* Modal de BiometricReader para registro de huella */}
+      {/* Modal de registro de huella */}
       {showBiometricReader && (
-        <BiometricReader
+        <BiometricEnroll
           isOpen={showBiometricReader}
           onClose={() => setShowBiometricReader(false)}
           onEnrollmentSuccess={(data) => {
@@ -657,7 +657,6 @@ export default function SessionScreen({ onLogout, usuario }) {
             setShowBiometricReader(false);
           }}
           idEmpleado={datosCompletos?.empleado_id}
-          mode="enroll"
         />
       )}
 

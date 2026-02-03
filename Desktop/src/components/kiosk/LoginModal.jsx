@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import BiometricReader from "./BiometricReader";
+import BiometricAuth from "./BiometricAuth";
 import FacialAuthModal from "./FacialAuthModal";
 
 function LoginModal({ isOpen = true, onClose, onLoginSuccess, checkMethods }) {
@@ -378,11 +378,10 @@ function LoginModal({ isOpen = true, onClose, onLoginSuccess, checkMethods }) {
 
             {/* Modal Biometrico */}
             {showBiometricModal && (
-                <BiometricReader
+                <BiometricAuth
                     isOpen={showBiometricModal}
                     onClose={() => setShowBiometricModal(false)}
                     onAuthSuccess={handleBiometricSuccess}
-                    mode="auth"
                 />
             )}
 

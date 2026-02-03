@@ -5,6 +5,7 @@ import { useTheme } from "../../context/ThemeContext";
 export default function PreferenciasModal({ onClose, onBack }) {
   const { isDarkMode, setDarkMode } = useTheme();
   const [showSaveMessage, setShowSaveMessage] = useState(false);
+  const [showMinMethodWarning, setShowMinMethodWarning] = useState(false);
 
   // Valores por defecto (Sin notificaciones ni idioma)
   const defaultPreferences = {
@@ -48,6 +49,16 @@ export default function PreferenciasModal({ onClose, onBack }) {
   };
 
   const handleCheckMethodToggle = (methodName, checked) => {
+    // Si se intenta desactivar, verificar que quede al menos un método activo
+    if (!checked) {
+      const enabledCount = Object.values(preferences.checkMethods).filter(m => m.enabled).length;
+      if (enabledCount <= 1) {
+        setShowMinMethodWarning(true);
+        setTimeout(() => setShowMinMethodWarning(false), 2500);
+        return;
+      }
+    }
+
     setPreferences({
       ...preferences,
       checkMethods: {
@@ -92,6 +103,12 @@ export default function PreferenciasModal({ onClose, onBack }) {
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-pulse">
           <Save className="w-5 h-5" />
           <span className="font-semibold">Preferencias guardadas exitosamente</span>
+        </div>
+      )}
+      {showMinMethodWarning && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] bg-amber-500 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-pulse">
+          <Sliders className="w-5 h-5" />
+          <span className="font-semibold">Debe haber al menos un método de checado activo</span>
         </div>
       )}
       <div className="bg-bg-primary rounded-3xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-hidden flex flex-col">

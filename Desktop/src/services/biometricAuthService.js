@@ -289,19 +289,10 @@ export const obtenerSesion = () => {
  * Cerrar sesión y actualizar estado
  * @param {number} userId - ID del usuario
  */
-export const cerrarSesion = async (userId) => {
-  try {
-    // Actualizar estado a DESCONECTADO antes de cerrar sesión
-    if (userId) {
-      await actualizarEstadoUsuario(userId, "DESCONECTADO");
-    }
-  } catch (error) {
-    console.error("Error al actualizar estado al cerrar sesión:", error);
-  } finally {
-    localStorage.removeItem("usuarioActual");
-    localStorage.removeItem("ultimoLogin");
-    localStorage.removeItem("metodoAutenticacion");
-  }
+export const cerrarSesion = async () => {
+  localStorage.removeItem("usuarioActual");
+  localStorage.removeItem("ultimoLogin");
+  localStorage.removeItem("metodoAutenticacion");
 };
 
 /**

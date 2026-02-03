@@ -54,54 +54,8 @@ export default function BiometricReader({
     inputIdEmpleadoRef.current = inputIdEmpleado;
   }, [inputIdEmpleado]);
 
-  // DEBUG: Función para obtener la huella del empleado ID 1
-  const debugObtenerHuellaEmpleado1 = async () => {
-    try {
-      console.log("\n🔍 DEBUG: Obteniendo huella del empleado ID 1 desde BD...");
-      const API_URL = "https://9dm7dqf9-3001.usw3.devtunnels.ms/api";
-
-      const response = await fetch(`${API_URL}/biometric/template/1`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        console.error("❌ Error al obtener template:", response.status);
-        return;
-      }
-
-      const result = await response.json();
-      console.log("\n📦 HUELLA DEL EMPLEADO ID 1 EN LA BD:");
-      console.log("   - ID Empleado:", result.data.id_empleado);
-      console.log("   - Tamaño:", result.data.size_bytes, "bytes");
-      console.log("   - Template (Base64 - primeros 100 chars):", result.data.template_base64.substring(0, 100) + "...");
-      console.log("   - Template completo (Base64):", result.data.template_base64);
-
-      // Convertir a BYTEA para mostrar
-      const binaryString = atob(result.data.template_base64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-      }
-      const hexString = Array.from(bytes.slice(0, 50))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
-      console.log("   - Primeros 50 bytes (BYTEA hex): \\\\x" + hexString);
-      console.log("\n");
-    } catch (error) {
-      console.error("❌ Error en debug de huella empleado 1:", error);
-    }
-  };
-
   useEffect(() => {
     connectToServer();
-
-    // DEBUG: Obtener y mostrar la huella del empleado ID 1
-    if (mode === "auth") {
-      debugObtenerHuellaEmpleado1();
-    }
 
     return () => {
       // Cancelar cualquier operación en curso antes de cerrar (usar stopCapture que cancela todo)

@@ -14,6 +14,21 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let mainWindow;
+
+/**
+ * Obtiene la ruta del BiometricMiddleware según el entorno
+ * En desarrollo: electron/BiometricMiddleware/bin/
+ * En producción: resources/BiometricMiddleware/
+ */
+function getBiometricPath() {
+  if (app.isPackaged) {
+    // Producción: extraResources se copia a resources/BiometricMiddleware
+    return path.join(process.resourcesPath, "BiometricMiddleware");
+  } else {
+    // Desarrollo: ruta relativa al archivo main.mjs
+    return path.join(__dirname, "BiometricMiddleware", "bin");
+  }
+}
 let biometricProcess = null;
 
 // Suprimir logs de errores internos de Chromium (GPU, video capture, etc.)
@@ -24,17 +39,19 @@ app.commandLine.appendSwitch("log-level", "3");
  * @returns {boolean} - true si el ejecutable existe o se compiló correctamente
  */
 function buildBiometricMiddlewareIfNeeded() {
-  const middlewarePath = path.join(
-    __dirname,
-    "BiometricMiddleware",
-    "bin",
-    "BiometricMiddleware.exe",
-  );
+  const biometricDir = getBiometricPath();
+  const middlewarePath = path.join(biometricDir, "BiometricMiddleware.exe");
 
   // Si ya existe el ejecutable, no hacer nada
   if (fs.existsSync(middlewarePath)) {
     console.log("[BIOMETRIC] Ejecutable encontrado:", middlewarePath);
     return true;
+  }
+
+  // En producción, el ejecutable debe existir en extraResources
+  if (app.isPackaged) {
+    console.error("[ERROR] BiometricMiddleware.exe no encontrado en producción:", middlewarePath);
+    return false;
   }
 
   console.log("[BIOMETRIC] Ejecutable no encontrado, iniciando compilacion...");
@@ -108,14 +125,10 @@ function startBiometricMiddleware() {
       return;
     }
 
-    // Ejecutable compilado
-    const middlewarePath = path.join(
-      __dirname,
-      "BiometricMiddleware",
-      "bin",
-      "BiometricMiddleware.exe",
-    );
-    const workingDir = path.join(__dirname, "BiometricMiddleware", "bin");
+    // Ejecutable compilado (usa ruta según entorno)
+    const biometricDir = getBiometricPath();
+    const middlewarePath = path.join(biometricDir, "BiometricMiddleware.exe");
+    const workingDir = biometricDir;
 
     console.log(
       "[BIOMETRIC] Iniciando BiometricMiddleware desde:",
@@ -792,11 +805,7 @@ ipcMain.handle("read-fingerprint-template", async (event, userId) => {
     console.log(`[FILE] Leyendo template de huella para userId: ${userId}`);
 
     const templatePath = path.join(
-      __dirname,
-      "BiometricMiddleware",
-      "bin",
-      "Debug",
-      "net48",
+      getBiometricPath(),
       "FingerprintTemplates",
       `${userId}.fpt`,
     );

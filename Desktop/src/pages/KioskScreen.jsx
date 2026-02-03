@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Camera, User, ClipboardList, Bell, Fingerprint } from "lucide-react";
 import { formatTime, formatDate, formatDay } from "../utils/dateHelpers";
 import { notices } from "../constants/notices";
-import CameraModal from "../components/kiosk/CameraModal";
 import PinModal from "../components/kiosk/PinModal";
 import LoginModal from "../components/kiosk/LoginModal";
 import BitacoraModal from "../components/kiosk/BitacoraModal";
@@ -14,7 +13,6 @@ import { useConnectivity } from "../hooks/useConnectivity";
 import { ConnectionStatusPanel } from "../components/common/ConnectionStatus";
 import AsistenciaHuella from "../components/kiosk/AsistenciaHuella";
 import AsistenciaFacial from "../components/kiosk/AsistenciaFacial";
-import { useCamera } from "../context/CameraContext";
 
 export default function KioskScreen() {
   // Leer configuración de métodos de checado
@@ -46,9 +44,6 @@ export default function KioskScreen() {
   // Hook de conectividad
   const { isInternetConnected, isDatabaseConnected } = useConnectivity();
 
-  // Hook de cámara singleton
-  const { initCamera, releaseCamera, attachToVideo } = useCamera();
-
   const [time, setTime] = useState(new Date());
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [usuarioActual, setUsuarioActual] = useState(null); // Almacenar datos del usuario
@@ -56,13 +51,6 @@ export default function KioskScreen() {
   const [showPinModal, setShowPinModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showBitacora, setShowBitacora] = useState(false);
-  const [showCamera, setShowCamera] = useState(false);
-  const [cameraMode, setCameraMode] = useState("asistencia");
-  const [captureProgress, setCaptureProgress] = useState(0);
-  const [captureSuccess, setCaptureSuccess] = useState(false);
-  const [captureFailed, setCaptureFailed] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
-  const hasProcessedCapture = useRef(false);
   const [showBiometricReader, setShowBiometricReader] = useState(false);
   const [showAsistenciaFacial, setShowAsistenciaFacial] = useState(false);
 
@@ -149,151 +137,6 @@ export default function KioskScreen() {
     return () => window.removeEventListener("keydown", handleKeyPress);
   }, []);
 
-  // Manejar detección de rostro exitosa
-  const handleFaceDetected = async (descriptor) => {
-    if (hasProcessedCapture.current) return;
-    hasProcessedCapture.current = true;
-
-    setCaptureProgress(100);
-
-    try {
-      console.log("🔍 Verificando rostro con el servidor...");
-
-      // Verificar si estamos en Electron
-      if (!window.electronAPI) {
-        throw new Error("Esta funcionalidad requiere Electron");
-      }
-
-      // Verificar usuario mediante Electron (que se comunica con el backend)
-      const result = await window.electronAPI.verificarUsuario(descriptor);
-
-      if (result.success) {
-        // ✅ Rostro identificado correctamente
-        const nombreUsuario = result.empleado.nombre || "Usuario";
-        const empleadoId = result.empleado.id;
-
-        // Si es modo asistencia, registrar la asistencia
-        if (cameraMode === "asistencia") {
-          console.log("📝 Registrando asistencia para empleado:", empleadoId);
-          const asistenciaResult = await window.electronAPI.registrarAsistenciaFacial(empleadoId);
-
-          if (!asistenciaResult.success) {
-            throw new Error(`Error registrando asistencia: ${asistenciaResult.message}`);
-          }
-
-          console.log("✅ Asistencia registrada:", asistenciaResult.data);
-        }
-
-        setCaptureSuccess(true);
-
-        agregarEvento({
-          user: nombreUsuario,
-          action: `${
-            cameraMode === "asistencia"
-              ? "Registro de asistencia"
-              : "Inicio de sesión"
-          } exitoso - Reconocimiento facial`,
-          type: "success",
-        });
-
-        const successMessage =
-          cameraMode === "asistencia"
-            ? `Registro exitoso, ${nombreUsuario}`
-            : `Acceso concedido, ${nombreUsuario}`;
-
-        const utterance = new SpeechSynthesisUtterance(successMessage);
-        utterance.lang = "es-MX";
-        utterance.rate = 0.9;
-        window.speechSynthesis.speak(utterance);
-
-        setTimeout(() => {
-          setIsClosing(true);
-          setTimeout(() => {
-            setShowCamera(false);
-            if (cameraMode === "login") {
-              setUsuarioActual(result.empleado);
-              setIsLoggedIn(true);
-            }
-          }, 500);
-        }, 3000);
-      } else {
-        // ❌ Rostro no identificado
-        setCaptureFailed(true);
-
-        agregarEvento({
-          user: "Sistema",
-          action: `Intento de ${
-            cameraMode === "asistencia" ? "registro de asistencia" : "acceso"
-          } - Rostro no identificado`,
-          type: "error",
-        });
-
-        const errorMessage = "Rostro no identificado. Intenta de nuevo.";
-        const utterance = new SpeechSynthesisUtterance(errorMessage);
-        utterance.lang = "es-MX";
-        utterance.rate = 0.9;
-        window.speechSynthesis.speak(utterance);
-
-        setTimeout(() => {
-          setIsClosing(true);
-          setTimeout(() => {
-            setShowCamera(false);
-          }, 500);
-        }, 2000);
-      }
-    } catch (error) {
-      console.error("❌ Error verificando rostro:", error);
-      setCaptureFailed(true);
-
-      agregarEvento({
-        user: "Sistema",
-        action: `Error en reconocimiento facial: ${error.message}`,
-        type: "error",
-      });
-
-      setTimeout(() => {
-        setIsClosing(true);
-        setTimeout(() => {
-          setShowCamera(false);
-        }, 500);
-      }, 2000);
-    }
-  };
-
-  // Manejar cámara usando el contexto singleton
-  useEffect(() => {
-    if (showCamera) {
-      setCaptureProgress(0);
-      setCaptureSuccess(false);
-      setCaptureFailed(false);
-      setIsClosing(false);
-      hasProcessedCapture.current = false;
-
-      // Inicializar cámara usando el contexto (reutiliza stream existente)
-      initCamera()
-        .then((mediaStream) => {
-          const video = document.getElementById("cameraVideo");
-          if (video) {
-            video.srcObject = mediaStream;
-          }
-        })
-        .catch((err) => {
-          agregarEvento({
-            user: "Sistema",
-            action: "Error al acceder a la cámara - Permisos denegados",
-            type: "error",
-          });
-
-          alert(
-            "No se pudo acceder a la cámara. Por favor, verifica los permisos."
-          );
-        });
-    } else {
-      // Liberar uso de cámara (solo se detiene si nadie más la usa)
-      releaseCamera();
-    }
-  }, [showCamera, cameraMode, initCamera, releaseCamera]);
-
   // Manejar login exitoso
   const handleLoginSuccess = (usuario) => {
     console.log("Login exitoso:", usuario);
@@ -301,7 +144,6 @@ export default function KioskScreen() {
     // IMPORTANTE: Cerrar TODOS los modales antes de cambiar el estado de login
     setShowLoginModal(false);
     setShowBiometricReader(false);
-    setShowCamera(false);
     setShowPinModal(false);
     setShowAsistenciaFacial(false);
 
@@ -323,7 +165,6 @@ export default function KioskScreen() {
     // IMPORTANTE: Cerrar todos los modales para evitar que queden abiertos
     setShowLoginModal(false);
     setShowBiometricReader(false);
-    setShowCamera(false);
     setShowPinModal(false);
     setShowBitacora(false);
     setShowAsistenciaFacial(false);
@@ -381,7 +222,6 @@ export default function KioskScreen() {
     // IMPORTANTE: Cerrar TODOS los modales para evitar conflictos
     setShowBiometricReader(false);
     setShowLoginModal(false);
-    setShowCamera(false);
     setShowPinModal(false);
     setShowAsistenciaFacial(false);
 
@@ -423,7 +263,6 @@ export default function KioskScreen() {
     setShowAsistenciaFacial(false);
     setShowBiometricReader(false);
     setShowLoginModal(false);
-    setShowCamera(false);
     setShowPinModal(false);
 
     // Mensaje de bienvenida
@@ -680,28 +519,10 @@ export default function KioskScreen() {
           onClose={() => setShowLoginModal(false)}
           onFacialLogin={() => {
             setShowLoginModal(false);
-            setCameraMode("login");
-            setShowCamera(true);
+            setShowAsistenciaFacial(true);
           }}
           onLoginSuccess={handleLoginSuccess}
           checkMethods={checkMethods}
-        />
-      )}
-
-      {showCamera && (
-        <CameraModal
-          cameraMode={cameraMode}
-          captureProgress={captureProgress}
-          captureSuccess={captureSuccess}
-          captureFailed={captureFailed}
-          isClosing={isClosing}
-          onFaceDetected={handleFaceDetected}
-          onClose={() => {
-            setIsClosing(true);
-            setTimeout(() => {
-              setShowCamera(false);
-            }, 500);
-          }}
         />
       )}
 

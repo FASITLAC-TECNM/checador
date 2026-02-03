@@ -273,7 +273,7 @@ export const actualizarEstadoUsuario = async (id, nuevoEstado) => {
 export const guardarSesion = (usuario) => {
   localStorage.setItem("usuarioActual", JSON.stringify(usuario));
   localStorage.setItem("ultimoLogin", new Date().toISOString());
-  localStorage.setItem("metodoAutenticacion", "HUELLA");
+  localStorage.setItem("metodoAutenticacion", usuario.metodoAutenticacion || "BIOMETRICO");
 };
 
 /**

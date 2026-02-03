@@ -4,7 +4,6 @@ import {
   X,
   CheckCircle,
   XCircle,
-  Clock,
   LogIn,
   Timer,
   Loader2,
@@ -13,14 +12,12 @@ import {
 import { useFaceDetection } from "../../hooks/useFaceDetection";
 import { identificarPorFacial, guardarSesion } from "../../services/biometricAuthService";
 import { useCamera } from "../../context/CameraContext";
-import { API_CONFIG, fetchApi } from "../../config/apiEndPoint";
+import { API_CONFIG } from "../../config/apiEndPoint";
 import {
   cargarDatosAsistencia,
   obtenerDepartamentoEmpleado,
   registrarAsistenciaEnServidor,
-  obtenerInfoClasificacion,
-  obtenerUltimoRegistro,
-  calcularEstadoRegistro
+  obtenerInfoClasificacion
 } from "../../services/asistenciaLogicService";
 import { agregarEvento } from "../../services/bitacoraService";
 import * as faceapi from 'face-api.js';
@@ -43,10 +40,6 @@ export default function AsistenciaFacial({
   const [loginHabilitado, setLoginHabilitado] = useState(false);
   const [processingLogin, setProcessingLogin] = useState(false);
 
-  // Estados para logica de asistencia
-  const [horarioInfo, setHorarioInfo] = useState(null);
-  const [toleranciaInfo, setToleranciaInfo] = useState(null);
-
   // Refs
   const countdownIntervalRef = useRef(null);
   const onCloseRef = useRef(onClose);
@@ -60,7 +53,6 @@ export default function AsistenciaFacial({
   const {
     modelsLoaded,
     faceDetected,
-    detectionProgress,
     detectionError,
     loadModels,
     stopFaceDetection,
@@ -216,36 +208,20 @@ export default function AsistenciaFacial({
         throw new Error(response.error || "Rostro no reconocido en el sistema");
       }
 
-      const usuarioIdentificado = response.usuario;
-      console.log("Usuario identificado:", usuarioIdentificado);
-
-      // 2. Obtener datos del empleado
-      let empleadoId = usuarioIdentificado.empleado_id;
-
-      if (!empleadoId && usuarioIdentificado.es_empleado) {
-        const empleadosResponse = await fetchApi(API_CONFIG.ENDPOINTS.EMPLEADOS);
-        const empleados = empleadosResponse.data || empleadosResponse;
-        empleadoData = empleados.find(emp => emp.usuario_id === usuarioIdentificado.id);
-        empleadoId = empleadoData?.id;
-      }
+      // identificarPorFacial retorna { usuario: empleado } - datos del empleado directamente
+      empleadoData = response.usuario;
+      const empleadoId = empleadoData.id_empleado || empleadoData.id;
+      const usuarioId = empleadoData.id_usuario || empleadoData.usuario_id;
 
       if (!empleadoId) {
         throw new Error("No se encontro informacion del empleado");
       }
 
-      if (!empleadoData) {
-        const empResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.EMPLEADOS}/${empleadoId}`);
-        empleadoData = empResponse.data || empResponse;
-      }
-
       console.log("Empleado identificado:", empleadoData?.nombre || empleadoId);
 
-      // 3. Verificar horario
-      const datosAsistencia = await cargarDatosAsistencia(empleadoId, usuarioIdentificado.id);
+      // 2. Verificar horario usando asistenciaLogicService
+      const datosAsistencia = await cargarDatosAsistencia(empleadoId, usuarioId);
       const estadoActual = datosAsistencia.estado;
-
-      setHorarioInfo(datosAsistencia.horario);
-      setToleranciaInfo(datosAsistencia.tolerancia);
 
       const now = new Date();
       const horaActual = now.toLocaleTimeString("es-MX", {
@@ -274,7 +250,7 @@ export default function AsistenciaFacial({
           success: false,
           message: mensaje,
           empleado: empleadoData,
-          usuario: usuarioIdentificado,
+          usuario: empleadoData,
           empleadoId: empleadoId,
           estadoHorario: estadoActual?.estadoHorario,
           noPuedeRegistrar: true,
@@ -285,12 +261,12 @@ export default function AsistenciaFacial({
         return;
       }
 
-      // 4. Registrar asistencia
+      // 3. Registrar asistencia
       console.log("Registrando asistencia...");
       const departamentoId = await obtenerDepartamentoEmpleado(empleadoId);
 
       const data = await registrarAsistenciaEnServidor({
-        empleadoId: empleadoData.id,
+        empleadoId: empleadoId,
         departamentoId,
         tipoRegistro: estadoActual?.tipoRegistro || 'entrada',
         clasificacion: estadoActual?.clasificacion || 'entrada',
@@ -299,7 +275,7 @@ export default function AsistenciaFacial({
         token: localStorage.getItem('auth_token') || ''
       });
 
-      // 5. Procesar resultado exitoso
+      // 4. Procesar resultado exitoso
       const clasificacionFinal = data.data?.clasificacion || estadoActual?.clasificacion || 'entrada';
       const tipoRegistro = data.data?.tipo || estadoActual?.tipoRegistro || 'entrada';
       const tipoMovimiento = tipoRegistro === 'salida' ? 'SALIDA' : 'ENTRADA';
@@ -331,7 +307,7 @@ export default function AsistenciaFacial({
         success: true,
         message: "Asistencia registrada",
         empleado: empleadoData,
-        usuario: usuarioIdentificado,
+        usuario: empleadoData,
         empleadoId: empleadoId,
         tipoMovimiento: tipoMovimiento,
         hora: data.data?.fecha_registro
@@ -370,6 +346,7 @@ export default function AsistenciaFacial({
         success: false,
         message: error.message || "Error al registrar asistencia",
         empleado: empleadoData,
+        empleadoId: empleadoData?.id || null,
         noReconocida: error.message?.includes("no reconocido") || error.message?.includes("No se encontr"),
       });
 

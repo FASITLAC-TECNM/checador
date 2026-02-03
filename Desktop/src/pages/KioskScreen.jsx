@@ -13,33 +13,12 @@ import { useConnectivity } from "../hooks/useConnectivity";
 import { ConnectionStatusPanel } from "../components/common/ConnectionStatus";
 import AsistenciaHuella from "../components/kiosk/AsistenciaHuella";
 import AsistenciaFacial from "../components/kiosk/AsistenciaFacial";
+import { obtenerOrdenCredenciales } from "../services/configuracionService";
 
 export default function KioskScreen() {
-  // Leer configuración de métodos de checado
-  const [checkMethods, setCheckMethods] = useState(() => {
-    const savedPreferences = localStorage.getItem("userPreferences");
-    if (savedPreferences) {
-      try {
-        const parsed = JSON.parse(savedPreferences);
-        return parsed.checkMethods || {
-          facial: { enabled: true, order: 1 },
-          fingerprint: { enabled: false, order: 2 },
-          userLogin: { enabled: false, order: 3 },
-        };
-      } catch (error) {
-        return {
-          facial: { enabled: true, order: 1 },
-          fingerprint: { enabled: false, order: 2 },
-          userLogin: { enabled: false, order: 3 },
-        };
-      }
-    }
-    return {
-      facial: { enabled: true, order: 1 },
-      fingerprint: { enabled: false, order: 2 },
-      userLogin: { enabled: false, order: 3 },
-    };
-  });
+  // Estado de orden de credenciales desde el backend
+  const [ordenCredenciales, setOrdenCredenciales] = useState(null);
+  const [loadingCredenciales, setLoadingCredenciales] = useState(true);
 
   // Hook de conectividad
   const { isInternetConnected, isDatabaseConnected } = useConnectivity();
@@ -54,11 +33,12 @@ export default function KioskScreen() {
   const [showBiometricReader, setShowBiometricReader] = useState(false);
   const [showAsistenciaFacial, setShowAsistenciaFacial] = useState(false);
 
-  // Obtener métodos activos ordenados
+  // Obtener métodos activos ordenados desde backend
   const getActiveMethods = () => {
-    return Object.entries(checkMethods)
-      .filter(([, config]) => config.enabled)
-      .sort(([, a], [, b]) => a.order - b.order)
+    if (!ordenCredenciales) return [];
+    return Object.entries(ordenCredenciales)
+      .filter(([, config]) => config.activo)
+      .sort(([, a], [, b]) => a.prioridad - b.prioridad)
       .map(([key]) => key);
   };
 
@@ -71,47 +51,35 @@ export default function KioskScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  // Recargar preferencias cuando el usuario cierra sesión (isLoggedIn cambia a false)
+  // Cargar orden de credenciales desde el backend
+  const cargarCredenciales = async () => {
+    try {
+      setLoadingCredenciales(true);
+      const { ordenCredenciales: orden } = await obtenerOrdenCredenciales();
+      setOrdenCredenciales(orden);
+    } catch (err) {
+      console.error("Error al cargar orden de credenciales:", err);
+      // Fallback por defecto si falla el backend
+      setOrdenCredenciales({
+        facial: { prioridad: 1, activo: true },
+        dactilar: { prioridad: 2, activo: true },
+        pin: { prioridad: 3, activo: true },
+      });
+    } finally {
+      setLoadingCredenciales(false);
+    }
+  };
+
+  // Cargar al montar el componente
+  useEffect(() => {
+    cargarCredenciales();
+  }, []);
+
+  // Recargar credenciales cuando el usuario cierra sesión
   useEffect(() => {
     if (!isLoggedIn) {
-      const savedPreferences = localStorage.getItem("userPreferences");
-      if (savedPreferences) {
-        try {
-          const parsed = JSON.parse(savedPreferences);
-          if (parsed.checkMethods) {
-            setCheckMethods(parsed.checkMethods);
-          }
-        } catch (error) {
-          console.error("Error al cargar métodos de checado:", error);
-        }
-      }
+      cargarCredenciales();
     }
-  }, [isLoggedIn]);
-
-  // Escuchar cambios desde otras ventanas/pestañas
-  useEffect(() => {
-    const handleStorageChange = (e) => {
-      // Solo responder a cambios de userPreferences desde otras ventanas
-      if (e.key === "userPreferences" && !isLoggedIn) {
-        const savedPreferences = e.newValue;
-        if (savedPreferences) {
-          try {
-            const parsed = JSON.parse(savedPreferences);
-            if (parsed.checkMethods) {
-              setCheckMethods(parsed.checkMethods);
-            }
-          } catch (error) {
-            console.error("Error al actualizar métodos de checado:", error);
-          }
-        }
-      }
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-
-    return () => {
-      window.removeEventListener("storage", handleStorageChange);
-    };
   }, [isLoggedIn]);
 
   // Atajo para resetear configuración: Ctrl+Shift+R
@@ -120,7 +88,7 @@ export default function KioskScreen() {
       if (e.ctrlKey && e.shiftKey && e.key === "R") {
         e.preventDefault();
         const confirmReset = confirm(
-          "¿Está seguro que desea resetear la configuración de la aplicación? Esto eliminará todos los datos guardados y deberá volver a afiliar el equipo."
+          "¿Está seguro que desea resetear la configuración de la aplicación? Esto eliminará todos los datos guardados y deberá volver a afiliar el equipo.",
         );
         if (confirmReset) {
           localStorage.clear();
@@ -217,7 +185,10 @@ export default function KioskScreen() {
 
   // Manejar solicitud de login desde el modal de asistencia
   const handleFingerprintLoginRequest = (usuarioCompleto) => {
-    console.log("Inicio de sesion desde huella - Datos completos:", usuarioCompleto);
+    console.log(
+      "Inicio de sesion desde huella - Datos completos:",
+      usuarioCompleto,
+    );
 
     // IMPORTANTE: Cerrar TODOS los modales para evitar conflictos
     setShowBiometricReader(false);
@@ -226,7 +197,8 @@ export default function KioskScreen() {
     setShowAsistenciaFacial(false);
 
     // Mensaje de bienvenida
-    const nombreUsuario = usuarioCompleto?.nombre || usuarioCompleto?.username || "Usuario";
+    const nombreUsuario =
+      usuarioCompleto?.nombre || usuarioCompleto?.username || "Usuario";
     const welcomeMessage = `Bienvenido ${nombreUsuario}`;
     const utterance = new SpeechSynthesisUtterance(welcomeMessage);
     utterance.lang = "es-MX";
@@ -250,14 +222,17 @@ export default function KioskScreen() {
 
     agregarEvento({
       user: data.empleado?.nombre || "Empleado",
-      action: `${data.tipo_movimiento === 'SALIDA' ? 'Salida' : 'Entrada'} registrada - Reconocimiento facial`,
+      action: `${data.tipo_movimiento === "SALIDA" ? "Salida" : "Entrada"} registrada - Reconocimiento facial`,
       type: "success",
     });
   };
 
   // Manejar solicitud de login desde el modal de asistencia facial
   const handleFacialLoginRequest = (usuarioCompleto) => {
-    console.log("Inicio de sesion desde facial - Datos completos:", usuarioCompleto);
+    console.log(
+      "Inicio de sesion desde facial - Datos completos:",
+      usuarioCompleto,
+    );
 
     // Cerrar todos los modales
     setShowAsistenciaFacial(false);
@@ -266,7 +241,8 @@ export default function KioskScreen() {
     setShowPinModal(false);
 
     // Mensaje de bienvenida
-    const nombreUsuario = usuarioCompleto?.nombre || usuarioCompleto?.username || "Usuario";
+    const nombreUsuario =
+      usuarioCompleto?.nombre || usuarioCompleto?.username || "Usuario";
     const welcomeMessage = `Bienvenido ${nombreUsuario}`;
     const utterance = new SpeechSynthesisUtterance(welcomeMessage);
     utterance.lang = "es-MX";
@@ -284,29 +260,34 @@ export default function KioskScreen() {
     });
   };
 
-  // Obtener información del método
+  // Obtener información del método (claves del backend)
   const getMethodInfo = (methodKey) => {
     const info = {
       facial: {
         icon: Camera,
         label: "Reconocimiento Facial",
-        color: "from-blue-500 to-blue-600 dark:from-slate-700 dark:to-slate-800",
-        hoverColor: "hover:from-blue-600 hover:to-blue-700 dark:hover:from-slate-600 dark:hover:to-slate-700",
+        color:
+          "from-blue-500 to-blue-600 dark:from-slate-700 dark:to-slate-800",
+        hoverColor:
+          "hover:from-blue-600 hover:to-blue-700 dark:hover:from-slate-600 dark:hover:to-slate-700",
         handler: handleFacialCheck,
       },
-      fingerprint: {
+      dactilar: {
         icon: Fingerprint,
         label: "Huella Digital",
-        color: "from-blue-500 to-blue-600 dark:from-slate-700 dark:to-slate-800",
+        color:
+          "from-blue-500 to-blue-600 dark:from-slate-700 dark:to-slate-800",
         hoverColor: "", // Sin hover porque es solo visual
         handler: null, // Solo visual, el lector está siempre activo en background
         isVisualOnly: true,
       },
-      userLogin: {
+      pin: {
         icon: User,
         label: "Usuario/Correo",
-        color: "from-blue-500 to-blue-600 dark:from-slate-700 dark:to-slate-800",
-        hoverColor: "hover:from-blue-600 hover:to-blue-700 dark:hover:from-slate-600 dark:hover:to-slate-700",
+        color:
+          "from-blue-500 to-blue-600 dark:from-slate-700 dark:to-slate-800",
+        hoverColor:
+          "hover:from-blue-600 hover:to-blue-700 dark:hover:from-slate-600 dark:hover:to-slate-700",
         handler: handleUserLoginCheck,
       },
     };
@@ -350,14 +331,20 @@ export default function KioskScreen() {
       <div className="flex-1 flex flex-col p-4 overflow-hidden">
         {/* Tarjeta principal de registro - Dinámico según métodos activos */}
         <div className="mb-4 flex-shrink-0" style={{ height: "68%" }}>
-          {activeMethods.length === 0 ? (
+          {loadingCredenciales ? (
+            <div className="bg-bg-primary rounded-3xl shadow-2xl h-full flex flex-col items-center justify-center p-8 border border-border-subtle">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+              <p className="text-text-secondary">Cargando configuración...</p>
+            </div>
+          ) : activeMethods.length === 0 ? (
             /* Sin métodos activos */
             <div className="bg-bg-primary rounded-3xl shadow-2xl h-full flex flex-col items-center justify-center p-8 border border-border-subtle">
               <h2 className="text-2xl font-bold text-text-primary mb-4">
                 No hay métodos de checado configurados
               </h2>
               <p className="text-text-secondary text-center">
-                Configura al menos un método de checado en Configuración → Preferencias
+                Configura al menos un método de checado en Configuración →
+                Preferencias
               </p>
             </div>
           ) : activeMethods.length === 1 ? (
@@ -375,7 +362,9 @@ export default function KioskScreen() {
                       : "cursor-default"
                   }`}
                 >
-                  <h2 className="text-3xl font-bold mb-4">Registrar Asistencia</h2>
+                  <h2 className="text-3xl font-bold mb-4">
+                    Registrar Asistencia
+                  </h2>
 
                   <div className="flex justify-center mb-4">
                     <Icon className="w-32 h-32 text-white" strokeWidth={1.5} />
@@ -425,7 +414,10 @@ export default function KioskScreen() {
                           : "cursor-default"
                       }`}
                     >
-                      <Icon className="w-16 h-16 mb-2 text-white" strokeWidth={1.5} />
+                      <Icon
+                        className="w-16 h-16 mb-2 text-white"
+                        strokeWidth={1.5}
+                      />
                       <span className="text-sm font-bold text-white">
                         {method.label}
                       </span>
@@ -500,7 +492,7 @@ export default function KioskScreen() {
             console.log("✅ Asistencia registrada con PIN:", data);
             agregarEvento({
               user: data.empleado?.nombre || "Empleado",
-              action: `${data.tipo_movimiento === 'SALIDA' ? 'Salida' : 'Entrada'} registrada - PIN`,
+              action: `${data.tipo_movimiento === "SALIDA" ? "Salida" : "Entrada"} registrada - PIN`,
               type: "success",
             });
           }}
@@ -522,7 +514,7 @@ export default function KioskScreen() {
             setShowAsistenciaFacial(true);
           }}
           onLoginSuccess={handleLoginSuccess}
-          checkMethods={checkMethods}
+          ordenCredenciales={ordenCredenciales}
         />
       )}
 
@@ -531,7 +523,7 @@ export default function KioskScreen() {
       {/* Modal de AsistenciaHuella para registro de asistencia con huella */}
       {/* En modo background: siempre activo escuchando, modal aparece al detectar huella */}
       {/* En modo normal: aparece solo cuando showBiometricReader es true */}
-      {checkMethods.fingerprint?.enabled && (
+      {ordenCredenciales?.dactilar?.activo && (
         <AsistenciaHuella
           isOpen={showBiometricReader}
           backgroundMode={!showBiometricReader} // Si no está abierto manualmente, usar modo background

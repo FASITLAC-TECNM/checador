@@ -71,8 +71,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Sistema de Asistencia",
-      "deleteAppDataOnUninstall": true,
-      "requestedExecutionLevel": "requireAdministrator"
+      "deleteAppDataOnUninstall": true
     },
     "linux": {
       "target": [

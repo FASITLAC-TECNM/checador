@@ -1,25 +1,34 @@
 import React, { useState, useEffect } from "react";
-import { X, Sliders, Save, Moon, Volume2, Camera, Fingerprint, User, ChevronUp, ChevronDown } from "lucide-react";
+import { X, Sliders, Save, Moon, Volume2, Camera, Fingerprint, User, ChevronUp, ChevronDown, Loader2 } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
+import { obtenerOrdenCredenciales, guardarOrdenCredenciales } from "../../services/configuracionService";
+
+// Mapeo de claves del backend a info visual del frontend
+const METODOS_AUTH_INFO = {
+  facial: { icon: Camera, label: "Reconocimiento Facial", color: "text-blue-600 dark:text-blue-400" },
+  dactilar: { icon: Fingerprint, label: "Huella Digital", color: "text-green-600 dark:text-green-400" },
+  pin: { icon: User, label: "Usuario/Correo", color: "text-purple-600 dark:text-purple-400" },
+};
 
 export default function PreferenciasModal({ onClose, onBack }) {
   const { isDarkMode, setDarkMode } = useTheme();
   const [showSaveMessage, setShowSaveMessage] = useState(false);
   const [showMinMethodWarning, setShowMinMethodWarning] = useState(false);
 
-  // Valores por defecto (Sin notificaciones ni idioma)
+  // Estado para datos del backend
+  const [configuracionId, setConfiguracionId] = useState(null);
+  const [ordenCredenciales, setOrdenCredenciales] = useState(null);
+  const [loadingCredenciales, setLoadingCredenciales] = useState(true);
+  const [errorCredenciales, setErrorCredenciales] = useState(null);
+  const [savingCredenciales, setSavingCredenciales] = useState(false);
+
+  // Preferencias locales (darkMode, sound)
   const defaultPreferences = {
     darkMode: false,
     soundEnabled: true,
-    checkMethods: {
-      facial: { enabled: true, order: 1 },
-      fingerprint: { enabled: false, order: 2 },
-      userLogin: { enabled: false, order: 3 },
-    },
   };
 
   const [preferences, setPreferences] = useState(() => {
-    // Cargar preferencias guardadas
     const savedPreferences = localStorage.getItem("userPreferences");
     if (savedPreferences) {
       try {
@@ -27,10 +36,9 @@ export default function PreferenciasModal({ onClose, onBack }) {
         return {
           darkMode: isDarkMode,
           soundEnabled: parsed.soundEnabled ?? defaultPreferences.soundEnabled,
-          checkMethods: parsed.checkMethods ?? defaultPreferences.checkMethods,
         };
       } catch (error) {
-        // Error al cargar, se usa el retorno por defecto de abajo
+        // Error al cargar, se usa el retorno por defecto
       }
     }
     return {
@@ -43,59 +51,107 @@ export default function PreferenciasModal({ onClose, onBack }) {
     setPreferences(prev => ({ ...prev, darkMode: isDarkMode }));
   }, [isDarkMode]);
 
+  // Cargar orden de credenciales desde el backend
+  useEffect(() => {
+    const cargarCredenciales = async () => {
+      try {
+        setLoadingCredenciales(true);
+        setErrorCredenciales(null);
+        const { configuracionId: cfgId, ordenCredenciales: orden } = await obtenerOrdenCredenciales();
+        setConfiguracionId(cfgId);
+        setOrdenCredenciales(orden);
+      } catch (err) {
+        console.error("Error al cargar orden de credenciales:", err);
+        setErrorCredenciales(err.message);
+      } finally {
+        setLoadingCredenciales(false);
+      }
+    };
+
+    cargarCredenciales();
+  }, []);
+
   const handleDarkModeToggle = (checked) => {
     setPreferences({ ...preferences, darkMode: checked });
     setDarkMode(checked);
   };
 
-  const handleCheckMethodToggle = (methodName, checked) => {
-    // Si se intenta desactivar, verificar que quede al menos un método activo
-    if (!checked) {
-      const enabledCount = Object.values(preferences.checkMethods).filter(m => m.enabled).length;
-      if (enabledCount <= 1) {
-        setShowMinMethodWarning(true);
-        setTimeout(() => setShowMinMethodWarning(false), 2500);
-        return;
+  // --- Métodos de autenticación (backend) ---
+
+  const getMetodosOrdenados = () => {
+    if (!ordenCredenciales) return [];
+    return Object.entries(ordenCredenciales)
+      .map(([id, config]) => ({ id, ...config }))
+      .sort((a, b) => a.prioridad - b.prioridad);
+  };
+
+  const handleCheckMethodToggle = (metodoId) => {
+    // Verificar que quede al menos un método activo
+    const activosCount = Object.values(ordenCredenciales).filter(m => m.activo).length;
+    const estaActivo = ordenCredenciales[metodoId].activo;
+
+    if (estaActivo && activosCount <= 1) {
+      setShowMinMethodWarning(true);
+      setTimeout(() => setShowMinMethodWarning(false), 2500);
+      return;
+    }
+
+    setOrdenCredenciales(prev => ({
+      ...prev,
+      [metodoId]: {
+        ...prev[metodoId],
+        activo: !prev[metodoId].activo,
+      },
+    }));
+  };
+
+  const handleMoveMethod = (metodoId, direction) => {
+    const ordenados = getMetodosOrdenados();
+    const index = ordenados.findIndex(m => m.id === metodoId);
+
+    if (direction === -1 && index > 0) {
+      const anterior = ordenados[index - 1];
+      setOrdenCredenciales(prev => ({
+        ...prev,
+        [metodoId]: { ...prev[metodoId], prioridad: anterior.prioridad },
+        [anterior.id]: { ...prev[anterior.id], prioridad: prev[metodoId].prioridad },
+      }));
+    } else if (direction === 1 && index < ordenados.length - 1) {
+      const siguiente = ordenados[index + 1];
+      setOrdenCredenciales(prev => ({
+        ...prev,
+        [metodoId]: { ...prev[metodoId], prioridad: siguiente.prioridad },
+        [siguiente.id]: { ...prev[siguiente.id], prioridad: prev[metodoId].prioridad },
+      }));
+    }
+  };
+
+  const handleSave = async () => {
+    // Guardar preferencias locales
+    localStorage.setItem("userPreferences", JSON.stringify(preferences));
+
+    // Guardar orden de credenciales en el backend
+    if (configuracionId && ordenCredenciales) {
+      try {
+        setSavingCredenciales(true);
+        await guardarOrdenCredenciales(configuracionId, ordenCredenciales);
+      } catch (err) {
+        console.error("Error al guardar orden de credenciales:", err);
+        // Aún así mostrar mensaje de éxito parcial (las locales se guardaron)
+      } finally {
+        setSavingCredenciales(false);
       }
     }
 
-    setPreferences({
-      ...preferences,
-      checkMethods: {
-        ...preferences.checkMethods,
-        [methodName]: {
-          ...preferences.checkMethods[methodName],
-          enabled: checked,
-        },
-      },
-    });
-  };
-
-  const handleMoveMethod = (methodName, direction) => {
-    const methods = { ...preferences.checkMethods };
-    const currentOrder = methods[methodName].order;
-
-    const otherMethod = Object.keys(methods).find(
-      key => methods[key].order === currentOrder + direction
-    );
-
-    if (otherMethod) {
-      const temp = methods[methodName].order;
-      methods[methodName].order = methods[otherMethod].order;
-      methods[otherMethod].order = temp;
-
-      setPreferences({ ...preferences, checkMethods: methods });
-    }
-  };
-
-  const handleSave = () => {
-    localStorage.setItem("userPreferences", JSON.stringify(preferences));
     setShowSaveMessage(true);
     setTimeout(() => {
       setShowSaveMessage(false);
       onClose();
     }, 1500);
   };
+
+  const metodosOrdenados = getMetodosOrdenados();
+  const totalMetodos = metodosOrdenados.length;
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -137,7 +193,7 @@ export default function PreferenciasModal({ onClose, onBack }) {
 
         {/* Body - Scrollable */}
         <div className="p-3 space-y-2 flex-1 overflow-y-auto">
-          
+
           {/* Modo Oscuro */}
           <div className="bg-bg-secondary border-2 border-purple-200 dark:border-purple-800 rounded-2xl p-3">
             <div className="flex items-center justify-between">
@@ -201,41 +257,49 @@ export default function PreferenciasModal({ onClose, onBack }) {
               Configura qué métodos estarán disponibles en la pantalla de checado y su orden de aparición
             </p>
 
-            <div className="space-y-2">
-              {Object.entries(preferences.checkMethods)
-                .sort(([, a], [, b]) => a.order - b.order)
-                .map(([methodKey, methodValue]) => {
-                  const methodInfo = {
-                    facial: { icon: Camera, label: "Reconocimiento Facial", color: "text-blue-600 dark:text-blue-400" },
-                    fingerprint: { icon: Fingerprint, label: "Huella Digital", color: "text-green-600 dark:text-green-400" },
-                    userLogin: { icon: User, label: "Usuario/Correo", color: "text-purple-600 dark:text-purple-400" },
-                  }[methodKey];
-
-                  const Icon = methodInfo.icon;
+            {loadingCredenciales ? (
+              <div className="flex items-center justify-center py-6 gap-2 text-text-secondary">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span className="text-sm">Cargando métodos...</span>
+              </div>
+            ) : errorCredenciales ? (
+              <div className="text-center py-4 text-red-500 text-sm">
+                <p>Error al cargar los métodos de autenticación</p>
+                <p className="text-xs mt-1 text-text-secondary">{errorCredenciales}</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {metodosOrdenados.map((metodo, index) => {
+                  const metodoInfo = METODOS_AUTH_INFO[metodo.id] || {
+                    icon: User,
+                    label: metodo.id,
+                    color: "text-gray-600 dark:text-gray-400",
+                  };
+                  const Icon = metodoInfo.icon;
 
                   return (
                     <div
-                      key={methodKey}
+                      key={metodo.id}
                       className="flex items-center gap-2 bg-bg-primary rounded-lg p-2 border border-border-subtle"
                     >
-                      <Icon className={`w-4 h-4 ${methodInfo.color}`} />
-                      <span className="flex-1 text-xs font-medium text-text-primary">
-                        {methodInfo.label}
+                      <Icon className={`w-4 h-4 ${metodoInfo.color}`} />
+                      <span className={`flex-1 text-xs font-medium ${metodo.activo ? 'text-text-primary' : 'text-text-secondary line-through'}`}>
+                        {metodoInfo.label}
                       </span>
 
                       <div className="flex flex-col">
                         <button
                           type="button"
-                          onClick={() => handleMoveMethod(methodKey, -1)}
-                          disabled={methodValue.order === 1}
+                          onClick={() => handleMoveMethod(metodo.id, -1)}
+                          disabled={index === 0}
                           className="p-0.5 hover:bg-bg-secondary rounded disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           <ChevronUp className="w-3 h-3 text-text-secondary" />
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleMoveMethod(methodKey, 1)}
-                          disabled={methodValue.order === 3}
+                          onClick={() => handleMoveMethod(metodo.id, 1)}
+                          disabled={index === totalMetodos - 1}
                           className="p-0.5 hover:bg-bg-secondary rounded disabled:opacity-30 disabled:cursor-not-allowed"
                         >
                           <ChevronDown className="w-3 h-3 text-text-secondary" />
@@ -245,10 +309,8 @@ export default function PreferenciasModal({ onClose, onBack }) {
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={methodValue.enabled}
-                          onChange={(e) =>
-                            handleCheckMethodToggle(methodKey, e.target.checked)
-                          }
+                          checked={metodo.activo}
+                          onChange={() => handleCheckMethodToggle(metodo.id)}
                           className="sr-only peer"
                         />
                         <div className="w-9 h-5 bg-bg-tertiary peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-bg-primary after:border-border-subtle after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
@@ -256,7 +318,8 @@ export default function PreferenciasModal({ onClose, onBack }) {
                     </div>
                   );
                 })}
-            </div>
+              </div>
+            )}
           </div>
 
         </div>
@@ -272,10 +335,15 @@ export default function PreferenciasModal({ onClose, onBack }) {
             </button>
             <button
               onClick={handleSave}
-              className="flex-1 px-4 py-2 text-sm bg-gradient-to-r from-purple-600 to-purple-500 dark:from-purple-700 dark:to-purple-800 text-white rounded-2xl font-semibold hover:from-purple-700 hover:to-purple-600 dark:hover:from-purple-600 dark:hover:to-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+              disabled={savingCredenciales}
+              className="flex-1 px-4 py-2 text-sm bg-gradient-to-r from-purple-600 to-purple-500 dark:from-purple-700 dark:to-purple-800 text-white rounded-2xl font-semibold hover:from-purple-700 hover:to-purple-600 dark:hover:from-purple-600 dark:hover:to-purple-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              <Save className="w-4 h-4" />
-              Guardar Preferencias
+              {savingCredenciales ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              {savingCredenciales ? "Guardando..." : "Guardar Preferencias"}
             </button>
           </div>
         </div>

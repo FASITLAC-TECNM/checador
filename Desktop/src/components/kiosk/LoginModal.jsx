@@ -3,10 +3,10 @@ import { useAuth } from '../../context/AuthContext';
 import BiometricAuth from "./BiometricAuth";
 import FacialAuthModal from "./FacialAuthModal";
 
-function LoginModal({ isOpen = true, onClose, onLoginSuccess, checkMethods }) {
+function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales }) {
     // Verificar si los métodos biométricos están habilitados
-    const isFingerprintEnabled = checkMethods?.fingerprint?.enabled ?? false;
-    const isFacialEnabled = checkMethods?.facial?.enabled ?? false;
+    const isFingerprintEnabled = ordenCredenciales?.dactilar?.activo ?? false;
+    const isFacialEnabled = ordenCredenciales?.facial?.activo ?? false;
     const { loginByPin, loginByFingerprint, loading, error: authError } = useAuth();
     const [formData, setFormData] = useState({
         usuario: '',

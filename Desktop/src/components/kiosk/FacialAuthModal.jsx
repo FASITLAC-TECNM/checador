@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { X, CheckCircle, XCircle, Camera, LogIn } from "lucide-react";
 import { useFaceDetection } from "../../hooks/useFaceDetection";
-import { identificarPorFacial, guardarSesion } from "../../services/biometricAuthService";
+import { identificarPorFacial } from "../../services/biometricAuthService";
+import { guardarSesion } from "../../services/biometricAuthService";
+import { API_CONFIG } from "../../config/apiEndPoint";
 import { useCamera } from "../../context/CameraContext";
 import * as faceapi from 'face-api.js';
 
@@ -94,20 +96,58 @@ export default function FacialAuthModal({ onClose, onAuthSuccess }) {
               if (response.success) {
                 console.log("✅ Usuario identificado:", response.usuario);
 
-                // Guardar sesion
-                guardarSesion({
-                  ...response.usuario,
-                  matchScore: response.matchScore,
-                  metodoAutenticacion: "FACIAL",
+                // Extraer empleado_id para autenticar via /api/auth/biometric
+                const empleadoId = response.usuario.id_empleado || response.usuario.id;
+
+                if (!empleadoId) {
+                  setErrorMessage("No se pudo obtener el ID del empleado");
+                  setStep("error");
+                  return;
+                }
+
+                // Autenticar via /api/auth/biometric (mismo flujo que BiometricAuth)
+                const authResponse = await fetch(`${API_CONFIG.BASE_URL}/api/auth/biometric`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ empleado_id: empleadoId }),
                 });
 
-                setSuccessMessage(`Bienvenido, ${response.usuario.nombre || response.usuario.id}`);
+                if (!authResponse.ok) {
+                  const errorData = await authResponse.json().catch(() => ({}));
+                  throw new Error(errorData.message || "Error al autenticar");
+                }
+
+                const authResult = await authResponse.json();
+
+                if (!authResult.success) {
+                  throw new Error(authResult.message || "Error en autenticacion");
+                }
+
+                const { usuario, roles, permisos, esAdmin, token } = authResult.data;
+
+                if (token) {
+                  localStorage.setItem("auth_token", token);
+                }
+
+                const usuarioCompleto = {
+                  ...usuario,
+                  roles,
+                  permisos,
+                  esAdmin,
+                  token,
+                  matchScore: response.matchScore,
+                  metodoAutenticacion: "FACIAL",
+                };
+
+                guardarSesion(usuarioCompleto);
+
+                setSuccessMessage(`Bienvenido, ${usuarioCompleto.nombre || usuarioCompleto.id}`);
                 setStep("success");
 
                 // Callback y cerrar despues de mostrar mensaje
                 setTimeout(() => {
                   if (onAuthSuccess) {
-                    onAuthSuccess(response.usuario);
+                    onAuthSuccess(usuarioCompleto);
                   }
                   handleClose();
                 }, 2000);
@@ -116,7 +156,7 @@ export default function FacialAuthModal({ onClose, onAuthSuccess }) {
                 setStep("error");
               }
             } catch (error) {
-              console.error("❌ Error identificando usuario:", error);
+              console.error("Error identificando usuario:", error);
               setErrorMessage(error.message || "Error al identificar rostro");
               setStep("error");
             }

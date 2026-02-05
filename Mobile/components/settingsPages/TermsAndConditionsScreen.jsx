@@ -26,7 +26,6 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
           setAcceptedTerms(true);
         }
       } catch (error) {
-        console.error('Error cargando estado de términos:', error);
       }
     };
     cargarEstado();
@@ -46,7 +45,6 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
     try {
       await AsyncStorage.setItem(TERMS_ACCEPTED_KEY, String(newValue));
     } catch (error) {
-      console.error('Error guardando aceptación de términos:', error);
     }
   };
 
@@ -61,7 +59,6 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
       await AsyncStorage.removeItem(TERMS_ACCEPTED_KEY);
       setAcceptedTerms(false);
     } catch (error) {
-      console.error('Error al rechazar términos:', error);
     }
     onBack();
   };

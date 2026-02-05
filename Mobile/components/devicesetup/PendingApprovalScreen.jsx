@@ -56,7 +56,6 @@ export const PendingApprovalScreen = ({ tokenSolicitud, idSolicitud, onApproved,
           }, 500);
         }
       } catch (error) {
-        console.error('❌ Error verificando estado:', error);
       }
     };
 

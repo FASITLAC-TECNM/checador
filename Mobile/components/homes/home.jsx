@@ -27,7 +27,6 @@ const obtenerUrlFotoPerfil = (foto) => {
   const BASE_URL = 'https://9dm7dqf9-3001.usw3.devtunnels.ms';
   const url = `${BASE_URL}${foto.startsWith('/') ? '' : '/'}${foto}`;
   
-  console.log('🖼️ [obtenerUrlFotoPerfil] URL construida:', url);
   return url;
 };
 export const HomeScreen = ({ userData, darkMode }) => {
@@ -43,7 +42,6 @@ export const HomeScreen = ({ userData, darkMode }) => {
           setToken(storedToken);
         }
       } catch (error) {
-        console.error('Error obteniendo token:', error);
       }
     };
     obtenerToken();

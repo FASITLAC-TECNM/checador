@@ -60,7 +60,6 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
     setIsLoading(true);
 
     try {
-      console.log('🔍 Verificando empresa con código:', trimmedCode);
 
       const empresaInfo = await verificarEmpresa(trimmedCode);
 
@@ -76,7 +75,6 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
         return;
       }
 
-      console.log('✅ Empresa verificada:', empresaInfo);
 
       onNext({
         empresaId: trimmedCode,
@@ -84,7 +82,6 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
       });
 
     } catch (error) {
-      console.error('❌ Error verificando empresa:', error);
       Alert.alert(
         'Error',
         'No se pudo verificar el código de empresa. Por favor intenta nuevamente.'

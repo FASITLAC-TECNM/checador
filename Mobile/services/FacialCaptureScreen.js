@@ -75,12 +75,6 @@ export const FacialCaptureScreen = ({
 
       // Verificar que la imagen exista y tenga tamaño
       const fileInfo = await FileSystem.getInfoAsync(testPhoto.uri);
-      
-      console.log('📊 Validación de imagen:', {
-        exists: fileInfo.exists,
-        size: fileInfo.size,
-        uri: testPhoto.uri
-      });
 
       // Validaciones básicas pero efectivas:
       if (!fileInfo.exists) {
@@ -102,7 +96,6 @@ export const FacialCaptureScreen = ({
       return true;
 
     } catch (error) {
-      console.error('❌ Error en validación:', error);
       setIsValidating(false);
       
       Alert.alert(
@@ -152,7 +145,6 @@ export const FacialCaptureScreen = ({
         base64: false,
       });
 
-      console.log('📸 Foto capturada exitosamente');
 
       // Validación final de la imagen capturada
       const fileInfo = await FileSystem.getInfoAsync(photo.uri);
@@ -160,11 +152,6 @@ export const FacialCaptureScreen = ({
       if (!fileInfo.exists || fileInfo.size < 50000) {
         throw new Error('La captura final falló. Intenta de nuevo con mejor iluminación.');
       }
-
-      console.log('✅ Imagen validada:', {
-        size: `${(fileInfo.size / 1024).toFixed(2)} KB`,
-        exists: fileInfo.exists
-      });
 
       const mockFaceData = {
         bounds: {
@@ -194,7 +181,6 @@ export const FacialCaptureScreen = ({
       });
 
     } catch (error) {
-      console.error('❌ Error capturando foto:', error);
       
       Alert.alert(
         'Error de captura',

@@ -124,7 +124,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       }
     } catch (error) {
       if (error.message !== 'Credenciales no encontradas') {
-        console.error('❌ Error inicializando seguridad:', error);
         Alert.alert('Error', 'No se pudo cargar la configuración de seguridad');
       }
     } finally {
@@ -225,7 +224,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
                 throw new Error(response.message);
               }
             } catch (error) {
-              console.error('❌ Error en captura:', error);
               Alert.alert(
                 'Error',
                 error.message || 'No se pudo registrar la huella digital'
@@ -258,7 +256,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
               setHasFingerprint(false);
               Alert.alert('✅ Eliminado', 'Tu huella digital ha sido eliminada');
             } catch (error) {
-              console.error('❌ Error eliminando huella:', error);
               Alert.alert('Error', 'No se pudo eliminar la huella digital');
             } finally {
               setProcesandoHuella(false);
@@ -310,7 +307,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       }
       setShowFacialCapture(true);
     } catch (error) {
-      console.error('❌ Error preparando cámara:', error);
       Alert.alert('Error', 'No se pudo acceder a la cámara');
     }
   };
@@ -353,7 +349,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
         throw new Error(response.message);
       }
     } catch (error) {
-      console.error('❌ Error procesando captura facial:', error);
       Alert.alert(
         'Error',
         error.message || 'No se pudo procesar el reconocimiento facial'
@@ -384,7 +379,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
         throw new Error(response.message);
       }
     } catch (error) {
-      console.error('❌ Error en captura facial nativa:', error);
       Alert.alert(
         'Error',
         error.message || 'No se pudo registrar el reconocimiento facial'
@@ -417,7 +411,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
                 'Tu reconocimiento facial ha sido eliminado'
               );
             } catch (error) {
-              console.error('❌ Error eliminando facial:', error);
               Alert.alert(
                 'Error',
                 'No se pudo eliminar el reconocimiento facial'
@@ -481,7 +474,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
         throw new Error(response.message);
       }
     } catch (error) {
-      console.error('❌ Error guardando PIN:', error);
       throw error;
     } finally {
       setProcesandoPin(false);
@@ -511,7 +503,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
                 throw new Error(response.message);
               }
             } catch (error) {
-              console.error('❌ Error eliminando PIN:', error);
               Alert.alert('Error', 'No se pudo eliminar el PIN');
             } finally {
               setProcesandoPin(false);

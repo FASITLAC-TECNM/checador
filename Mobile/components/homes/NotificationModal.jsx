@@ -92,7 +92,6 @@ export const NotificacionesModal = ({
         });
       }
     } catch (err) {
-      console.error('Error al cargar notificaciones:', err);
       setError('No se pudieron cargar las notificaciones');
       setEventos([]);
     } finally {

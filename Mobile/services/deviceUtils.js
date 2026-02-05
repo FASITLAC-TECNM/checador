@@ -32,7 +32,6 @@ export const detectDeviceInfo = async () => {
       registrationDate,
     };
   } catch (error) {
-    console.error('Error detectando información del dispositivo:', error);
     return null;
   }
 };

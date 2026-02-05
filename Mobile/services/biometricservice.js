@@ -9,10 +9,8 @@ import * as SecureStore from 'expo-secure-store';
 // Verificar compatibilidad del dispositivo
 export const checkBiometricSupport = async () => {
     try {
-        console.log('[Biometric Service] Verificando soporte biométrico...');
         
         const hasHardware = await LocalAuthentication.hasHardwareAsync();
-        console.log('[Biometric Service] ¿Tiene hardware biométrico?', hasHardware);
         
         if (!hasHardware) {
             return { 
@@ -22,7 +20,6 @@ export const checkBiometricSupport = async () => {
         }
 
         const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-        console.log('[Biometric Service] ¿Tiene huellas registradas?', isEnrolled);
         
         if (!isEnrolled) {
             return { 
@@ -32,7 +29,6 @@ export const checkBiometricSupport = async () => {
         }
 
         const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
-        console.log('[Biometric Service] Tipos de autenticación soportados:', supportedTypes);
 
         return { 
             supported: true, 
@@ -41,7 +37,6 @@ export const checkBiometricSupport = async () => {
             hasFaceId: supportedTypes.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)
         };
     } catch (error) {
-        console.error('[Biometric Service] Error verificando soporte:', error);
         return { supported: false, message: 'Error al verificar soporte biométrico' };
     }
 };
@@ -49,7 +44,6 @@ export const checkBiometricSupport = async () => {
 // Capturar huella dactilar
 export const capturarHuellaDigital = async (empleadoId) => {
     try {
-        console.log('[Biometric Service] Iniciando captura de huella para empleado:', empleadoId);
         
         // Verificar soporte
         const support = await checkBiometricSupport();
@@ -62,7 +56,6 @@ export const capturarHuellaDigital = async (empleadoId) => {
         }
 
         // Autenticar con huella
-        console.log('[Biometric Service] Solicitando autenticación biométrica...');
         const result = await LocalAuthentication.authenticateAsync({
             promptMessage: '🔐 Coloca tu dedo en el sensor',
             fallbackLabel: 'Usar código',
@@ -70,7 +63,6 @@ export const capturarHuellaDigital = async (empleadoId) => {
             cancelLabel: 'Cancelar',
         });
 
-        console.log('[Biometric Service] Resultado autenticación:', result);
 
         if (!result.success) {
             throw new Error('Autenticación cancelada o fallida');
@@ -91,18 +83,15 @@ export const capturarHuellaDigital = async (empleadoId) => {
             securityLevel: 'HIGH'
         };
 
-        console.log('[Biometric Service] Datos biométricos generados:', biometricData);
 
         // Crear un hash único representativo
         const template = await generateBiometricTemplate(biometricData);
-        console.log('[Biometric Service] Template generado (primeros 50 chars):', template.substring(0, 50) + '...');
 
         // Guardar localmente de forma segura
         await SecureStore.setItemAsync(
             `fingerprint_${empleadoId}`,
             JSON.stringify({ timestamp, template: template.substring(0, 100) })
         );
-        console.log('[Biometric Service] ✓ Template guardado localmente de forma segura');
 
         return {
             success: true,
@@ -112,7 +101,6 @@ export const capturarHuellaDigital = async (empleadoId) => {
         };
 
     } catch (error) {
-        console.error('[Biometric Service] Error capturando huella:', error);
         throw error;
     }
 };
@@ -120,7 +108,6 @@ export const capturarHuellaDigital = async (empleadoId) => {
 // Capturar reconocimiento facial
 export const capturarReconocimientoFacial = async (empleadoId) => {
     try {
-        console.log('[Biometric Service] Iniciando captura facial para empleado:', empleadoId);
         
         const support = await checkBiometricSupport();
         if (!support.supported) {
@@ -131,7 +118,6 @@ export const capturarReconocimientoFacial = async (empleadoId) => {
             throw new Error('Tu dispositivo no soporta reconocimiento facial biométrico. Usa la cámara manual.');
         }
 
-        console.log('[Biometric Service] Solicitando autenticación facial...');
         const result = await LocalAuthentication.authenticateAsync({
             promptMessage: '🔐 Mira a la cámara',
             fallbackLabel: 'Usar código',
@@ -139,7 +125,6 @@ export const capturarReconocimientoFacial = async (empleadoId) => {
             cancelLabel: 'Cancelar',
         });
 
-        console.log('[Biometric Service] Resultado autenticación facial:', result);
 
         if (!result.success) {
             throw new Error('Autenticación facial cancelada o fallida');
@@ -157,7 +142,6 @@ export const capturarReconocimientoFacial = async (empleadoId) => {
         };
 
         const template = await generateBiometricTemplate(facialData);
-        console.log('[Biometric Service] Template facial generado');
 
         await SecureStore.setItemAsync(
             `facial_${empleadoId}`,
@@ -172,7 +156,6 @@ export const capturarReconocimientoFacial = async (empleadoId) => {
         };
 
     } catch (error) {
-        console.error('[Biometric Service] Error capturando facial:', error);
         throw error;
     }
 };
@@ -180,19 +163,15 @@ export const capturarReconocimientoFacial = async (empleadoId) => {
 // Verificar si existe huella registrada localmente
 export const verificarHuellaLocal = async (empleadoId) => {
     try {
-        console.log('[Biometric Service] Verificando huella local para empleado:', empleadoId);
         const data = await SecureStore.getItemAsync(`fingerprint_${empleadoId}`);
         
         if (data) {
             const parsed = JSON.parse(data);
-            console.log('[Biometric Service] ✓ Huella local encontrada, registrada:', new Date(parsed.timestamp));
             return { exists: true, data: parsed };
         }
         
-        console.log('[Biometric Service] No hay huella local registrada');
         return { exists: false };
     } catch (error) {
-        console.error('[Biometric Service] Error verificando huella local:', error);
         return { exists: false };
     }
 };
@@ -239,12 +218,10 @@ const generateBiometricTemplate = async (data) => {
         // Convertir a base64 para transmisión
         const base64Template = btoa(unescape(encodeURIComponent(finalTemplate)));
         
-        console.log('[Biometric Service] Template generado exitosamente, tamaño:', base64Template.length);
         
         return base64Template;
         
     } catch (error) {
-        console.error('[Biometric Service] Error generando template:', error);
         throw new Error('Error al generar template biométrico');
     }
 };
@@ -258,12 +235,10 @@ const getDeviceId = async () => {
             // Generar nuevo ID único para el dispositivo
             deviceId = `device_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
             await SecureStore.setItemAsync('deviceId', deviceId);
-            console.log('[Biometric Service] Nuevo Device ID generado:', deviceId);
         }
         
         return deviceId;
     } catch (error) {
-        console.error('[Biometric Service] Error obteniendo device ID:', error);
         return `device_fallback_${Date.now()}`;
     }
 };
@@ -271,13 +246,10 @@ const getDeviceId = async () => {
 // Limpiar datos biométricos locales
 export const limpiarDatosLocales = async (empleadoId) => {
     try {
-        console.log('[Biometric Service] Limpiando datos locales para empleado:', empleadoId);
         await SecureStore.deleteItemAsync(`fingerprint_${empleadoId}`);
         await SecureStore.deleteItemAsync(`facial_${empleadoId}`);
-        console.log('[Biometric Service] ✓ Datos locales eliminados');
         return { success: true };
     } catch (error) {
-        console.error('[Biometric Service] Error limpiando datos:', error);
         return { success: false };
     }
 };

@@ -26,8 +26,6 @@ export const useNavigationBarColor = (darkMode) => {
           await NavigationBar.setVisibilityAsync('visible');
           
         } catch (error) {
-          console.log('📱 expo-navigation-bar no disponible.');
-          console.log('💡 Instalar con: npx expo install expo-navigation-bar');
         }
       }
     };

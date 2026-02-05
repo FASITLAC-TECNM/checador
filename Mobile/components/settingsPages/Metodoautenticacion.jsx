@@ -103,7 +103,6 @@ export const MetodoAutenticacionModal = ({
         }
       }
     } catch (error) {
-      console.error('❌ Error cargando configuración:', error);
     } finally {
       setLoading(false);
     }
@@ -190,7 +189,6 @@ export const MetodoAutenticacionModal = ({
                   },
                 ]);
               } catch (error) {
-                console.error('❌ Error en registro de huella:', error);
                 Alert.alert(
                   'Error',
                   error.message ||
@@ -204,7 +202,6 @@ export const MetodoAutenticacionModal = ({
         ]
       );
     } catch (error) {
-      console.error('❌ Error:', error);
       setProcesando(false);
     }
   };
@@ -249,7 +246,6 @@ export const MetodoAutenticacionModal = ({
         },
       ]);
     } catch (error) {
-      console.error('❌ Error en registro facial:', error);
       Alert.alert(
         'Error',
         error.message || 'No se pudo registrar el reconocimiento facial.'
@@ -289,7 +285,6 @@ export const MetodoAutenticacionModal = ({
         ]
       );
     } catch (error) {
-      console.error('❌ Error guardando PIN:', error);
       throw error; // El PinInputModal manejará el error
     } finally {
       setProcesando(false);

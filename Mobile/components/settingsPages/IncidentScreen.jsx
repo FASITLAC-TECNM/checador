@@ -59,7 +59,6 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
       const response = await getIncidenciasEmpleado(empleadoId, token);
       setIncidencias(response.data || []);
     } catch (error) {
-      console.error('Error cargando incidencias:', error);
       Alert.alert('Error', 'No se pudieron cargar las incidencias');
     } finally {
       setLoading(false);
@@ -112,7 +111,6 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
       // Recargar lista
       await cargarIncidencias();
     } catch (error) {
-      console.error('Error creando incidencia:', error);
       Alert.alert('Error', error.message || 'No se pudo crear la incidencia');
     } finally {
       setCreando(false);

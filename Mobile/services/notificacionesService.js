@@ -28,7 +28,6 @@ export const getNotificacionesRecientes = async (token, limit = 20) => {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('Error en getNotificacionesRecientes:', error);
         throw error;
     }
 };
@@ -70,7 +69,6 @@ export const getNotificaciones = async (token, filtros = {}) => {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('Error en getNotificaciones:', error);
         throw error;
     }
 };
@@ -97,7 +95,6 @@ export const getEstadisticasEventos = async (token) => {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('Error en getEstadisticasEventos:', error);
         throw error;
     }
 };
@@ -125,7 +122,6 @@ export const getNotificacionById = async (token, id) => {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('Error en getNotificacionById:', error);
         throw error;
     }
 };

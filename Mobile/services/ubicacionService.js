@@ -5,7 +5,6 @@ import { getApiEndpoint } from '../config/api.js';
 
 const API_URL = getApiEndpoint('/api');
 
-console.log('📍 Ubicación API URL:', API_URL);
 
 /**
  * Normalizar coordenadas a formato {lat, lng}
@@ -30,7 +29,6 @@ const normalizarCoordenada = (coords) => {
  */
 export const isPointInPolygon = (point, polygon) => {
     if (!polygon || polygon.length < 3) {
-        console.warn('⚠️ Polígono inválido o con menos de 3 puntos');
         return false;
     }
     
@@ -40,8 +38,6 @@ export const isPointInPolygon = (point, polygon) => {
     // Normalizar todas las coordenadas del polígono
     const normalizedPolygon = polygon.map(coord => normalizarCoordenada(coord));
     
-    console.log('📍 Punto a verificar:', normalizedPoint);
-    console.log('🔷 Polígono normalizado (primeros 2 puntos):', normalizedPolygon.slice(0, 2));
     
     let inside = false;
     const x = normalizedPoint.lat;
@@ -59,7 +55,6 @@ export const isPointInPolygon = (point, polygon) => {
         if (intersect) inside = !inside;
     }
     
-    console.log(`📍 Punto (${x.toFixed(6)}, ${y.toFixed(6)}) ${inside ? '✅ DENTRO' : '❌ FUERA'} del polígono`);
     return inside;
 };
 
@@ -70,7 +65,6 @@ export const isPointInPolygon = (point, polygon) => {
  */
 const extraerCoordenadas = (ubicacion) => {
     if (!ubicacion) {
-        console.warn('⚠️ Ubicación vacía');
         return null;
     }
 
@@ -78,71 +72,52 @@ const extraerCoordenadas = (ubicacion) => {
         // 1. Si es string, parsearlo
         let parsed = ubicacion;
         if (typeof ubicacion === 'string') {
-            console.log('📍 Ubicación es string, parseando...');
             parsed = JSON.parse(ubicacion);
         }
 
-        console.log('📍 Estructura parseada:', JSON.stringify(parsed).substring(0, 200));
 
         // 2. Extraer coordenadas según la estructura
         let coordenadas = null;
 
         // ⭐ CASO NUEVO: Objeto con propiedad 'zonas' (array de zonas)
         if (parsed.zonas && Array.isArray(parsed.zonas) && parsed.zonas.length > 0) {
-            console.log('✅ Estructura: Objeto con propiedad zonas');
-            console.log('📊 Número de zonas:', parsed.zonas.length);
             
             // Tomar la primera zona (puedes modificar esto si necesitas manejar múltiples zonas)
             const primeraZona = parsed.zonas[0];
-            console.log('📍 Primera zona tipo:', primeraZona.type);
             
             if (primeraZona.coordinates && Array.isArray(primeraZona.coordinates)) {
                 coordenadas = primeraZona.coordinates;
-                console.log('✅ Coordenadas extraídas de zona');
             }
         }
         // Caso A: Objeto con propiedad 'coordenadas'
         else if (parsed.coordenadas && Array.isArray(parsed.coordenadas)) {
-            console.log('✅ Estructura: Objeto con propiedad coordenadas');
             coordenadas = parsed.coordenadas;
         }
         // Caso B: Objeto con propiedad 'coordinates'
         else if (parsed.coordinates && Array.isArray(parsed.coordinates)) {
-            console.log('✅ Estructura: Objeto con propiedad coordinates');
             coordenadas = parsed.coordinates;
         }
         // Caso C: Array directo de coordenadas
         else if (Array.isArray(parsed)) {
-            console.log('✅ Estructura: Array directo');
             
             // Sub-caso 1: Array de objetos polígono/rectángulo [{type: 'polygon'/'rectangle', coordinates: [...]}]
             if (parsed.length > 0 && parsed[0].coordinates && Array.isArray(parsed[0].coordinates)) {
-                console.log('✅ Sub-estructura: Array de objetos con coordinates');
-                console.log('📍 Tipo de objeto:', parsed[0].type);
                 coordenadas = parsed[0].coordinates;
             }
             // Sub-caso 2: Array de coordenadas directamente [[lat, lng], ...]
             else if (parsed.length > 0 && (Array.isArray(parsed[0]) || parsed[0].lat !== undefined)) {
-                console.log('✅ Sub-estructura: Array de coordenadas directas');
                 coordenadas = parsed;
             }
         }
 
         if (!coordenadas || coordenadas.length < 3) {
-            console.error('❌ No se pudieron extraer coordenadas válidas');
-            console.log('📊 Estructura recibida:', parsed);
             return null;
         }
 
-        console.log('📊 Coordenadas extraídas:', coordenadas.length, 'puntos');
-        console.log('📍 Primera coordenada:', coordenadas[0]);
-        console.log('📍 Última coordenada:', coordenadas[coordenadas.length - 1]);
 
         return coordenadas;
 
     } catch (e) {
-        console.error('❌ Error procesando ubicación:', e);
-        console.error('❌ Ubicación raw:', ubicacion);
         return null;
     }
 };
@@ -155,28 +130,21 @@ const extraerCoordenadas = (ubicacion) => {
 export const getUbicacionDepartamento = async (departamentoId) => {
     try {
         const url = `${API_URL}/departamentos/${departamentoId}`;
-        console.log('🏢 Obteniendo ubicación del departamento:', departamentoId);
-        console.log('🏢 URL completa:', url);
 
         const response = await fetch(url);
 
-        console.log('📡 Response status:', response.status);
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('❌ Error del servidor:', errorText);
             throw new Error(`Error del servidor (${response.status}): ${errorText}`);
         }
 
         const data = await response.json();
-        console.log('✅ Departamento obtenido:', data.nombre);
-        console.log('📦 Ubicación raw:', data.ubicacion);
 
         // Extraer coordenadas usando la función auxiliar
         const coordenadas = extraerCoordenadas(data.ubicacion);
 
         if (!coordenadas) {
-            console.warn('⚠️ No se pudieron obtener coordenadas válidas');
             return {
                 id: data.id || data.id_departamento,
                 nombre: data.nombre,
@@ -195,7 +163,6 @@ export const getUbicacionDepartamento = async (departamentoId) => {
             color: data.color
         };
     } catch (error) {
-        console.error('❌ Error obteniendo ubicación del departamento:', error);
         throw error;
     }
 };
@@ -208,17 +175,11 @@ export const getUbicacionDepartamento = async (departamentoId) => {
  */
 export const validarUbicacionPermitida = async (ubicacionUsuario, departamentoId) => {
     try {
-        console.log('═══════════════════════════════════════');
-        console.log('🔍 VALIDANDO UBICACIÓN');
-        console.log('═══════════════════════════════════════');
-        console.log('📍 Usuario en:', ubicacionUsuario);
-        console.log('🏢 Departamento ID:', departamentoId);
 
         // Obtener ubicación del departamento
         const departamento = await getUbicacionDepartamento(departamentoId);
 
         if (!departamento || !departamento.ubicacion) {
-            console.warn('⚠️ Departamento sin ubicación configurada');
             return {
                 dentroDelArea: false,
                 departamento: null,
@@ -230,8 +191,6 @@ export const validarUbicacionPermitida = async (ubicacionUsuario, departamentoId
         const coordenadas = departamento.ubicacion.coordenadas;
         
         if (!Array.isArray(coordenadas) || coordenadas.length < 3) {
-            console.warn('⚠️ Coordenadas inválidas');
-            console.log('📊 Coordenadas recibidas:', coordenadas);
             return {
                 dentroDelArea: false,
                 departamento: departamento,
@@ -239,14 +198,10 @@ export const validarUbicacionPermitida = async (ubicacionUsuario, departamentoId
             };
         }
 
-        console.log('📊 Validando con', coordenadas.length, 'puntos del polígono');
 
         // Validar si está dentro del polígono
         const dentroDelArea = isPointInPolygon(ubicacionUsuario, coordenadas);
 
-        console.log('═══════════════════════════════════════');
-        console.log(dentroDelArea ? '✅ USUARIO DENTRO DEL ÁREA' : '❌ USUARIO FUERA DEL ÁREA');
-        console.log('═══════════════════════════════════════');
 
         return {
             dentroDelArea,
@@ -254,7 +209,6 @@ export const validarUbicacionPermitida = async (ubicacionUsuario, departamentoId
             error: null
         };
     } catch (error) {
-        console.error('❌ Error validando ubicación:', error);
         return {
             dentroDelArea: false,
             departamento: null,
@@ -285,7 +239,6 @@ export const calcularDistancia = (point1, point2) => {
 
     const distancia = R * c;
     
-    console.log(`📏 Distancia calculada: ${distancia.toFixed(2)} metros`);
     return distancia;
 };
 

@@ -8,7 +8,6 @@ import getApiEndpoint from '../config/api.js';
 // Obtener todas las empresas
 export const getEmpresas = async (token, esActivo = null) => {
     try {
-        console.log('[Empresa Service] Obteniendo empresas...');
         
         let url = '/api/empresas';
         
@@ -30,15 +29,12 @@ export const getEmpresas = async (token, esActivo = null) => {
         const data = await response.json();
         
         if (!response.ok) {
-            console.error('[Empresa Service] ❌ Error obteniendo empresas:', data.message);
             throw new Error(data.message || 'Error al obtener empresas');
         }
 
-        console.log('[Empresa Service] ✅ Empresas obtenidas exitosamente');
         return data;
         
     } catch (error) {
-        console.error('[Empresa Service] ❌ Error al obtener empresas:', error);
         throw error;
     }
 };
@@ -46,7 +42,6 @@ export const getEmpresas = async (token, esActivo = null) => {
 // Obtener una empresa por ID
 export const getEmpresaById = async (empresaId, token) => {
     try {
-        console.log('[Empresa Service] Obteniendo empresa:', empresaId);
         
         const response = await fetch(
             getApiEndpoint(`/api/empresas/${empresaId}`),
@@ -62,15 +57,12 @@ export const getEmpresaById = async (empresaId, token) => {
         const data = await response.json();
         
         if (!response.ok) {
-            console.error('[Empresa Service] ❌ Error obteniendo empresa:', data.message);
             throw new Error(data.message || 'Error al obtener empresa');
         }
 
-        console.log('[Empresa Service] ✅ Empresa obtenida exitosamente:', data.data?.nombre);
         return data;
         
     } catch (error) {
-        console.error('[Empresa Service] ❌ Error al obtener empresa:', error);
         throw error;
     }
 };
@@ -78,7 +70,6 @@ export const getEmpresaById = async (empresaId, token) => {
 // Crear una nueva empresa
 export const createEmpresa = async (empresaData, token) => {
     try {
-        console.log('[Empresa Service] Creando empresa:', empresaData.nombre);
         
         const response = await fetch(
             getApiEndpoint('/api/empresas'),
@@ -95,15 +86,12 @@ export const createEmpresa = async (empresaData, token) => {
         const data = await response.json();
         
         if (!response.ok) {
-            console.error('[Empresa Service] ❌ Error creando empresa:', data.message);
             throw new Error(data.message || 'Error al crear empresa');
         }
 
-        console.log('[Empresa Service] ✅ Empresa creada exitosamente');
         return data;
         
     } catch (error) {
-        console.error('[Empresa Service] ❌ Error al crear empresa:', error);
         throw error;
     }
 };
@@ -111,7 +99,6 @@ export const createEmpresa = async (empresaData, token) => {
 // Actualizar una empresa
 export const updateEmpresa = async (empresaId, empresaData, token) => {
     try {
-        console.log('[Empresa Service] Actualizando empresa:', empresaId);
         
         const response = await fetch(
             getApiEndpoint(`/api/empresas/${empresaId}`),
@@ -128,15 +115,12 @@ export const updateEmpresa = async (empresaId, empresaData, token) => {
         const data = await response.json();
         
         if (!response.ok) {
-            console.error('[Empresa Service] ❌ Error actualizando empresa:', data.message);
             throw new Error(data.message || 'Error al actualizar empresa');
         }
 
-        console.log('[Empresa Service] ✅ Empresa actualizada exitosamente');
         return data;
         
     } catch (error) {
-        console.error('[Empresa Service] ❌ Error al actualizar empresa:', error);
         throw error;
     }
 };
@@ -144,7 +128,6 @@ export const updateEmpresa = async (empresaId, empresaData, token) => {
 // Desactivar una empresa
 export const deleteEmpresa = async (empresaId, token) => {
     try {
-        console.log('[Empresa Service] Desactivando empresa:', empresaId);
         
         const response = await fetch(
             getApiEndpoint(`/api/empresas/${empresaId}`),
@@ -160,15 +143,12 @@ export const deleteEmpresa = async (empresaId, token) => {
         const data = await response.json();
         
         if (!response.ok) {
-            console.error('[Empresa Service] ❌ Error desactivando empresa:', data.message);
             throw new Error(data.message || 'Error al desactivar empresa');
         }
 
-        console.log('[Empresa Service] ✅ Empresa desactivada exitosamente');
         return data;
         
     } catch (error) {
-        console.error('[Empresa Service] ❌ Error al desactivar empresa:', error);
         throw error;
     }
 };

@@ -24,7 +24,6 @@ export const getTolerancias = async (token) => {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('❌ Error obteniendo tolerancias:', error);
         throw error;
     }
 };
@@ -52,7 +51,6 @@ export const getToleranciaById = async (toleranciaId, token) => {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('❌ Error obteniendo tolerancia:', error);
         throw error;
     }
 };
@@ -118,7 +116,6 @@ export const getToleranciaEmpleado = async (usuarioId, token) => {
         return toleranciaData;
 
     } catch (error) {
-        console.error('❌ Error obteniendo tolerancia del empleado:', error);
         
         // En caso de error, retornar tolerancia por defecto
         return {
@@ -160,7 +157,6 @@ export const createTolerancia = async (toleranciaData, token) => {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('❌ Error creando tolerancia:', error);
         throw error;
     }
 };
@@ -191,7 +187,6 @@ export const updateTolerancia = async (toleranciaId, toleranciaData, token) => {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('❌ Error actualizando tolerancia:', error);
         throw error;
     }
 };
@@ -220,7 +215,6 @@ export const deleteTolerancia = async (toleranciaId, token) => {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('❌ Error eliminando tolerancia:', error);
         throw error;
     }
 };

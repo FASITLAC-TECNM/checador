@@ -6,7 +6,13 @@
       "Bash(ping:*)",
       "Bash(del \"c:\\\\Users\\\\paulx\\\\Documents\\\\GitHub\\\\checador\\\\Desktop\\\\electron\\\\BiometricMiddleware\\\\Adapters\\\\SecuGenAdapter.cs\")",
       "Bash(tasklist:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(npm install:*)",
+      "Bash(npm audit:*)",
+      "Bash(npx expo start -c)",
+      "Bash(npm cache clean:*)",
+      "Bash(npx expo start:*)",
+      "Bash(npx eslint:*)"
     ]
   }
 }

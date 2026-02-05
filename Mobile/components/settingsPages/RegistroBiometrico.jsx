@@ -17,17 +17,14 @@ const BiometricRegistration = () => {
   // Obtener datos del usuario autenticado
   useEffect(() => {
     const fetchUsuarioActual = async () => {
-      console.log('🔐 Iniciando autenticación...');
       
       try {
         const token = localStorage.getItem('token');
         if (!token) {
-          console.error('❌ No hay token de autenticación');
           setMessage({ type: 'error', text: 'No autenticado. Por favor inicia sesión.' });
           return;
         }
 
-        console.log('🔍 Obteniendo datos del usuario autenticado...');
         const response = await fetch(`${API_BASE}/api/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -35,30 +32,20 @@ const BiometricRegistration = () => {
         });
 
         const data = await response.json();
-        console.log('📥 Respuesta de /auth/me:', data);
 
         if (data.success && data.data) {
-          console.log('✅ Usuario autenticado:', {
-            usuario_id: data.data.id,
-            empleado_id: data.data.empleado_id,
-            nombre: data.data.nombre
-          });
-
           setUsuarioId(data.data.id);
           
           if (data.data.empleado_id) {
             setEmpleadoId(data.data.empleado_id);
             await loadCredenciales(data.data.empleado_id);
           } else {
-            console.warn('⚠️ Usuario no es empleado');
             setMessage({ type: 'error', text: 'Solo los empleados pueden registrar credenciales biométricas' });
           }
         } else {
-          console.error('❌ Error en respuesta:', data);
           setMessage({ type: 'error', text: 'Error al obtener datos del usuario' });
         }
       } catch (error) {
-        console.error('❌ Error en fetchUsuarioActual:', error);
         setMessage({ type: 'error', text: 'Error de conexión' });
       }
     };
@@ -68,7 +55,6 @@ const BiometricRegistration = () => {
 
   // Cargar credenciales existentes
   const loadCredenciales = async (empId) => {
-    console.log('🔍 Cargando credenciales para empleado_id:', empId);
     
     try {
       const token = localStorage.getItem('token');
@@ -79,17 +65,10 @@ const BiometricRegistration = () => {
       });
 
       const data = await response.json();
-      console.log('📥 Credenciales cargadas:', data);
 
       if (data.success && data.data) {
-        console.log('✅ Estado de credenciales:', {
-          dactilar: data.data.tiene_dactilar ? '✓' : '✗',
-          facial: data.data.tiene_facial ? '✓' : '✗',
-          pin: data.data.tiene_pin ? '✓' : '✗'
-        });
         setCredenciales(data.data);
       } else if (response.status === 404) {
-        console.log('ℹ️ No hay credenciales registradas aún');
         setCredenciales({
           tiene_dactilar: false,
           tiene_facial: false,
@@ -97,32 +76,23 @@ const BiometricRegistration = () => {
         });
       }
     } catch (error) {
-      console.error('❌ Error al cargar credenciales:', error);
     }
   };
 
   // Registrar huella dactilar
   const registrarHuella = async () => {
     if (!empleadoId) {
-      console.error('❌ No hay empleado_id');
       setMessage({ type: 'error', text: 'No se encontró el empleado_id' });
       return;
     }
 
     setLoading(true);
     setMessage({ type: '', text: '' });
-    console.log('═══════════════════════════════════════');
-    console.log('👆 INICIANDO REGISTRO DE HUELLA DACTILAR');
-    console.log('═══════════════════════════════════════');
-    console.log('📋 Datos:', { empleado_id: empleadoId });
 
     try {
       // Simular conexión con lector biométrico
-      console.log('📡 Conectando con lector biométrico...');
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      console.log('✅ Lector conectado');
-      console.log('📸 Capturando huella...');
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       // Simular template de huella (en producción vendría del SDK del lector)
@@ -132,11 +102,8 @@ const BiometricRegistration = () => {
         timestamp: new Date().toISOString()
       }));
       
-      console.log('✅ Huella capturada exitosamente');
-      console.log('📏 Tamaño del template:', huellaTemplate.length, 'caracteres');
 
       // Enviar a la API
-      console.log('📤 Enviando huella al servidor...');
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE}/api/credenciales/dactilar`, {
         method: 'POST',
@@ -151,57 +118,40 @@ const BiometricRegistration = () => {
       });
 
       const data = await response.json();
-      console.log('📥 Respuesta del servidor:', data);
 
       if (data.success) {
-        console.log('✅ Huella registrada exitosamente en BD');
         setMessage({ type: 'success', text: '✅ Huella dactilar registrada correctamente' });
         await loadCredenciales(empleadoId);
       } else {
-        console.error('❌ Error del servidor:', data.message);
         setMessage({ type: 'error', text: data.message || 'Error al guardar huella' });
       }
     } catch (error) {
-      console.error('❌ Error crítico al registrar huella:', error);
       setMessage({ type: 'error', text: 'Error de conexión al registrar huella' });
     } finally {
       setLoading(false);
-      console.log('═══════════════════════════════════════\n');
     }
   };
 
   // Registrar reconocimiento facial
   const registrarFacial = async () => {
     if (!empleadoId) {
-      console.error('❌ No hay empleado_id');
       setMessage({ type: 'error', text: 'No se encontró el empleado_id' });
       return;
     }
 
     setLoading(true);
     setMessage({ type: '', text: '' });
-    console.log('═══════════════════════════════════════');
-    console.log('📸 INICIANDO REGISTRO FACIAL');
-    console.log('═══════════════════════════════════════');
-    console.log('📋 Datos:', { empleado_id: empleadoId });
 
     try {
       // Solicitar permiso de cámara
-      console.log('📷 Solicitando acceso a la cámara...');
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: 'user',
           width: { ideal: 640 },
           height: { ideal: 480 }
-        } 
+        }
       });
-      
-      console.log('✅ Cámara activada');
-      console.log('📹 Stream obtenido:', {
-        tracks: stream.getTracks().length,
-        video: stream.getVideoTracks()[0].label
-      });
-      
+
       // Crear elemento de video
       const video = document.createElement('video');
       video.srcObject = stream;
@@ -210,19 +160,13 @@ const BiometricRegistration = () => {
       // Esperar a que el video esté listo
       await new Promise(resolve => {
         video.onloadedmetadata = () => {
-          console.log('✅ Video metadata cargada:', {
-            width: video.videoWidth,
-            height: video.videoHeight
-          });
           resolve();
         };
       });
 
       // Esperar 2 segundos para estabilizar la imagen
-      console.log('⏳ Estabilizando imagen (2s)...');
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      console.log('📸 Capturando foto facial...');
       
       // Capturar frame
       const canvas = document.createElement('canvas');
@@ -233,21 +177,13 @@ const BiometricRegistration = () => {
       
       // Convertir a base64
       const fotoBase64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
-      console.log('✅ Foto capturada:', {
-        tamaño: fotoBase64.length,
-        formato: 'JPEG',
-        calidad: '80%'
-      });
 
       // Detener cámara
       stream.getTracks().forEach(track => {
         track.stop();
-        console.log('🛑 Track detenido:', track.label);
       });
-      console.log('📷 Cámara desactivada');
 
       // Enviar a la API
-      console.log('📤 Enviando datos faciales al servidor...');
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE}/api/credenciales/facial`, {
         method: 'POST',
@@ -262,18 +198,14 @@ const BiometricRegistration = () => {
       });
 
       const data = await response.json();
-      console.log('📥 Respuesta del servidor:', data);
 
       if (data.success) {
-        console.log('✅ Datos faciales registrados en BD');
         setMessage({ type: 'success', text: '✅ Reconocimiento facial registrado correctamente' });
         await loadCredenciales(empleadoId);
       } else {
-        console.error('❌ Error del servidor:', data.message);
         setMessage({ type: 'error', text: data.message || 'Error al guardar datos faciales' });
       }
     } catch (error) {
-      console.error('❌ Error crítico:', error);
       setMessage({ 
         type: 'error', 
         text: error.name === 'NotAllowedError' 
@@ -282,43 +214,33 @@ const BiometricRegistration = () => {
       });
     } finally {
       setLoading(false);
-      console.log('═══════════════════════════════════════\n');
     }
   };
 
   // Registrar PIN
   const registrarPIN = async () => {
     if (!empleadoId) {
-      console.error('❌ No hay empleado_id');
       setMessage({ type: 'error', text: 'No se encontró el empleado_id' });
       return;
     }
 
-    console.log('═══════════════════════════════════════');
-    console.log('🔢 INICIANDO REGISTRO DE PIN');
-    console.log('═══════════════════════════════════════');
 
     const pin = prompt('Ingresa un PIN de 6 dígitos numéricos:');
     
     if (!pin) {
-      console.log('❌ Usuario canceló el registro de PIN');
       return;
     }
     
-    console.log('🔍 Validando PIN:', { longitud: pin.length, tipo: typeof pin });
     
     if (!/^\d{6}$/.test(pin)) {
-      console.error('❌ PIN inválido:', pin);
       setMessage({ type: 'error', text: 'El PIN debe ser de 6 dígitos numéricos' });
       return;
     }
 
-    console.log('✅ PIN válido');
 
     setLoading(true);
 
     try {
-      console.log('📤 Enviando PIN al servidor...');
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE}/api/credenciales/pin`, {
         method: 'POST',
@@ -333,22 +255,17 @@ const BiometricRegistration = () => {
       });
 
       const data = await response.json();
-      console.log('📥 Respuesta del servidor:', data);
 
       if (data.success) {
-        console.log('✅ PIN registrado en BD');
         setMessage({ type: 'success', text: '✅ PIN registrado correctamente' });
         await loadCredenciales(empleadoId);
       } else {
-        console.error('❌ Error del servidor:', data.message);
         setMessage({ type: 'error', text: data.message || 'Error al guardar PIN' });
       }
     } catch (error) {
-      console.error('❌ Error crítico al registrar PIN:', error);
       setMessage({ type: 'error', text: 'Error de conexión al registrar PIN' });
     } finally {
       setLoading(false);
-      console.log('═══════════════════════════════════════\n');
     }
   };
 
@@ -358,7 +275,6 @@ const BiometricRegistration = () => {
       return;
     }
 
-    console.log('🗑️ Eliminando credencial:', tipo);
     setLoading(true);
 
     try {
@@ -371,15 +287,12 @@ const BiometricRegistration = () => {
       });
 
       const data = await response.json();
-      console.log('📥 Respuesta:', data);
 
       if (data.success) {
-        console.log('✅ Credencial eliminada');
         setMessage({ type: 'success', text: `✅ Credencial eliminada correctamente` });
         await loadCredenciales(empleadoId);
       }
     } catch (error) {
-      console.error('❌ Error:', error);
       setMessage({ type: 'error', text: 'Error al eliminar credencial' });
     } finally {
       setLoading(false);

@@ -21,7 +21,6 @@ export const getEmpleados = async (token, params = {}) => {
         if (!response.ok) throw new Error('Error al obtener empleados');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -42,7 +41,6 @@ export const getEmpleado = async (id, token) => {
         if (!response.ok) throw new Error('Error al obtener empleado');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -91,7 +89,6 @@ export const getEmpleadoById = async (empleadoId, token) => {
         return data;
 
     } catch (error) {
-        console.error('[empleadoService] Error en getEmpleadoById:', error.message);
         throw error;
     }
 };
@@ -137,7 +134,6 @@ export const getUsuarioCompleto = async (usuarioId, token) => {
         return data;
 
     } catch (error) {
-        console.error('[empleadoService] Error en getUsuarioCompleto:', error.message);
         throw error;
     }
 };
@@ -158,7 +154,6 @@ export const getEmpleadoPorUsuario = async (idUsuario, token) => {
         if (!response.ok) throw new Error('Error al obtener empleado');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -204,7 +199,6 @@ export const crearEmpleado = async (empleado, token) => {
 
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -247,7 +241,6 @@ export const actualizarEmpleado = async (id, empleado, token) => {
 
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -268,7 +261,6 @@ export const eliminarEmpleado = async (id, token) => {
         if (!response.ok) throw new Error('Error al eliminar empleado');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -298,7 +290,6 @@ export const validarPinEmpleado = async (idEmpleado, pin, token) => {
 
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -319,7 +310,6 @@ export const getEmpleadoConPermisos = async (id, token) => {
         if (!response.ok) throw new Error('Error al obtener empleado con permisos');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -340,7 +330,6 @@ export const getStats = async (token) => {
         if (!response.ok) throw new Error('Error al obtener estadísticas');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -361,7 +350,6 @@ export const buscarPorNSS = async (nss, token) => {
         if (!response.ok) throw new Error('Error al buscar empleado por NSS');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -382,7 +370,6 @@ export const buscarPorRFC = async (rfc, token) => {
         if (!response.ok) throw new Error('Error al buscar empleado por RFC');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -403,7 +390,6 @@ export const getEmpleadosConUsuarios = async (token) => {
         if (!response.ok) throw new Error('Error al obtener empleados completos');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -429,7 +415,6 @@ export const validarNSSUnico = async (nss, idEmpleadoExcluir = null, token) => {
         if (!response.ok) throw new Error('Error al validar NSS');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -455,7 +440,6 @@ export const validarRFCUnico = async (rfc, idEmpleadoExcluir = null, token) => {
         if (!response.ok) throw new Error('Error al validar RFC');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -481,7 +465,6 @@ export const cambiarEstadoEmpleado = async (id, estado, motivo = null, token) =>
 
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -502,7 +485,6 @@ export const getHistorialEstadoEmpleado = async (id, token) => {
         if (!response.ok) throw new Error('Error al obtener historial de estado');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -523,7 +505,6 @@ export const getHorarioDeEmpleado = async (empleadoId, token) => {
         if (!response.ok) throw new Error('Error al obtener horario');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };

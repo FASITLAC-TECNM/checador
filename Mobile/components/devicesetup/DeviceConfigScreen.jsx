@@ -118,7 +118,6 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
       const solicitudRechazadaToken = await AsyncStorage.getItem('@solicitud_rechazada_token');
       
       if (solicitudRechazadaId && solicitudRechazadaToken) {
-        console.log('🔄 Modo reintento - Se reabrirá solicitud:', solicitudRechazadaId);
         setSolicitudExistente({ id: solicitudRechazadaId, token: solicitudRechazadaToken });
       }
       
@@ -130,15 +129,12 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
       
       if (userData?.correo) {
         emailToUse = userData.correo;
-        console.log('📧 Email desde userData:', emailToUse);
       } else if (initialEmail) {
         emailToUse = initialEmail;
-        console.log('📧 Email desde initialEmail:', emailToUse);
       } else {
         const savedEmail = await AsyncStorage.getItem('@user_email');
         if (savedEmail) {
           emailToUse = savedEmail;
-          console.log('📧 Email desde AsyncStorage:', emailToUse);
         }
       }
       
@@ -146,7 +142,6 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
         setFormData(prev => ({ ...prev, email: emailToUse }));
       } else {
         // ❌ No se encontró email - esto es crítico
-        console.error('❌ No se pudo obtener el correo electrónico del usuario');
         Alert.alert(
           'Error de Configuración',
           'No se pudo obtener tu correo electrónico. Por favor, cierra sesión e intenta nuevamente.',
@@ -155,7 +150,6 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
       }
       
     } catch (error) {
-      console.error('❌ Error inicializando pantalla:', error);
       Alert.alert('Error', 'No se pudo inicializar la configuración del dispositivo');
     } finally {
       setIsDetecting(false);
@@ -164,7 +158,6 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
 
   const detectDevice = async () => {
     try {
-      console.log('🔍 Detectando información del dispositivo...');
 
       const deviceData = await detectDeviceInfo();
 
@@ -181,10 +174,8 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
         os: deviceData.deviceInfo.os,
       }));
 
-      console.log('✅ Información detectada:', deviceData);
 
     } catch (error) {
-      console.error('❌ Error detectando dispositivo:', error);
       Alert.alert('Error', 'No se pudo detectar la información del dispositivo');
     }
   };
@@ -224,7 +215,6 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
     try {
       const result = await verificarCorreoEnEmpresa(emailTrimmed, empresaId);
       
-      console.log('📧 Resultado validación:', result);
       
       // Marcar como válido si: existe Y activo Y (tiene usuario O está pendiente de validación)
       const esValido = result.existe && result.activo && (result.usuario || result.pendienteValidacion);
@@ -259,7 +249,6 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
         });
       }
     } catch (error) {
-      console.error('❌ Error validando correo:', error);
       
       setEmailValidation({
         isValid: false,
@@ -301,7 +290,6 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
       let response;
 
       if (solicitudExistente?.id) {
-        console.log('🔄 Reabriendo solicitud rechazada:', solicitudExistente.id);
         
         const observaciones = `Reintento desde app móvil el ${formData.registrationDate}. Email: ${emailTrimmed}, SO: ${formData.os}`;
         response = await reabrirSolicitudMovil(solicitudExistente.id, observaciones);
@@ -311,10 +299,8 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
         
         await AsyncStorage.removeItem('@solicitud_rechazada_id');
         await AsyncStorage.removeItem('@solicitud_rechazada_token');
-        console.log('🧹 Datos de solicitud rechazada limpiados');
         
       } else {
-        console.log('📱 Enviando solicitud de dispositivo móvil...');
         
         const solicitudData = {
           nombre: formData.deviceModel,
@@ -330,7 +316,6 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
         response = await crearSolicitudMovil(solicitudData);
       }
 
-      console.log('✅ Respuesta del servidor:', response);
 
       if (!response.token_solicitud) {
         throw new Error('No se recibió token de solicitud del servidor');
@@ -365,7 +350,6 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
       );
 
     } catch (error) {
-      console.error('❌ Error al enviar solicitud:', error);
       Alert.alert(
         'Error al Enviar',
         error.message || 'No se pudo enviar la solicitud. Por favor intenta nuevamente.',

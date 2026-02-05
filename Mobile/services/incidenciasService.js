@@ -33,7 +33,6 @@ export const getIncidencias = async (token, filtros = {}) => {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('Error obteniendo incidencias:', error);
         throw error;
     }
 };
@@ -68,7 +67,6 @@ export const getIncidenciaById = async (incidenciaId, token) => {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('Error obteniendo incidencia:', error);
         throw error;
     }
 };
@@ -78,7 +76,6 @@ export const getIncidenciaById = async (incidenciaId, token) => {
  */
 export const createIncidencia = async (incidenciaData, token) => {
     try {
-        console.log('📤 Creando incidencia:', incidenciaData);
 
         const response = await fetch(`${API_URL}/incidencias`, {
             method: 'POST',
@@ -90,7 +87,6 @@ export const createIncidencia = async (incidenciaData, token) => {
         });
 
         const responseText = await response.text();
-        console.log('📥 Respuesta del servidor:', responseText);
 
         if (!response.ok) {
             let errorData;
@@ -103,10 +99,8 @@ export const createIncidencia = async (incidenciaData, token) => {
         }
 
         const data = JSON.parse(responseText);
-        console.log('✅ Incidencia creada:', data);
         return data;
     } catch (error) {
-        console.error('❌ Error creando incidencia:', error);
         throw error;
     }
 };
@@ -133,7 +127,6 @@ export const updateIncidencia = async (incidenciaId, incidenciaData, token) => {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('Error actualizando incidencia:', error);
         throw error;
     }
 };
@@ -160,7 +153,6 @@ export const aprobarIncidencia = async (incidenciaId, observaciones, token) => {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('Error aprobando incidencia:', error);
         throw error;
     }
 };
@@ -187,7 +179,6 @@ export const rechazarIncidencia = async (incidenciaId, observaciones, token) => 
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('Error rechazando incidencia:', error);
         throw error;
     }
 };
@@ -211,7 +202,6 @@ export const getIncidenciasPendientes = async (token) => {
         const data = await response.json();
         return data;
     } catch (error) {
-        console.error('Error obteniendo incidencias pendientes:', error);
         throw error;
     }
 };

@@ -10,7 +10,6 @@ const API_URL = getApiEndpoint('/api');
 // Obtener configuración actual
 export const getConfiguracion = async (token) => {
     try {
-        console.log('[Configuracion Service] Obteniendo configuración...');
         
         const response = await fetch(`${API_URL}/configuracion`, {
             method: 'GET',
@@ -22,7 +21,6 @@ export const getConfiguracion = async (token) => {
 
         if (!response.ok) {
             const data = await response.json();
-            console.error('[Configuracion Service] ❌ Error:', data.error);
             throw new Error(data.error || 'Error al obtener configuración');
         }
 
@@ -39,18 +37,12 @@ export const getConfiguracion = async (token) => {
                 : data.credenciales_orden
         };
 
-        console.log('[Configuracion Service] ✅ Configuración obtenida:', {
-            nombre_empresa: configuracion.nombre_empresa,
-            orden_credenciales: configuracion.credenciales_orden
-        });
-
         return {
             success: true,
             data: configuracion
         };
         
     } catch (error) {
-        console.error('[Configuracion Service] ❌ Error al obtener configuración:', error);
         throw error;
     }
 };
@@ -58,7 +50,6 @@ export const getConfiguracion = async (token) => {
 // Actualizar configuración (solo admin)
 export const updateConfiguracion = async (configuracionData, token) => {
     try {
-        console.log('[Configuracion Service] Actualizando configuración...');
         
         const response = await fetch(`${API_URL}/configuracion`, {
             method: 'PUT',
@@ -71,12 +62,10 @@ export const updateConfiguracion = async (configuracionData, token) => {
 
         if (!response.ok) {
             const data = await response.json();
-            console.error('[Configuracion Service] ❌ Error:', data.error);
             throw new Error(data.error || 'Error al actualizar configuración');
         }
 
         const data = await response.json();
-        console.log('[Configuracion Service] ✅ Configuración actualizada');
 
         return {
             success: true,
@@ -84,7 +73,6 @@ export const updateConfiguracion = async (configuracionData, token) => {
         };
         
     } catch (error) {
-        console.error('[Configuracion Service] ❌ Error al actualizar configuración:', error);
         throw error;
     }
 };
@@ -92,7 +80,6 @@ export const updateConfiguracion = async (configuracionData, token) => {
 // Alternar modo mantenimiento (solo admin)
 export const toggleMantenimiento = async (token) => {
     try {
-        console.log('[Configuracion Service] Alternando modo mantenimiento...');
         
         const response = await fetch(`${API_URL}/configuracion/mantenimiento`, {
             method: 'POST',
@@ -108,7 +95,6 @@ export const toggleMantenimiento = async (token) => {
         }
 
         const data = await response.json();
-        console.log('[Configuracion Service] ✅', data.message);
 
         return {
             success: true,
@@ -116,7 +102,6 @@ export const toggleMantenimiento = async (token) => {
         };
         
     } catch (error) {
-        console.error('[Configuracion Service] ❌ Error:', error);
         throw error;
     }
 };
@@ -134,14 +119,12 @@ export const getOrdenCredenciales = async (token) => {
         }
         
         // Orden por defecto si no hay configuración
-        console.log('[Configuracion Service] ℹ️ Usando orden por defecto');
         return {
             success: true,
             orden: ['pin', 'dactilar', 'facial']
         };
         
     } catch (error) {
-        console.log('[Configuracion Service] ℹ️ Error obteniendo orden, usando default');
         return {
             success: true,
             orden: ['pin', 'dactilar', 'facial']

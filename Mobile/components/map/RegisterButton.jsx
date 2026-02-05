@@ -179,7 +179,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           }
         }
       } catch (error) {
-        console.log('Error al verificar falta de salida:', error);
       } finally {
         verificandoFaltaRef.current = false;
       }

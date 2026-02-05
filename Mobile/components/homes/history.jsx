@@ -66,7 +66,6 @@ export const HistoryScreen = ({ darkMode, userData }) => {
         setEstadisticas({ puntuales: 0, retardos: 0, faltas: 0 });
       }
     } catch (error) {
-      console.error('Error cargando asistencias:', error);
       setAsistencias([]);
     } finally {
       setLoading(false);

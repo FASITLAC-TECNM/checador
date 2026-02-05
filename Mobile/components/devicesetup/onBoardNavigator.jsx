@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { SafeAreaView, StyleSheet, Alert, ActivityIndicator, View, Text } from 'react-native';
+import { StyleSheet, Alert, ActivityIndicator, View, Text } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { WelcomeScreen } from './WelcomeScreen';
 import { CompanyAffiliationScreen } from './CompanyAffilationScreen';
 import { DeviceConfigScreen } from './DeviceConfigScreen';
@@ -52,7 +52,6 @@ export const OnboardingNavigator = ({ onComplete, userData }) => {
       ]);
 
       if (solicitudId && tokenSolicitud) {
-        console.log('🔍 Encontrada solicitud anterior, verificando estado...');
         
         try {
           const response = await getSolicitudPorToken(tokenSolicitud);
@@ -60,7 +59,6 @@ export const OnboardingNavigator = ({ onComplete, userData }) => {
 
           if (estadoLower === 'aceptado') {
             // Ya fue aprobado, marcar como completado
-            console.log('✅ Solicitud ya aprobada');
             await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETED, 'true');
             
             const savedData = {
@@ -77,7 +75,6 @@ export const OnboardingNavigator = ({ onComplete, userData }) => {
             return;
           } else if (estadoLower === 'pendiente') {
             // Continuar esperando aprobación
-            console.log('⏳ Solicitud pendiente, continuar esperando');
             setOnboardingData(prev => ({
               ...prev,
               tokenSolicitud,
@@ -88,7 +85,6 @@ export const OnboardingNavigator = ({ onComplete, userData }) => {
             return;
           } else if (estadoLower === 'rechazado') {
             // Fue rechazada
-            console.log('❌ Solicitud rechazada');
             setOnboardingData(prev => ({
               ...prev,
               motivoRechazo: response.observaciones || 'No especificado'
@@ -98,18 +94,15 @@ export const OnboardingNavigator = ({ onComplete, userData }) => {
             return;
           }
         } catch (error) {
-          console.log('⚠️ Error verificando solicitud anterior:', error.message);
           // Si hay error, limpiar y empezar de nuevo
           await clearDeviceData();
         }
       }
 
       // No hay solicitud anterior o fue eliminada, empezar desde el inicio
-      console.log('ℹ️ No hay solicitud previa, iniciando onboarding...');
       setIsLoading(false);
       
     } catch (error) {
-      console.error('❌ Error verificando dispositivo:', error);
       setIsLoading(false);
     }
   };
@@ -127,9 +120,7 @@ export const OnboardingNavigator = ({ onComplete, userData }) => {
         AsyncStorage.setItem(STORAGE_KEYS.APPROVAL_DATE, data.fechaAprobacion || ''),
         AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETED, 'true')
       ]);
-      console.log('✅ Datos del dispositivo guardados');
     } catch (error) {
-      console.error('❌ Error guardando datos:', error);
       throw error;
     }
   };
@@ -147,9 +138,7 @@ export const OnboardingNavigator = ({ onComplete, userData }) => {
         AsyncStorage.removeItem(STORAGE_KEYS.APPROVAL_DATE),
         AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED)
       ]);
-      console.log('🗑️ Datos del dispositivo limpiados');
     } catch (error) {
-      console.error('❌ Error limpiando datos:', error);
     }
   };
 
@@ -203,7 +192,6 @@ export const OnboardingNavigator = ({ onComplete, userData }) => {
       await saveDeviceData(onboardingData);
       onComplete(onboardingData);
     } catch (error) {
-      console.error('❌ Error guardando datos:', error);
       Alert.alert(
         'Error',
         'No se pudieron guardar los datos. Por favor intenta nuevamente.',

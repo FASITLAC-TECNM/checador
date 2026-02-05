@@ -9,9 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StatusBar,
   Image,
-  Dimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -70,7 +68,6 @@ export const LoginScreen = ({ onLoginSuccess }) => {
                 empresaId = empleadoData.data.empresa_id;
               }
             } catch (error) {
-              console.warn('Error empresa_id:', error.message);
             }
         }
         const datosCompletos = {
@@ -94,7 +91,6 @@ export const LoginScreen = ({ onLoginSuccess }) => {
         onLoginSuccess(datosCompletos);
       }
     } catch (error) {
-       console.error(error);
        setGeneralError('Error al iniciar sesión');
     } finally {
       setIsLoading(false);
@@ -115,7 +111,6 @@ export const LoginScreen = ({ onLoginSuccess }) => {
             bounces={false}
             overScrollMode="never"
           >
-            {/* 1. HEADER */}
             <View style={styles.headerContainer}>
               <View style={styles.iconFrame}>
                 <Image
@@ -128,7 +123,6 @@ export const LoginScreen = ({ onLoginSuccess }) => {
               <Text style={styles.subtitle}>Fábrica de Software del ITLAC</Text>
             </View>
 
-            {/* 2. FORMULARIO */}
             <View style={styles.formContainer}>
               <Text style={styles.welcomeText}>Iniciar Sesión</Text>
 

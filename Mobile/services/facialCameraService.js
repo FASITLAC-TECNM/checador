@@ -10,23 +10,19 @@ import * as SecureStore from 'expo-secure-store';
 // Solicitar permisos de cámara
 export const requestCameraPermission = async () => {
     try {
-        console.log('[Facial Camera] Solicitando permisos de cámara...');
         
         const { status } = await Camera.requestCameraPermissionsAsync();
         
         if (status !== 'granted') {
-            console.log('[Facial Camera] ❌ Permisos de cámara denegados');
             return { 
                 granted: false, 
                 message: 'Se necesitan permisos de cámara para usar reconocimiento facial' 
             };
         }
 
-        console.log('[Facial Camera] ✅ Permisos de cámara concedidos');
         return { granted: true };
         
     } catch (error) {
-        console.error('[Facial Camera] Error solicitando permisos:', error);
         return { 
             granted: false, 
             message: 'Error al solicitar permisos de cámara' 
@@ -52,7 +48,6 @@ export const checkCameraAvailability = async () => {
         };
         
     } catch (error) {
-        console.error('[Facial Camera] Error verificando disponibilidad:', error);
         return {
             available: false,
             message: 'Error al verificar la cámara'
@@ -62,7 +57,6 @@ export const checkCameraAvailability = async () => {
 
 // Procesar datos del rostro detectado
 export const processFaceData = (face) => {
-    console.log('[Facial Camera] Procesando datos del rostro...');
     
     // Extraer características clave del rostro
     const faceFeatures = {
@@ -150,14 +144,12 @@ export const validateFaceQuality = (faceData) => {
         validations.warnings.push('Aléjate un poco de la cámara');
     }
 
-    console.log('[Facial Camera] Validación del rostro:', validations);
     return validations;
 };
 
 // Generar template facial a partir de las características
 export const generateFacialTemplate = async (faceData, photoUri, empleadoId) => {
     try {
-        console.log('[Facial Camera] Generando template facial...');
 
         const timestamp = Date.now();
         const deviceId = await getDeviceId();
@@ -200,8 +192,6 @@ export const generateFacialTemplate = async (faceData, photoUri, empleadoId) => 
         const templateString = JSON.stringify(facialBiometric);
         const template = await generateTemplateHash(templateString);
 
-        console.log('[Facial Camera] ✅ Template facial generado exitosamente');
-        console.log('[Facial Camera] Template size:', template.length, 'caracteres');
 
         // Guardar datos localmente para verificación futura
         await SecureStore.setItemAsync(
@@ -222,7 +212,6 @@ export const generateFacialTemplate = async (faceData, photoUri, empleadoId) => 
         };
 
     } catch (error) {
-        console.error('[Facial Camera] ❌ Error generando template:', error);
         throw new Error('Error al generar template facial');
     }
 };
@@ -280,7 +269,6 @@ const generateTemplateHash = async (data) => {
         return base64Template;
         
     } catch (error) {
-        console.error('[Facial Camera] Error generando hash:', error);
         throw error;
     }
 };
@@ -293,12 +281,10 @@ const getDeviceId = async () => {
         if (!deviceId) {
             deviceId = `device_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
             await SecureStore.setItemAsync('deviceId', deviceId);
-            console.log('[Facial Camera] Nuevo Device ID generado:', deviceId);
         }
         
         return deviceId;
     } catch (error) {
-        console.error('[Facial Camera] Error obteniendo device ID:', error);
         return `device_fallback_${Date.now()}`;
     }
 };
@@ -306,12 +292,9 @@ const getDeviceId = async () => {
 // Limpiar datos faciales locales
 export const clearLocalFacialData = async (empleadoId) => {
     try {
-        console.log('[Facial Camera] Limpiando datos faciales locales...');
         await SecureStore.deleteItemAsync(`facial_camera_${empleadoId}`);
-        console.log('[Facial Camera] ✅ Datos locales eliminados');
         return { success: true };
     } catch (error) {
-        console.error('[Facial Camera] Error limpiando datos:', error);
         return { success: false };
     }
 };
@@ -323,14 +306,11 @@ export const checkLocalFacialData = async (empleadoId) => {
         
         if (data) {
             const parsed = JSON.parse(data);
-            console.log('[Facial Camera] ✓ Datos faciales encontrados localmente');
             return { exists: true, data: parsed };
         }
         
-        console.log('[Facial Camera] No hay datos faciales locales');
         return { exists: false };
     } catch (error) {
-        console.error('[Facial Camera] Error verificando datos locales:', error);
         return { exists: false };
     }
 };

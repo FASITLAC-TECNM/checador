@@ -10,7 +10,6 @@ export * as authService from './authService.js';
 // Usar la configuración centralizada
 const API_URL = getApiEndpoint('/api');
 
-console.log('🔗 API URL:', API_URL);
 
 /**
  * Obtener todos los usuarios
@@ -21,7 +20,6 @@ export const getUsuarios = async () => {
         if (!response.ok) throw new Error('Error al obtener usuarios');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -35,7 +33,6 @@ export const getUsuario = async (id) => {
         if (!response.ok) throw new Error('Error al obtener usuario');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -72,7 +69,6 @@ export const crearUsuario = async (usuario) => {
 
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -112,7 +108,6 @@ export const actualizarUsuario = async (id, usuario) => {
 
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -129,7 +124,6 @@ export const eliminarUsuario = async (id) => {
         if (!response.ok) throw new Error('Error al eliminar usuario');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -154,7 +148,6 @@ export const actualizarEstadoConexion = async (id, estado) => {
 
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -174,7 +167,6 @@ export const filtrarUsuarios = async (filtros) => {
         if (!response.ok) throw new Error('Error al filtrar usuarios');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -189,7 +181,6 @@ export const getEstadisticas = async () => {
         if (!response.ok) throw new Error('Error al obtener estadísticas');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -207,7 +198,6 @@ export const getEmpleados = async () => {
         if (!response.ok) throw new Error('Error al obtener empleados');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -221,7 +211,6 @@ export const getEmpleado = async (id) => {
         if (!response.ok) throw new Error('Error al obtener empleado');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -235,7 +224,6 @@ export const getEmpleadoPorUsuario = async (idUsuario) => {
         if (!response.ok) throw new Error('Error al obtener empleado');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -267,7 +255,6 @@ export const crearEmpleado = async (empleado) => {
 
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -298,7 +285,6 @@ export const actualizarEmpleado = async (id, empleado) => {
 
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -315,7 +301,6 @@ export const eliminarEmpleado = async (id) => {
         if (!response.ok) throw new Error('Error al eliminar empleado');
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };
@@ -340,7 +325,6 @@ export const validarPinEmpleado = async (idEmpleado, pin) => {
 
         return await response.json();
     } catch (error) {
-        console.error('Error:', error);
         throw error;
     }
 };

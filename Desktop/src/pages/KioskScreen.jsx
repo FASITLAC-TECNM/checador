@@ -305,7 +305,12 @@ export default function KioskScreen() {
       <div className="w-20 bg-bg-primary shadow-lg flex flex-col items-center py-6 gap-4">
         <button
           onClick={() => setShowLoginModal(true)}
-          className="flex flex-col items-center gap-1 text-blue-600 hover:bg-bg-secondary p-2 rounded-lg transition-all w-16"
+          disabled={!isInternetConnected || !isDatabaseConnected}
+          className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all w-16 ${
+            !isInternetConnected || !isDatabaseConnected
+              ? "text-gray-400 cursor-not-allowed opacity-50"
+              : "text-blue-600 hover:bg-bg-secondary"
+          }`}
         >
           <User className="w-5 h-5" />
           <span className="text-xs font-semibold">Usuario</span>

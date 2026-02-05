@@ -1,6 +1,7 @@
 // services/biometric.service.js
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 /**
  * Servicio para captura y gestión de datos biométricos
@@ -105,54 +106,73 @@ export const capturarHuellaDigital = async (empleadoId) => {
     }
 };
 
-// Capturar reconocimiento facial
+// Capturar reconocimiento facial usando LocalAuthentication
 export const capturarReconocimientoFacial = async (empleadoId) => {
     try {
-        
+
+        // 1. Verificar soporte biométrico general
         const support = await checkBiometricSupport();
         if (!support.supported) {
             throw new Error(support.message);
         }
 
+        // 2. Verificar específicamente Face ID / Reconocimiento Facial
         if (!support.hasFaceId) {
-            throw new Error('Tu dispositivo no soporta reconocimiento facial biométrico. Usa la cámara manual.');
+            throw new Error('Tu dispositivo no tiene Face ID o reconocimiento facial habilitado.\n\nPara Android: Activa el desbloqueo facial en Configuración > Seguridad.\nPara iOS: Configura Face ID en Ajustes.');
         }
 
+        // 3. Solicitar autenticación facial
         const result = await LocalAuthentication.authenticateAsync({
-            promptMessage: '🔐 Mira a la cámara',
-            fallbackLabel: 'Usar código',
+            promptMessage: '🔐 Reconocimiento Facial',
+            fallbackLabel: 'Usar PIN del dispositivo',
             disableDeviceFallback: false,
             cancelLabel: 'Cancelar',
         });
 
-
         if (!result.success) {
-            throw new Error('Autenticación facial cancelada o fallida');
+            if (result.error === 'user_cancel') {
+                throw new Error('Autenticación cancelada');
+            } else if (result.error === 'lockout') {
+                throw new Error('Demasiados intentos fallidos. Intenta de nuevo más tarde.');
+            } else if (result.error === 'not_enrolled') {
+                throw new Error('No tienes configurado reconocimiento facial en tu dispositivo.');
+            } else {
+                throw new Error('Autenticación facial fallida. Intenta de nuevo.');
+            }
         }
 
+        // 4. Generar template biométrico único
         const timestamp = Date.now();
         const deviceId = await getDeviceId();
         const facialData = {
             empleadoId,
             timestamp,
             deviceId,
-            type: 'face',
+            type: 'facial_recognition',
             authSuccess: result.success,
-            securityLevel: 'HIGH'
+            securityLevel: 'HIGH',
+            platform: Platform.OS
         };
 
         const template = await generateBiometricTemplate(facialData);
 
+        // 5. Guardar localmente de forma segura
         await SecureStore.setItemAsync(
             `facial_${empleadoId}`,
-            JSON.stringify({ timestamp, template: template.substring(0, 100) })
+            JSON.stringify({
+                timestamp,
+                template: template.substring(0, 100),
+                registered: true,
+                platform: Platform.OS
+            })
         );
 
         return {
             success: true,
             template,
             timestamp,
-            deviceId
+            deviceId,
+            type: 'facial_recognition'
         };
 
     } catch (error) {

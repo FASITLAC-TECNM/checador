@@ -13,9 +13,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PinInputModal } from './PinInputModal';
-import { capturarHuellaDigital } from '../services/biometric.service';
-import { guardarDactilar, guardarPin } from '../services/credenciales.service';
+import { capturarHuellaDigital, capturarReconocimientoFacial } from '../services/biometric.service';
+import { guardarDactilar, guardarPin, guardarFacial } from '../services/credenciales.service';
 import { getApiEndpoint } from '../config/api';
+import { getOrdenCredenciales } from '../services/configurationService';
 
 const API_URL = getApiEndpoint('/api');
 
@@ -58,11 +59,17 @@ export const MetodoAutenticacionModal = ({
   // Soporte de hardware del dispositivo
   const [soporteHardware, setSoporteHardware] = useState({
     huella: true,   // asumimos que sí hasta verificar
-    facial: true,
+    facial: true,   // Face ID / Reconocimiento facial nativo
   });
   const [showPinModal, setShowPinModal] = useState(false);
   // Qué botón está siendo presionado (para feedback visual)
   const [presionado, setPresionado] = useState(null);
+  // Orden de credenciales desde la configuración
+  const [ordenCredenciales, setOrdenCredenciales] = useState({
+    pin: { prioridad: 1, activo: true },
+    dactilar: { prioridad: 2, activo: true },
+    facial: { prioridad: 3, activo: true },
+  });
 
   const styles = darkMode ? authStylesDark : authStyles;
 
@@ -80,12 +87,23 @@ export const MetodoAutenticacionModal = ({
       // 1. Verificar soporte biométrico del dispositivo
       const { checkBiometricSupport } = await import('../services/biometric.service');
       const support = await checkBiometricSupport();
+
       setSoporteHardware({
         huella: support?.hasFingerprint || false,
         facial: support?.hasFaceId || false,
       });
 
-      // 2. Obtener credenciales del empleado desde el backend
+      // 2. Obtener el orden de credenciales desde la configuración
+      try {
+        const ordenResult = await getOrdenCredenciales(userData?.token);
+        if (ordenResult.success && ordenResult.ordenCredenciales) {
+          setOrdenCredenciales(ordenResult.ordenCredenciales);
+        }
+      } catch (error) {
+        console.error('Error al obtener orden de credenciales:', error);
+      }
+
+      // 3. Obtener credenciales del empleado desde el backend
       const empleadoId = userData?.empleado?.id || userData?.empleado_id || userData?.id;
       if (empleadoId && userData?.token) {
         const response = await fetch(
@@ -103,6 +121,7 @@ export const MetodoAutenticacionModal = ({
         }
       }
     } catch (error) {
+      console.error('Error en cargarConfiguracion:', error);
     } finally {
       setLoading(false);
     }
@@ -111,8 +130,13 @@ export const MetodoAutenticacionModal = ({
   // ─── Determinar estado visual de cada método ───────────────────────────
   // activo   → tiene la credencial registrada
   // inactivo → no la tiene pero puede registrarla (hardware OK)
-  // noDisponible → el hardware no lo soporta
+  // noDisponible → el hardware no lo soporta o está desactivado en configuración
   const getEstado = (tipo) => {
+    // Verificar si el método está desactivado en la configuración
+    if (ordenCredenciales[tipo] && !ordenCredenciales[tipo].activo) {
+      return 'noDisponible';
+    }
+
     switch (tipo) {
       case 'dactilar':
         if (credenciales.tiene_dactilar) return 'activo';
@@ -121,6 +145,7 @@ export const MetodoAutenticacionModal = ({
 
       case 'facial':
         if (credenciales.tiene_facial) return 'activo';
+        // Facial usa Face ID / Reconocimiento facial nativo
         if (!soporteHardware.facial) return 'noDisponible';
         return 'inactivo';
 
@@ -211,7 +236,7 @@ export const MetodoAutenticacionModal = ({
     if (estado === 'noDisponible') {
       Alert.alert(
         'No disponible',
-        'Tu dispositivo no soporta reconocimiento facial nativo.'
+        'Tu dispositivo no tiene Face ID o reconocimiento facial habilitado.\n\nActívalo en la configuración de tu dispositivo.'
       );
       return;
     }
@@ -222,35 +247,62 @@ export const MetodoAutenticacionModal = ({
       const empleadoId =
         userData?.empleado?.id || userData?.empleado_id || userData?.id;
 
-      // Importar dinámicamente para no romper si no existe
-      const { capturarReconocimientoFacial } = await import(
-        '../services/biometric.service'
-      );
-      const { guardarFacial } = await import(
-        '../services/credenciales.service'
-      );
-
-      const resultado = await capturarReconocimientoFacial(empleadoId);
-
-      await guardarFacial(empleadoId, resultado.template, userData.token);
-
-      setCredenciales((prev) => ({ ...prev, tiene_facial: true }));
-
-      Alert.alert('¡Éxito!', 'Reconocimiento facial registrado correctamente', [
-        {
-          text: 'OK',
-          onPress: () => {
-            if (onSuccess) onSuccess('facial');
-            onClose();
+      Alert.alert(
+        'Registrar Face ID',
+        'Se te pedirá que autentiques tu rostro usando el sistema de seguridad de tu dispositivo.',
+        [
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+            onPress: () => setProcesando(false),
           },
-        },
-      ]);
+          {
+            text: 'Continuar',
+            onPress: async () => {
+              try {
+                // Capturar reconocimiento facial usando LocalAuthentication
+                const resultado = await capturarReconocimientoFacial(empleadoId);
+
+                if (!resultado.success) {
+                  throw new Error('No se pudo capturar el reconocimiento facial');
+                }
+
+                // Guardar en el backend
+                await guardarFacial(
+                  empleadoId,
+                  resultado.template,
+                  userData.token
+                );
+
+                // Actualizar estado local
+                setCredenciales((prev) => ({ ...prev, tiene_facial: true }));
+
+                Alert.alert('¡Éxito!', 'Reconocimiento facial registrado correctamente', [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      if (onSuccess) onSuccess('facial');
+                      onClose();
+                    },
+                  },
+                ]);
+              } catch (error) {
+                Alert.alert(
+                  'Error',
+                  error.message || 'No se pudo registrar el reconocimiento facial. Verifica que tu dispositivo tenga Face ID configurado.'
+                );
+              } finally {
+                setProcesando(false);
+              }
+            },
+          },
+        ]
+      );
     } catch (error) {
       Alert.alert(
         'Error',
-        error.message || 'No se pudo registrar el reconocimiento facial.'
+        error.message || 'No se pudo iniciar el registro facial.'
       );
-    } finally {
       setProcesando(false);
     }
   };
@@ -292,26 +344,38 @@ export const MetodoAutenticacionModal = ({
   };
 
   // ─── Datos de los métodos ──────────────────────────────────────────────
-  const metodos = [
-    {
+  // Definir todos los métodos disponibles
+  const metodosDisponibles = {
+    dactilar: {
       id: 'dactilar',
       nombre: 'Huella Digital',
       icono: 'finger-print',
       handler: handleRegistrarHuella,
     },
-    {
+    facial: {
       id: 'facial',
       nombre: 'Reconocimiento Facial',
       icono: 'scan',
       handler: handleRegistrarFacial,
     },
-    {
+    pin: {
       id: 'pin',
       nombre: 'PIN de Seguridad',
       icono: 'keypad',
       handler: handleRegistrarPIN,
     },
-  ];
+  };
+
+  // Ordenar métodos según la configuración
+  const metodos = Object.keys(ordenCredenciales)
+    .filter((key) => ordenCredenciales[key]?.activo !== false) // Solo mostrar los activos
+    .sort((a, b) => {
+      const prioridadA = ordenCredenciales[a]?.prioridad || 999;
+      const prioridadB = ordenCredenciales[b]?.prioridad || 999;
+      return prioridadA - prioridadB;
+    })
+    .map((key) => metodosDisponibles[key])
+    .filter(Boolean); // Eliminar undefined si hay claves desconocidas
 
   // ─── Render ─────────────────────────────────────────────────────────────
   return (

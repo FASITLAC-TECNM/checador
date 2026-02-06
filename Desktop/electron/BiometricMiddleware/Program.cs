@@ -16,10 +16,27 @@ namespace BiometricMiddleware
         private static HttpListener _httpListener;
         private static List<WebSocketConnection> _connections = new List<WebSocketConnection>();
         private static FingerprintManager _fingerprintManager;
+        private static string _authToken = null; // Token de autenticación desde Electron
 
         static async Task Main(string[] args)
         {
             Console.OutputEncoding = Encoding.UTF8;
+
+            // Parsear argumentos de línea de comandos
+            foreach (var arg in args)
+            {
+                if (arg.StartsWith("--token="))
+                {
+                    _authToken = arg.Substring(8);
+                    Console.WriteLine($"[AUTH] Token de autenticación configurado");
+                }
+            }
+
+            if (string.IsNullOrEmpty(_authToken))
+            {
+                Console.WriteLine("[WARN] No se proporcionó token de autenticación");
+                Console.WriteLine("[WARN] Las conexiones no requerirán autenticación");
+            }
 
             PrintBanner();
 
@@ -66,7 +83,7 @@ namespace BiometricMiddleware
                     if (context.Request.IsWebSocketRequest)
                     {
                         var wsContext = await context.AcceptWebSocketAsync(null);
-                        var connection = new WebSocketConnection(wsContext.WebSocket, _fingerprintManager);
+                        var connection = new WebSocketConnection(wsContext.WebSocket, _fingerprintManager, _authToken);
 
                         lock (_connections)
                         {
@@ -115,6 +132,10 @@ namespace BiometricMiddleware
         private readonly WebSocket _webSocket;
         private readonly FingerprintManager _fingerprintManager;
         private static readonly HttpClient _httpClient = new HttpClient();
+        
+        // Token de autenticación y estado
+        private readonly string _expectedToken;
+        private bool _authenticated = false;
 
         // Caché estática de templates - compartida entre todas las conexiones
         private static Dictionary<string, byte[]> _templatesCache = null;
@@ -122,10 +143,14 @@ namespace BiometricMiddleware
         private static DateTime _cacheLoadedAt = DateTime.MinValue;
         private static readonly object _cacheLock = new object();
 
-        public WebSocketConnection(WebSocket webSocket, FingerprintManager fingerprintManager)
+        public WebSocketConnection(WebSocket webSocket, FingerprintManager fingerprintManager, string authToken)
         {
             _webSocket = webSocket;
             _fingerprintManager = fingerprintManager;
+            _expectedToken = authToken;
+            
+            // Si no hay token configurado, considerar autenticado automáticamente
+            _authenticated = string.IsNullOrEmpty(authToken);
 
             _fingerprintManager.OnStatusChanged += SendStatusUpdate;
             _fingerprintManager.OnEnrollProgress += SendEnrollProgress;
@@ -172,43 +197,58 @@ namespace BiometricMiddleware
 
                 switch (request.Command)
                 {
+                    case "auth":
+                        // Comando de autenticación - siempre permitido
+                        await HandleAuth(request.Token);
+                        break;
+
                     case "startEnrollment":
+                        if (!RequireAuth()) return;
                         await _fingerprintManager.StartEnrollment(request.UserId);
                         break;
 
                     case "cancelEnrollment":
+                        if (!RequireAuth()) return;
                         _fingerprintManager.CancelEnrollment();
                         break;
 
                     case "startVerification":
+                        if (!RequireAuth()) return;
                         await _fingerprintManager.StartVerification(request.UserId);
                         break;
 
                     case "startIdentification":
+                        if (!RequireAuth()) return;
                         await StartIdentificationWithDbTemplates(request.ApiUrl);
                         break;
 
                     case "reloadTemplates":
+                        if (!RequireAuth()) return;
                         await ReloadTemplatesCache(request.ApiUrl);
                         break;
 
                     case "cacheStatus":
+                        if (!RequireAuth()) return;
                         await SendCacheStatus();
                         break;
 
                     case "stopCapture":
+                        if (!RequireAuth()) return;
                         _fingerprintManager.StopCapture();
                         break;
 
                     case "getStatus":
+                        if (!RequireAuth()) return;
                         await SendStatus();
                         break;
 
                     case "listUsers":
+                        if (!RequireAuth()) return;
                         await SendUserList();
                         break;
 
                     case "getReaderInfo":
+                        if (!RequireAuth()) return;
                         await SendReaderInfo();
                         break;
 
@@ -221,6 +261,53 @@ namespace BiometricMiddleware
             {
                 await SendError($"Error: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Maneja el comando de autenticación
+        /// </summary>
+        private async Task HandleAuth(string token)
+        {
+            if (string.IsNullOrEmpty(_expectedToken))
+            {
+                // No hay token configurado, autenticación no requerida
+                _authenticated = true;
+                Console.WriteLine("[AUTH] Autenticación no requerida (sin token configurado)");
+                await SendMessage(new { type = "authResult", success = true, message = "Autenticación no requerida" });
+                return;
+            }
+
+            if (token == _expectedToken)
+            {
+                _authenticated = true;
+                Console.WriteLine("[AUTH] Conexión autenticada exitosamente");
+                await SendMessage(new { type = "authResult", success = true, message = "Autenticado correctamente" });
+            }
+            else
+            {
+                _authenticated = false;
+                Console.WriteLine("[AUTH] Token inválido - conexión rechazada");
+                await SendMessage(new { type = "authResult", success = false, message = "Token de autenticación inválido" });
+                
+                // Cerrar la conexión después de un breve delay
+                await Task.Delay(100);
+                await _webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Token inválido", CancellationToken.None);
+            }
+        }
+
+        /// <summary>
+        /// Verifica si la conexión está autenticada. Si no lo está, envía error.
+        /// </summary>
+        /// <returns>true si está autenticado, false si no</returns>
+        private bool RequireAuth()
+        {
+            if (!_authenticated)
+            {
+                Console.WriteLine("[AUTH] Comando rechazado - no autenticado");
+                _ = SendError("No autenticado. Envía el comando 'auth' con el token primero.");
+                return false;
+            }
+            return true;
         }
 
         private async Task SendMessage(object data)
@@ -322,6 +409,7 @@ namespace BiometricMiddleware
                 }
 
                 Dictionary<string, byte[]> templates;
+                bool useCachedTemplates = false;
 
                 // Verificar si ya tenemos templates en caché
                 lock (_cacheLock)
@@ -329,11 +417,21 @@ namespace BiometricMiddleware
                     if (_templatesCache != null && _templatesCache.Count > 0 && _cachedApiUrl == apiUrl)
                     {
                         templates = _templatesCache;
+                        useCachedTemplates = true;
                         Console.WriteLine($"[CACHE] Usando {templates.Count} templates en caché (cargados: {_cacheLoadedAt:HH:mm:ss})");
-                        await SendStatusUpdate("identifying", $"Coloca tu dedo en el lector ({templates.Count} usuarios)");
-                        await _fingerprintManager.StartIdentificationWithTemplates(templates);
-                        return;
                     }
+                    else
+                    {
+                        templates = null;
+                    }
+                }
+
+                // Si usamos caché, iniciar identificación (fuera del lock)
+                if (useCachedTemplates && templates != null)
+                {
+                    await SendStatusUpdate("identifying", $"Coloca tu dedo en el lector ({templates.Count} usuarios)");
+                    await _fingerprintManager.StartIdentificationWithTemplates(templates);
+                    return;
                 }
 
                 // Si no hay caché, cargar desde la API
@@ -507,6 +605,9 @@ namespace BiometricMiddleware
     {
         public string Command { get; set; }
         public string UserId { get; set; }
+        
+        [JsonProperty("token")]
+        public string Token { get; set; }
 
         [JsonProperty("apiUrl")]
         public string ApiUrl { get; set; }

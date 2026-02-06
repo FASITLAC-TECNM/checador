@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeWindow: () => ipcRenderer.send('close-window'),
   isMaximized: () => ipcRenderer.invoke('is-maximized'),
 
+  // Token de autenticación para BiometricMiddleware
+  getBiometricToken: () => ipcRenderer.invoke('get-biometric-token'),
+
   // Gestión de configuración persistente
   configGet: (key) => ipcRenderer.invoke('config-get', key),
   configSet: (key, value) => ipcRenderer.invoke('config-set', key, value),

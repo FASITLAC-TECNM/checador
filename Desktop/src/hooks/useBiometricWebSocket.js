@@ -4,6 +4,7 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 
 export default function useBiometricWebSocket(onMessage) {
   const [connected, setConnected] = useState(false);
+  const [authenticated, setAuthenticated] = useState(false);
   const [readerConnected, setReaderConnected] = useState(false);
   const [currentOperation, setCurrentOperation] = useState("None");
   const [status, setStatus] = useState("disconnected");
@@ -44,20 +45,46 @@ export default function useBiometricWebSocket(onMessage) {
     }
   }, [addMessage]);
 
-  const connectToServer = useCallback(() => {
+  const connectToServer = useCallback(async () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     try {
+      // Obtener token de autenticación desde Electron
+      let authToken = null;
+      if (window.electronAPI?.getBiometricToken) {
+        try {
+          authToken = await window.electronAPI.getBiometricToken();
+          console.log("🔑 Token obtenido:", authToken ? "✅" : "❌ null");
+        } catch (err) {
+          console.warn("No se pudo obtener token biométrico:", err);
+        }
+      } else {
+        console.log("⚠️ electronAPI.getBiometricToken no disponible");
+      }
+
       addMessage("🔌 Conectando al servidor...", "info");
       const ws = new WebSocket("ws://localhost:8787/");
       wsRef.current = ws;
+
+      // Guardar el token en una variable que el closure pueda acceder
+      const tokenToSend = authToken;
 
       ws.onopen = () => {
         setConnected(true);
         setStatus("connected");
         reconnectAttemptsRef.current = 0;
         addMessage("✅ Conectado al servidor biométrico", "success");
-        ws.send(JSON.stringify({ command: "getStatus" }));
+
+        // Enviar comando de autenticación si tenemos token
+        if (tokenToSend) {
+          console.log("🔐 Enviando autenticación al middleware...");
+          ws.send(JSON.stringify({ command: "auth", token: tokenToSend }));
+        } else {
+          // Sin token (probablemente no estamos en Electron), marcar como autenticado
+          console.log("⚠️ Sin token, continuando sin autenticación");
+          setAuthenticated(true);
+          ws.send(JSON.stringify({ command: "getStatus" }));
+        }
       };
 
       ws.onclose = () => {
@@ -95,8 +122,18 @@ export default function useBiometricWebSocket(onMessage) {
           const data = JSON.parse(event.data);
           console.log("📨 Mensaje recibido:", data);
 
-          // Manejar mensajes comunes
-          if (data.type === "status") {
+          // Manejar resultado de autenticación
+          if (data.type === "authResult") {
+            if (data.success) {
+              setAuthenticated(true);
+              addMessage("🔐 Autenticado con middleware", "success");
+              // Después de autenticarnos, solicitar estado
+              wsRef.current?.send(JSON.stringify({ command: "getStatus" }));
+            } else {
+              setAuthenticated(false);
+              addMessage(`❌ ${data.message}`, "error");
+            }
+          } else if (data.type === "status") {
             setStatus(data.status);
             if (data.status === "enrolling") {
               setCurrentOperation("Enrollment");
@@ -162,6 +199,7 @@ export default function useBiometricWebSocket(onMessage) {
 
   return {
     connected,
+    authenticated,
     readerConnected,
     currentOperation,
     setCurrentOperation,

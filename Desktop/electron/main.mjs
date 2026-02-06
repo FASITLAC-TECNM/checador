@@ -7,6 +7,7 @@ import { app, BrowserWindow, ipcMain } from "electron";
 import path from "path";
 import os from "os";
 import fs from "fs";
+import crypto from "crypto";
 import { fileURLToPath } from "url";
 import { spawn, execSync } from "child_process";
 
@@ -30,6 +31,7 @@ function getBiometricPath() {
   }
 }
 let biometricProcess = null;
+let biometricToken = null; // Token de autenticación para el middleware
 
 // Suprimir logs de errores internos de Chromium (GPU, video capture, etc.)
 app.commandLine.appendSwitch("log-level", "3");
@@ -125,18 +127,21 @@ function startBiometricMiddleware() {
     const middlewarePath = path.join(biometricDir, "BiometricMiddleware.exe");
     const workingDir = biometricDir;
 
+    // Generar token de autenticación único para esta sesión
+    biometricToken = crypto.randomUUID();
+    console.log("[BIOMETRIC] Token de autenticación generado");
 
     if (process.platform === "win32") {
       // En Windows, ejecutar directamente con spawn
-
-      biometricProcess = spawn(middlewarePath, [], {
+      // Pasar el token como argumento de línea de comandos
+      biometricProcess = spawn(middlewarePath, [`--token=${biometricToken}`], {
         cwd: workingDir,
         shell: false,
         windowsHide: false, // Mostrar ventana para debugging
         detached: false,
       });
 
-      biometricProcess.stdout.on("data", () => {});
+      biometricProcess.stdout.on("data", () => { });
 
       biometricProcess.stderr.on("data", (data) => {
         console.error(`[BiometricMiddleware] ${data.toString().trim()}`);
@@ -152,11 +157,12 @@ function startBiometricMiddleware() {
       });
     } else {
       // En otros sistemas operativos, ejecutar normalmente
-      biometricProcess = spawn(middlewarePath, [], {
+      // Pasar el token como argumento de línea de comandos
+      biometricProcess = spawn(middlewarePath, [`--token=${biometricToken}`], {
         cwd: workingDir,
       });
 
-      biometricProcess.stdout.on("data", () => {});
+      biometricProcess.stdout.on("data", () => { });
 
       biometricProcess.stderr.on("data", (data) => {
         console.error(`[BiometricMiddleware] ${data.toString().trim()}`);
@@ -407,6 +413,14 @@ ipcMain.handle("is-maximized", () => {
 });
 
 /**
+ * Obtener token de autenticación para el BiometricMiddleware
+ * Este token se usa para autenticar conexiones WebSocket al middleware
+ */
+ipcMain.handle("get-biometric-token", () => {
+  return biometricToken;
+});
+
+/**
  * Gestión de configuración persistente en archivo
  * La configuración se guarda en la carpeta de datos de usuario de la aplicación
  */
@@ -632,9 +646,9 @@ ipcMain.handle("verificar-usuario", async (event, descriptor) => {
         distancia: bestDistance,
         mejorCandidato: bestMatch
           ? {
-              nombre: bestMatch.nombre,
-              distancia: bestDistance,
-            }
+            nombre: bestMatch.nombre,
+            distancia: bestDistance,
+          }
           : null,
       };
     }

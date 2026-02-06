@@ -20,6 +20,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Token de autenticación para BiometricMiddleware
   getBiometricToken: () => ipcRenderer.invoke('get-biometric-token'),
 
+  // SDK DigitalPersona
+  checkDigitalPersonaSdk: () => ipcRenderer.invoke('check-digitalpersona-sdk'),
+  installDigitalPersonaSdk: () => ipcRenderer.invoke('install-digitalpersona-sdk'),
+
   // Gestión de configuración persistente
   configGet: (key) => ipcRenderer.invoke('config-get', key),
   configSet: (key, value) => ipcRenderer.invoke('config-set', key, value),

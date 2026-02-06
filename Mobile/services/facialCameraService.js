@@ -55,28 +55,35 @@ export const checkCameraAvailability = async () => {
     }
 };
 
-// Procesar datos del rostro detectado
+// Procesar datos del rostro detectado por expo-face-detector
 export const processFaceData = (face) => {
-    
+    console.log('📊 Procesando datos faciales reales:', {
+        bounds: face.bounds,
+        rollAngle: face.rollAngle,
+        yawAngle: face.yawAngle,
+        hasLandmarks: !!(face.leftEyePosition && face.rightEyePosition)
+    });
+
     // Extraer características clave del rostro
+    // Manejar diferentes formatos de bounds que puede devolver expo-face-detector
     const faceFeatures = {
         // Posición y tamaño
         bounds: {
-            x: face.bounds.origin.x,
-            y: face.bounds.origin.y,
-            width: face.bounds.size.width,
-            height: face.bounds.size.height
+            x: face.bounds?.origin?.x || face.bounds?.x || 0,
+            y: face.bounds?.origin?.y || face.bounds?.y || 0,
+            width: face.bounds?.size?.width || face.bounds?.width || 0,
+            height: face.bounds?.size?.height || face.bounds?.height || 0
         },
-        
+
         // Ángulos de rotación
-        rollAngle: face.rollAngle,
-        yawAngle: face.yawAngle,
-        
-        // Probabilidades de expresiones
-        smilingProbability: face.smilingProbability,
-        leftEyeOpenProbability: face.leftEyeOpenProbability,
-        rightEyeOpenProbability: face.rightEyeOpenProbability,
-        
+        rollAngle: face.rollAngle || 0,
+        yawAngle: face.yawAngle || 0,
+
+        // Probabilidades de expresiones (pueden ser undefined)
+        smilingProbability: face.smilingProbability || 0,
+        leftEyeOpenProbability: face.leftEyeOpenProbability || 0,
+        rightEyeOpenProbability: face.rightEyeOpenProbability || 0,
+
         // Puntos de referencia del rostro
         landmarks: {}
     };
@@ -104,7 +111,7 @@ export const processFaceData = (face) => {
     return faceFeatures;
 };
 
-// Validar calidad del rostro capturado
+// Validar calidad del rostro capturado con datos reales
 export const validateFaceQuality = (faceData) => {
     const validations = {
         isValid: true,
@@ -112,44 +119,56 @@ export const validateFaceQuality = (faceData) => {
         warnings: []
     };
 
-    // 1. Verificar que ambos ojos estén abiertos
-    if (faceData.leftEyeOpenProbability < 0.5 || faceData.rightEyeOpenProbability < 0.5) {
-        validations.isValid = false;
-        validations.errors.push('Mantén los ojos abiertos');
+    console.log('✅ Validando calidad facial:', {
+        eyesOpen: `L:${faceData.leftEyeOpenProbability} R:${faceData.rightEyeOpenProbability}`,
+        angles: `Yaw:${faceData.yawAngle}° Roll:${faceData.rollAngle}°`,
+        size: `${faceData.bounds.width}x${faceData.bounds.height}`
+    });
+
+    // 1. Verificar que ambos ojos estén abiertos (si la probabilidad está disponible)
+    if (faceData.leftEyeOpenProbability > 0 || faceData.rightEyeOpenProbability > 0) {
+        if (faceData.leftEyeOpenProbability < 0.4 || faceData.rightEyeOpenProbability < 0.4) {
+            validations.isValid = false;
+            validations.errors.push('Mantén los ojos abiertos');
+        }
     }
 
     // 2. Verificar que el rostro esté de frente (yaw angle cerca de 0)
-    const yawThreshold = 15; // grados
+    const yawThreshold = 20; // grados (más permisivo)
     if (Math.abs(faceData.yawAngle) > yawThreshold) {
         validations.isValid = false;
         validations.errors.push('Mira directamente a la cámara');
     }
 
     // 3. Verificar inclinación de la cabeza (roll angle)
-    const rollThreshold = 15; // grados
+    const rollThreshold = 20; // grados (más permisivo)
     if (Math.abs(faceData.rollAngle) > rollThreshold) {
-        validations.warnings.push('Mantén la cabeza recta');
+        validations.isValid = false;
+        validations.errors.push('Mantén la cabeza recta');
     }
 
     // 4. Verificar tamaño del rostro (debe ser suficientemente grande)
-    const minFaceSize = 150; // píxeles
+    const minFaceSize = 100; // píxeles (más permisivo)
     if (faceData.bounds.width < minFaceSize || faceData.bounds.height < minFaceSize) {
         validations.isValid = false;
         validations.errors.push('Acércate más a la cámara');
     }
 
     // 5. Verificar que no esté muy lejos
-    const maxFaceSize = 500; // píxeles
+    const maxFaceSize = 600; // píxeles (más permisivo)
     if (faceData.bounds.width > maxFaceSize || faceData.bounds.height > maxFaceSize) {
         validations.warnings.push('Aléjate un poco de la cámara');
     }
 
+    console.log('✅ Resultado validación:', validations.isValid ? 'VÁLIDO' : 'INVÁLIDO', validations.errors);
+
     return validations;
 };
 
-// Generar template facial a partir de las características
+// Generar template facial a partir de las características reales
 export const generateFacialTemplate = async (faceData, photoUri, empleadoId) => {
     try {
+        console.log('🔐 Generando template facial para empleado:', empleadoId);
 
         const timestamp = Date.now();
         const deviceId = await getDeviceId();

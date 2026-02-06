@@ -13,10 +13,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PinInputModal } from './PinInputModal';
-import { capturarHuellaDigital, capturarReconocimientoFacial } from '../services/biometric.service';
+import { capturarHuellaDigital } from '../services/biometric.service';
+import { processFaceData, validateFaceQuality, generateFacialTemplate } from '../services/facialCameraService';
 import { guardarDactilar, guardarPin, guardarFacial } from '../services/credenciales.service';
 import { getApiEndpoint } from '../config/api';
 import { getOrdenCredenciales } from '../services/configurationService';
+import { FacialCaptureScreen } from '../services/FacialCaptureScreen';
 
 const API_URL = getApiEndpoint('/api');
 
@@ -51,6 +53,7 @@ export const MetodoAutenticacionModal = ({
 }) => {
   const [loading, setLoading] = useState(true);
   const [procesando, setProcesando] = useState(false);
+  const [mostrarCapturaFacial, setMostrarCapturaFacial] = useState(false);
   const [credenciales, setCredenciales] = useState({
     tiene_dactilar: false,
     tiene_facial: false,
@@ -236,75 +239,99 @@ export const MetodoAutenticacionModal = ({
     if (estado === 'noDisponible') {
       Alert.alert(
         'No disponible',
-        'Tu dispositivo no tiene Face ID o reconocimiento facial habilitado.\n\nActívalo en la configuración de tu dispositivo.'
+        'El reconocimiento facial está desactivado en la configuración.'
       );
       return;
     }
 
     try {
-      setProcesando(true);
-
-      const empleadoId =
-        userData?.empleado?.id || userData?.empleado_id || userData?.id;
-
-      Alert.alert(
-        'Registrar Face ID',
-        'Se te pedirá que autentiques tu rostro usando el sistema de seguridad de tu dispositivo.',
-        [
-          {
-            text: 'Cancelar',
-            style: 'cancel',
-            onPress: () => setProcesando(false),
-          },
-          {
-            text: 'Continuar',
-            onPress: async () => {
-              try {
-                // Capturar reconocimiento facial usando LocalAuthentication
-                const resultado = await capturarReconocimientoFacial(empleadoId);
-
-                if (!resultado.success) {
-                  throw new Error('No se pudo capturar el reconocimiento facial');
-                }
-
-                // Guardar en el backend
-                await guardarFacial(
-                  empleadoId,
-                  resultado.template,
-                  userData.token
-                );
-
-                // Actualizar estado local
-                setCredenciales((prev) => ({ ...prev, tiene_facial: true }));
-
-                Alert.alert('¡Éxito!', 'Reconocimiento facial registrado correctamente', [
-                  {
-                    text: 'OK',
-                    onPress: () => {
-                      if (onSuccess) onSuccess('facial');
-                      onClose();
-                    },
-                  },
-                ]);
-              } catch (error) {
-                Alert.alert(
-                  'Error',
-                  error.message || 'No se pudo registrar el reconocimiento facial. Verifica que tu dispositivo tenga Face ID configurado.'
-                );
-              } finally {
-                setProcesando(false);
-              }
-            },
-          },
-        ]
-      );
+      // Mostrar pantalla de captura facial con detección real
+      setMostrarCapturaFacial(true);
     } catch (error) {
       Alert.alert(
         'Error',
-        error.message || 'No se pudo iniciar el registro facial.'
+        error.message || 'No se pudo iniciar la captura facial.'
       );
+    }
+  };
+
+  const handleFacialCaptureComplete = async (captureData) => {
+    setMostrarCapturaFacial(false);
+    setProcesando(true);
+
+    try {
+      const empleadoId =
+        userData?.empleado?.id || userData?.empleado_id || userData?.id;
+
+      console.log('📸 Captura facial completada para login');
+
+      // Verificar que viene con detección facial
+      if (!captureData.faceDetectionUsed || !captureData.validated) {
+        throw new Error('No se detectó un rostro válido en la captura');
+      }
+
+      // Procesar y validar los datos faciales
+      const faceFeatures = processFaceData(captureData.faceData);
+      const validation = validateFaceQuality(faceFeatures);
+
+      if (!validation.isValid) {
+        console.warn('⚠️ Validación de calidad falló:', validation.errors);
+        Alert.alert(
+          '⚠️ Calidad insuficiente',
+          validation.errors.join('\n') + '\n\n¿Deseas intentar de nuevo?',
+          [
+            { text: 'Cancelar', style: 'cancel', onPress: () => setProcesando(false) },
+            { text: 'Reintentar', onPress: () => setMostrarCapturaFacial(true) },
+          ]
+        );
+        setProcesando(false);
+        return;
+      }
+
+      console.log('✅ Validación facial exitosa, generando template...');
+
+      // Generar template facial
+      const resultado = await generateFacialTemplate(
+        faceFeatures,
+        captureData.photoUri,
+        empleadoId
+      );
+
+      console.log('📤 Guardando en el servidor...');
+
+      // Guardar en el backend
+      await guardarFacial(
+        empleadoId,
+        resultado.template,
+        userData.token
+      );
+
+      // Actualizar estado local
+      setCredenciales((prev) => ({ ...prev, tiene_facial: true }));
+
+      Alert.alert('¡Éxito!', 'Reconocimiento facial registrado correctamente', [
+        {
+          text: 'OK',
+          onPress: () => {
+            if (onSuccess) onSuccess('facial');
+            onClose();
+          },
+        },
+      ]);
+    } catch (error) {
+      console.error('❌ Error en registro facial:', error);
+      Alert.alert(
+        'Error',
+        error.message || 'No se pudo registrar el reconocimiento facial'
+      );
+    } finally {
       setProcesando(false);
     }
+  };
+
+  const handleFacialCaptureCancel = () => {
+    setMostrarCapturaFacial(false);
+    setProcesando(false);
   };
 
   const handleRegistrarPIN = () => {
@@ -378,6 +405,18 @@ export const MetodoAutenticacionModal = ({
     .filter(Boolean); // Eliminar undefined si hay claves desconocidas
 
   // ─── Render ─────────────────────────────────────────────────────────────
+
+  // Mostrar pantalla de captura facial si está activa
+  if (mostrarCapturaFacial) {
+    return (
+      <FacialCaptureScreen
+        onCapture={handleFacialCaptureComplete}
+        onCancel={handleFacialCaptureCancel}
+        darkMode={darkMode}
+      />
+    );
+  }
+
   return (
     <>
       <Modal

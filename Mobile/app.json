@@ -30,7 +30,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.yristan.FASITLAC"
     }
   }
 }

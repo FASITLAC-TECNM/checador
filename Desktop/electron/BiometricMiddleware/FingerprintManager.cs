@@ -215,6 +215,17 @@ namespace BiometricMiddleware
             }
         }
 
+        public void PreloadTemplates(Dictionary<string, byte[]> templates)
+        {
+            if (_reader == null)
+            {
+                Console.WriteLine("[WARN] No hay lector para pre-cargar templates");
+                return;
+            }
+
+            _reader.PreloadTemplates(templates);
+        }
+
         public void StopCapture()
         {
             try

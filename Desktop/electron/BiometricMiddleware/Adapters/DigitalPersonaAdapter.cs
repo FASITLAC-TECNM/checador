@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using DPFP;
 using DPFP.Capture;
@@ -31,6 +34,8 @@ namespace BiometricMiddleware.Adapters
 
         private byte[] _verificationTemplate;
         private Dictionary<string, byte[]> _identificationTemplates;
+        private ConcurrentDictionary<string, DPFP.Template> _deserializedTemplates = new ConcurrentDictionary<string, DPFP.Template>();
+        private const int EARLY_EXIT_THRESHOLD = 95;
 
         public DigitalPersonaAdapter()
         {
@@ -156,6 +161,34 @@ namespace BiometricMiddleware.Adapters
             Console.WriteLine($"[DP] Identificacion: {templates.Count} templates");
 
             _capture.StartCapture();
+        }
+
+        public void PreloadTemplates(Dictionary<string, byte[]> templates)
+        {
+            if (templates == null || templates.Count == 0)
+                return;
+
+            Console.WriteLine($"[DP] Pre-deserializando {templates.Count} templates...");
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+
+            _deserializedTemplates.Clear();
+
+            Parallel.ForEach(templates, kvp =>
+            {
+                try
+                {
+                    var dpTemplate = new DPFP.Template();
+                    dpTemplate.DeSerialize(kvp.Value);
+                    _deserializedTemplates.TryAdd(kvp.Key, dpTemplate);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[DP] Error pre-deserializando {kvp.Key}: {ex.Message}");
+                }
+            });
+
+            sw.Stop();
+            Console.WriteLine($"[DP] Pre-deserializados {_deserializedTemplates.Count} templates en {sw.ElapsedMilliseconds}ms");
         }
 
         public void StopCapture()
@@ -343,38 +376,116 @@ namespace BiometricMiddleware.Adapters
 
         private async Task ProcessIdentification(DPFP.FeatureSet features)
         {
-            string identifiedUser = null;
-            int bestScore = 0;
+            var matches = new ConcurrentBag<(string UserId, int Score)>();
+            var cts = new CancellationTokenSource();
 
-            Console.WriteLine($"[DP] Comparando con {_identificationTemplates.Count} templates...");
+            // Usar templates pre-deserializados si existen, sino deserializar on-the-fly
+            var templatesToUse = _deserializedTemplates.Count > 0 
+                ? _deserializedTemplates 
+                : null;
 
-            foreach (var kvp in _identificationTemplates)
+            var templateCount = templatesToUse?.Count ?? _identificationTemplates?.Count ?? 0;
+            Console.WriteLine($"[DP] Comparando con {templateCount} templates (paralelo)...");
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+
+            var options = new ParallelOptions
             {
-                try
+                MaxDegreeOfParallelism = Environment.ProcessorCount
+            };
+
+            try
+            {
+                if (templatesToUse != null)
                 {
-                    var dpTemplate = new DPFP.Template();
-                    dpTemplate.DeSerialize(kvp.Value);
-
-                    var result = new DPFP.Verification.Verification.Result();
-                    _verification.Verify(features, dpTemplate, ref result);
-
-                    if (result.Verified)
+                    // Usar templates pre-deserializados (más rápido)
+                    Parallel.ForEach(templatesToUse, options, (kvp, state) =>
                     {
-                        int score = (int)((1.0 - result.FARAchieved) * 100);
-                        Console.WriteLine($"[DP] MATCH: {kvp.Key} ({score}%)");
-
-                        if (score > bestScore || identifiedUser == null)
+                        if (cts.Token.IsCancellationRequested)
                         {
-                            bestScore = score;
-                            identifiedUser = kvp.Key;
+                            state.Stop();
+                            return;
                         }
-                    }
+
+                        try
+                        {
+                            var localVerification = new DPFP.Verification.Verification();
+                            var result = new DPFP.Verification.Verification.Result();
+                            localVerification.Verify(features, kvp.Value, ref result);
+
+                            if (result.Verified)
+                            {
+                                int score = (int)((1.0 - result.FARAchieved) * 100);
+                                matches.Add((kvp.Key, score));
+                                Console.WriteLine($"[DP] MATCH: {kvp.Key} ({score}%)");
+
+                                if (score >= EARLY_EXIT_THRESHOLD)
+                                {
+                                    Console.WriteLine($"[DP] Early exit: score >= {EARLY_EXIT_THRESHOLD}%");
+                                    cts.Cancel();
+                                    state.Stop();
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[DP] Error con {kvp.Key}: {ex.Message}");
+                        }
+                    });
                 }
-                catch (Exception ex)
+                else if (_identificationTemplates != null)
                 {
-                    Console.WriteLine($"[DP] Error con {kvp.Key}: {ex.Message}");
+                    // Fallback: deserializar on-the-fly (compatibilidad)
+                    Parallel.ForEach(_identificationTemplates, options, (kvp, state) =>
+                    {
+                        if (cts.Token.IsCancellationRequested)
+                        {
+                            state.Stop();
+                            return;
+                        }
+
+                        try
+                        {
+                            var dpTemplate = new DPFP.Template();
+                            dpTemplate.DeSerialize(kvp.Value);
+
+                            var localVerification = new DPFP.Verification.Verification();
+                            var result = new DPFP.Verification.Verification.Result();
+                            localVerification.Verify(features, dpTemplate, ref result);
+
+                            if (result.Verified)
+                            {
+                                int score = (int)((1.0 - result.FARAchieved) * 100);
+                                matches.Add((kvp.Key, score));
+                                Console.WriteLine($"[DP] MATCH: {kvp.Key} ({score}%)");
+
+                                if (score >= EARLY_EXIT_THRESHOLD)
+                                {
+                                    Console.WriteLine($"[DP] Early exit: score >= {EARLY_EXIT_THRESHOLD}%");
+                                    cts.Cancel();
+                                    state.Stop();
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[DP] Error con {kvp.Key}: {ex.Message}");
+                        }
+                    });
                 }
             }
+            catch (OperationCanceledException)
+            {
+                // Early exit esperado
+            }
+
+            sw.Stop();
+
+            var bestMatch = matches.OrderByDescending(m => m.Score).FirstOrDefault();
+            string identifiedUser = bestMatch.UserId;
+            int bestScore = bestMatch.Score;
+
+            Console.WriteLine($"[DP] Búsqueda completada en {sw.ElapsedMilliseconds}ms");
 
             var captureResult = new CaptureResult
             {

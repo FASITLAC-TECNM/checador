@@ -142,6 +142,7 @@ namespace BiometricMiddleware
         private static string _cachedApiUrl = null;
         private static DateTime _cacheLoadedAt = DateTime.MinValue;
         private static readonly object _cacheLock = new object();
+        private static readonly TimeSpan CACHE_TTL = TimeSpan.FromMinutes(5);
 
         public WebSocketConnection(WebSocket webSocket, FingerprintManager fingerprintManager, string authToken)
         {
@@ -160,6 +161,19 @@ namespace BiometricMiddleware
 
         private async Task SendReaderConnectionChanged(bool connected)
         {
+            // Invalidar caché cuando el lector se reconecta para forzar datos frescos
+            if (connected)
+            {
+                lock (_cacheLock)
+                {
+                    if (_cacheLoadedAt != DateTime.MinValue)
+                    {
+                        Console.WriteLine("[CACHE] Lector reconectado - caché invalidado para próxima identificación");
+                        _cacheLoadedAt = DateTime.MinValue; // Forzar expiración
+                    }
+                }
+            }
+
             await SendMessage(new
             {
                 type = "readerConnection",
@@ -410,6 +424,7 @@ namespace BiometricMiddleware
 
                 Dictionary<string, byte[]> templates;
                 bool useCachedTemplates = false;
+                bool cacheExpired = false;
 
                 // Verificar si ya tenemos templates en caché
                 lock (_cacheLock)
@@ -418,7 +433,13 @@ namespace BiometricMiddleware
                     {
                         templates = _templatesCache;
                         useCachedTemplates = true;
-                        Console.WriteLine($"[CACHE] Usando {templates.Count} templates en caché (cargados: {_cacheLoadedAt:HH:mm:ss})");
+                        
+                        // Verificar si el caché expiró (TTL)
+                        var cacheAge = DateTime.Now - _cacheLoadedAt;
+                        cacheExpired = cacheAge > CACHE_TTL;
+                        
+                        Console.WriteLine($"[CACHE] Usando {templates.Count} templates en caché " +
+                            $"(edad: {cacheAge.TotalMinutes:F1} min, expirado: {cacheExpired})");
                     }
                     else
                     {
@@ -429,6 +450,48 @@ namespace BiometricMiddleware
                 // Si usamos caché, iniciar identificación (fuera del lock)
                 if (useCachedTemplates && templates != null)
                 {
+                    // Si el caché expiró, recargar en background (no bloquea la identificación actual)
+                    if (cacheExpired)
+                    {
+                        var apiUrlCopy = apiUrl; // Capturar para el closure
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                Console.WriteLine("[CACHE] Recargando en background (TTL expirado)...");
+                                var newTemplates = await LoadTemplatesFromApi(apiUrlCopy);
+                                
+                                if (newTemplates != null && newTemplates.Count > 0)
+                                {
+                                    lock (_cacheLock)
+                                    {
+                                        _templatesCache = newTemplates;
+                                        _cachedApiUrl = apiUrlCopy;
+                                        _cacheLoadedAt = DateTime.Now;
+                                    }
+                                    
+                                    // Pre-deserializar los nuevos templates
+                                    _fingerprintManager.PreloadTemplates(newTemplates);
+                                    
+                                    Console.WriteLine($"[CACHE] Background reload completado: {newTemplates.Count} templates");
+                                    
+                                    // Notificar al cliente que el caché fue actualizado
+                                    await SendMessage(new
+                                    {
+                                        type = "cacheReloaded",
+                                        reason = "TTL expired",
+                                        templatesCount = newTemplates.Count,
+                                        loadedAt = DateTime.Now
+                                    });
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"[CACHE] Error en background reload: {ex.Message}");
+                            }
+                        });
+                    }
+                    
                     await SendStatusUpdate("identifying", $"Coloca tu dedo en el lector ({templates.Count} usuarios)");
                     await _fingerprintManager.StartIdentificationWithTemplates(templates);
                     return;
@@ -449,6 +512,9 @@ namespace BiometricMiddleware
                     _cachedApiUrl = apiUrl;
                     _cacheLoadedAt = DateTime.Now;
                 }
+
+                // Pre-deserializar templates para identificación más rápida
+                _fingerprintManager.PreloadTemplates(templates);
 
                 Console.WriteLine($"[OK] {templates.Count} templates cargados y guardados en caché\n");
                 await SendStatusUpdate("identifying", $"Coloca tu dedo en el lector ({templates.Count} usuarios)");
@@ -490,6 +556,9 @@ namespace BiometricMiddleware
                     _cachedApiUrl = apiUrl;
                     _cacheLoadedAt = DateTime.Now;
                 }
+
+                // Pre-deserializar templates para identificación más rápida
+                _fingerprintManager.PreloadTemplates(templates);
 
                 Console.WriteLine($"[CACHE] Caché actualizado: {templates.Count} templates\n");
 

@@ -1,4 +1,4 @@
-import { User, Lock, Eye, EyeOff, X, Clock, CheckCircle, XCircle, Loader2, Timer, AlertTriangle, LogIn } from "lucide-react";
+import { User, UserX, CalendarX, Lock, Eye, EyeOff, X, Clock, CheckCircle, XCircle, Loader2, Timer, AlertTriangle, LogIn } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { API_CONFIG, fetchApi } from "../../config/apiEndPoint";
 import { agregarEvento } from "../../services/bitacoraService";
@@ -90,6 +90,25 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
       let empleadoId = usuarioData.empleado_id;
       let empleadoData = null;
 
+      // Verificar si el usuario es empleado
+      if (!usuarioData.es_empleado && !empleadoId) {
+        // Usuario autenticado pero no es empleado
+        agregarEvento({
+          user: usuarioData.nombre || usuarioData.username || usuarioOCorreo,
+          action: "Intento de registro - Usuario no es empleado",
+          type: "warning",
+        });
+
+        setResult({
+          success: false,
+          noEsEmpleado: true,
+          message: "Tu cuenta no está asociada a un empleado",
+          usuario: usuarioData,
+          token: token,
+        });
+        return;
+      }
+
       if (!empleadoId && usuarioData.es_empleado) {
         // Buscar el empleado por usuario_id
         const empleadosResponse = await fetchApi(API_CONFIG.ENDPOINTS.EMPLEADOS);
@@ -114,6 +133,25 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
       console.log("📅 Verificando horario...");
       const datosAsistencia = await cargarDatosAsistencia(empleadoId, usuarioData.id);
       const estadoActual = datosAsistencia.estado;
+
+      // Verificar si el empleado tiene horario asignado
+      if (!datosAsistencia.horario) {
+        agregarEvento({
+          user: empleadoData?.nombre || usuarioOCorreo,
+          action: "Intento de registro - Empleado sin horario asignado",
+          type: "warning",
+        });
+
+        setResult({
+          success: false,
+          sinHorario: true,
+          message: "No tienes un horario asignado",
+          empleado: empleadoData,
+          usuario: usuarioData,
+          token: token,
+        });
+        return;
+      }
 
       const now = new Date();
       const horaActual = now.toLocaleTimeString("es-MX", {
@@ -251,7 +289,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
       countdownRef.current = null;
     }
 
-    if (result?.success || result?.noPuedeRegistrar) {
+    if (result?.success || result?.noPuedeRegistrar || result?.noEsEmpleado || result?.sinHorario) {
       let count = 6;
       setCountdown(count);
 
@@ -391,10 +429,14 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
             /* Resultado */
             <div
               className={`rounded-xl p-6 text-center ${result.success
-                  ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
-                  : result.noPuedeRegistrar
-                    ? "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
-                    : "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
+                ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+                : result.noPuedeRegistrar
+                  ? "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
+                  : result.noEsEmpleado
+                    ? "bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800"
+                    : result.sinHorario
+                      ? "bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800"
+                      : "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
                 }`}
             >
               {result.success ? (
@@ -409,10 +451,10 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   )}
 
                   <p className={`font-bold text-lg mb-1 ${result.clasificacion === 'falta'
-                      ? "text-red-800 dark:text-red-300"
-                      : result.clasificacion === 'retardo' || result.clasificacion === 'salida_temprana'
-                        ? "text-yellow-800 dark:text-yellow-300"
-                        : "text-green-800 dark:text-green-300"
+                    ? "text-red-800 dark:text-red-300"
+                    : result.clasificacion === 'retardo' || result.clasificacion === 'salida_temprana'
+                      ? "text-yellow-800 dark:text-yellow-300"
+                      : "text-green-800 dark:text-green-300"
                     }`}>
                     Asistencia Registrada
                   </p>
@@ -430,18 +472,18 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                       {/* Badge de clasificación */}
                       <span
                         className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${result.clasificacion === "entrada" || result.clasificacion === "salida_puntual"
-                            ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
-                            : result.clasificacion === "retardo" || result.clasificacion === "salida_temprana"
-                              ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
-                              : result.clasificacion === "falta"
-                                ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
-                                : result.estado === "puntual"
-                                  ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
-                                  : result.estado === "retardo" || result.estado === "temprana"
-                                    ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
-                                    : result.estado === "falta"
-                                      ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
-                                      : "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300"
+                          ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
+                          : result.clasificacion === "retardo" || result.clasificacion === "salida_temprana"
+                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
+                            : result.clasificacion === "falta"
+                              ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
+                              : result.estado === "puntual"
+                                ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
+                                : result.estado === "retardo" || result.estado === "temprana"
+                                  ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
+                                  : result.estado === "falta"
+                                    ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
+                                    : "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300"
                           }`}
                       >
                         {result.estadoTexto || result.estado || "Registrado"}
@@ -506,10 +548,10 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   </p>
                   <span
                     className={`inline-block mt-3 px-3 py-1 rounded-full text-xs font-semibold ${result.estadoHorario === "completado"
-                        ? "bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300"
-                        : result.estadoHorario === "tiempo_insuficiente"
-                          ? "bg-orange-100 text-orange-800 dark:bg-orange-800/30 dark:text-orange-300"
-                          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
+                      ? "bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300"
+                      : result.estadoHorario === "tiempo_insuficiente"
+                        ? "bg-orange-100 text-orange-800 dark:bg-orange-800/30 dark:text-orange-300"
+                        : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
                       }`}
                   >
                     {result.estadoHorario === "completado"
@@ -550,6 +592,92 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                           token: result.token
                         };
                         console.log("📤 Datos para sesión:", usuarioParaSesion);
+                        onLoginRequest(usuarioParaSesion);
+                        onClose();
+                      }}
+                      className="mt-4 w-full py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
+                    >
+                      <LogIn className="w-4 h-4" />
+                      Iniciar Sesión
+                    </button>
+                  )}
+                </>
+              ) : result.noEsEmpleado ? (
+                <>
+                  <UserX className="w-16 h-16 mx-auto mb-3 text-orange-600 dark:text-orange-400" />
+                  <p className="text-orange-800 dark:text-orange-300 font-bold text-lg mb-1">
+                    Usuario sin Acceso
+                  </p>
+                  <p className="text-gray-700 dark:text-gray-300 text-lg mb-2">
+                    {result.usuario?.nombre || result.usuario?.username || "Usuario"}
+                  </p>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
+                    Tu cuenta no está registrada como empleado en el sistema de asistencias.
+                  </p>
+                  <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800 dark:bg-orange-800/30 dark:text-orange-300">
+                    Solo empleados pueden registrar asistencia
+                  </span>
+
+                  <div className="mt-4 flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm">
+                    <Timer className="w-4 h-4" />
+                    <span>
+                      Esta ventana se cerrará en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
+                    </span>
+                  </div>
+
+                  {/* Botón para iniciar sesión si tiene permisos */}
+                  {onLoginRequest && (
+                    <button
+                      onClick={() => {
+                        const usuarioParaSesion = {
+                          ...result.usuario,
+                          es_empleado: false,
+                          token: result.token
+                        };
+                        onLoginRequest(usuarioParaSesion);
+                        onClose();
+                      }}
+                      className="mt-4 w-full py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
+                    >
+                      <LogIn className="w-4 h-4" />
+                      Iniciar Sesión
+                    </button>
+                  )}
+                </>
+              ) : result.sinHorario ? (
+                <>
+                  <CalendarX className="w-16 h-16 mx-auto mb-3 text-purple-600 dark:text-purple-400" />
+                  <p className="text-purple-800 dark:text-purple-300 font-bold text-lg mb-1">
+                    Sin Horario Asignado
+                  </p>
+                  <p className="text-gray-700 dark:text-gray-300 text-lg mb-2">
+                    {result.empleado?.nombre || result.usuario?.username || "Empleado"}
+                  </p>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
+                    No tienes un horario configurado en el sistema. Contacta a tu administrador.
+                  </p>
+                  <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 dark:bg-purple-800/30 dark:text-purple-300">
+                    Requiere asignación de horario
+                  </span>
+
+                  <div className="mt-4 flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm">
+                    <Timer className="w-4 h-4" />
+                    <span>
+                      Esta ventana se cerrará en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
+                    </span>
+                  </div>
+
+                  {/* Botón para iniciar sesión si tiene permisos */}
+                  {onLoginRequest && (
+                    <button
+                      onClick={() => {
+                        const usuarioParaSesion = {
+                          ...result.usuario,
+                          ...result.empleado,
+                          es_empleado: true,
+                          empleado_id: result.empleado?.id,
+                          token: result.token
+                        };
                         onLoginRequest(usuarioParaSesion);
                         onClose();
                       }}

@@ -144,42 +144,28 @@ export default function BiometricAuth({ isOpen = false, onClose, onAuthSuccess }
               </h1>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div
-                className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${
-                  connected
-                    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                    : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"
-                }`}
-              >
-                {connected ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
-                <span>{connected ? "Conectado" : "Desconectado"}</span>
-              </div>
-              <button
-                onClick={handleClose}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+            <button
+              onClick={handleClose}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           <div className="space-y-4">
             {/* Reader Status */}
             <div
-              className={`flex items-center justify-between p-4 rounded-xl ${
-                readerConnected
-                  ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
-                  : "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
-              }`}
+              className={`flex items-center justify-between p-4 rounded-xl ${readerConnected
+                ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+                : "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
+                }`}
             >
               <div className="flex items-center gap-3">
                 <Fingerprint
-                  className={`w-6 h-6 ${
-                    readerConnected
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-yellow-600 dark:text-yellow-400"
-                  }`}
+                  className={`w-6 h-6 ${readerConnected
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-yellow-600 dark:text-yellow-400"
+                    }`}
                 />
                 <div>
                   <p className="font-medium text-gray-900 dark:text-white">Lector de Huellas</p>
@@ -188,14 +174,6 @@ export default function BiometricAuth({ isOpen = false, onClose, onAuthSuccess }
                   </p>
                 </div>
               </div>
-              {!connected && (
-                <button
-                  onClick={connectToServer}
-                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
-                >
-                  Conectar
-                </button>
-              )}
             </div>
 
             {/* Auth Section */}

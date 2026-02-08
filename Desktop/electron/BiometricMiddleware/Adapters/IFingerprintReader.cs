@@ -24,6 +24,7 @@ namespace BiometricMiddleware.Adapters
         void CancelEnrollment();
         Task StartVerification(string userId, byte[] template);
         Task StartIdentification(Dictionary<string, byte[]> templates);
+        void PreloadTemplates(Dictionary<string, byte[]> templates);
         void StopCapture();
         Task<int> GetConnectedReadersCount();
         Task<List<ReaderInfo>> GetReadersInfo();

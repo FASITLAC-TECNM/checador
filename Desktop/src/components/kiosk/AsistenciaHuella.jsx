@@ -235,22 +235,44 @@ export default function AsistenciaHuella({
     }
   }, [result, showModal]);
 
-  const connectToServer = () => {
+  const connectToServer = async () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       return;
     }
 
     try {
+      // Obtener token de autenticación desde Electron
+      let authToken = null;
+      if (window.electronAPI?.getBiometricToken) {
+        try {
+          authToken = await window.electronAPI.getBiometricToken();
+          console.log("🔑 [AsistenciaHuella] Token obtenido:", authToken ? "✅" : "❌ null");
+        } catch (err) {
+          console.warn("No se pudo obtener token biométrico:", err);
+        }
+      }
+
       addMessage("🔌 Conectando al servidor...", "info");
       const ws = new WebSocket("ws://localhost:8787/");
       wsRef.current = ws;
+
+      // Guardar token para el closure
+      const tokenToSend = authToken;
 
       ws.onopen = () => {
         setConnected(true);
         setStatus("connected");
         reconnectAttemptsRef.current = 0;
         addMessage("✅ Conectado al servidor biométrico", "success");
-        sendCommand("getStatus");
+
+        // Enviar autenticación si hay token
+        if (tokenToSend) {
+          console.log("🔐 [AsistenciaHuella] Enviando autenticación...");
+          ws.send(JSON.stringify({ command: "auth", token: tokenToSend }));
+        } else {
+          // Sin token, solicitar estado directamente
+          sendCommand("getStatus");
+        }
       };
 
       ws.onclose = () => {
@@ -594,6 +616,19 @@ export default function AsistenciaHuella({
     console.log("📨 Mensaje recibido:", data);
 
     switch (data.type) {
+      case "authResult":
+        // Respuesta de autenticación del middleware
+        if (data.success) {
+          console.log("🔐 [AsistenciaHuella] Autenticado correctamente");
+          addMessage("🔐 Autenticado con middleware", "success");
+          // Después de autenticarnos, solicitar estado del sistema
+          sendCommand("getStatus");
+        } else {
+          console.error("❌ [AsistenciaHuella] Error de autenticación:", data.message);
+          addMessage(`❌ Error de autenticación: ${data.message}`, "error");
+        }
+        break;
+
       case "status":
         setStatus(data.status);
         setStatusMessage(data.message);
@@ -829,11 +864,10 @@ export default function AsistenciaHuella({
 
             <div className="flex items-center gap-3">
               <div
-                className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${
-                  connected
-                    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                    : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"
-                }`}
+                className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${connected
+                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                  : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"
+                  }`}
               >
                 {connected ? (
                   <Wifi className="w-3 h-3" />
@@ -844,11 +878,11 @@ export default function AsistenciaHuella({
               </div>
 
               <button
-                  onClick={handleCloseModal}
-                  className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                onClick={handleCloseModal}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
           </div>
 
@@ -856,19 +890,17 @@ export default function AsistenciaHuella({
           <div className="space-y-4">
             {/* Reader Status */}
             <div
-              className={`flex items-center justify-between p-4 rounded-xl ${
-                readerConnected
-                  ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
-                  : "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
-              }`}
+              className={`flex items-center justify-between p-4 rounded-xl ${readerConnected
+                ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+                : "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
+                }`}
             >
               <div className="flex items-center gap-3">
                 <Fingerprint
-                  className={`w-6 h-6 ${
-                    readerConnected
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-yellow-600 dark:text-yellow-400"
-                  }`}
+                  className={`w-6 h-6 ${readerConnected
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-yellow-600 dark:text-yellow-400"
+                    }`}
                 />
                 <div>
                   <p className="font-medium text-gray-900 dark:text-white">
@@ -912,23 +944,22 @@ export default function AsistenciaHuella({
               <div className="bg-gray-50 dark:bg-slate-700/50 rounded-xl p-6">
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 text-center mb-4">
                   <Fingerprint
-                    className={`w-20 h-20 mx-auto mb-3 text-blue-600 dark:text-blue-400 ${
-                      connected && readerConnected ? "animate-pulse" : ""
-                    }`}
+                    className={`w-20 h-20 mx-auto mb-3 text-blue-600 dark:text-blue-400 ${connected && readerConnected ? "animate-pulse" : ""
+                      }`}
                   />
                   <p className="text-gray-900 dark:text-white font-medium mb-1">
                     {!connected
                       ? "Conectando al servidor..."
                       : !readerConnected
-                      ? "Esperando lector de huellas..."
-                      : "Coloca tu dedo en el lector"}
+                        ? "Esperando lector de huellas..."
+                        : "Coloca tu dedo en el lector"}
                   </p>
                   <p className="text-gray-600 dark:text-gray-400 text-sm">
                     {!connected
                       ? "Por favor espera"
                       : !readerConnected
-                      ? "Asegúrate de que el lector esté conectado"
-                      : "El sistema te identificará automáticamente"}
+                        ? "Asegúrate de que el lector esté conectado"
+                        : "El sistema te identificará automáticamente"}
                   </p>
                 </div>
 
@@ -957,13 +988,12 @@ export default function AsistenciaHuella({
             ) : (
               /* Result Display */
               <div
-                className={`rounded-xl p-6 text-center ${
-                  result.success
-                    ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
-                    : result.noPuedeRegistrar
+                className={`rounded-xl p-6 text-center ${result.success
+                  ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+                  : result.noPuedeRegistrar
                     ? "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
                     : "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
-                }`}
+                  }`}
               >
                 {result.success ? (
                   <>
@@ -976,13 +1006,12 @@ export default function AsistenciaHuella({
                       <CheckCircle className="w-16 h-16 mx-auto mb-3 text-green-600 dark:text-green-400" />
                     )}
 
-                    <p className={`font-bold text-lg mb-1 ${
-                      result.clasificacion === 'falta'
-                        ? "text-red-800 dark:text-red-300"
-                        : result.clasificacion === 'retardo' || result.clasificacion === 'salida_temprana'
+                    <p className={`font-bold text-lg mb-1 ${result.clasificacion === 'falta'
+                      ? "text-red-800 dark:text-red-300"
+                      : result.clasificacion === 'retardo' || result.clasificacion === 'salida_temprana'
                         ? "text-yellow-800 dark:text-yellow-300"
                         : "text-green-800 dark:text-green-300"
-                    }`}>
+                      }`}>
                       Asistencia Registrada
                     </p>
                     {result.empleado?.nombre && (
@@ -998,21 +1027,20 @@ export default function AsistenciaHuella({
                         </p>
                         {/* Badge de clasificación */}
                         <span
-                          className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${
-                            result.clasificacion === "entrada" || result.clasificacion === "salida_puntual"
-                              ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
-                              : result.clasificacion === "retardo" || result.clasificacion === "salida_temprana"
+                          className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${result.clasificacion === "entrada" || result.clasificacion === "salida_puntual"
+                            ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
+                            : result.clasificacion === "retardo" || result.clasificacion === "salida_temprana"
                               ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
                               : result.clasificacion === "falta"
-                              ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
-                              : result.estado === "puntual"
-                              ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
-                              : result.estado === "retardo" || result.estado === "temprana"
-                              ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
-                              : result.estado === "falta"
-                              ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
-                              : "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300"
-                          }`}
+                                ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
+                                : result.estado === "puntual"
+                                  ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
+                                  : result.estado === "retardo" || result.estado === "temprana"
+                                    ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
+                                    : result.estado === "falta"
+                                      ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
+                                      : "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300"
+                            }`}
                         >
                           {result.estadoTexto || result.estado || "Registrado"}
                         </span>
@@ -1077,19 +1105,18 @@ export default function AsistenciaHuella({
                     </p>
                     {/* Badge de estado de horario */}
                     <span
-                      className={`inline-block mt-3 px-3 py-1 rounded-full text-xs font-semibold ${
-                        result.estadoHorario === "completado"
-                          ? "bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300"
-                          : result.estadoHorario === "tiempo_insuficiente"
+                      className={`inline-block mt-3 px-3 py-1 rounded-full text-xs font-semibold ${result.estadoHorario === "completado"
+                        ? "bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300"
+                        : result.estadoHorario === "tiempo_insuficiente"
                           ? "bg-orange-100 text-orange-800 dark:bg-orange-800/30 dark:text-orange-300"
                           : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
-                      }`}
+                        }`}
                     >
                       {result.estadoHorario === "completado"
                         ? "Jornada completada"
                         : result.estadoHorario === "tiempo_insuficiente"
-                        ? `Espera ${result.minutosRestantes || ''} min`
-                        : "Fuera de horario"}
+                          ? `Espera ${result.minutosRestantes || ''} min`
+                          : "Fuera de horario"}
                     </span>
 
                     {/* Separador */}

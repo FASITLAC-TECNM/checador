@@ -30,6 +30,50 @@ export default function AffiliationRequest({ onComplete }) {
   const [companyId, setCompanyId] = useState("");
   const [solicitudToken, setSolicitudToken] = useState(null);
 
+  // Estado para el SDK
+  const [sdkStatus, setSdkStatus] = useState({ checked: false, installed: false, installing: false });
+
+  // Verificar e instalar SDK de DigitalPersona silenciosamente al iniciar
+  useEffect(() => {
+    const verificarEInstalarSdk = async () => {
+      // Solo ejecutar en Electron
+      if (!window.electronAPI?.checkDigitalPersonaSdk) {
+        console.log("[SDK] No está en entorno Electron, omitiendo verificación");
+        setSdkStatus({ checked: true, installed: true, installing: false });
+        return;
+      }
+
+      try {
+        console.log("[SDK] Verificando instalación del SDK DigitalPersona...");
+        const result = await window.electronAPI.checkDigitalPersonaSdk();
+
+        if (result.installed) {
+          console.log("[SDK] ✅ SDK ya está instalado");
+          setSdkStatus({ checked: true, installed: true, installing: false });
+        } else {
+          console.log("[SDK] ⚠️ SDK no instalado, archivos faltantes:", result.missingFiles);
+          console.log("[SDK] 📦 Iniciando instalación silenciosa...");
+          setSdkStatus({ checked: true, installed: false, installing: true });
+
+          const installResult = await window.electronAPI.installDigitalPersonaSdk();
+
+          if (installResult.success) {
+            console.log("[SDK] ✅ Instalación exitosa:", installResult.message);
+            setSdkStatus({ checked: true, installed: true, installing: false });
+          } else {
+            console.error("[SDK] ❌ Error en instalación:", installResult.message);
+            setSdkStatus({ checked: true, installed: false, installing: false });
+          }
+        }
+      } catch (error) {
+        console.error("[SDK] Error verificando SDK:", error);
+        setSdkStatus({ checked: true, installed: false, installing: false });
+      }
+    };
+
+    verificarEInstalarSdk();
+  }, []);
+
   // Verificar si hay una solicitud guardada al iniciar
   useEffect(() => {
     const solicitudGuardada = obtenerSolicitudGuardada();

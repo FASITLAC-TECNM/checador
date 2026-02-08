@@ -7,6 +7,7 @@ import { app, BrowserWindow, ipcMain } from "electron";
 import path from "path";
 import os from "os";
 import fs from "fs";
+import crypto from "crypto";
 import { fileURLToPath } from "url";
 import { spawn, execSync } from "child_process";
 
@@ -30,6 +31,133 @@ function getBiometricPath() {
   }
 }
 let biometricProcess = null;
+let biometricToken = null; // Token de autenticación para el middleware
+
+/**
+ * Ruta donde debe estar instalado el SDK de DigitalPersona
+ */
+const DIGITALPERSONA_SDK_PATH = "C:\\Program Files\\DigitalPersona\\One Touch SDK\\.NET\\Bin";
+const DIGITALPERSONA_REQUIRED_DLLS = [
+  "DPFPShrNET.dll",
+  "DPFPDevNET.dll",
+  "DPFPEngNET.dll",
+  "DPFPVerNET.dll"
+];
+
+/**
+ * Verifica si el SDK de DigitalPersona está instalado
+ * @returns {Object} - { installed: boolean, missingFiles: string[], sdkPath: string }
+ */
+function checkDigitalPersonaSdk() {
+  const result = {
+    installed: false,
+    missingFiles: [],
+    sdkPath: DIGITALPERSONA_SDK_PATH
+  };
+
+  // Verificar si existe el directorio del SDK
+  if (!fs.existsSync(DIGITALPERSONA_SDK_PATH)) {
+    console.log("[SDK] Directorio del SDK no encontrado:", DIGITALPERSONA_SDK_PATH);
+    result.missingFiles = DIGITALPERSONA_REQUIRED_DLLS;
+    return result;
+  }
+
+  // Verificar cada DLL requerida
+  for (const dll of DIGITALPERSONA_REQUIRED_DLLS) {
+    const dllPath = path.join(DIGITALPERSONA_SDK_PATH, dll);
+    if (!fs.existsSync(dllPath)) {
+      result.missingFiles.push(dll);
+    }
+  }
+
+  result.installed = result.missingFiles.length === 0;
+  console.log("[SDK] Estado del SDK:", result.installed ? "Instalado" : "Faltante", result.missingFiles);
+  return result;
+}
+
+/**
+ * Instala el SDK de DigitalPersona silenciosamente
+ * @returns {Promise<{ success: boolean, message: string }>}
+ */
+async function installDigitalPersonaSdk() {
+  return new Promise((resolve) => {
+    // Ruta al instalador MSI incluido en la app
+    let installerPath;
+
+    if (app.isPackaged) {
+      // Producción: el instalador está en resources
+      installerPath = path.join(process.resourcesPath, "installers", "DigitalPersona_SDK_Setup.msi");
+    } else {
+      // Desarrollo: ruta relativa
+      installerPath = path.join(__dirname, "BiometricMiddleware", "installers", "DigitalPersona_SDK_Setup.msi");
+    }
+
+    console.log("[SDK] Buscando instalador en:", installerPath);
+
+    // Verificar que el instalador existe
+    if (!fs.existsSync(installerPath)) {
+      console.error("[SDK] Instalador no encontrado:", installerPath);
+      resolve({
+        success: false,
+        message: `Instalador no encontrado en: ${installerPath}`
+      });
+      return;
+    }
+
+    console.log("[SDK] Iniciando instalación silenciosa del MSI...");
+
+    // Usar msiexec para instalar el MSI silenciosamente
+    // /i = install, /quiet = sin UI, /norestart = no reiniciar
+    const installProcess = spawn("msiexec", ["/i", installerPath, "/quiet", "/norestart"], {
+      windowsHide: true,
+      detached: false,
+      shell: true
+    });
+
+    let installTimeout = setTimeout(() => {
+      console.warn("[SDK] Timeout de instalación - el proceso puede seguir en segundo plano");
+      resolve({
+        success: true,
+        message: "Instalación iniciada. Puede tardar unos minutos."
+      });
+    }, 120000); // 2 minutos timeout
+
+    installProcess.on("close", (code) => {
+      clearTimeout(installTimeout);
+      console.log("[SDK] Instalador terminó con código:", code);
+
+      // Verificar si la instalación fue exitosa
+      const checkResult = checkDigitalPersonaSdk();
+
+      if (checkResult.installed) {
+        resolve({
+          success: true,
+          message: "SDK instalado correctamente"
+        });
+      } else if (code === 0) {
+        // El instalador terminó OK pero puede requerir reinicio
+        resolve({
+          success: true,
+          message: "Instalación completada. Es posible que necesite reiniciar la aplicación."
+        });
+      } else {
+        resolve({
+          success: false,
+          message: `La instalación terminó con código ${code}. Intente instalar manualmente.`
+        });
+      }
+    });
+
+    installProcess.on("error", (error) => {
+      clearTimeout(installTimeout);
+      console.error("[SDK] Error en instalación:", error.message);
+      resolve({
+        success: false,
+        message: `Error al ejecutar instalador: ${error.message}`
+      });
+    });
+  });
+}
 
 // Suprimir logs de errores internos de Chromium (GPU, video capture, etc.)
 app.commandLine.appendSwitch("log-level", "3");
@@ -111,9 +239,29 @@ function buildBiometricMiddlewareIfNeeded() {
 
 /**
  * Función para iniciar el BiometricMiddleware como administrador
+ * Espera a que el SDK esté instalado antes de iniciar
  */
-function startBiometricMiddleware() {
+async function startBiometricMiddleware() {
   try {
+    // Verificar e instalar SDK si es necesario ANTES de iniciar el middleware
+    const sdkStatus = checkDigitalPersonaSdk();
+
+    if (!sdkStatus.installed) {
+      console.log("[BIOMETRIC] SDK no instalado, esperando instalación...");
+      const installResult = await installDigitalPersonaSdk();
+
+      if (!installResult.success) {
+        console.error("[BIOMETRIC] No se pudo instalar el SDK:", installResult.message);
+        console.warn("[BIOMETRIC] El middleware puede no funcionar correctamente");
+      } else {
+        console.log("[BIOMETRIC] SDK instalado:", installResult.message);
+        // Pequeña pausa para que Windows registre los archivos
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    } else {
+      console.log("[BIOMETRIC] SDK ya instalado, continuando...");
+    }
+
     // Compilar si es necesario
     if (!buildBiometricMiddlewareIfNeeded()) {
       console.error("[ERROR] No se pudo obtener el ejecutable de BiometricMiddleware");
@@ -125,18 +273,21 @@ function startBiometricMiddleware() {
     const middlewarePath = path.join(biometricDir, "BiometricMiddleware.exe");
     const workingDir = biometricDir;
 
+    // Generar token de autenticación único para esta sesión
+    biometricToken = crypto.randomUUID();
+    console.log("[BIOMETRIC] Token de autenticación generado");
 
     if (process.platform === "win32") {
       // En Windows, ejecutar directamente con spawn
-
-      biometricProcess = spawn(middlewarePath, [], {
+      // Pasar el token como argumento de línea de comandos
+      biometricProcess = spawn(middlewarePath, [`--token=${biometricToken}`], {
         cwd: workingDir,
         shell: false,
         windowsHide: false, // Mostrar ventana para debugging
         detached: false,
       });
 
-      biometricProcess.stdout.on("data", () => {});
+      biometricProcess.stdout.on("data", () => { });
 
       biometricProcess.stderr.on("data", (data) => {
         console.error(`[BiometricMiddleware] ${data.toString().trim()}`);
@@ -152,11 +303,12 @@ function startBiometricMiddleware() {
       });
     } else {
       // En otros sistemas operativos, ejecutar normalmente
-      biometricProcess = spawn(middlewarePath, [], {
+      // Pasar el token como argumento de línea de comandos
+      biometricProcess = spawn(middlewarePath, [`--token=${biometricToken}`], {
         cwd: workingDir,
       });
 
-      biometricProcess.stdout.on("data", () => {});
+      biometricProcess.stdout.on("data", () => { });
 
       biometricProcess.stderr.on("data", (data) => {
         console.error(`[BiometricMiddleware] ${data.toString().trim()}`);
@@ -278,6 +430,20 @@ app.on("will-quit", () => {
 });
 
 // ===== IPC Handlers =====
+
+/**
+ * Verificar si el SDK de DigitalPersona está instalado
+ */
+ipcMain.handle("check-digitalpersona-sdk", async () => {
+  return checkDigitalPersonaSdk();
+});
+
+/**
+ * Instalar el SDK de DigitalPersona silenciosamente
+ */
+ipcMain.handle("install-digitalpersona-sdk", async () => {
+  return await installDigitalPersonaSdk();
+});
 
 /**
  * Obtener información del sistema
@@ -404,6 +570,14 @@ ipcMain.on("close-window", () => {
  */
 ipcMain.handle("is-maximized", () => {
   return mainWindow ? mainWindow.isMaximized() : false;
+});
+
+/**
+ * Obtener token de autenticación para el BiometricMiddleware
+ * Este token se usa para autenticar conexiones WebSocket al middleware
+ */
+ipcMain.handle("get-biometric-token", () => {
+  return biometricToken;
 });
 
 /**
@@ -632,9 +806,9 @@ ipcMain.handle("verificar-usuario", async (event, descriptor) => {
         distancia: bestDistance,
         mejorCandidato: bestMatch
           ? {
-              nombre: bestMatch.nombre,
-              distancia: bestDistance,
-            }
+            nombre: bestMatch.nombre,
+            distancia: bestDistance,
+          }
           : null,
       };
     }

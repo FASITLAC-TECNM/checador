@@ -80,12 +80,18 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
     },
     {
       id: 3,
+      pregunta: "¿Cómo configuro Face ID o huella digital?",
+      respuesta: "Ve a Configuración > Seguridad > Método de Acceso. Podrás configurar PIN, huella digital o Face ID. Asegúrate de tener estos métodos configurados en tu dispositivo primero.",
+      icon: "scan"
+    },
+    {
+      id: 4,
       pregunta: "¿Cómo veo mi historial de registros?",
       respuesta: "Ve a la opcion de Historial para ver todos tus registros de entrada y salida.",
       icon: "time"
     },
     {
-      id: 4,
+      id: 5,
       pregunta: "La app se cierra inesperadamente",
       respuesta: "Intenta cerrar completamente la app y volver a abrirla. Si el problema persiste, verifica que tengas la última versión instalada o contacta a FASITLAC.",
       icon: "alert-circle"

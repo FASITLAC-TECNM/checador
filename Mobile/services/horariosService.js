@@ -316,10 +316,95 @@ export const getInfoDiaActual = (horarioParsed) => {
     }
 };
 
+/**
+ * Obtener tolerancia del empleado (por rol)
+ * @param {string} token - Token de autenticación
+ * @returns {Promise<Object>} Datos de la tolerancia
+ */
+export const getToleranciaEmpleado = async (token) => {
+    try {
+        const url = `${API_URL}/tolerancias`;
+
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: headers
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error al obtener tolerancia (${response.status})`);
+        }
+
+        const data = await response.json();
+
+        // Devolver la primera tolerancia activa (la del rol del usuario)
+        if (data.data && data.data.length > 0) {
+            return data.data[0];
+        }
+
+        // Tolerancia por defecto si no hay ninguna configurada
+        return {
+            minutos_retardo: 10,
+            minutos_falta: 30,
+            permite_registro_anticipado: true,
+            minutos_anticipado_max: 60,
+            aplica_tolerancia_entrada: true,
+            aplica_tolerancia_salida: false
+        };
+    } catch (error) {
+        // Devolver tolerancia por defecto en caso de error
+        return {
+            minutos_retardo: 10,
+            minutos_falta: 30,
+            permite_registro_anticipado: true,
+            minutos_anticipado_max: 60,
+            aplica_tolerancia_entrada: true,
+            aplica_tolerancia_salida: false
+        };
+    }
+};
+
+/**
+ * Obtener todas las tolerancias
+ * @param {string} token - Token de autenticación
+ * @returns {Promise<Object>} Lista de tolerancias
+ */
+export const getTolerancias = async (token) => {
+    try {
+        const url = `${API_URL}/tolerancias`;
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error al obtener tolerancias (${response.status})`);
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        throw error;
+    }
+};
+
 // Exportar todo el servicio
 export default {
     getHorarioPorEmpleado,
     parsearHorario,
     calcularResumenSemanal,
-    getInfoDiaActual
+    getInfoDiaActual,
+    getToleranciaEmpleado,
+    getTolerancias
 };

@@ -24,9 +24,14 @@ import {
   requestCameraPermission,
   processFaceData,
   validateFaceQuality,
-  generateFacialTemplate,
   clearLocalFacialData,
 } from '../../services/facialCameraService';
+
+import {
+  extractFaceFeatures,
+  saveFaceFeatures,
+  deleteFaceFeatures,
+} from '../../services/faceComparisonService';
 
 import {
   getCredencialesByEmpleado,
@@ -319,38 +324,73 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       const empleadoId = getEmpleadoId();
       if (!empleadoId) throw new Error('No se encontró el ID del empleado');
 
+      console.log('📸 Captura completada, procesando datos faciales...');
+
+      // Verificar si ya viene con detección facial
+      if (captureData.faceDetectionUsed) {
+        console.log('✅ Usando datos de detección facial real de Vision Camera');
+      }
+
       const faceFeatures = processFaceData(captureData.faceData);
       const validation = validateFaceQuality(faceFeatures);
 
       if (!validation.isValid) {
-        Alert.alert('Calidad insuficiente', validation.errors.join('\n'), [
-          { text: 'Intentar de nuevo', onPress: () => setShowFacialCapture(true) },
-        ]);
+        console.warn('⚠️ Validación de calidad falló:', validation.errors);
+        Alert.alert(
+          '⚠️ Calidad insuficiente',
+          validation.errors.join('\n') + '\n\n¿Deseas intentar de nuevo?',
+          [
+            { text: 'Cancelar', style: 'cancel', onPress: () => setProcesandoFacial(false) },
+            { text: 'Reintentar', onPress: () => setShowFacialCapture(true) },
+          ]
+        );
         setProcesandoFacial(false);
         return;
       }
 
-      const resultado = await generateFacialTemplate(
-        faceFeatures,
-        captureData.photoUri,
-        empleadoId
+      console.log('✅ Validación de calidad exitosa, extrayendo características...');
+
+      // Extraer características faciales para comparación local
+      const features = extractFaceFeatures(faceFeatures);
+
+      // Guardar características localmente (PRINCIPAL)
+      const saveResult = await saveFaceFeatures(
+        empleadoId,
+        features,
+        captureData.photoUri
       );
 
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await guardarFacial(empleadoId, resultado.template, token);
-
-      if (response.success) {
+      if (saveResult.success) {
         setHasFacial(true);
+        console.log('✅ Reconocimiento facial registrado exitosamente (local)');
+
+        // También intentar guardar en el backend si hay token (OPCIONAL)
+        try {
+          const token = await AsyncStorage.getItem('userToken');
+          if (token) {
+            // Convertir features a base64 para enviar al backend
+            const featuresString = JSON.stringify(features);
+            const featuresBase64 = btoa(unescape(encodeURIComponent(featuresString)));
+
+            await guardarFacial(empleadoId, featuresBase64, token);
+            console.log('✅ También guardado en backend');
+          }
+        } catch (backendError) {
+          console.warn('⚠️ No se pudo guardar en backend:', backendError.message);
+          // No importa si falla el backend, ya está guardado localmente
+        }
+
         Alert.alert(
           '✅ ¡Éxito!',
-          'Tu reconocimiento facial ha sido registrado correctamente'
+          'Tu reconocimiento facial ha sido registrado correctamente.\n\nAhora puedes usar tu rostro para verificar tu identidad.'
         );
       } else {
-        throw new Error(response.message);
+        throw new Error(saveResult.error);
       }
     } catch (error) {
+      console.error('❌ Error en handleFacialCaptureComplete:', error);
       Alert.alert(
-        'Error',
+        '❌ Error',
         error.message || 'No se pudo procesar el reconocimiento facial'
       );
     } finally {
@@ -401,10 +441,22 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
             setProcesandoFacial(true);
             try {
               const empleadoId = getEmpleadoId();
-              const token = await AsyncStorage.getItem('userToken');
-              await eliminarCredencial(empleadoId, 'facial', token);
-              await limpiarDatosLocales(empleadoId);
+
+              // Eliminar datos locales (PRINCIPAL)
+              await deleteFaceFeatures(empleadoId);
               await clearLocalFacialData(empleadoId);
+
+              // Intentar eliminar del backend (OPCIONAL)
+              try {
+                const token = await AsyncStorage.getItem('userToken');
+                if (token) {
+                  await eliminarCredencial(empleadoId, 'facial', token);
+                  await limpiarDatosLocales(empleadoId);
+                }
+              } catch (backendError) {
+                console.warn('⚠️ No se pudo eliminar del backend:', backendError.message);
+              }
+
               setHasFacial(false);
               Alert.alert(
                 '✅ Eliminado',
@@ -521,6 +573,33 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
         onCancel={handleFacialCaptureCancel}
         darkMode={darkMode}
       />
+    );
+  }
+
+  // ─── Overlay de procesamiento facial ────────────────────────────────────
+  if (procesandoFacial && !showFacialCapture) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <View style={styles.backButton} />
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>Procesando</Text>
+              <Text style={styles.headerSubtitle}>Analizando datos faciales</Text>
+            </View>
+            <View style={styles.headerPlaceholder} />
+          </View>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text style={styles.loadingText}>
+            🔍 Analizando reconocimiento facial...
+          </Text>
+          <Text style={[styles.loadingText, { fontSize: 12, marginTop: 8, color: '#9ca3af' }]}>
+            Esto puede tomar unos segundos
+          </Text>
+        </View>
+      </View>
     );
   }
 

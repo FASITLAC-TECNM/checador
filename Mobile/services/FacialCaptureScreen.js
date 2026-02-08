@@ -1,5 +1,5 @@
-// FacialCaptureScreen.js - CORREGIDO
-import React, { useState, useEffect, useRef } from 'react';
+// FacialCaptureScreen.js - CON DETECCIÓN FACIAL usando Vision Camera
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,35 +11,63 @@ import {
   Platform,
   ActivityIndicator,
   StatusBar,
+  Modal,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Camera as VisionCamera, useCameraDevice } from 'react-native-vision-camera';
+import { Camera } from 'react-native-vision-camera-face-detector';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const OVAL_WIDTH = SCREEN_WIDTH * 0.75;
-const OVAL_HEIGHT = SCREEN_HEIGHT * 0.50;
+const OVAL_WIDTH = SCREEN_WIDTH * 0.65;
+const OVAL_HEIGHT = SCREEN_HEIGHT * 0.42;
 
-export const FacialCaptureScreen = ({ 
-  onCapture, 
-  onCancel, 
-  darkMode = false 
+export const FacialCaptureScreen = ({
+  onCapture,
+  onCancel,
+  darkMode = false
 }) => {
-  const [permission, requestPermission] = useCameraPermissions();
-  const [instruction, setInstruction] = useState('Posiciona tu rostro en el óvalo');
+  const device = useCameraDevice('front');
+  const camera = useRef(null);
+  const [hasPermission, setHasPermission] = useState(false);
+
+  // Opciones de detección facial
+  const faceDetectionOptions = useRef({
+    performanceMode: 'fast',
+    classificationMode: 'all',
+    landmarkMode: 'all',
+    contourMode: 'none',
+    trackingEnabled: true,
+    minFaceSize: 0.15,
+  }).current;
+
+  const [instruction, setInstruction] = useState('Posiciona tu rostro y toca para capturar');
   const [isProcessing, setIsProcessing] = useState(false);
   const [countdown, setCountdown] = useState(null);
   const [isValidating, setIsValidating] = useState(false);
-  
-  const cameraRef = useRef(null);
+
+  // Estado para detección facial en tiempo real
+  const [facesDetected, setFacesDetected] = useState([]);
+  const [faceDetected, setFaceDetected] = useState(false);
+  const [lastFaceData, setLastFaceData] = useState(null);
+
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const faceDetectionTimeout = useRef(null);
 
   useEffect(() => {
-    if (!permission) {
-      requestPermission();
-    }
+    checkPermissions();
     startPulseAnimation();
   }, []);
+
+  const checkPermissions = async () => {
+    const cameraPermission = await VisionCamera.getCameraPermissionStatus();
+    if (cameraPermission === 'granted') {
+      setHasPermission(true);
+    } else {
+      const newCameraPermission = await VisionCamera.requestCameraPermission();
+      setHasPermission(newCameraPermission === 'granted');
+    }
+  };
 
   const startPulseAnimation = () => {
     Animated.loop(
@@ -58,67 +86,73 @@ export const FacialCaptureScreen = ({
     ).start();
   };
 
-  // Validar imagen antes del countdown
-  const validateImageBeforeCapture = async () => {
-    if (!cameraRef.current) return false;
+  // Callback para actualizar estado de detección facial desde frame processor
+  const updateFaceDetection = useCallback((faces) => {
+    setFacesDetected(faces);
 
-    try {
-      setIsValidating(true);
-      setInstruction('Validando imagen...');
+    if (faces.length > 0) {
+      const face = faces[0];
+      setLastFaceData(face);
 
-      // Tomar foto de prueba
-      const testPhoto = await cameraRef.current.takePictureAsync({
-        quality: 0.3,
-        base64: false,
-        skipProcessing: true,
-      });
-
-      // Verificar que la imagen exista y tenga tamaño
-      const fileInfo = await FileSystem.getInfoAsync(testPhoto.uri);
-
-      // Validaciones básicas pero efectivas:
-      if (!fileInfo.exists) {
-        throw new Error('No se pudo capturar la imagen');
+      // Limpiar timeout anterior
+      if (faceDetectionTimeout.current) {
+        clearTimeout(faceDetectionTimeout.current);
       }
 
-      if (fileInfo.size < 50000) {
-        throw new Error('La imagen es demasiado oscura o no se capturó correctamente');
+      // Verificar calidad básica del rostro detectado
+      const leftEyeOpen = face.leftEyeOpenProbability !== undefined ? face.leftEyeOpenProbability : 1;
+      const rightEyeOpen = face.rightEyeOpenProbability !== undefined ? face.rightEyeOpenProbability : 1;
+      const yaw = Math.abs(face.yawAngle || 0);
+      const roll = Math.abs(face.rollAngle || 0);
+
+      const isGoodQuality =
+        leftEyeOpen > 0.3 &&
+        rightEyeOpen > 0.3 &&
+        yaw < 30 &&
+        roll < 30;
+
+      if (isGoodQuality && !countdown && !isProcessing && !isValidating) {
+        setFaceDetected(true);
+        setInstruction('✓ Rostro detectado - Toca para capturar');
+      } else if (!countdown && !isProcessing && !isValidating) {
+        setFaceDetected(false);
+        // Dar feedback más específico
+        if (leftEyeOpen < 0.3 || rightEyeOpen < 0.3) {
+          setInstruction('Abre bien los ojos');
+        } else if (yaw >= 30) {
+          setInstruction('Mira de frente a la cámara');
+        } else if (roll >= 30) {
+          setInstruction('Mantén la cabeza recta');
+        } else {
+          setInstruction('Posiciona tu rostro correctamente');
+        }
       }
 
-      if (fileInfo.size > 10000000) {
-        throw new Error('La imagen está sobreexpuesta');
+      // Resetear después de 500ms si no detecta más
+      faceDetectionTimeout.current = setTimeout(() => {
+        setFaceDetected(false);
+        if (!countdown && !isProcessing && !isValidating) {
+          setInstruction('Posiciona tu rostro en el óvalo');
+        }
+      }, 500);
+    } else {
+      setFaceDetected(false);
+      setLastFaceData(null);
+      if (!countdown && !isProcessing && !isValidating) {
+        setInstruction('No se detecta rostro');
       }
-
-      // Limpiar foto de prueba
-      await FileSystem.deleteAsync(testPhoto.uri, { idempotent: true });
-
-      setIsValidating(false);
-      return true;
-
-    } catch (error) {
-      setIsValidating(false);
-      
-      Alert.alert(
-        'Error de validación',
-        error.message || 'No se pudo validar la imagen. Verifica:\n\n• Que haya buena iluminación\n• Que la cámara esté enfocando\n• Que tu rostro esté visible',
-        [{ text: 'OK', onPress: () => setInstruction('Posiciona tu rostro en el óvalo') }]
-      );
-      
-      return false;
     }
-  };
+  }, [countdown, isProcessing, isValidating]);
 
-  const startCountdown = async () => {
-    const isValid = await validateImageBeforeCapture();
-    
-    if (!isValid) {
-      setInstruction('Posiciona tu rostro en el óvalo');
-      return;
-    }
+  // Callback para el wrapper Camera de face-detector (se ejecuta en JS thread)
+  const handleFaceDetection = useCallback((faces) => {
+    updateFaceDetection(faces);
+  }, [updateFaceDetection]);
 
+  const startCountdown = () => {
     setCountdown(3);
     setInstruction('Mantén la posición');
-    
+
     const timer = setInterval(() => {
       setCountdown(prev => {
         if (prev === 1) {
@@ -132,65 +166,141 @@ export const FacialCaptureScreen = ({
   };
 
   const handleCapture = async () => {
-    if (!cameraRef.current || isProcessing) {
+    if (!camera.current || isProcessing) {
       return;
     }
 
     try {
       setIsProcessing(true);
-      setInstruction('Capturando...');
+      setInstruction('📸 Capturando foto...');
 
-      const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.85,
-        base64: false,
+      // 1. CAPTURAR LA FOTO
+      const photo = await camera.current.takePhoto({
+        qualityPrioritization: 'quality',
+        flash: 'off',
+        skipMetadata: true,
       });
 
+      console.log('📸 Foto capturada:', photo.path);
 
-      // Validación final de la imagen capturada
-      const fileInfo = await FileSystem.getInfoAsync(photo.uri);
-      
+      // Obtener info del archivo
+      const fileUri = Platform.OS === 'ios' ? photo.path : `file://${photo.path}`;
+      const fileInfo = await FileSystem.getInfoAsync(fileUri);
+
       if (!fileInfo.exists || fileInfo.size < 50000) {
-        throw new Error('La captura final falló. Intenta de nuevo con mejor iluminación.');
+        throw new Error('La captura falló. Intenta de nuevo con mejor iluminación.');
       }
 
-      const mockFaceData = {
-        bounds: {
-          origin: { x: SCREEN_WIDTH * 0.125, y: SCREEN_HEIGHT * 0.25 },
-          size: { width: OVAL_WIDTH, height: OVAL_HEIGHT }
-        },
-        rollAngle: 0,
-        yawAngle: 0,
-        smilingProbability: 0.8,
-        leftEyeOpenProbability: 1,
-        rightEyeOpenProbability: 1,
-        leftEyePosition: { x: SCREEN_WIDTH * 0.35, y: SCREEN_HEIGHT * 0.42 },
-        rightEyePosition: { x: SCREEN_WIDTH * 0.65, y: SCREEN_HEIGHT * 0.42 },
-        noseBasePosition: { x: SCREEN_WIDTH * 0.5, y: SCREEN_HEIGHT * 0.5 },
-        bottomMouthPosition: { x: SCREEN_WIDTH * 0.5, y: SCREEN_HEIGHT * 0.58 },
-        leftCheekPosition: { x: SCREEN_WIDTH * 0.3, y: SCREEN_HEIGHT * 0.52 },
-        rightCheekPosition: { x: SCREEN_WIDTH * 0.7, y: SCREEN_HEIGHT * 0.52 }
+      // 2. USAR DATOS DE LA ÚLTIMA DETECCIÓN FACIAL
+      setInstruction('🔍 Analizando rostro...');
+      setIsValidating(true);
+
+      console.log('🔍 Usando datos de detección facial en tiempo real...');
+
+      // 3. VERIFICAR QUE REALMENTE HAY UNA CARA
+      if (!lastFaceData) {
+        setIsValidating(false);
+        setIsProcessing(false);
+        setCountdown(null);
+
+        Alert.alert(
+          '❌ No se detectó rostro',
+          'No se detectó ningún rostro en el momento de la captura.\n\nPor favor:\n• Asegúrate de que tu rostro esté visible\n• Verifica que haya buena iluminación\n• Posiciónate dentro del óvalo',
+          [
+            {
+              text: 'Tomar otra foto',
+              onPress: () => {
+                setInstruction('Posiciona tu rostro en el óvalo');
+              }
+            }
+          ]
+        );
+        return;
+      }
+
+      // 4. USAR LOS DATOS REALES DE LA CARA DETECTADA
+      const detectedFace = lastFaceData;
+
+      console.log('✅ Rostro detectado:', {
+        bounds: detectedFace.bounds,
+        rollAngle: detectedFace.rollAngle,
+        yawAngle: detectedFace.yawAngle,
+      });
+
+      // Validar calidad básica
+      const leftEyeOpen = detectedFace.leftEyeOpenProbability !== undefined ? detectedFace.leftEyeOpenProbability : 1;
+      const rightEyeOpen = detectedFace.rightEyeOpenProbability !== undefined ? detectedFace.rightEyeOpenProbability : 1;
+      const yaw = Math.abs(detectedFace.yawAngle || 0);
+      const roll = Math.abs(detectedFace.rollAngle || 0);
+
+      if (leftEyeOpen < 0.2 || rightEyeOpen < 0.2 || yaw > 40 || roll > 40) {
+        setIsValidating(false);
+        setIsProcessing(false);
+        setCountdown(null);
+
+        Alert.alert(
+          '⚠️ Calidad insuficiente',
+          'Se detectó un rostro pero la calidad no es suficiente.\n\n' +
+          (leftEyeOpen < 0.2 || rightEyeOpen < 0.2 ? '• Mantén los ojos abiertos\n' : '') +
+          (yaw > 40 ? '• Mira de frente a la cámara\n' : '') +
+          (roll > 40 ? '• Mantén la cabeza recta\n' : ''),
+          [
+            {
+              text: 'Tomar otra foto',
+              onPress: () => {
+                setInstruction('Posiciona tu rostro en el óvalo');
+              }
+            }
+          ]
+        );
+        return;
+      }
+
+      const realFaceData = {
+        bounds: detectedFace.bounds,
+        rollAngle: detectedFace.rollAngle,
+        yawAngle: detectedFace.yawAngle,
+        pitchAngle: detectedFace.pitchAngle || 0,
+        smilingProbability: detectedFace.smilingProbability || 0,
+        leftEyeOpenProbability: detectedFace.leftEyeOpenProbability,
+        rightEyeOpenProbability: detectedFace.rightEyeOpenProbability,
+        // Mapear landmarks del nuevo paquete al formato esperado por servicios downstream
+        leftEyePosition: detectedFace.landmarks?.LEFT_EYE,
+        rightEyePosition: detectedFace.landmarks?.RIGHT_EYE,
+        noseBasePosition: detectedFace.landmarks?.NOSE_BASE,
+        mouthPosition: detectedFace.landmarks?.MOUTH_BOTTOM,
+        leftCheekPosition: detectedFace.landmarks?.LEFT_CHEEK,
+        rightCheekPosition: detectedFace.landmarks?.RIGHT_CHEEK,
       };
 
+      setInstruction('✅ Rostro verificado correctamente');
+
+      // Pequeña pausa para mostrar el mensaje de éxito
+      await new Promise(resolve => setTimeout(resolve, 800));
+
       onCapture({
-        photoUri: photo.uri,
-        photoBase64: photo.base64,
-        faceData: mockFaceData,
+        photoUri: fileUri,
+        photoBase64: null, // Vision Camera no provee base64 directamente
+        faceData: realFaceData,
         timestamp: Date.now(),
         imageSize: fileInfo.size,
-        validated: true
+        validated: true,
+        faceDetectionUsed: true,
       });
 
     } catch (error) {
-      
+      console.error('❌ Error en captura:', error);
+      setIsValidating(false);
+      setIsProcessing(false);
+      setCountdown(null);
+
       Alert.alert(
-        'Error de captura',
-        error.message || 'No se pudo capturar la foto correctamente. Asegúrate de:\n\n• Tener buena iluminación\n• Mantener la cámara estable\n• Estar frente a la cámara',
+        '❌ Error de captura',
+        error.message || 'No se pudo capturar o analizar la foto correctamente.',
         [
           {
             text: 'Reintentar',
             onPress: () => {
-              setIsProcessing(false);
-              setCountdown(null);
               setInstruction('Posiciona tu rostro en el óvalo');
             }
           }
@@ -199,50 +309,71 @@ export const FacialCaptureScreen = ({
     }
   };
 
-  if (!permission) {
+  if (!hasPermission) {
     return (
-      <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#000" />
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={styles.permissionText}>Solicitando permisos...</Text>
-      </View>
+      <Modal visible={true} animationType="fade" statusBarTranslucent>
+        <View style={styles.container}>
+          <StatusBar barStyle="light-content" backgroundColor="#000" />
+          <ActivityIndicator size="large" color="#3b82f6" />
+          <Text style={styles.permissionText}>Solicitando permisos...</Text>
+        </View>
+      </Modal>
     );
   }
 
-  if (!permission.granted) {
+  if (hasPermission === false && hasPermission !== null) {
     return (
-      <View style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#000" />
-        <Ionicons name="camera-off" size={56} color="#ef4444" />
-        <Text style={styles.permissionText}>Acceso a cámara necesario</Text>
-        <Text style={styles.permissionSubtext}>
-          Ve a Ajustes para habilitar la cámara
-        </Text>
-        <TouchableOpacity 
-          style={styles.cancelButton} 
-          onPress={onCancel}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.cancelButtonText}>Volver</Text>
-        </TouchableOpacity>
-      </View>
+      <Modal visible={true} animationType="fade" statusBarTranslucent>
+        <View style={styles.container}>
+          <StatusBar barStyle="light-content" backgroundColor="#000" />
+          <Ionicons name="camera-off" size={56} color="#ef4444" />
+          <Text style={styles.permissionText}>Acceso a cámara necesario</Text>
+          <Text style={styles.permissionSubtext}>
+            Ve a Ajustes para habilitar la cámara
+          </Text>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={onCancel}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.cancelButtonText}>Volver</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+    );
+  }
+
+  if (!device) {
+    return (
+      <Modal visible={true} animationType="fade" statusBarTranslucent>
+        <View style={styles.container}>
+          <StatusBar barStyle="light-content" backgroundColor="#000" />
+          <ActivityIndicator size="large" color="#3b82f6" />
+          <Text style={styles.permissionText}>Cargando cámara...</Text>
+        </View>
+      </Modal>
     );
   }
 
   return (
-    <View style={styles.fullScreen}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
-      
-      {/* ✅ CameraView SIN children */}
-      <CameraView 
-        ref={cameraRef} 
-        style={styles.camera} 
-        facing="front"
+    <Modal visible={true} animationType="fade" statusBarTranslucent>
+      <View style={styles.fullScreen}>
+        <StatusBar barStyle="light-content" backgroundColor="#000" />
+
+      {/* Camera con detección facial integrada */}
+      <Camera
+        ref={camera}
+        style={styles.camera}
+        device={device}
+        isActive={true}
+        photo={true}
+        faceDetectionCallback={handleFaceDetection}
+        faceDetectionOptions={faceDetectionOptions}
       />
 
-      {/* ✅ Overlay con position: absolute FUERA de CameraView */}
+      {/* Overlay con position: absolute FUERA de Camera */}
       <View style={styles.overlay} pointerEvents="box-none">
-        
+
         {/* Botón cerrar */}
         <TouchableOpacity
           style={styles.closeButton}
@@ -260,23 +391,25 @@ export const FacialCaptureScreen = ({
               styles.oval,
               {
                 transform: [{ scale: pulseAnim }],
-                borderColor: countdown 
-                  ? '#10b981' 
+                borderColor: countdown
+                  ? '#10b981' // Verde durante countdown
                   : isValidating
-                    ? '#f59e0b'
-                    : '#3b82f6',
+                    ? '#f59e0b' // Amarillo durante validación
+                    : faceDetected
+                      ? '#10b981' // Verde cuando detecta rostro
+                      : '#3b82f6', // Azul por defecto
               }
             ]}
           />
-          
+
           {countdown && (
             <Text style={styles.countdownText}>{countdown}</Text>
           )}
 
           {isValidating && (
-            <ActivityIndicator 
-              size="large" 
-              color="#f59e0b" 
+            <ActivityIndicator
+              size="large"
+              color="#f59e0b"
               style={styles.validatingIndicator}
             />
           )}
@@ -287,7 +420,8 @@ export const FacialCaptureScreen = ({
           <View style={[
             styles.instructionBadge,
             countdown && styles.instructionBadgeCountdown,
-            isValidating && styles.instructionBadgeValidating
+            isValidating && styles.instructionBadgeValidating,
+            faceDetected && !countdown && !isValidating && styles.instructionBadgeDetected
           ]}>
             <Text style={styles.instructionText}>{instruction}</Text>
           </View>
@@ -320,39 +454,38 @@ export const FacialCaptureScreen = ({
           >
             <View style={[
               styles.captureButtonInner,
-              countdown && styles.captureButtonInnerCountdown
+              countdown && styles.captureButtonInnerCountdown,
+              faceDetected && !countdown && !isValidating && styles.captureButtonInnerReady
             ]}>
-              <Ionicons 
-                name={isProcessing || isValidating ? "hourglass" : "camera"} 
-                size={28} 
-                color="#fff" 
+              <Ionicons
+                name={isProcessing || isValidating ? "hourglass" : "camera"}
+                size={28}
+                color="#fff"
               />
             </View>
           </TouchableOpacity>
 
           <Text style={styles.helpText}>
-            {isProcessing 
-              ? 'Procesando...' 
+            {isProcessing
+              ? 'Procesando...'
               : isValidating
-                ? 'Validando imagen...'
-                : countdown 
+                ? 'Analizando rostro...'
+                : countdown
                   ? `Capturando en ${countdown}...`
-                  : 'Toca para capturar'}
+                  : faceDetected
+                    ? '✓ Listo - Toca para capturar'
+                    : 'Posiciona tu rostro en el óvalo'}
           </Text>
         </View>
       </View>
     </View>
+    </Modal>
   );
 };
 
 const styles = StyleSheet.create({
   fullScreen: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 9999,
+    flex: 1,
     backgroundColor: '#000',
   },
   container: {
@@ -363,7 +496,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   camera: {
-    position: 'absolute', // ✅ Absolute positioning
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
@@ -372,7 +505,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   overlay: {
-    position: 'absolute', // ✅ Overlay separado
+    position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
@@ -396,7 +529,7 @@ const styles = StyleSheet.create({
     top: '50%',
     left: '50%',
     marginLeft: -OVAL_WIDTH / 2,
-    marginTop: -OVAL_HEIGHT / 2,
+    marginTop: -(OVAL_HEIGHT / 2) - 20,
     width: OVAL_WIDTH,
     height: OVAL_HEIGHT,
     justifyContent: 'center',
@@ -405,9 +538,13 @@ const styles = StyleSheet.create({
   oval: {
     width: '100%',
     height: '100%',
-    borderRadius: OVAL_WIDTH / 2,
-    borderWidth: 4,
+    borderRadius: OVAL_WIDTH / 1.5,
+    borderWidth: 5,
     backgroundColor: 'transparent',
+    shadowColor: '#3b82f6',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
   },
   validatingIndicator: {
     position: 'absolute',
@@ -423,24 +560,32 @@ const styles = StyleSheet.create({
   },
   instructionContainer: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 120 : 90,
+    top: Platform.OS === 'ios' ? 70 : 50,
     left: 0,
     right: 0,
     alignItems: 'center',
     paddingHorizontal: 20,
   },
   instructionBadge: {
-    backgroundColor: 'rgba(59, 130, 246, 0.95)',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
+    backgroundColor: 'rgba(59, 130, 246, 0.92)',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
     maxWidth: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
   instructionBadgeCountdown: {
     backgroundColor: 'rgba(16, 185, 129, 0.95)',
   },
   instructionBadgeValidating: {
     backgroundColor: 'rgba(245, 158, 11, 0.95)',
+  },
+  instructionBadgeDetected: {
+    backgroundColor: 'rgba(16, 185, 129, 0.92)',
   },
   instructionText: {
     color: '#fff',
@@ -503,6 +648,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   captureButtonInnerCountdown: {
+    backgroundColor: '#10b981',
+  },
+  captureButtonInnerReady: {
     backgroundColor: '#10b981',
   },
   helpText: {

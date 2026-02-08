@@ -8,6 +8,10 @@ build/
 **/dist/
 **/build/
 
+# Mobile native builds
+Mobile/android/
+Mobile/.expo/web/
+
 # .NET build artifacts
 **/bin/
 **/obj/

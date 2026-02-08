@@ -12,7 +12,9 @@
       "Bash(npx expo start -c)",
       "Bash(npm cache clean:*)",
       "Bash(npx expo start:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)"
     ]
   }
 }

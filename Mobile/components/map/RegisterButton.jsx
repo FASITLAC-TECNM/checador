@@ -16,13 +16,14 @@ import { getApiEndpoint } from '../../config/api';
 import { getCredencialesByEmpleado, verificarPin } from '../../services/credencialesService';
 import { getOrdenCredenciales } from '../../services/configurationService';
 import { capturarHuellaDigital } from '../../services/biometricservice';
-import { verificarYProcesarFaltaSalida } from '../../services/asistenciasService';
+import { processFaceData, validateFaceQuality, generateFacialTemplate } from '../../services/facialCameraService';
+import { verifyFace } from '../../services/faceComparisonService';
 import { PinInputModal } from '../settingsPages/PinModal';
+import { FacialCaptureScreen } from '../../services/FacialCaptureScreen';
 import MapaZonasPermitidas from './MapScreen';
 
 const API_URL = getApiEndpoint('/api');
 const MINUTOS_SEPARACION_TURNOS = 15;
-const INTERVALO_VERIFICACION_FALTAS = 60000; // Verificar cada 1 minuto
 
 export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [loading, setLoading] = useState(true);
@@ -32,6 +33,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   
   const [mostrarAutenticacion, setMostrarAutenticacion] = useState(false);
   const [mostrarPinAuth, setMostrarPinAuth] = useState(false);
+  const [mostrarCapturaFacial, setMostrarCapturaFacial] = useState(false);
   const [credencialesUsuario, setCredencialesUsuario] = useState(null);
   const [metodosDisponibles, setMetodosDisponibles] = useState([]);
   const [ordenCredenciales, setOrdenCredenciales] = useState([]);
@@ -55,8 +57,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     ubicacion: null,
     departamento: null
   });
-
-  const verificandoFaltaRef = useRef(false);
 
   const styles = darkMode ? registerStylesDark : registerStyles;
   const [horaActual, setHoraActual] = useState(new Date());
@@ -122,8 +122,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         id: 'facial',
         nombre: 'Facial',
         icono: 'scan',
-        disponible: false,
-        handler: null
+        disponible: credenciales?.tiene_facial || false,
+        handler: handleAutenticacionFacial
       }
     };
 
@@ -134,61 +134,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     setMetodosDisponibles(metodosOrdenados);
   };
 
-  useEffect(() => {
-    const verificarFaltaSalida = async () => {
-      if (verificandoFaltaRef.current || !userData?.empleado_id || !userData?.token) {
-        return;
-      }
-
-      if (!ultimoRegistroHoy || ultimoRegistroHoy.tipo !== 'entrada') {
-        return;
-      }
-
-      try {
-        verificandoFaltaRef.current = true;
-        
-        const resultado = await verificarYProcesarFaltaSalida(
-          userData.empleado_id,
-          userData.token
-        );
-
-        if (resultado && resultado.falta_registrada) {
-          const nuevoUltimo = await obtenerUltimoRegistro();
-          setUltimoRegistroHoy(nuevoUltimo);
-          
-          if (horarioInfo && toleranciaInfo) {
-            const nuevoEstado = calcularEstadoRegistro(nuevoUltimo, horarioInfo, toleranciaInfo);
-            setPuedeRegistrar(nuevoEstado.puedeRegistrar);
-            setTipoSiguienteRegistro(nuevoEstado.tipoRegistro);
-            setEstadoHorario(nuevoEstado.estadoHorario);
-            setJornadaCompletada(nuevoEstado.jornadaCompleta);
-            setMensajeEspera(nuevoEstado.mensajeEspera || '');
-          }
-
-          Alert.alert(
-            '⚠️ Falta Registrada',
-            `Se registró una falta por no haber marcado tu salida a tiempo.\n\nHora límite: ${resultado.hora_limite || 'No especificada'}`,
-            [{ text: 'Entendido' }]
-          );
-
-          if (onRegistroExitoso) {
-            onRegistroExitoso({
-              tipo: 'falta_automatica',
-              data: resultado
-            });
-          }
-        }
-      } catch (error) {
-      } finally {
-        verificandoFaltaRef.current = false;
-      }
-    };
-
-    verificarFaltaSalida();
-    const intervalo = setInterval(verificarFaltaSalida, INTERVALO_VERIFICACION_FALTAS);
-
-    return () => clearInterval(intervalo);
-  }, [ultimoRegistroHoy, userData, horarioInfo, toleranciaInfo, onRegistroExitoso]);
+  // 🎯 NOTA: La verificación automática de falta de salida fue eliminada
+  // El nuevo backend maneja automáticamente toda la lógica de estados y faltas
 
   useEffect(() => {
     const intervalo = setInterval(() => {
@@ -674,7 +621,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     const gruposCompletados = Math.floor(registrosHoy / 2);
     
     if (ultimo.tipo === 'entrada') {
-      // 🎯 Pasar tolerancia a validarSalida
       return validarSalida(horario, ahora, ultimo, tolerancia);
     }
     
@@ -865,6 +811,89 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       );
       setRegistrando(false);
     }
+  };
+
+  const handleAutenticacionFacial = async () => {
+    try {
+      setMostrarAutenticacion(false);
+      setMostrarCapturaFacial(true);
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        error.message || 'No se pudo iniciar la captura facial',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  const handleFacialCaptureComplete = async (captureData) => {
+    setMostrarCapturaFacial(false);
+    setRegistrando(true);
+
+    try {
+      console.log('📸 Captura facial completada para autenticación de registro');
+
+      // Verificar que viene con detección facial
+      if (!captureData.faceDetectionUsed || !captureData.validated) {
+        throw new Error('No se detectó un rostro válido en la captura');
+      }
+
+      // Procesar y validar los datos faciales
+      const faceFeatures = processFaceData(captureData.faceData);
+      const validation = validateFaceQuality(faceFeatures);
+
+      if (!validation.isValid) {
+        console.warn('⚠️ Validación de calidad falló:', validation.errors);
+        Alert.alert(
+          '⚠️ Calidad insuficiente',
+          validation.errors.join('\n') + '\n\n¿Deseas intentar de nuevo?',
+          [
+            { text: 'Cancelar', style: 'cancel', onPress: () => setRegistrando(false) },
+            { text: 'Reintentar', onPress: () => setMostrarCapturaFacial(true) },
+          ]
+        );
+        setRegistrando(false);
+        return;
+      }
+
+      console.log('✅ Validación facial exitosa, verificando identidad...');
+
+      // Verificar contra el rostro guardado del empleado
+      const empleadoId = userData?.empleado?.id || userData?.empleado_id || userData?.id;
+      const verification = await verifyFace(empleadoId, captureData.faceData);
+
+      if (!verification.verified) {
+        console.warn('❌ Verificación facial falló:', verification);
+        Alert.alert(
+          'Identidad no verificada',
+          `No se pudo confirmar tu identidad.\nSimilitud: ${verification.similarity?.toFixed(1) || 0}% (mínimo 65%)\n\nAsegúrate de que eres la persona registrada e intenta de nuevo.`,
+          [
+            { text: 'Cancelar', style: 'cancel', onPress: () => setRegistrando(false) },
+            { text: 'Reintentar', onPress: () => setMostrarCapturaFacial(true) },
+          ]
+        );
+        setRegistrando(false);
+        return;
+      }
+
+      console.log(`✅ Identidad verificada (${verification.similarity.toFixed(1)}% similitud), procediendo con el registro`);
+
+      // Si la verificación es exitosa, proceder con el registro
+      await procederConRegistro();
+    } catch (error) {
+      console.error('❌ Error en autenticación facial:', error);
+      Alert.alert(
+        'Error de Autenticación',
+        error.message || 'No se pudo verificar tu identidad',
+        [{ text: 'OK' }]
+      );
+      setRegistrando(false);
+    }
+  };
+
+  const handleFacialCaptureCancel = () => {
+    setMostrarCapturaFacial(false);
+    setRegistrando(false);
   };
 
   const procederConRegistro = async () => {
@@ -1080,6 +1109,17 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   };
 
   const puedePresionarBoton = puedeRegistrar && dentroDelArea && !jornadaCompletada && !registrando && departamentoSeleccionado;
+
+  // Si está en captura facial, renderizar solo esa pantalla
+  if (mostrarCapturaFacial) {
+    return (
+      <FacialCaptureScreen
+        onCapture={handleFacialCaptureComplete}
+        onCancel={handleFacialCaptureCancel}
+        darkMode={darkMode}
+      />
+    );
+  }
 
   return (
     <>

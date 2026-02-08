@@ -10,7 +10,15 @@
       "tsconfigPaths": true
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      ["expo-build-properties", {
+        "android": {
+          "minSdkVersion": 26
+        }
+      }],
+      ["react-native-vision-camera", {
+        "cameraPermissionText": "FASITLAC necesita acceso a la cámara para reconocimiento facial"
+      }]
     ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -30,7 +38,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.yristan.FASITLAC"
     }
   }
 }

@@ -24,9 +24,14 @@ import {
   requestCameraPermission,
   processFaceData,
   validateFaceQuality,
-  generateFacialTemplate,
   clearLocalFacialData,
 } from '../../services/facialCameraService';
+
+import {
+  extractFaceFeatures,
+  saveFaceFeatures,
+  deleteFaceFeatures,
+} from '../../services/faceComparisonService';
 
 import {
   getCredencialesByEmpleado,
@@ -323,7 +328,7 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
 
       // Verificar si ya viene con detección facial
       if (captureData.faceDetectionUsed) {
-        console.log('✅ Usando datos de detección facial real de expo-face-detector');
+        console.log('✅ Usando datos de detección facial real de Vision Camera');
       }
 
       const faceFeatures = processFaceData(captureData.faceData);
@@ -343,28 +348,44 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
         return;
       }
 
-      console.log('✅ Validación de calidad exitosa, generando template...');
+      console.log('✅ Validación de calidad exitosa, extrayendo características...');
 
-      const resultado = await generateFacialTemplate(
-        faceFeatures,
-        captureData.photoUri,
-        empleadoId
+      // Extraer características faciales para comparación local
+      const features = extractFaceFeatures(faceFeatures);
+
+      // Guardar características localmente (PRINCIPAL)
+      const saveResult = await saveFaceFeatures(
+        empleadoId,
+        features,
+        captureData.photoUri
       );
 
-      console.log('📤 Enviando template al servidor...');
-
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await guardarFacial(empleadoId, resultado.template, token);
-
-      if (response.success) {
+      if (saveResult.success) {
         setHasFacial(true);
-        console.log('✅ Reconocimiento facial registrado exitosamente');
+        console.log('✅ Reconocimiento facial registrado exitosamente (local)');
+
+        // También intentar guardar en el backend si hay token (OPCIONAL)
+        try {
+          const token = await AsyncStorage.getItem('userToken');
+          if (token) {
+            // Convertir features a base64 para enviar al backend
+            const featuresString = JSON.stringify(features);
+            const featuresBase64 = btoa(unescape(encodeURIComponent(featuresString)));
+
+            await guardarFacial(empleadoId, featuresBase64, token);
+            console.log('✅ También guardado en backend');
+          }
+        } catch (backendError) {
+          console.warn('⚠️ No se pudo guardar en backend:', backendError.message);
+          // No importa si falla el backend, ya está guardado localmente
+        }
+
         Alert.alert(
           '✅ ¡Éxito!',
-          'Tu reconocimiento facial ha sido registrado correctamente.\n\nAhora puedes usar tu rostro para iniciar sesión.'
+          'Tu reconocimiento facial ha sido registrado correctamente.\n\nAhora puedes usar tu rostro para verificar tu identidad.'
         );
       } else {
-        throw new Error(response.message);
+        throw new Error(saveResult.error);
       }
     } catch (error) {
       console.error('❌ Error en handleFacialCaptureComplete:', error);
@@ -420,10 +441,22 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
             setProcesandoFacial(true);
             try {
               const empleadoId = getEmpleadoId();
-              const token = await AsyncStorage.getItem('userToken');
-              await eliminarCredencial(empleadoId, 'facial', token);
-              await limpiarDatosLocales(empleadoId);
+
+              // Eliminar datos locales (PRINCIPAL)
+              await deleteFaceFeatures(empleadoId);
               await clearLocalFacialData(empleadoId);
+
+              // Intentar eliminar del backend (OPCIONAL)
+              try {
+                const token = await AsyncStorage.getItem('userToken');
+                if (token) {
+                  await eliminarCredencial(empleadoId, 'facial', token);
+                  await limpiarDatosLocales(empleadoId);
+                }
+              } catch (backendError) {
+                console.warn('⚠️ No se pudo eliminar del backend:', backendError.message);
+              }
+
               setHasFacial(false);
               Alert.alert(
                 '✅ Eliminado',

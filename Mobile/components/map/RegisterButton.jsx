@@ -17,6 +17,7 @@ import { getCredencialesByEmpleado, verificarPin } from '../../services/credenci
 import { getOrdenCredenciales } from '../../services/configurationService';
 import { capturarHuellaDigital } from '../../services/biometricservice';
 import { processFaceData, validateFaceQuality, generateFacialTemplate } from '../../services/facialCameraService';
+import { verifyFace } from '../../services/faceComparisonService';
 import { PinInputModal } from '../settingsPages/PinModal';
 import { FacialCaptureScreen } from '../../services/FacialCaptureScreen';
 import MapaZonasPermitidas from './MapScreen';
@@ -855,9 +856,29 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         return;
       }
 
-      console.log('✅ Validación facial exitosa, procediendo con el registro');
+      console.log('✅ Validación facial exitosa, verificando identidad...');
 
-      // Si la validación es exitosa, proceder con el registro
+      // Verificar contra el rostro guardado del empleado
+      const empleadoId = userData?.empleado?.id || userData?.empleado_id || userData?.id;
+      const verification = await verifyFace(empleadoId, captureData.faceData);
+
+      if (!verification.verified) {
+        console.warn('❌ Verificación facial falló:', verification);
+        Alert.alert(
+          'Identidad no verificada',
+          `No se pudo confirmar tu identidad.\nSimilitud: ${verification.similarity?.toFixed(1) || 0}% (mínimo 65%)\n\nAsegúrate de que eres la persona registrada e intenta de nuevo.`,
+          [
+            { text: 'Cancelar', style: 'cancel', onPress: () => setRegistrando(false) },
+            { text: 'Reintentar', onPress: () => setMostrarCapturaFacial(true) },
+          ]
+        );
+        setRegistrando(false);
+        return;
+      }
+
+      console.log(`✅ Identidad verificada (${verification.similarity.toFixed(1)}% similitud), procediendo con el registro`);
+
+      // Si la verificación es exitosa, proceder con el registro
       await procederConRegistro();
     } catch (error) {
       console.error('❌ Error en autenticación facial:', error);

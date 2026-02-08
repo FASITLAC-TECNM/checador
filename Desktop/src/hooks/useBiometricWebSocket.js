@@ -155,6 +155,16 @@ export default function useBiometricWebSocket(onMessage) {
             setStatus("error");
           } else if (data.type === "cacheReloaded") {
             addMessage(`✅ Caché actualizado: ${data.templatesCount} huellas`, "success");
+          } else if (data.type === "readerConnection") {
+            // Actualización instantánea del estado del lector (conectado/desconectado)
+            console.log("🔌 Cambio de conexión del lector:", data);
+            setReaderConnected(data.connected);
+            if (data.connected) {
+              addMessage("✅ Lector de huellas conectado", "success");
+            } else {
+              addMessage("⚠️ Lector de huellas desconectado", "warning");
+              setCurrentOperation("None");
+            }
           }
 
           // Delegar al componente especifico

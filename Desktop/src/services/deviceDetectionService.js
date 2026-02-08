@@ -76,7 +76,10 @@ export const deviceDetectionService = {
 
     const normalized = name
       .toLowerCase()
-      .replace(/\s*\([^)]*\)\s*/g, "")
+      .replace(/\s*\([^)]*\)\s*/g, "")           // Remove parentheses content
+      .replace(/[-_]/g, " ")                      // Hyphens and underscores to spaces
+      .replace(/\s+/g, " ")                       // Multiple spaces to single
+      .replace(/\b(hd|camera|webcam|usb|web|integrated|built-in|truevision|general)\b/gi, "")  // Remove common words
       .trim();
 
     normalizationCache.set(name, normalized);
@@ -88,6 +91,12 @@ export const deviceDetectionService = {
    */
   async detectWebcams() {
     try {
+      // Skip browser detection if Electron API is available - it provides better device info
+      if (window.electronAPI?.detectUSBDevices) {
+        console.log("[DeviceDetection] Skipping browser webcam detection - using Electron API");
+        return [];
+      }
+
       if (!navigator.mediaDevices?.enumerateDevices) {
         return [];
       }
@@ -171,15 +180,28 @@ export const deviceDetectionService = {
    * MEJORA 8: Verificar si un dispositivo ya existe (optimizado)
    */
   deviceExists(device, existingDevices) {
+    // Priority 1: Compare by instanceId (Electron provides this)
+    if (device.instanceId) {
+      const hasInstanceMatch = existingDevices.some(
+        (d) => d.instanceId && d.instanceId === device.instanceId
+      );
+      if (hasInstanceMatch) return true;
+    }
+
+    // Priority 2: Compare by deviceId (browser provides this)
+    if (device.deviceId) {
+      const hasDeviceIdMatch = existingDevices.some(
+        (d) => d.deviceId && d.deviceId === device.deviceId
+      );
+      if (hasDeviceIdMatch) return true;
+    }
+
+    // Priority 3: Compare by normalized name (fallback with exact match only)
     const deviceNormalized = this.normalizeNameForComparison(device.name);
 
     return existingDevices.some((d) => {
       const existingNormalized = this.normalizeNameForComparison(d.name);
-      return (
-        existingNormalized === deviceNormalized ||
-        existingNormalized.includes(deviceNormalized) ||
-        deviceNormalized.includes(existingNormalized)
-      );
+      return existingNormalized === deviceNormalized;
     });
   },
 
@@ -187,15 +209,29 @@ export const deviceDetectionService = {
    * MEJORA 9: Filtrar dispositivos nuevos con Set para mejor rendimiento
    */
   filterNewDevices(detectedDevices, currentDevices) {
-    // Crear Set con nombres normalizados para búsqueda O(1)
-    const existingNamesSet = new Set(
-      currentDevices.map((d) => this.normalizeNameForComparison(d.name)),
+    // Create Sets for O(1) lookup using multiple identifiers
+    const existingInstanceIds = new Set(
+      currentDevices.filter((d) => d.instanceId).map((d) => d.instanceId)
+    );
+    const existingDeviceIds = new Set(
+      currentDevices.filter((d) => d.deviceId).map((d) => d.deviceId)
+    );
+    const existingNames = new Set(
+      currentDevices.map((d) => this.normalizeNameForComparison(d.name))
     );
 
     return detectedDevices.filter((d) => {
       if (!d.name) return false;
+
+      // Check instanceId first
+      if (d.instanceId && existingInstanceIds.has(d.instanceId)) return false;
+
+      // Check deviceId second
+      if (d.deviceId && existingDeviceIds.has(d.deviceId)) return false;
+
+      // Check normalized name last
       const normalized = this.normalizeNameForComparison(d.name);
-      return !existingNamesSet.has(normalized);
+      return !existingNames.has(normalized);
     });
   },
 

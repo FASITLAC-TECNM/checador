@@ -21,6 +21,8 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
   // Refs para el countdown
   const countdownRef = useRef(null);
   const onCloseRef = useRef(onClose);
+  // Ref para prevenir envíos duplicados
+  const isSubmittingRef = useRef(false);
 
   // Mantener referencia actualizada de onClose
   useEffect(() => {
@@ -31,6 +33,13 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Prevenir envíos duplicados (doble clic)
+    if (isSubmittingRef.current) {
+      console.log("⚠️ Envío en proceso, ignorando click duplicado");
+      return;
+    }
+    isSubmittingRef.current = true;
 
     if (!usuarioOCorreo.trim() || !pin.trim()) {
       setErrorMessage("Por favor ingresa tu usuario/correo y PIN");
@@ -230,6 +239,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
       });
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -380,13 +390,12 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
           ) : (
             /* Resultado */
             <div
-              className={`rounded-xl p-6 text-center ${
-                result.success
+              className={`rounded-xl p-6 text-center ${result.success
                   ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
                   : result.noPuedeRegistrar
-                  ? "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
-                  : "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
-              }`}
+                    ? "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
+                    : "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
+                }`}
             >
               {result.success ? (
                 <>
@@ -399,13 +408,12 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                     <CheckCircle className="w-16 h-16 mx-auto mb-3 text-green-600 dark:text-green-400" />
                   )}
 
-                  <p className={`font-bold text-lg mb-1 ${
-                    result.clasificacion === 'falta'
+                  <p className={`font-bold text-lg mb-1 ${result.clasificacion === 'falta'
                       ? "text-red-800 dark:text-red-300"
                       : result.clasificacion === 'retardo' || result.clasificacion === 'salida_temprana'
-                      ? "text-yellow-800 dark:text-yellow-300"
-                      : "text-green-800 dark:text-green-300"
-                  }`}>
+                        ? "text-yellow-800 dark:text-yellow-300"
+                        : "text-green-800 dark:text-green-300"
+                    }`}>
                     Asistencia Registrada
                   </p>
                   {result.empleado?.nombre && (
@@ -421,21 +429,20 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                       </p>
                       {/* Badge de clasificación */}
                       <span
-                        className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${
-                          result.clasificacion === "entrada" || result.clasificacion === "salida_puntual"
+                        className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${result.clasificacion === "entrada" || result.clasificacion === "salida_puntual"
                             ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
                             : result.clasificacion === "retardo" || result.clasificacion === "salida_temprana"
-                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
-                            : result.clasificacion === "falta"
-                            ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
-                            : result.estado === "puntual"
-                            ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
-                            : result.estado === "retardo" || result.estado === "temprana"
-                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
-                            : result.estado === "falta"
-                            ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
-                            : "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300"
-                        }`}
+                              ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
+                              : result.clasificacion === "falta"
+                                ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
+                                : result.estado === "puntual"
+                                  ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
+                                  : result.estado === "retardo" || result.estado === "temprana"
+                                    ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
+                                    : result.estado === "falta"
+                                      ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
+                                      : "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300"
+                          }`}
                       >
                         {result.estadoTexto || result.estado || "Registrado"}
                       </span>
@@ -498,19 +505,18 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                     {result.message}
                   </p>
                   <span
-                    className={`inline-block mt-3 px-3 py-1 rounded-full text-xs font-semibold ${
-                      result.estadoHorario === "completado"
+                    className={`inline-block mt-3 px-3 py-1 rounded-full text-xs font-semibold ${result.estadoHorario === "completado"
                         ? "bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300"
                         : result.estadoHorario === "tiempo_insuficiente"
-                        ? "bg-orange-100 text-orange-800 dark:bg-orange-800/30 dark:text-orange-300"
-                        : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
-                    }`}
+                          ? "bg-orange-100 text-orange-800 dark:bg-orange-800/30 dark:text-orange-300"
+                          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
+                      }`}
                   >
                     {result.estadoHorario === "completado"
                       ? "Jornada completada"
                       : result.estadoHorario === "tiempo_insuficiente"
-                      ? `Espera ${result.minutosRestantes || ''} min`
-                      : "Fuera de horario"}
+                        ? `Espera ${result.minutosRestantes || ''} min`
+                        : "Fuera de horario"}
                   </span>
 
                   <div className="mt-4 flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm">

@@ -28,6 +28,7 @@ export default function AsistenciaHuella({
   onClose,
   onSuccess,
   onLoginRequest,
+  onReaderStatusChange, // Callback para notificar cambios en el estado del lector
   backgroundMode = false // Modo silencioso: conexión activa pero sin modal visible hasta detectar huella
 }) {
   // En modo normal, si no está abierto, no renderizar
@@ -74,6 +75,13 @@ export default function AsistenciaHuella({
     onCloseRef.current = onClose;
     backgroundModeRef.current = backgroundMode;
   }, [onClose]);
+
+  // Notificar al padre cuando cambia el estado del lector
+  useEffect(() => {
+    if (onReaderStatusChange) {
+      onReaderStatusChange(readerConnected);
+    }
+  }, [readerConnected, onReaderStatusChange]);
 
   // Cargar datos de horario para un empleado usando el servicio compartido
   const cargarDatosHorario = async (empleadoId, usuarioId) => {
@@ -738,6 +746,26 @@ export default function AsistenciaHuella({
       case "cacheReloaded":
         addMessage(`✅ Caché actualizado: ${data.templatesCount} huellas`, "success");
         console.log("[CACHE] Caché de templates recargado:", data);
+        break;
+
+      case "readerConnection":
+        // Actualización instantánea del estado del lector (conectado/desconectado)
+        console.log("🔌 Cambio de conexión del lector:", data);
+        setReaderConnected(data.connected);
+        if (data.connected) {
+          addMessage("✅ Lector de huellas conectado", "success");
+          // Reiniciar identificación si el lector se reconecta
+          if (!hasStartedIdentification.current) {
+            hasStartedIdentification.current = true;
+            setTimeout(() => {
+              startIdentification();
+            }, 500);
+          }
+        } else {
+          addMessage("⚠️ Lector de huellas desconectado", "warning");
+          setCurrentOperation("None");
+          hasStartedIdentification.current = false;
+        }
         break;
 
       case "error":

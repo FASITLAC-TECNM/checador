@@ -8,6 +8,11 @@ import { API_CONFIG, fetchApi } from "../config/apiEndPoint";
 // Constantes
 const MINUTOS_SEPARACION_TURNOS = 15;
 
+// === CONTROL DE DUPLICADOS ===
+let lastRequestTimestamp = 0;
+let lastRequestEmpleadoId = null;
+const MIN_REQUEST_INTERVAL_MS = 5000; // 5 segundos entre registros del mismo empleado
+
 // === FUNCIONES DE UTILIDAD PARA HORARIOS ===
 
 /**
@@ -682,6 +687,21 @@ export const registrarAsistenciaEnServidor = async ({
   metodoRegistro = 'PIN',
   token
 }) => {
+  // Validación anti-duplicados: mismo empleado en intervalo corto
+  const now = Date.now();
+  if (
+    lastRequestEmpleadoId === empleadoId &&
+    now - lastRequestTimestamp < MIN_REQUEST_INTERVAL_MS
+  ) {
+    const segundosRestantes = Math.ceil((MIN_REQUEST_INTERVAL_MS - (now - lastRequestTimestamp)) / 1000);
+    console.warn(`⚠️ Solicitud duplicada bloqueada. Espera ${segundosRestantes}s`);
+    throw new Error(`Por favor espera ${segundosRestantes} segundos antes de intentar nuevamente`);
+  }
+
+  // Actualizar tracking
+  lastRequestTimestamp = now;
+  lastRequestEmpleadoId = empleadoId;
+
   const payload = {
     empleado_id: empleadoId,
     dispositivo_origen: 'escritorio',

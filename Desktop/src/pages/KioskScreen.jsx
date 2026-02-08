@@ -32,6 +32,7 @@ export default function KioskScreen() {
   const [showBitacora, setShowBitacora] = useState(false);
   const [showBiometricReader, setShowBiometricReader] = useState(false);
   const [showAsistenciaFacial, setShowAsistenciaFacial] = useState(false);
+  const [isReaderConnected, setIsReaderConnected] = useState(false); // Estado del lector biométrico
 
   // Obtener métodos activos ordenados desde backend
   const getActiveMethods = () => {
@@ -275,11 +276,14 @@ export default function KioskScreen() {
       dactilar: {
         icon: Fingerprint,
         label: "Huella Digital",
-        color:
-          "from-blue-500 to-blue-600 dark:from-slate-700 dark:to-slate-800",
+        color: isReaderConnected
+          ? "from-blue-500 to-blue-600 dark:from-slate-700 dark:to-slate-800"
+          : "from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700",
         hoverColor: "", // Sin hover porque es solo visual
         handler: null, // Solo visual, el lector está siempre activo en background
         isVisualOnly: true,
+        isDisabled: !isReaderConnected, // Deshabilitar si el lector no está conectado
+        disabledMessage: "Lector desconectado",
       },
       pin: {
         icon: User,
@@ -306,11 +310,10 @@ export default function KioskScreen() {
         <button
           onClick={() => setShowLoginModal(true)}
           disabled={!isInternetConnected || !isDatabaseConnected}
-          className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all w-16 ${
-            !isInternetConnected || !isDatabaseConnected
-              ? "text-gray-400 cursor-not-allowed opacity-50"
-              : "text-blue-600 hover:bg-bg-secondary"
-          }`}
+          className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all w-16 ${!isInternetConnected || !isDatabaseConnected
+            ? "text-gray-400 cursor-not-allowed opacity-50"
+            : "text-blue-600 hover:bg-bg-secondary"
+            }`}
         >
           <User className="w-5 h-5" />
           <span className="text-xs font-semibold">Usuario</span>
@@ -329,6 +332,7 @@ export default function KioskScreen() {
         <ConnectionStatusPanel
           isInternetConnected={isInternetConnected}
           isDatabaseConnected={isDatabaseConnected}
+          isReaderConnected={ordenCredenciales?.dactilar?.activo ? isReaderConnected : null}
         />
       </div>
 
@@ -361,11 +365,10 @@ export default function KioskScreen() {
               return (
                 <div
                   onClick={isClickable ? method.handler : undefined}
-                  className={`bg-gradient-to-br ${method.color} rounded-3xl shadow-2xl h-full text-white text-center transition-all flex flex-col items-center justify-center p-8 ${
-                    isClickable
-                      ? `${method.hoverColor} cursor-pointer hover:shadow-3xl hover:scale-[1.01]`
-                      : "cursor-default"
-                  }`}
+                  className={`bg-gradient-to-br ${method.color} rounded-3xl shadow-2xl h-full text-white text-center transition-all flex flex-col items-center justify-center p-8 ${isClickable
+                    ? `${method.hoverColor} cursor-pointer hover:shadow-3xl hover:scale-[1.01]`
+                    : "cursor-default"
+                    }`}
                 >
                   <h2 className="text-3xl font-bold mb-4">
                     Registrar Asistencia
@@ -405,7 +408,8 @@ export default function KioskScreen() {
                 {activeMethods.map((methodKey) => {
                   const method = getMethodInfo(methodKey);
                   const Icon = method.icon;
-                  const isClickable = method.handler && !method.isVisualOnly;
+                  const isClickable = method.handler && !method.isVisualOnly && !method.isDisabled;
+                  const isDisabled = method.isDisabled;
                   return (
                     <div
                       key={methodKey}
@@ -413,19 +417,27 @@ export default function KioskScreen() {
                         e.stopPropagation();
                         if (isClickable) method.handler();
                       }}
-                      className={`flex-1 backdrop-blur-md bg-white/20 dark:bg-white/10 border border-white/30 dark:border-white/20 rounded-2xl shadow-lg transition-all flex flex-col items-center justify-center p-6 ${
-                        isClickable
+                      title={isDisabled ? method.disabledMessage : ""}
+                      className={`flex-1 backdrop-blur-md border rounded-2xl shadow-lg transition-all flex flex-col items-center justify-center p-6 ${isDisabled
+                        ? "bg-gray-500/30 dark:bg-gray-600/30 border-gray-400/30 dark:border-gray-500/30 opacity-60 cursor-not-allowed"
+                        : "bg-white/20 dark:bg-white/10 border-white/30 dark:border-white/20"
+                        } ${isClickable && !isDisabled
                           ? "hover:bg-white/30 dark:hover:bg-white/20 hover:shadow-xl hover:scale-105 cursor-pointer"
-                          : "cursor-default"
-                      }`}
+                          : !isDisabled ? "cursor-default" : ""
+                        }`}
                     >
                       <Icon
-                        className="w-16 h-16 mb-2 text-white"
+                        className={`w-16 h-16 mb-2 ${isDisabled ? "text-gray-300 dark:text-gray-400" : "text-white"}`}
                         strokeWidth={1.5}
                       />
-                      <span className="text-sm font-bold text-white">
+                      <span className={`text-sm font-bold ${isDisabled ? "text-gray-300 dark:text-gray-400" : "text-white"}`}>
                         {method.label}
                       </span>
+                      {isDisabled && (
+                        <span className="text-xs text-gray-300 dark:text-gray-400 mt-1">
+                          (Desconectado)
+                        </span>
+                      )}
                     </div>
                   );
                 })}
@@ -520,6 +532,7 @@ export default function KioskScreen() {
           }}
           onLoginSuccess={handleLoginSuccess}
           ordenCredenciales={ordenCredenciales}
+          isReaderConnected={isReaderConnected}
         />
       )}
 
@@ -535,6 +548,7 @@ export default function KioskScreen() {
           onClose={() => setShowBiometricReader(false)}
           onSuccess={handleFingerprintSuccess}
           onLoginRequest={handleFingerprintLoginRequest}
+          onReaderStatusChange={setIsReaderConnected}
         />
       )}
 

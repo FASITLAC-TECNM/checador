@@ -32,6 +32,7 @@ import NoEmployeeInfo from "../components/session/NoEmployeeInfo";
 import BiometricEnroll from "../components/kiosk/BiometricEnroll";
 import RegisterFaceModal from "../components/kiosk/RegisterFaceModal";
 import { getEmpleadoConHorario, getDepartamentosPorEmpleadoId } from "../services/empleadoService";
+import useBiometricWebSocket from "../hooks/useBiometricWebSocket";
 
 export default function SessionScreen({ onLogout, usuario }) {
   const [time, setTime] = useState(new Date());
@@ -50,6 +51,9 @@ export default function SessionScreen({ onLogout, usuario }) {
   const [loadingEmpleado, setLoadingEmpleado] = useState(false);
   const [departamentos, setDepartamentos] = useState([]);
   const [showAllDepartamentos, setShowAllDepartamentos] = useState(false);
+
+  // Obtener estado del lector biométrico usando el hook
+  const { readerConnected } = useBiometricWebSocket();
 
   const [nombreNodo, setNombreNodo] = useState("Entrada Principal");
   const [descripcionNodo, setDescripcionNodo] = useState(
@@ -483,13 +487,18 @@ export default function SessionScreen({ onLogout, usuario }) {
               <div className="grid grid-cols-2 gap-3 flex-1">
                 {/* Registro Biométrico - Huella */}
                 <button
-                  onClick={() => setShowBiometricReader(true)}
-                  className="w-full bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 dark:from-orange-800 dark:to-orange-900 dark:hover:from-orange-700 dark:hover:to-orange-800 rounded-2xl shadow-lg p-5 text-white transition-all hover:shadow-xl"
+                  onClick={() => readerConnected && setShowBiometricReader(true)}
+                  disabled={!readerConnected}
+                  title={!readerConnected ? "Lector de huella desconectado" : ""}
+                  className={`w-full rounded-2xl shadow-lg p-5 text-white transition-all flex flex-col items-center justify-center ${readerConnected
+                      ? "bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 dark:from-orange-800 dark:to-orange-900 dark:hover:from-orange-700 dark:hover:to-orange-800 hover:shadow-xl cursor-pointer"
+                      : "bg-gradient-to-br from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700 opacity-60 cursor-not-allowed"
+                    }`}
                 >
-                  <Fingerprint className="w-12 h-12 mx-auto mb-2" />
+                  <Fingerprint className={`w-12 h-12 mx-auto mb-2 ${!readerConnected ? "text-gray-300" : ""}`} />
                   <h3 className="text-base font-bold mb-1">Registrar Huella</h3>
-                  <p className="text-xs text-orange-100">
-                    Vincular huella digital
+                  <p className={`text-xs ${readerConnected ? "text-orange-100" : "text-gray-300"}`}>
+                    {readerConnected ? "Vincular huella digital" : "Lector desconectado"}
                   </p>
                 </button>
 

@@ -28,6 +28,7 @@ export default function AsistenciaHuella({
   onClose,
   onSuccess,
   onLoginRequest,
+  onReaderStatusChange, // Callback para notificar cambios en el estado del lector
   backgroundMode = false // Modo silencioso: conexión activa pero sin modal visible hasta detectar huella
 }) {
   // En modo normal, si no está abierto, no renderizar
@@ -74,6 +75,13 @@ export default function AsistenciaHuella({
     onCloseRef.current = onClose;
     backgroundModeRef.current = backgroundMode;
   }, [onClose]);
+
+  // Notificar al padre cuando cambia el estado del lector
+  useEffect(() => {
+    if (onReaderStatusChange) {
+      onReaderStatusChange(readerConnected);
+    }
+  }, [readerConnected, onReaderStatusChange]);
 
   // Cargar datos de horario para un empleado usando el servicio compartido
   const cargarDatosHorario = async (empleadoId, usuarioId) => {
@@ -740,6 +748,26 @@ export default function AsistenciaHuella({
         console.log("[CACHE] Caché de templates recargado:", data);
         break;
 
+      case "readerConnection":
+        // Actualización instantánea del estado del lector (conectado/desconectado)
+        console.log("🔌 Cambio de conexión del lector:", data);
+        setReaderConnected(data.connected);
+        if (data.connected) {
+          addMessage("✅ Lector de huellas conectado", "success");
+          // Reiniciar identificación si el lector se reconecta
+          if (!hasStartedIdentification.current) {
+            hasStartedIdentification.current = true;
+            setTimeout(() => {
+              startIdentification();
+            }, 500);
+          }
+        } else {
+          addMessage("⚠️ Lector de huellas desconectado", "warning");
+          setCurrentOperation("None");
+          hasStartedIdentification.current = false;
+        }
+        break;
+
       case "error":
         addMessage(`❌ Error: ${data.message}`, "error");
         setCurrentOperation("None");
@@ -862,28 +890,12 @@ export default function AsistenciaHuella({
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div
-                className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${connected
-                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                  : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400"
-                  }`}
-              >
-                {connected ? (
-                  <Wifi className="w-3 h-3" />
-                ) : (
-                  <WifiOff className="w-3 h-3" />
-                )}
-                <span>{connected ? "Conectado" : "Desconectado"}</span>
-              </div>
-
-              <button
-                onClick={handleCloseModal}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+            <button
+              onClick={handleCloseModal}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           {/* Content */}
@@ -911,14 +923,6 @@ export default function AsistenciaHuella({
                   </p>
                 </div>
               </div>
-              {!connected && (
-                <button
-                  onClick={connectToServer}
-                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
-                >
-                  Conectar
-                </button>
-              )}
             </div>
 
             {/* Main Action Area */}

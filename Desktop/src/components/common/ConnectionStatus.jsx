@@ -2,7 +2,7 @@
  * Componente para mostrar el estado de conexión con iconos dinámicos
  */
 
-import { Wifi, WifiOff, Database } from 'lucide-react';
+import { Wifi, WifiOff, Database, Fingerprint } from 'lucide-react';
 
 /**
  * Icono de WiFi con estado dinámico
@@ -45,15 +45,38 @@ export function DatabaseStatus({ isConnected, className = "" }) {
 }
 
 /**
+ * Icono de Lector Biométrico con estado dinámico
+ */
+export function ReaderStatus({ isConnected, className = "" }) {
+  const iconColor = isConnected ? 'text-green-600' : 'text-gray-400';
+
+  return (
+    <div className={`flex flex-col items-center gap-1 ${iconColor} p-2 ${className}`} title={isConnected ? "Lector conectado" : "Lector desconectado"}>
+      <div className="relative">
+        <Fingerprint className="w-5 h-5" />
+        {!isConnected && (
+          <div className="absolute -top-1 -right-1 w-2 h-2 bg-gray-400 rounded-full"></div>
+        )}
+      </div>
+      <span className="text-xs font-semibold">Lector</span>
+    </div>
+  );
+}
+
+/**
  * Componente compuesto que muestra ambos estados
  */
-export function ConnectionStatusPanel({ isInternetConnected, isDatabaseConnected }) {
+export function ConnectionStatusPanel({ isInternetConnected, isDatabaseConnected, isReaderConnected = null }) {
   return (
     <>
       <WifiStatus isConnected={isInternetConnected} />
       <DatabaseStatus isConnected={isDatabaseConnected} />
+      {isReaderConnected !== null && (
+        <ReaderStatus isConnected={isReaderConnected} />
+      )}
     </>
   );
 }
 
 export default ConnectionStatusPanel;
+

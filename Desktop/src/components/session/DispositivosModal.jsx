@@ -297,14 +297,6 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
                   ))
                 )}
               </div>
-
-              <button
-                onClick={addDevice}
-                className="w-full py-3 bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 text-green-700 dark:text-green-300 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 border-2 border-green-300 dark:border-green-700 border-dashed"
-              >
-                <Plus className="w-5 h-5" />
-                Agregar Nuevo Dispositivo
-              </button>
             </>
           )}
         </div>

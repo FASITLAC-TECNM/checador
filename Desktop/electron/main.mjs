@@ -1355,10 +1355,27 @@ ipcMain.handle("detect-usb-devices", async () => {
       }
     }
 
+    // Deduplicate devices by normalized name before returning
+    const seenNames = new Set();
+    const uniqueDevices = devices.filter((device) => {
+      const normalizedName = device.name
+        .toLowerCase()
+        .replace(/[-_]/g, " ")
+        .replace(/\s+/g, " ")
+        .replace(/\b(hd|camera|webcam|usb|web|integrated|built-in)\b/gi, "")
+        .trim();
+
+      if (seenNames.has(normalizedName)) {
+        return false; // Skip duplicate
+      }
+      seenNames.add(normalizedName);
+      return true;
+    });
+
     return {
       success: true,
-      devices: devices,
-      count: devices.length,
+      devices: uniqueDevices,
+      count: uniqueDevices.length,
     };
   } catch (error) {
     console.error("[USB] Error detectando dispositivos:", error);

@@ -12,18 +12,10 @@ export const useNavigationBarColor = (darkMode) => {
         try {
           const NavigationBar = require('expo-navigation-bar');
           
-          // Color de fondo según el modo
-          await NavigationBar.setBackgroundColorAsync(
-            darkMode ? '#1f2937' : '#ffffff'
-          );
-          
           // Estilo de botones (light/dark)
           await NavigationBar.setButtonStyleAsync(
             darkMode ? 'light' : 'dark'
           );
-          
-          // Asegurar que sea visible
-          await NavigationBar.setVisibilityAsync('visible');
           
         } catch (error) {
         }

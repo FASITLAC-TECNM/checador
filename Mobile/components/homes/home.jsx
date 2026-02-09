@@ -279,12 +279,14 @@ export const HomeScreen = ({ userData, darkMode }) => {
           </View>
         )}
 
-        {/* Register Button */}
-        <RegisterButton 
-          userData={userData} 
-          darkMode={darkMode}
-          onRegistroExitoso={handleRegistroExitoso}
-        />
+        {/* Register Button - Solo visible para empleados */}
+        {esEmpleado && (
+          <RegisterButton
+            userData={userData}
+            darkMode={darkMode}
+            onRegistroExitoso={handleRegistroExitoso}
+          />
+        )}
       </ScrollView>
     </View>
   );

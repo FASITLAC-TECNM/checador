@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 
 /**
  * Hook para configurar la barra de navegación de Android
- * Debe usarse en el componente principal de la app
+ * Cambia tanto el color de fondo como el estilo de botones
  */
 export const useNavigationBarColor = (darkMode) => {
   useEffect(() => {
@@ -11,17 +11,22 @@ export const useNavigationBarColor = (darkMode) => {
       if (Platform.OS === 'android') {
         try {
           const NavigationBar = require('expo-navigation-bar');
-          
+
+          // Color de fondo de la barra de navegación
+          await NavigationBar.setBackgroundColorAsync(
+            darkMode ? '#111827' : '#ffffff'
+          );
+
           // Estilo de botones (light/dark)
           await NavigationBar.setButtonStyleAsync(
             darkMode ? 'light' : 'dark'
           );
-          
+
         } catch (error) {
         }
       }
     };
-    
+
     setupNavigationBar();
   }, [darkMode]);
 };

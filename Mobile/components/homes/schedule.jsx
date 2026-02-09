@@ -14,12 +14,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { 
-  getHorarioPorEmpleado, 
-  parsearHorario, 
+import {
+  getHorarioPorEmpleado,
+  parsearHorario,
   calcularResumenSemanal,
-  getInfoDiaActual 
+  getInfoDiaActual
 } from '../../services/horariosService';
+import { IncidenciasScreen } from '../settingsPages/IncidentScreen';
 
 export const ScheduleScreen = ({ darkMode, userData }) => {
   const [scheduleData, setScheduleData] = useState([]);
@@ -30,6 +31,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
   const [error, setError] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
+  const [showIncidencias, setShowIncidencias] = useState(false);
   
   const insets = useSafeAreaInsets();
   const styles = darkMode ? scheduleStylesDark : scheduleStyles;
@@ -242,27 +244,24 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
   // 📱 RENDERIZADO
   // ============================================================
 
-  if (isLoading) {
+  if (showIncidencias) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <StatusBar 
-          barStyle="light-content" 
-          backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
-        />
-        <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={styles.loadingText}>Cargando tu horario...</Text>
-      </View>
+      <IncidenciasScreen
+        userData={userData}
+        darkMode={darkMode}
+        onBack={() => setShowIncidencias(false)}
+      />
     );
   }
 
   return (
     <View style={styles.mainContainer}>
-      <StatusBar 
-        barStyle="light-content" 
+      <StatusBar
+        barStyle="light-content"
         backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
       />
-      
-      {/* Header - Mismo tamaño que History */}
+
+      {/* Header - Siempre visible */}
       <View style={styles.headerWrapper}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Horario</Text>
@@ -270,6 +269,12 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
         </View>
       </View>
 
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text style={styles.loadingText}>Cargando tu horario...</Text>
+        </View>
+      ) : (
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={[
@@ -489,7 +494,28 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
             );
           })}
         </View>
+
+        {/* Botón de Incidencias */}
+        {userData?.es_empleado && userData?.empleado_id && (
+          <TouchableOpacity
+            style={styles.incidenciasButton}
+            onPress={() => setShowIncidencias(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.incidenciasLeft}>
+              <View style={styles.incidenciasIcon}>
+                <Ionicons name="document-text-outline" size={24} color={darkMode ? '#d8b4fe' : '#9333ea'} />
+              </View>
+              <View>
+                <Text style={styles.incidenciasTitle}>Incidencias</Text>
+                <Text style={styles.incidenciasSubtitle}>Justificantes y permisos</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+          </TouchableOpacity>
+        )}
       </ScrollView>
+      )}
 
       {/* MODAL DE DETALLES DEL DÍA */}
       <Modal
@@ -593,9 +619,9 @@ const scheduleStyles = StyleSheet.create({
     flex: 1,
   },
   loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
   },
   loadingText: {
     marginTop: 16,
@@ -1096,6 +1122,43 @@ const scheduleStyles = StyleSheet.create({
     color: '#6b7280',
     fontWeight: '500',
   },
+  incidenciasButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  incidenciasLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  incidenciasIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#f3e8ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  incidenciasTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 2,
+  },
+  incidenciasSubtitle: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
 });
 
 const scheduleStylesDark = StyleSheet.create({
@@ -1106,7 +1169,6 @@ const scheduleStylesDark = StyleSheet.create({
   },
   loadingContainer: {
     ...scheduleStyles.loadingContainer,
-    backgroundColor: '#0f172a',
   },
   headerWrapper: {
     ...scheduleStyles.headerWrapper,
@@ -1236,6 +1298,22 @@ const scheduleStylesDark = StyleSheet.create({
   modalTurnoNumber: {
     ...scheduleStyles.modalTurnoNumber,
     backgroundColor: '#3794fd',
+  },
+  incidenciasButton: {
+    ...scheduleStyles.incidenciasButton,
+    backgroundColor: '#1f2937',
+  },
+  incidenciasIcon: {
+    ...scheduleStyles.incidenciasIcon,
+    backgroundColor: '#581c87',
+  },
+  incidenciasTitle: {
+    ...scheduleStyles.incidenciasTitle,
+    color: '#f9fafb',
+  },
+  incidenciasSubtitle: {
+    ...scheduleStyles.incidenciasSubtitle,
+    color: '#9ca3af',
   },
 });
 

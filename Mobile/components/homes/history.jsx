@@ -201,27 +201,24 @@ export const HistoryScreen = ({ darkMode, userData }) => {
 
   const registrosFiltrados = getRegistrosDia();
 
-  if (loading) {
-    return (
-      <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color="#2563eb" />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <StatusBar 
-        barStyle="light-content" 
+      <StatusBar
+        barStyle="light-content"
         backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
       />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Historial</Text>
         <Text style={styles.headerSubtitle}>Registro de asistencias</Text>
       </View>
 
+      {loading ? (
+        <View style={styles.centerContent}>
+          <ActivityIndicator size="large" color="#2563eb" />
+        </View>
+      ) : (
       <ScrollView 
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -413,6 +410,7 @@ export const HistoryScreen = ({ darkMode, userData }) => {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+      )}
     </View>
   );
 };
@@ -423,6 +421,7 @@ const historyStyles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   centerContent: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },

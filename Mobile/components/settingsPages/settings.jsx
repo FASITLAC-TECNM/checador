@@ -15,7 +15,6 @@ import { PersonalInfoScreen } from './personalinfo';
 import { TermsAndConditionsScreen } from './TermsAndConditionsScreen';
 import { SupportScreen } from './SupportScreen';
 import { SecurityScreen } from './SecurityScreen';
-import { IncidenciasScreen } from './IncidentScreen';
 
 const obtenerUrlFotoPerfil = (foto) => {  
   if (!foto) {
@@ -44,7 +43,6 @@ export const SettingsScreen = ({
   const [showTerms, setShowTerms] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
   const [showSecurity, setShowSecurity] = useState(false);
-  const [showIncidencias, setShowIncidencias] = useState(false);
   
   const styles = darkMode ? settingsStylesDark : settingsStyles;
 
@@ -94,16 +92,6 @@ export const SettingsScreen = ({
         darkMode={darkMode}
         onBack={() => setShowSecurity(false)}
         userData={userData}
-      />
-    );
-  }
-
-  if (showIncidencias) {
-    return (
-      <IncidenciasScreen 
-        userData={userData}
-        darkMode={darkMode}
-        onBack={() => setShowIncidencias(false)}
       />
     );
   }
@@ -233,25 +221,7 @@ export const SettingsScreen = ({
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
 
-          {esEmpleado && (
-            <TouchableOpacity
-              style={styles.settingItem}
-              onPress={() => setShowIncidencias(true)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.settingLeft}>
-                <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#581c87' : '#f3e8ff' }]}>
-                  <Ionicons name="document-text-outline" size={22} color={darkMode ? '#d8b4fe' : '#9333ea'} />
-                </View>
-                <View style={styles.settingTextContainer}>
-                  <Text style={styles.settingTitle}>Incidencias</Text>
-                  <Text style={styles.settingSubtitle}>Justificantes y permisos</Text>
-                </View>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.settingItem} 
             onPress={() => setShowSecurity(true)}
             activeOpacity={0.7}

@@ -11,18 +11,24 @@
     },
     "plugins": [
       "expo-secure-store",
-      ["expo-build-properties", {
-        "android": {
-          "minSdkVersion": 26
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
         }
-      }],
-      ["react-native-vision-camera", {
-        "cameraPermissionText": "FASITLAC necesita acceso a la cámara para reconocimiento facial"
-      }]
+      ],
+      [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "FASITLAC necesita acceso a la cámara para reconocimiento facial"
+        }
+      ]
     ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/icon.png",
       "resizeMode": "contain",
@@ -32,14 +38,27 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "FASITLAC necesita acceso a la cámara para reconocimiento facial",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.yristan.FASITLAC"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.yristan.FASITLAC"
+      "package": "com.yristan.FASITLAC",
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
+    },
+    "extra": {
+      "eas": {
+        "projectId": "d6c58733-f0ee-4643-a91c-94ce63ee32ca"
+      }
     }
   }
 }

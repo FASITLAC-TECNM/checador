@@ -573,7 +573,7 @@ const MapaZonasPermitidas = ({
       <View style={styles.legend}>
         {!mostrandoMiUbicacion && departamentoSeleccionado && (
           <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#10b981', borderColor: '#059669' }]} />
+            <View style={[styles.legendColor, { backgroundColor: '#10b981'}]} />
             <Text style={styles.legendText} numberOfLines={1}>
               {departamentoSeleccionado.nombre}
             </Text>
@@ -582,7 +582,7 @@ const MapaZonasPermitidas = ({
         
         {listaDepartamentos.length > 1 && !mostrandoMiUbicacion && (
           <View style={styles.legendItem}>
-            <View style={[styles.legendColor, { backgroundColor: '#3b82f6', borderColor: '#2563eb' }]} />
+            <View style={[styles.legendColor, { backgroundColor: '#3b82f6' }]} />
             <Text style={styles.legendText}>Otras zonas disponibles</Text>
           </View>
         )}

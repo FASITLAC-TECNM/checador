@@ -14,12 +14,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { 
-  getHorarioPorEmpleado, 
-  parsearHorario, 
+import {
+  getHorarioPorEmpleado,
+  parsearHorario,
   calcularResumenSemanal,
-  getInfoDiaActual 
+  getInfoDiaActual
 } from '../../services/horariosService';
+import { IncidenciasScreen } from '../settingsPages/IncidentScreen';
 
 export const ScheduleScreen = ({ darkMode, userData }) => {
   const [scheduleData, setScheduleData] = useState([]);
@@ -30,6 +31,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
   const [error, setError] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
+  const [showIncidencias, setShowIncidencias] = useState(false);
   
   const insets = useSafeAreaInsets();
   const styles = darkMode ? scheduleStylesDark : scheduleStyles;
@@ -220,17 +222,17 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
     return `${formatoFecha(primerDia)} - ${formatoFecha(ultimoDia)}`;
   };
 
-  const getDayIcon = (day) => {
-    const icons = {
-      'Lunes': 'sunny-outline',
-      'Martes': 'partly-sunny-outline',
-      'Miércoles': 'cloudy-outline',
-      'Jueves': 'rainy-outline',
-      'Viernes': 'star-outline',
-      'Sábado': 'home-outline',
-      'Domingo': 'bed-outline'
+  const getDayInitial = (day) => {
+    const initials = {
+      'Lunes': 'L',
+      'Martes': 'M',
+      'Miércoles': 'MI',
+      'Jueves': 'J',
+      'Viernes': 'V',
+      'Sábado': 'S',
+      'Domingo': 'D'
     };
-    return icons[day] || 'calendar-outline';
+    return initials[day] || 'X';
   };
 
   const handleDayPress = (day) => {
@@ -242,27 +244,24 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
   // 📱 RENDERIZADO
   // ============================================================
 
-  if (isLoading) {
+  if (showIncidencias) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <StatusBar 
-          barStyle="light-content" 
-          backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
-        />
-        <ActivityIndicator size="large" color="#2563eb" />
-        <Text style={styles.loadingText}>Cargando tu horario...</Text>
-      </View>
+      <IncidenciasScreen
+        userData={userData}
+        darkMode={darkMode}
+        onBack={() => setShowIncidencias(false)}
+      />
     );
   }
 
   return (
     <View style={styles.mainContainer}>
-      <StatusBar 
-        barStyle="light-content" 
+      <StatusBar
+        barStyle="light-content"
         backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
       />
-      
-      {/* Header - Mismo tamaño que History */}
+
+      {/* Header - Siempre visible */}
       <View style={styles.headerWrapper}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Horario</Text>
@@ -270,6 +269,12 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
         </View>
       </View>
 
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text style={styles.loadingText}>Cargando tu horario...</Text>
+        </View>
+      ) : (
       <ScrollView 
         style={styles.scrollView}
         contentContainerStyle={[
@@ -312,7 +317,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
             <View style={styles.currentShiftContainer}>
               <View style={styles.shiftTimeRow}>
                 <View style={styles.shiftTimeBlock}>
-                  <Ionicons name="time-outline" size={24} color="#6366f1" />
+                  <Ionicons name="time-outline" size={24} color={darkMode ? "#3794fd" : "#6366f1"} />
                   <View style={styles.shiftTimeInfo}>
                     <Text style={styles.shiftLabel}>
                       {infoHoy.turnoRelevante.estado === 'activo' ? 'En turno' : 'Próximo turno'}
@@ -335,17 +340,17 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
                     handleDayPress(diaHoy);
                   }}
                 >
-                  <Ionicons name="albums-outline" size={18} color="#6366f1" />
+                  <Ionicons name="albums-outline" size={18} color={darkMode ? "#3794fd" : "#6366f1"} />
                   <Text style={styles.moreTurnsText}>
                     {infoHoy.turnos.length} turnos hoy - Ver todos
                   </Text>
-                  <Ionicons name="chevron-forward" size={18} color="#6366f1" />
+                  <Ionicons name="chevron-forward" size={18} color={darkMode ? "#3794fd" : "#6366f1"} />
                 </TouchableOpacity>
               )}
             </View>
 
             <View style={styles.todayLocation}>
-              <Ionicons name="location" size={16} color="#6366f1" />
+              <Ionicons name="location" size={16} color={darkMode ? "#3794fd" : "#6366f1"} />
               <Text style={styles.todayLocationText}>Edificio A - Entrada Principal</Text>
             </View>
           </View>
@@ -364,7 +369,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
         ) : (
           <View style={styles.dayOffCard}>
             <View style={styles.dayOffIcon}>
-              <Ionicons name="cafe-outline" size={48} color="#6366f1" />
+              <Ionicons name="cafe-outline" size={48} color={darkMode ? "#3794fd" : "#6366f1"} />
             </View>
             <Text style={styles.dayOffTitle}>Día de Descanso</Text>
             <Text style={styles.dayOffText}>Disfruta tu día libre</Text>
@@ -435,11 +440,12 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
                     styles.dayIconContainer,
                     schedule.active ? styles.dayIconActive : styles.dayIconInactive
                   ]}>
-                    <Ionicons 
-                      name={getDayIcon(schedule.day)} 
-                      size={20} 
-                      color={schedule.active ? '#6366f1' : '#9ca3af'} 
-                    />
+                    <Text style={[
+                      styles.dayInitialText,
+                      schedule.active ? styles.dayInitialActive : styles.dayInitialInactive
+                    ]}>
+                      {getDayInitial(schedule.day)}
+                    </Text>
                   </View>
                   <View style={styles.scheduleInfo}>
                     <View style={styles.scheduleTopRow}>
@@ -461,7 +467,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
                     </Text>
                     {tieneMasTurnos && (
                       <View style={styles.multipleTurnsBadge}>
-                        <Ionicons name="albums-outline" size={10} color="#8b5cf6" />
+                        <Ionicons name="albums-outline" size={10} color={darkMode ? "#3794fd" : "#8b5cf6"} />
                         <Text style={styles.multipleTurnsText}>{schedule.turnos.length} turnos</Text>
                       </View>
                     )}
@@ -488,7 +494,28 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
             );
           })}
         </View>
+
+        {/* Botón de Incidencias */}
+        {userData?.es_empleado && userData?.empleado_id && (
+          <TouchableOpacity
+            style={styles.incidenciasButton}
+            onPress={() => setShowIncidencias(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.incidenciasLeft}>
+              <View style={styles.incidenciasIcon}>
+                <Ionicons name="document-text-outline" size={24} color={darkMode ? '#d8b4fe' : '#9333ea'} />
+              </View>
+              <View>
+                <Text style={styles.incidenciasTitle}>Incidencias</Text>
+                <Text style={styles.incidenciasSubtitle}>Justificantes y permisos</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+          </TouchableOpacity>
+        )}
       </ScrollView>
+      )}
 
       {/* MODAL DE DETALLES DEL DÍA */}
       <Modal
@@ -520,7 +547,13 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={styles.modalScroll}>
+            <ScrollView 
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalScrollContent}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+              overScrollMode="never"
+            >
               {selectedDay?.active && selectedDay?.turnos?.length > 0 ? (
                 selectedDay.turnos.map((turno, idx) => (
                   <View key={idx} style={styles.modalTurnoBlock}>
@@ -586,9 +619,9 @@ const scheduleStyles = StyleSheet.create({
     flex: 1,
   },
   loadingContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8fafc',
   },
   loadingText: {
     marginTop: 16,
@@ -869,6 +902,16 @@ const scheduleStyles = StyleSheet.create({
   dayIconInactive: {
     backgroundColor: '#f3f4f6',
   },
+  dayInitialText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  dayInitialActive: {
+    color: '#6366f1',
+  },
+  dayInitialInactive: {
+    color: '#9ca3af',
+  },
   scheduleInfo: {
     flex: 1,
     paddingRight: 8,
@@ -959,8 +1002,7 @@ const scheduleStyles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingTop: 20,
-    maxHeight: '80%',
+    maxHeight: '70%',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
@@ -972,7 +1014,8 @@ const scheduleStyles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     paddingHorizontal: 24,
-    paddingBottom: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
   },
@@ -990,8 +1033,12 @@ const scheduleStyles = StyleSheet.create({
     padding: 4,
   },
   modalScroll: {
+    flexGrow: 0,
+  },
+  modalScrollContent: {
     paddingHorizontal: 24,
     paddingVertical: 20,
+    paddingBottom: 24,
   },
   modalTurnoBlock: {
     backgroundColor: '#f9fafb',
@@ -1075,6 +1122,43 @@ const scheduleStyles = StyleSheet.create({
     color: '#6b7280',
     fontWeight: '500',
   },
+  incidenciasButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  incidenciasLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  incidenciasIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#f3e8ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  incidenciasTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 2,
+  },
+  incidenciasSubtitle: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
 });
 
 const scheduleStylesDark = StyleSheet.create({
@@ -1085,7 +1169,6 @@ const scheduleStylesDark = StyleSheet.create({
   },
   loadingContainer: {
     ...scheduleStyles.loadingContainer,
-    backgroundColor: '#0f172a',
   },
   headerWrapper: {
     ...scheduleStyles.headerWrapper,
@@ -1115,6 +1198,10 @@ const scheduleStylesDark = StyleSheet.create({
     ...scheduleStyles.moreTurnsButton,
     backgroundColor: '#374151',
   },
+  moreTurnsText: {
+    ...scheduleStyles.moreTurnsText,
+    color: '#3794fd',
+  },
   dayOffCard: {
     ...scheduleStyles.dayOffCard,
     backgroundColor: '#1f2937',
@@ -1130,6 +1217,10 @@ const scheduleStylesDark = StyleSheet.create({
   dayOffText: {
     ...scheduleStyles.dayOffText,
     color: '#9ca3af',
+  },
+  summaryContent: {
+    ...scheduleStyles.summaryContent,
+    backgroundColor: '#3794fd',
   },
   scheduleSection: {
     ...scheduleStyles.scheduleSection,
@@ -1149,7 +1240,20 @@ const scheduleStylesDark = StyleSheet.create({
   },
   scheduleItemToday: {
     ...scheduleStyles.scheduleItemToday,
-    backgroundColor: '#312e81',
+    backgroundColor: '#1e3a8a',
+    borderColor: '#3794fd',
+  },
+  dayIconActive: {
+    ...scheduleStyles.dayIconActive,
+    backgroundColor: '#1e3a8a',
+  },
+  dayInitialActive: {
+    ...scheduleStyles.dayInitialActive,
+    color: '#3794fd',
+  },
+  todayDot: {
+    ...scheduleStyles.todayDot,
+    backgroundColor: '#3794fd',
   },
   scheduleDay: {
     ...scheduleStyles.scheduleDay,
@@ -1158,6 +1262,14 @@ const scheduleStylesDark = StyleSheet.create({
   scheduleTime: {
     ...scheduleStyles.scheduleTime,
     color: '#f9fafb',
+  },
+  multipleTurnsBadge: {
+    ...scheduleStyles.multipleTurnsBadge,
+    backgroundColor: '#1e3a8a',
+  },
+  multipleTurnsText: {
+    ...scheduleStyles.multipleTurnsText,
+    color: '#3794fd',
   },
   modalContent: {
     ...scheduleStyles.modalContent,
@@ -1182,6 +1294,26 @@ const scheduleStylesDark = StyleSheet.create({
   modalTurnoTime: {
     ...scheduleStyles.modalTurnoTime,
     color: '#f9fafb',
+  },
+  modalTurnoNumber: {
+    ...scheduleStyles.modalTurnoNumber,
+    backgroundColor: '#3794fd',
+  },
+  incidenciasButton: {
+    ...scheduleStyles.incidenciasButton,
+    backgroundColor: '#1f2937',
+  },
+  incidenciasIcon: {
+    ...scheduleStyles.incidenciasIcon,
+    backgroundColor: '#581c87',
+  },
+  incidenciasTitle: {
+    ...scheduleStyles.incidenciasTitle,
+    color: '#f9fafb',
+  },
+  incidenciasSubtitle: {
+    ...scheduleStyles.incidenciasSubtitle,
+    color: '#9ca3af',
   },
 });
 

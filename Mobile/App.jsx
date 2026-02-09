@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, ActivityIndicator, View, Alert, AppState, StatusBar } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SystemUI from 'expo-system-ui';
 import { LoginScreen } from './components/logins/login';
 import { HomeScreen } from './components/homes/home';
 import { HistoryScreen } from './components/homes/history';
@@ -10,7 +11,8 @@ import { SettingsScreen } from './components/settingsPages/settings';
 import { BottomNavigation } from './components/homes/nav';
 import { OnboardingNavigator } from './components/devicesetup/onBoardNavigator';
 import { getSolicitudPorToken } from './services/solicitudMovilService';
-import { getUsuarioCompleto } from './services/empleadoServices'; 
+import { getUsuarioCompleto } from './services/empleadoServices';
+import { useNavigationBarColor } from './services/useNavigationBarColor';
 
 const STORAGE_KEYS = {
   DARK_MODE: '@dark_mode',
@@ -36,11 +38,19 @@ export default function App() {
   const verificationInterval = useRef(null);
   const userDataRefreshInterval = useRef(null);
 
+  // Configurar barra de navegación de Android según el tema
+  useNavigationBarColor(darkMode);
+
+  // Configurar color de fondo del root view nativo según el tema
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(darkMode ? '#111827' : '#f3f4f6');
+  }, [darkMode]);
+
   useEffect(() => {
     checkAppState();
-    
+
     const subscription = AppState.addEventListener('change', handleAppStateChange);
-    
+
     return () => {
       subscription?.remove();
       clearInterval(verificationInterval.current);
@@ -306,33 +316,42 @@ export default function App() {
         backgroundColor={darkMode ? "#1e40af" : "#2563eb"} 
       />
       <SafeAreaView
-        style={[styles.container, darkMode && styles.containerDark]}
+        style={[styles.safeArea, darkMode && styles.safeAreaDark]}
         edges={['top']}
       >
-        {currentScreen === 'home' && <HomeScreen userData={userData} darkMode={darkMode} />}
-        {currentScreen === 'history' && <HistoryScreen darkMode={darkMode} userData={userData} />}
-        {currentScreen === 'schedule' && <ScheduleScreen userData={userData} darkMode={darkMode} />}
-        {currentScreen === 'settings' && (
-          <SettingsScreen
-            userData={userData}
-            email={userData.correo}
-            darkMode={darkMode}
-            onToggleDarkMode={handleToggleDarkMode}
-            onLogout={handleLogout}
-          />
-        )}
+        <View style={[styles.container, darkMode && styles.containerDark]}>
+          {currentScreen === 'home' && <HomeScreen userData={userData} darkMode={darkMode} />}
+          {currentScreen === 'history' && <HistoryScreen darkMode={darkMode} userData={userData} />}
+          {currentScreen === 'schedule' && <ScheduleScreen userData={userData} darkMode={darkMode} />}
+          {currentScreen === 'settings' && (
+            <SettingsScreen
+              userData={userData}
+              email={userData.correo}
+              darkMode={darkMode}
+              onToggleDarkMode={handleToggleDarkMode}
+              onLogout={handleLogout}
+            />
+          )}
 
-        <BottomNavigation
-          currentScreen={currentScreen}
-          onScreenChange={setCurrentScreen}
-          darkMode={darkMode}
-        />
+          <BottomNavigation
+            currentScreen={currentScreen}
+            onScreenChange={setCurrentScreen}
+            darkMode={darkMode}
+          />
+        </View>
       </SafeAreaView>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#2563eb',
+  },
+  safeAreaDark: {
+    backgroundColor: '#1e40af',
+  },
   container: {
     flex: 1,
     backgroundColor: '#f3f4f6',

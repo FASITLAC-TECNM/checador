@@ -1019,6 +1019,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       return;
     }
 
+    // Verificar que sea empleado (no usuario regular)
+    if (!userData.es_empleado) {
+      Alert.alert('Sin acceso', 'Solo empleados pueden registrar asistencia. Tu cuenta no está asociada a un empleado.', [{ text: 'Entendido' }]);
+      return;
+    }
+
     if (!horarioInfo) {
       Alert.alert('Error', 'No tienes un horario configurado. Contacta al administrador.', [{ text: 'OK' }]);
       return;
@@ -1204,35 +1210,42 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             </View>
           )}
 
-          {!loading && departamentosDisponibles.length > 0 && (
+          {!loading && departamentos.length > 0 && (
             <>
-              <TouchableOpacity 
-                style={styles.locationInfo}
-                onPress={() => setMostrarDepartamentos(true)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="location" size={14} color="#6b7280" />
-                <Text style={styles.locationText} numberOfLines={1}>
-                  {departamentoSeleccionado 
-                    ? departamentoSeleccionado.nombre 
-                    : `${departamentosDisponibles.length} ${departamentosDisponibles.length === 1 ? 'disponible' : 'disponibles'}`
-                  }
-                </Text>
-                {departamentosDisponibles.length > 1 && (
-                  <Ionicons name="chevron-down" size={14} color="#6b7280" style={{ marginLeft: 4 }} />
-                )}
-              </TouchableOpacity>
-
-              {departamentos.length > 1 && (
-                <TouchableOpacity 
-                  style={styles.viewMapButton}
-                  onPress={() => setMostrarMapa(true)}
+              {departamentosDisponibles.length > 0 ? (
+                <TouchableOpacity
+                  style={styles.locationInfo}
+                  onPress={() => setMostrarDepartamentos(true)}
                   activeOpacity={0.7}
                 >
-                  <Ionicons name="map-outline" size={14} color="#3b82f6" />
-                  <Text style={styles.viewMapText}>Ver mapa</Text>
+                  <Ionicons name="location" size={14} color="#10b981" />
+                  <Text style={[styles.locationText, { color: '#10b981' }]} numberOfLines={1}>
+                    {departamentoSeleccionado
+                      ? departamentoSeleccionado.nombre
+                      : `${departamentosDisponibles.length} ${departamentosDisponibles.length === 1 ? 'disponible' : 'disponibles'}`
+                    }
+                  </Text>
+                  {departamentosDisponibles.length > 1 && (
+                    <Ionicons name="chevron-down" size={14} color="#10b981" style={{ marginLeft: 4 }} />
+                  )}
                 </TouchableOpacity>
+              ) : (
+                <View style={[styles.locationInfo, { backgroundColor: '#fef2f2' }]}>
+                  <Ionicons name="location-outline" size={14} color="#ef4444" />
+                  <Text style={[styles.locationText, { color: '#ef4444' }]} numberOfLines={1}>
+                    Fuera de zona
+                  </Text>
+                </View>
               )}
+
+              <TouchableOpacity
+                style={styles.viewMapButton}
+                onPress={() => setMostrarMapa(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="map-outline" size={14} color="#3b82f6" />
+                <Text style={styles.viewMapText}>Ver mapa</Text>
+              </TouchableOpacity>
             </>
           )}
 

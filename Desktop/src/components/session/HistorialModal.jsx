@@ -37,7 +37,7 @@ export default function HistorialModal({ onClose, usuario }) {
       const response = await fetchApi(url);
 
       let data = Array.isArray(response?.data) ? response.data : (Array.isArray(response) ? response : []);
-      
+
       const asistenciasOrdenadas = data.sort((a, b) => new Date(b.fecha_registro) - new Date(a.fecha_registro));
       setAsistencias(asistenciasOrdenadas);
       calcularEstadisticas(asistenciasOrdenadas);
@@ -109,7 +109,7 @@ export default function HistorialModal({ onClose, usuario }) {
     setSelectedDate(selectedDate?.toDateString() === fecha.toDateString() ? null : fecha);
   };
 
-  const registrosFiltrados = selectedDate 
+  const registrosFiltrados = selectedDate
     ? asistencias.filter(r => new Date(r.fecha_registro).toDateString() === selectedDate.toDateString())
     : asistencias;
 
@@ -134,26 +134,24 @@ export default function HistorialModal({ onClose, usuario }) {
   const hoy = new Date();
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700">
-        
-        {/* Header Obscuro */}
-        <div className="bg-[#0f172a] px-5 py-4 flex items-center justify-between shrink-0">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+
+        {/* Header */}
+        <div className="bg-bg-primary px-5 py-4 flex items-center justify-between shrink-0 border-b border-border-subtle">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-slate-800 rounded-lg">
-              <CalendarDays className="w-5 h-5 text-slate-200" />
-            </div>
+            <CalendarDays className="w-8 h-8 text-text-primary" />
             <div>
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Historial de Asistencia</h3>
-              <p className="text-slate-400 text-[10px] uppercase font-medium">Registro de entradas y salidas</p>
+              <h3 className="text-2xl font-bold text-text-primary">Historial de Asistencia</h3>
+              <p className="text-text-secondary text-sm mt-1">Registro de entradas y salidas</p>
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={onRefresh} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all">
+            <button onClick={onRefresh} className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-all">
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
-            <button onClick={onClose} className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all">
-              <X className="w-5 h-5" />
+            <button onClick={onClose} className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-all">
+              <X className="w-6 h-6" />
             </button>
           </div>
         </div>
@@ -164,7 +162,7 @@ export default function HistorialModal({ onClose, usuario }) {
           </div>
         ) : (
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-            
+
             {/* Panel Izquierdo: Calendario y Stats */}
             <div className="w-full md:w-[350px] border-r border-slate-100 dark:border-slate-700 p-5 flex flex-col gap-5 bg-white dark:bg-slate-900">
 
@@ -276,15 +274,7 @@ export default function HistorialModal({ onClose, usuario }) {
           </div>
         )}
 
-        {/* Footer */}
-        <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-700 shrink-0">
-          <button
-            onClick={onClose}
-            className="w-full py-3 bg-slate-900 dark:bg-slate-200 hover:bg-slate-800 dark:hover:bg-slate-300 text-white dark:text-slate-900 rounded-lg font-bold text-xs uppercase tracking-widest transition-all shadow-md active:scale-[0.99]"
-          >
-            Cerrar Historial
-          </button>
-        </div>
+
       </div>
     </div>
   );

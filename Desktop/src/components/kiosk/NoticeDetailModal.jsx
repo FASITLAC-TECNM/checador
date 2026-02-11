@@ -5,32 +5,30 @@ export default function NoticeDetailModal({ notice, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-4">
+      <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden">
+        <div className="bg-bg-primary p-6 border-b border-border-subtle">
           <div className="flex items-start justify-between">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="w-10 h-10 bg-bg-primary/20 rounded-full flex items-center justify-center">
-                <Bell className="w-5 h-5 text-white" />
-              </div>
+            <div className="flex items-center gap-3">
+              <Bell className="w-8 h-8 text-text-primary" />
               <div>
-                <h3 className="text-lg font-bold text-white">
+                <h3 className="text-2xl font-bold text-text-primary">
                   Detalle del Aviso
                 </h3>
-                <p className="text-white/90 text-sm">Información completa</p>
+                <p className="text-text-secondary text-sm mt-1">Información completa</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="text-white hover:bg-bg-primary/20 rounded-lg p-2 transition-colors"
+              className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors"
             >
-              <X className="w-5 h-5" />
+              <X className="w-6 h-6" />
             </button>
           </div>
         </div>
 
         <div className="p-5 space-y-3">
-          <div className="bg-bg-secondary border-l-4 border-blue-500 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-blue-800 mb-2">
+          <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3">
+            <div className="flex items-center gap-2 text-text-primary mb-2">
               <FileText className="w-4 h-4" />
               <h4 className="font-bold text-base">{notice.subject}</h4>
             </div>
@@ -61,12 +59,7 @@ export default function NoticeDetailModal({ notice, onClose }) {
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-xl font-bold text-base shadow-lg transition-all"
-          >
-            CERRAR
-          </button>
+
         </div>
       </div>
     </div>

@@ -54,15 +54,15 @@ export default function BitacoraModal({ onClose }) {
     // Función para cargar eventos
     const cargarEventos = () => {
       const eventosDinamicos = obtenerBitacora();
-      console.log("📋 Bitácora Modal - Cargando eventos:", eventosDinamicos.length);
+      console.log("Bitácora Modal - Cargando eventos:", eventosDinamicos.length);
 
       // Si hay eventos en localStorage, usarlos; si no, usar los de ejemplo
       if (eventosDinamicos.length > 0) {
         setEventos(eventosDinamicos);
-        console.log("✅ Eventos cargados desde localStorage");
+        console.log("Eventos cargados desde localStorage");
       } else {
         setEventos(eventLog);
-        console.log("⚠️ No hay eventos en localStorage, usando eventos de ejemplo");
+        console.log("No hay eventos en localStorage, usando eventos de ejemplo");
       }
     };
 
@@ -79,23 +79,25 @@ export default function BitacoraModal({ onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-4">
+      <div className="bg-bg-primary rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="bg-bg-primary p-6 border-b border-border-subtle">
           <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <h3 className="text-xl font-bold text-white mb-1">
-                Bitácora de Eventos de los empleados
-              </h3>
-              <div className="flex items-center gap-2 text-white/90 text-sm">
-                <Activity className="w-4 h-4" />
-                <span>Registro de actividad de los empleados ({eventos.length} eventos)</span>
+            <div className="flex items-center gap-3">
+              <Activity className="w-8 h-8 text-text-primary" />
+              <div>
+                <h3 className="text-2xl font-bold text-text-primary">
+                  Bitácora de Eventos
+                </h3>
+                <p className="text-text-secondary text-sm mt-1">
+                  Registro de actividad de los empleados ({eventos.length} eventos)
+                </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="text-white hover:bg-bg-primary/20 rounded-lg p-2 transition-colors"
+              className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors"
             >
-              <X className="w-5 h-5" />
+              <X className="w-6 h-6" />
             </button>
           </div>
         </div>
@@ -144,14 +146,7 @@ export default function BitacoraModal({ onClose }) {
           </div>
         </div>
 
-        <div className="p-4 bg-bg-secondary border-t border-border-subtle">
-          <button
-            onClick={onClose}
-            className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-xl font-bold text-base shadow-lg transition-all"
-          >
-            CERRAR
-          </button>
-        </div>
+
       </div>
     </div>
   );

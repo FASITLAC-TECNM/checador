@@ -73,34 +73,32 @@ export default function HorarioModal({ onClose, usuario }) {
   const getDiaInfo = (nombreDia) => horarioParsed?.find(d => d.day === nombreDia);
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 md:p-4 font-sans">
-      <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-5xl w-full overflow-hidden border border-slate-200 dark:border-slate-700">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 md:p-4 font-sans">
+      <div className="bg-bg-primary rounded-xl shadow-2xl max-w-5xl w-full overflow-hidden">
 
-        {/* Header Compacto Estilo Obscuro */}
-        <div className="bg-[#0f172a] px-5 py-4 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-4">
-            <div className="p-2.5 bg-slate-800 rounded-lg shadow-inner">
-              <Calendar className="w-5 h-5 text-indigo-400" />
-            </div>
+        {/* Header */}
+        <div className="bg-bg-primary px-5 py-4 flex items-center justify-between shrink-0 border-b border-border-subtle">
+          <div className="flex items-center gap-3">
+            <Calendar className="w-8 h-8 text-text-primary" />
             <div>
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Mi Horario Semanal</h3>
-              <div className="flex items-center gap-3 mt-0.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+              <h3 className="text-2xl font-bold text-text-primary">Mi Horario Semanal</h3>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-sm text-text-secondary flex items-center gap-1">
                   <Timer className="w-3 h-3" /> {resumen.horasTotales} Horas Totales
                 </span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1">
+                <span className="text-sm text-text-secondary flex items-center gap-1">
                   <Clock className="w-3 h-3" /> {resumen.diasLaborales} Días Laborales
                 </span>
               </div>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors">
+            <X className="w-6 h-6" />
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-4 bg-slate-50/50 dark:bg-slate-800/50">
+        <div className="p-4 bg-bg-primary">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20">
               <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
@@ -229,16 +227,7 @@ export default function HorarioModal({ onClose, usuario }) {
           )}
         </div>
 
-        {/* Footer */}
 
-        <div className="px-5 pb-5 pt-2 bg-slate-50/50 dark:bg-slate-800/50">
-          <button
-            onClick={onClose}
-            className="w-full py-2.5 bg-[#0f172a] dark:bg-slate-200 hover:bg-slate-800 dark:hover:bg-slate-300 text-white dark:text-slate-900 rounded-lg font-bold text-xs uppercase tracking-[0.2em] transition-all shadow-lg active:scale-[0.99]"
-          >
-            Cerrar Ventana
-          </button>
-        </div>
       </div>
     </div>
   );

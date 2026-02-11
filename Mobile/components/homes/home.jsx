@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { TouchableOpacity } from 'react-native';
 import { RegisterButton } from '../map/RegisterButton';
 import { getHorarioPorEmpleado, parsearHorario } from '../../services/horariosService';
 
@@ -29,7 +30,7 @@ const obtenerUrlFotoPerfil = (foto) => {
   
   return url;
 };
-export const HomeScreen = ({ userData, darkMode }) => {
+export const HomeScreen = ({ userData, darkMode, onOpenAvisos }) => {
   const [token, setToken] = useState(null);
   const [infoHoy, setInfoHoy] = useState(null);
   const [loadingHorario, setLoadingHorario] = useState(true);
@@ -142,7 +143,7 @@ export const HomeScreen = ({ userData, darkMode }) => {
             <View style={styles.headerLeft}>
               <View style={styles.avatarContainer}>
                 {fotoUrl ? (
-                  <Image 
+                  <Image
                     source={{ uri: fotoUrl }}
                     style={styles.avatarImage}
                   />
@@ -156,20 +157,29 @@ export const HomeScreen = ({ userData, darkMode }) => {
                   { backgroundColor: '#10b981' }
                 ]} />
               </View>
-              
+
               <View style={styles.headerInfo}>
                 <Text style={styles.headerGreeting}>{obtenerSaludo()}</Text>
                 <Text style={styles.headerName} numberOfLines={1}>{userData.nombre}</Text>
                 <View style={styles.userTypeChip}>
-                  <Ionicons 
-                    name={esEmpleado ? "briefcase" : "person"} 
-                    size={11} 
-                    color="#e0f2fe" 
+                  <Ionicons
+                    name={esEmpleado ? "briefcase" : "person"}
+                    size={11}
+                    color="#e0f2fe"
                   />
                   <Text style={styles.userTypeText}>{tipoUsuario}</Text>
                 </View>
               </View>
             </View>
+
+            {/* Icono de avisos */}
+            <TouchableOpacity
+              onPress={onOpenAvisos}
+              style={styles.notifyButton}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="megaphone-outline" size={22} color="#fff" />
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -377,6 +387,14 @@ const homeStyles = StyleSheet.create({
     fontSize: 11,
     color: '#e0f2fe',
     fontWeight: '600',
+  },
+  notifyButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollView: {
     flex: 1,

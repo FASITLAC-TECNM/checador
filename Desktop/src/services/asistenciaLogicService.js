@@ -227,7 +227,7 @@ export const obtenerTolerancia = async (usuarioId) => {
   try {
     if (!usuarioId) return defaultTolerancia;
 
-    // 1. Obtener todos los roles del usuario
+    // 1. Obtener todos los roles del usuario (incluye tolerancia_id y posicion)
     const rolesResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.USUARIOS}/${usuarioId}/roles`);
     const roles = rolesResponse.data || rolesResponse || [];
 
@@ -236,48 +236,47 @@ export const obtenerTolerancia = async (usuarioId) => {
       return defaultTolerancia;
     }
 
-    // 2. Identificar el rol con menor número (mayor jerarquía)
+    // 2. Identificar el rol con menor posición (mayor jerarquía)
     const rolMayorJerarquia = roles.reduce((mayor, actual) => {
-      const idActual = typeof actual.rol_id === 'string' ? parseInt(actual.rol_id, 10) : actual.rol_id;
-      const idMayor = typeof mayor.rol_id === 'string' ? parseInt(mayor.rol_id, 10) : mayor.rol_id;
-
-      if (isNaN(idActual) || isNaN(idMayor)) {
-        return actual.rol_id < mayor.rol_id ? actual : mayor;
-      }
-
-      return idActual < idMayor ? actual : mayor;
+      const posActual = actual.posicion ?? 999;
+      const posMayor = mayor.posicion ?? 999;
+      return posActual < posMayor ? actual : mayor;
     });
 
-    if (!rolMayorJerarquia?.rol_id) {
+    if (!rolMayorJerarquia) {
       console.log('[AsistenciaLogic] No se pudo determinar rol con mayor jerarquía');
       return defaultTolerancia;
     }
 
-    console.log('[AsistenciaLogic] Rol con mayor jerarquía:', rolMayorJerarquia.rol_id);
+    console.log('[AsistenciaLogic] Rol con mayor jerarquía:', rolMayorJerarquia.rol_id, 'posicion:', rolMayorJerarquia.posicion);
 
-    // 3. Buscar en tolerancias la que corresponda a ese rol_id
-    const toleranciasResponse = await fetchApi(API_CONFIG.ENDPOINTS.TOLERANCIAS);
-    const tolerancias = toleranciasResponse.data || toleranciasResponse || [];
-
-    const toleranciaDelRol = tolerancias.find(t => t.rol_id === rolMayorJerarquia.rol_id);
-
-    if (!toleranciaDelRol) {
-      console.log('[AsistenciaLogic] No se encontró tolerancia para el rol:', rolMayorJerarquia.rol_id);
+    // 3. Obtener tolerancia usando tolerancia_id del rol
+    if (!rolMayorJerarquia.tolerancia_id) {
+      console.log('[AsistenciaLogic] El rol no tiene tolerancia asignada');
       return defaultTolerancia;
     }
 
-    console.log('[AsistenciaLogic] Tolerancia encontrada:', toleranciaDelRol);
+    const toleranciaResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.TOLERANCIAS}/${rolMayorJerarquia.tolerancia_id}`);
+    const toleranciaData = toleranciaResponse.data || toleranciaResponse;
+
+    if (!toleranciaData || !toleranciaData.id) {
+      console.log('[AsistenciaLogic] No se encontró tolerancia con id:', rolMayorJerarquia.tolerancia_id);
+      return defaultTolerancia;
+    }
+
+    console.log('[AsistenciaLogic] Tolerancia encontrada:', toleranciaData.nombre || toleranciaData.id);
 
     // Asegurar que tenga los valores de salida
     return {
       ...defaultTolerancia,
-      ...toleranciaDelRol,
-      minutos_anticipado_salida: toleranciaDelRol.minutos_anticipado_salida || toleranciaDelRol.minutos_retardo || 10
+      ...toleranciaData,
+      minutos_anticipado_salida: toleranciaData.minutos_anticipado_salida || toleranciaData.minutos_retardo || 10
     };
   } catch (err) {
     console.error('[AsistenciaLogic] Error obteniendo tolerancia:', err);
     return defaultTolerancia;
   }
+
 };
 
 /**
@@ -304,12 +303,56 @@ export const obtenerDepartamentoEmpleado = async (empleadoId) => {
 // === FUNCIONES DE VALIDACIÓN ===
 
 /**
+ * Verifica si un bloque de horario ya tiene entrada y salida registradas hoy
+ * @param {Object} grupo - Grupo de turnos a verificar
+ * @param {Array} registrosHoy - Lista de registros del día actual
+ * @param {Object} tolerancia - Objeto de tolerancia para calcular márgenes
+ * @returns {boolean} - true si el bloque ya está completado
+ */
+export const bloqueCompletado = (grupo, registrosHoy, tolerancia) => {
+  if (!registrosHoy || registrosHoy.length === 0) return false;
+
+  const { entrada: horaEntrada, salida: horaSalida } = getEntradaSalidaGrupo(grupo);
+  const minEntrada = horaAMinutos(horaEntrada);
+  const minSalida = horaAMinutos(horaSalida);
+
+  // Márgenes para considerar registros dentro del bloque
+  const margenAnticipado = tolerancia?.minutos_anticipado_max || 60;
+  const margenRetardo = tolerancia?.minutos_falta || 30;
+
+  const inicioBloque = minEntrada - margenAnticipado;
+  const finBloque = minSalida + margenRetardo;
+
+  // Filtrar registros que caen dentro de este bloque
+  const registrosEnBloque = registrosHoy.filter(reg => {
+    // Extraer hora del registro
+    let horaReg;
+    if (reg.fecha_registro) {
+      const fecha = new Date(reg.fecha_registro);
+      horaReg = fecha.getHours() * 60 + fecha.getMinutes();
+    } else if (reg.hora) {
+      horaReg = horaAMinutos(reg.hora);
+    } else {
+      return false;
+    }
+    return horaReg >= inicioBloque && horaReg <= finBloque;
+  });
+
+  const tieneEntrada = registrosEnBloque.some(r => r.tipo === 'entrada');
+  const tieneSalida = registrosEnBloque.some(r => r.tipo === 'salida');
+
+  console.log(`   [bloqueCompletado] Bloque ${horaEntrada}-${horaSalida}: entrada=${tieneEntrada}, salida=${tieneSalida}`);
+
+  return tieneEntrada && tieneSalida;
+};
+
+/**
  * Valida si el empleado puede registrar entrada y determina la clasificación:
  * - 'entrada': Llegada dentro de la tolerancia permitida (puntual)
  * - 'retardo': Llegada después del tiempo de retardo pero antes de falta
  * - 'falta': Llegada después del tiempo de falta pero antes del fin de turno
  */
-export const validarEntrada = (horario, tolerancia, minutosActuales, grupoInicio = 0) => {
+export const validarEntrada = (horario, tolerancia, minutosActuales, grupoInicio = 0, registrosHoy = []) => {
   if (!horario?.gruposTurnos || !Array.isArray(horario.gruposTurnos) || horario.gruposTurnos.length === 0) {
     return {
       puedeRegistrar: false,
@@ -333,14 +376,34 @@ export const validarEntrada = (horario, tolerancia, minutosActuales, grupoInicio
     const minEntrada = horaAMinutos(horaEntrada);
     const minSalida = horaAMinutos(horaSalida);
 
-    // Ventanas de tiempo basadas en tolerancia del sistema
-    const ventanaInicio = minEntrada - (tolerancia.minutos_anticipado_max || 60);
-    const ventanaRetardo = minEntrada + (tolerancia.minutos_retardo || 10);
-    // La ventana de falta NO puede exceder la hora de salida del turno
-    const ventanaFalta = Math.min(minEntrada + (tolerancia.minutos_falta || 30), minSalida);
+    // Verificar si este bloque ya está completado (entrada + salida registradas)
+    if (bloqueCompletado(grupo, registrosHoy, tolerancia)) {
+      console.log('   ⏭️ Bloque ya completado, saltando...');
+      continue;
+    }
+
+    // Ventanas de tiempo basadas en tolerancia y COMPORTAMIENTOS
+    // ventanaInicio: Cuándo puede empezar a registrar entrada
+    const ventanaInicio = tolerancia.permite_registro_anticipado
+      ? minEntrada - (tolerancia.minutos_anticipado_max || 60)
+      : minEntrada; // Si no permite anticipado, solo puede entrar en hora exacta o después
+
+    // ventanaRetardo: Hasta cuándo es puntual (entrada + retardo si aplica tolerancia)
+    const ventanaRetardo = tolerancia.aplica_tolerancia_entrada !== false
+      ? minEntrada + (tolerancia.minutos_retardo || 0)
+      : minEntrada; // Sin tolerancia = cualquier segundo después de hora es retardo
+
+    // ventanaFalta: Después de esto es falta (NO puede exceder hora de salida)
+    const ventanaFalta = Math.min(
+      minEntrada + (tolerancia.minutos_falta || 30),
+      minSalida
+    );
 
     console.log('   Grupo:', horaEntrada, '-', horaSalida);
-    console.log('   Ventanas: inicio=', ventanaInicio, 'retardo=', ventanaRetardo, 'falta=', ventanaFalta, 'salida=', minSalida);
+    console.log('   Tolerancias: permite_anticipado=', tolerancia.permite_registro_anticipado,
+      'aplica_entrada=', tolerancia.aplica_tolerancia_entrada);
+    console.log('   Ventanas: inicio=', ventanaInicio, 'retardo=', ventanaRetardo,
+      'falta=', ventanaFalta, 'salida=', minSalida);
     console.log('   Hora actual:', minutosActuales);
 
     // Si ya pasó la hora de salida de este turno, este grupo ya no es válido
@@ -356,13 +419,28 @@ export const validarEntrada = (horario, tolerancia, minutosActuales, grupoInicio
       continue;
     }
 
+    // Validar registro anticipado si está antes de la hora de entrada
+    if (tolerancia.permite_registro_anticipado === false && minutosActuales < minEntrada) {
+      console.log('   ❌ Registro anticipado no permitido');
+      return {
+        puedeRegistrar: false,
+        tipoRegistro: 'entrada',
+        clasificacion: 'rechazado',
+        estadoHorario: 'anticipado_no_permitido',
+        jornadaCompleta: false,
+        hayTurnoFuturo: false,
+        mensaje: 'No se permite registro anticipado para tu rol',
+        grupoActual: grupo
+      };
+    }
+
     // PUNTUAL: dentro del rango anticipado hasta retardo
     if (minutosActuales >= ventanaInicio && minutosActuales <= ventanaRetardo) {
       console.log('   ✅ Entrada puntual');
       return {
         puedeRegistrar: true,
         tipoRegistro: 'entrada',
-        clasificacion: 'entrada',
+        clasificacion: 'puntual',
         estadoHorario: 'puntual',
         jornadaCompleta: false,
         hayTurnoFuturo: false,
@@ -446,52 +524,44 @@ export const validarSalida = (horario, tolerancia, minutosActuales, ultimoRegist
   console.log('   - Salida grupo:', horaSalida, '(', minSalida, 'min)');
   console.log('   - Hora actual:', minutosActuales, 'min');
 
-  // Validación: Tiempo mínimo trabajado basado en TOLERANCIA
-  if (ultimoRegistro && ultimoRegistro.tipo === 'entrada') {
-    const ahora = new Date();
-    const horaUltimoRegistro = ultimoRegistro.fecha_registro instanceof Date
-      ? ultimoRegistro.fecha_registro
-      : new Date(ultimoRegistro.fecha_registro);
-    const diferenciaMinutos = (ahora - horaUltimoRegistro) / 1000 / 60;
+  // NUEVA LÓGICA DE SALIDA:
+  // - anticipacion: margen ANTES y DESPUÉS de hora salida para ser puntual
+  // - retardo: margen adicional DESPUÉS de anticipacion para ser retardo
+  // - muy tarde: después de retardo = FALTA
 
-    // USAR TOLERANCIA DEL SISTEMA
-    const toleranciaSalidaAnticipada = tolerancia.aplica_tolerancia_salida === false
-      ? 0
-      : (tolerancia.minutos_anticipado_salida || tolerancia.minutos_retardo || 10);
+  const anticipacion = tolerancia.aplica_tolerancia_salida !== false
+    ? (tolerancia.minutos_anticipado_max || 5)
+    : 0; // Sin tolerancia = solo hora exacta
 
-    const tiempoMinimoRequerido = Math.max(5, duracionTurno - toleranciaSalidaAnticipada);
+  const retardoSalida = tolerancia.minutos_retardo || 0;
 
-    console.log('   - Tiempo trabajado:', Math.round(diferenciaMinutos), 'min');
-    console.log('   - Tiempo mínimo requerido:', tiempoMinimoRequerido, 'min');
+  // Ventanas de clasificación de salida
+  const ventanaPuntualInicio = minSalida - anticipacion;     // Ej: 17:55 si salida 18:00
+  const ventanaPuntualFin = minSalida + anticipacion;        // Ej: 18:05
+  const ventanaRetardoFin = ventanaPuntualFin + retardoSalida; // Ej: 18:08 con retardo=3
 
-    // Si no ha trabajado el tiempo mínimo, NO puede salir
-    if (diferenciaMinutos < tiempoMinimoRequerido) {
-      const minutosRestantes = Math.ceil(tiempoMinimoRequerido - diferenciaMinutos);
-      console.log('   ❌ Tiempo insuficiente, faltan:', minutosRestantes, 'min');
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'salida',
-        clasificacion: null,
-        estadoHorario: 'tiempo_insuficiente',
-        jornadaCompleta: false,
-        mensajeEspera: `Espera ${minutosRestantes} min más`,
-        minutosRestantes: minutosRestantes
-      };
-    }
+  console.log('   - Anticipación:', anticipacion, 'min, Retardo:', retardoSalida, 'min');
+  console.log('   - Ventana PUNTUAL:', ventanaPuntualInicio, '-', ventanaPuntualFin);
+  console.log('   - Ventana RETARDO:', ventanaPuntualFin, '-', ventanaRetardoFin);
+  console.log('   - Hora actual:', minutosActuales);
+
+  // TEMPRANA (muy antes): antes de la ventana puntual
+  // Si aplica_tolerancia_salida = false y es antes de hora, rechazar
+  if (minutosActuales < ventanaPuntualInicio) {
+    console.log('   ⚠️ Salida muy temprana (antes de ventana)');
+    return {
+      puedeRegistrar: false,
+      tipoRegistro: 'salida',
+      clasificacion: null,
+      estadoHorario: 'tiempo_insuficiente',
+      jornadaCompleta: false,
+      mensaje: 'Aún no puedes registrar salida',
+      minutosRestantes: ventanaPuntualInicio - minutosActuales
+    };
   }
 
-  // Validación de ventana de salida
-  const toleranciaSalida = tolerancia?.aplica_tolerancia_salida === false
-    ? 0
-    : (tolerancia?.minutos_anticipado_salida || tolerancia?.minutos_retardo || 10);
-
-  const ventanaSalidaInicio = minSalida - toleranciaSalida;
-  const ventanaSalidaFin = minSalida + 60; // 60 min después de hora de salida (más permisivo)
-
-  console.log('   - Ventana salida:', ventanaSalidaInicio, '-', ventanaSalidaFin, 'min');
-
-  // Salida puntual: dentro de la ventana de salida
-  if (minutosActuales >= ventanaSalidaInicio && minutosActuales <= ventanaSalidaFin) {
+  // PUNTUAL: dentro de la ventana ±anticipacion
+  if (minutosActuales >= ventanaPuntualInicio && minutosActuales <= ventanaPuntualFin) {
     console.log('   ✅ Salida puntual');
     return {
       puedeRegistrar: true,
@@ -503,27 +573,27 @@ export const validarSalida = (horario, tolerancia, minutosActuales, ultimoRegist
     };
   }
 
-  // Salida tardía: después de la ventana de fin pero en el mismo día
-  if (minutosActuales > ventanaSalidaFin) {
-    console.log('   ✅ Salida tardía (permitida)');
+  // RETARDO: después de anticipacion pero dentro de margen de retardo
+  if (minutosActuales > ventanaPuntualFin && minutosActuales <= ventanaRetardoFin) {
+    console.log('   ⚠️ Salida con retardo');
     return {
       puedeRegistrar: true,
       tipoRegistro: 'salida',
-      clasificacion: 'salida_puntual', // Se considera puntual aunque sea tarde
-      estadoHorario: 'puntual',
+      clasificacion: 'salida_retardo',
+      estadoHorario: 'retardo',
       jornadaCompleta: false,
       grupoActual: grupoActual
     };
   }
 
-  // Salida temprana: antes de la ventana pero después de la entrada
-  if (minutosActuales >= minEntrada && minutosActuales < ventanaSalidaInicio) {
-    console.log('   ⚠️ Salida temprana');
+  // FALTA: muy tarde (después del margen de retardo)
+  if (minutosActuales > ventanaRetardoFin) {
+    console.log('   ❌ Salida como falta (muy tarde)');
     return {
       puedeRegistrar: true,
       tipoRegistro: 'salida',
-      clasificacion: 'salida_temprana',
-      estadoHorario: 'temprana',
+      clasificacion: 'salida_falta',
+      estadoHorario: 'falta',
       jornadaCompleta: false,
       grupoActual: grupoActual
     };
@@ -545,7 +615,7 @@ export const validarSalida = (horario, tolerancia, minutosActuales, ultimoRegist
  * - Horario con grupos de turnos concatenados
  * - Tolerancia según rol de mayor jerarquía
  */
-export const calcularEstadoRegistro = (ultimo, horario, tolerancia) => {
+export const calcularEstadoRegistro = (ultimo, horario, tolerancia, registrosHoy = []) => {
   if (!horario?.trabaja) {
     console.log('[AsistenciaLogic] No trabaja hoy');
     return {
@@ -581,13 +651,13 @@ export const calcularEstadoRegistro = (ultimo, horario, tolerancia) => {
   // Si no hay registro previo hoy, debe registrar entrada
   if (!ultimo) {
     console.log('[AsistenciaLogic] Sin registros hoy, validando entrada desde grupo 0');
-    return validarEntrada(horario, tolerancia, ahora, 0);
+    return validarEntrada(horario, tolerancia, ahora, 0, registrosHoy);
   }
 
-  const registrosHoy = ultimo.totalRegistrosHoy || 1;
-  const gruposCompletados = Math.floor(registrosHoy / 2);
+  const conteoRegistros = ultimo.totalRegistrosHoy || 1;
+  const gruposCompletados = Math.floor(conteoRegistros / 2);
 
-  console.log('   - Registros hoy:', registrosHoy);
+  console.log('   - Registros hoy:', conteoRegistros);
   console.log('   - Grupos completados:', gruposCompletados);
 
   // Si última fue ENTRADA → debe registrar SALIDA
@@ -604,7 +674,7 @@ export const calcularEstadoRegistro = (ultimo, horario, tolerancia) => {
     if (gruposCompletados >= totalGrupos) {
       console.log('[AsistenciaLogic] Todos los grupos completados (', gruposCompletados, '>=', totalGrupos, ')');
 
-      const resultadoEntrada = validarEntrada(horario, tolerancia, ahora, 0);
+      const resultadoEntrada = validarEntrada(horario, tolerancia, ahora, 0, registrosHoy);
 
       // Si estamos dentro de alguna ventana de entrada válida, permitir
       if (resultadoEntrada.puedeRegistrar) {
@@ -631,10 +701,10 @@ export const calcularEstadoRegistro = (ultimo, horario, tolerancia) => {
 
     // Aún hay grupos pendientes
     console.log('[AsistenciaLogic] Validando entrada para grupo', gruposCompletados);
-    return validarEntrada(horario, tolerancia, ahora, gruposCompletados);
+    return validarEntrada(horario, tolerancia, ahora, gruposCompletados, registrosHoy);
   }
 
-  return validarEntrada(horario, tolerancia, ahora, 0);
+  return validarEntrada(horario, tolerancia, ahora, 0, registrosHoy);
 };
 
 /**
@@ -781,6 +851,149 @@ export const obtenerInfoClasificacion = (clasificacion, tipoRegistro) => {
   return { estadoTexto, emoji, tipoEvento };
 };
 
+/**
+ * Formatea minutos en formato legible "X horas y Y minutos"
+ * @param {number} minutos - Minutos totales
+ * @returns {string} - Formato legible
+ */
+export const formatearTiempoRestante = (minutos) => {
+  if (!minutos || minutos <= 0) return '0 minutos';
+  if (minutos < 60) return `${minutos} minuto${minutos !== 1 ? 's' : ''}`;
+
+  const horas = Math.floor(minutos / 60);
+  const mins = minutos % 60;
+
+  if (mins === 0) {
+    return `${horas} hora${horas !== 1 ? 's' : ''}`;
+  }
+
+  return `${horas} hora${horas !== 1 ? 's' : ''} y ${mins} minuto${mins !== 1 ? 's' : ''}`;
+};
+
+/**
+ * Mapea el estado interno a los estados requeridos
+ * @param {Object} estadoCalculado - Estado calculado por validarEntrada/validarSalida
+ * @returns {string} - Estado normalizado: Puntual/Retardo/Falta/Pendiente/Rechazado
+ */
+export const mapearEstado = (estadoCalculado) => {
+  if (!estadoCalculado) return 'Pendiente';
+
+  if (!estadoCalculado.puedeRegistrar) {
+    if (estadoCalculado.estadoHorario === 'tiempo_insuficiente') return 'Pendiente';
+    if (estadoCalculado.estadoHorario === 'fuera_horario') return 'Rechazado';
+    if (estadoCalculado.estadoHorario === 'anticipado_no_permitido') return 'Rechazado';
+    if (estadoCalculado.jornadaCompleta) return 'Completado';
+    if (estadoCalculado.hayTurnoFuturo) return 'Pendiente';
+    return 'Rechazado';
+  }
+
+  switch (estadoCalculado.clasificacion) {
+    case 'puntual':
+    case 'salida_puntual':
+      return 'Puntual';
+    case 'retardo':
+    case 'salida_retardo':
+    case 'salida_temprana':
+      return 'Retardo';
+    case 'falta':
+    case 'salida_falta':
+      return 'Falta';
+    default:
+      return estadoCalculado.estadoHorario === 'puntual' ? 'Puntual' : 'Pendiente';
+  }
+};
+
+/**
+ * Genera mensaje descriptivo para el usuario
+ * @param {Object} estadoCalculado - Estado calculado
+ * @returns {string} - Mensaje legible para el usuario
+ */
+export const generarMensaje = (estadoCalculado) => {
+  if (!estadoCalculado) return 'Error al calcular estado';
+
+  if (!estadoCalculado.puedeRegistrar) {
+    if (estadoCalculado.mensaje) return estadoCalculado.mensaje;
+
+    if (estadoCalculado.estadoHorario === 'tiempo_insuficiente') {
+      const tiempoFormateado = formatearTiempoRestante(estadoCalculado.minutosRestantes);
+      return `Faltan ${tiempoFormateado} para habilitar tu salida`;
+    }
+
+    if (estadoCalculado.jornadaCompleta) return 'Ya completaste tu jornada de hoy';
+    if (estadoCalculado.hayTurnoFuturo) return 'Aún no es hora de entrada';
+    if (estadoCalculado.estadoHorario === 'anticipado_no_permitido') {
+      return 'No se permite registro anticipado para tu rol';
+    }
+
+    return 'Fuera del horario de registro';
+  }
+
+  const tipo = estadoCalculado.tipoRegistro === 'salida' ? 'Salida' : 'Entrada';
+
+  switch (estadoCalculado.clasificacion) {
+    case 'puntual':
+    case 'salida_puntual':
+      return `${tipo} puntual`;
+    case 'retardo':
+    case 'salida_retardo':
+      return `${tipo} con retardo`;
+    case 'salida_temprana':
+      return 'Salida anticipada';
+    case 'falta':
+    case 'salida_falta':
+      return `${tipo} registrada como falta`;
+    default:
+      return `${tipo} registrada`;
+  }
+};
+
+/**
+ * Normaliza la respuesta del estado de registro al formato JSON estandarizado
+ * @param {Object} estadoCalculado - Estado calculado por calcularEstadoRegistro
+ * @param {Object} horario - Horario del empleado
+ * @returns {{ autorizado: boolean, estado: string, mensaje: string, bloque_trabajo: object }}
+ */
+export const normalizarRespuestaRegistro = (estadoCalculado, horario) => {
+  let bloqueActual = { inicio: '00:00', fin: '23:59' };
+
+  if (estadoCalculado?.grupoActual) {
+    bloqueActual = getEntradaSalidaGrupo(estadoCalculado.grupoActual);
+  } else if (horario?.entrada && horario?.salida) {
+    bloqueActual = { inicio: horario.entrada, fin: horario.salida };
+  } else if (horario?.gruposTurnos?.length > 0) {
+    bloqueActual = getEntradaSalidaGrupo(horario.gruposTurnos[0]);
+  }
+
+  return {
+    autorizado: estadoCalculado?.puedeRegistrar ?? false,
+    estado: mapearEstado(estadoCalculado),
+    mensaje: generarMensaje(estadoCalculado),
+    bloque_trabajo: {
+      inicio: bloqueActual.entrada || bloqueActual.inicio,
+      fin: bloqueActual.salida || bloqueActual.fin
+    }
+  };
+};
+
+/**
+ * Mapea la clasificación del frontend a valores válidos del ENUM de la BD
+ * BD ENUM: "puntual", "retardo", "falta"
+ * @param {string} clasificacion - Clasificación del frontend
+ * @returns {string} - Valor válido para la BD
+ */
+export const mapearClasificacionBD = (clasificacion) => {
+  const mapa = {
+    'puntual': 'puntual',
+    'salida_puntual': 'puntual',
+    'retardo': 'retardo',
+    'salida_retardo': 'retardo',
+    'salida_temprana': 'retardo',
+    'falta': 'falta',
+    'salida_falta': 'falta'
+  };
+  return mapa[clasificacion] || 'puntual';
+};
+
 export default {
   getDiaSemana,
   getMinutosDelDia,
@@ -791,10 +1004,16 @@ export default {
   obtenerHorario,
   obtenerTolerancia,
   obtenerDepartamentoEmpleado,
+  bloqueCompletado,
   validarEntrada,
   validarSalida,
   calcularEstadoRegistro,
   cargarDatosAsistencia,
   registrarAsistenciaEnServidor,
-  obtenerInfoClasificacion
+  obtenerInfoClasificacion,
+  formatearTiempoRestante,
+  mapearEstado,
+  generarMensaje,
+  normalizarRespuestaRegistro,
+  mapearClasificacionBD
 };

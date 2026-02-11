@@ -1,13 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
-import { X, Clock, Calendar, Sun, Coffee, Timer } from "lucide-react";
+import { X, Clock, Calendar, Sun, Coffee, Timer, CheckCircle2 } from "lucide-react";
 import {
   getHorarioPorEmpleado,
   parsearHorario,
   calcularResumenSemanal
 } from "../../services/horariosService";
+import { obtenerTolerancia } from "../../services/asistenciaLogicService";
 
 export default function HorarioModal({ onClose, usuario }) {
   const [horarioRaw, setHorarioRaw] = useState(null);
+  const [tolerancia, setTolerancia] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -38,6 +40,25 @@ export default function HorarioModal({ onClose, usuario }) {
         setError(null);
         const horario = await getHorarioPorEmpleado(empleadoId, token);
         setHorarioRaw(horario);
+
+        // Cargar tolerancia según el rol del usuario
+        // Buscar el ID de usuario correcto (prefijo USU, no EMP)
+        const posiblesIds = [
+          usuario?.token, // A veces el token contiene el usuario_id
+          usuario?.usuario_id,
+          usuario?.id,
+          usuario?.usuarioInfo?.id
+        ];
+        const usuarioIdReal = posiblesIds.find(id => id && typeof id === 'string' && id.startsWith('USU'));
+
+        console.log('[HorarioModal] Buscando usuarioId para tolerancia:', { posiblesIds, usuarioIdReal });
+
+        if (usuarioIdReal) {
+          const tol = await obtenerTolerancia(usuarioIdReal);
+          setTolerancia(tol);
+        } else {
+          console.warn('[HorarioModal] No se encontró un usuario_id válido (prefijo USU)');
+        }
       } catch (err) {
         setError(err.message);
       } finally {
@@ -45,7 +66,7 @@ export default function HorarioModal({ onClose, usuario }) {
       }
     };
     cargarHorario();
-  }, [empleadoId, token]);
+  }, [empleadoId, token, usuario]);
 
   const horarioParsed = useMemo(() => horarioRaw ? parsearHorario(horarioRaw) : null, [horarioRaw]);
   const resumen = useMemo(() => horarioParsed ? calcularResumenSemanal(horarioParsed) : { diasLaborales: 0, horasTotales: '0' }, [horarioParsed]);
@@ -54,7 +75,7 @@ export default function HorarioModal({ onClose, usuario }) {
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 md:p-4 font-sans">
       <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-5xl w-full overflow-hidden border border-slate-200 dark:border-slate-700">
-        
+
         {/* Header Compacto Estilo Obscuro */}
         <div className="bg-[#0f172a] px-5 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
@@ -162,9 +183,54 @@ export default function HorarioModal({ onClose, usuario }) {
               })}
             </div>
           )}
+
+          {/* Reglas de Tiempo */}
+          {tolerancia && !loading && !error && (
+            <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
+              <h4 className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-3">
+                Reglas de Tiempo
+              </h4>
+
+              {/* Valores numéricos */}
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-center">
+                  <p className="text-lg font-black text-slate-900 dark:text-white">{tolerancia.minutos_retardo || 10}</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase">Min. Retardo</p>
+                </div>
+                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-center">
+                  <p className="text-lg font-black text-slate-900 dark:text-white">{tolerancia.minutos_falta || 30}</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase">Min. Falta</p>
+                </div>
+                <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-center">
+                  <p className="text-lg font-black text-slate-900 dark:text-white">{tolerancia.minutos_anticipado_max || 60}</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase">Min. Anticipado</p>
+                </div>
+              </div>
+
+              {/* Comportamientos (checkmarks) */}
+              <div className="flex flex-wrap gap-3 text-[10px]">
+                {tolerancia.permite_registro_anticipado && (
+                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                    <CheckCircle2 className="w-3 h-3" /> Registro anticipado
+                  </span>
+                )}
+                {tolerancia.aplica_tolerancia_entrada && (
+                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                    <CheckCircle2 className="w-3 h-3" /> Tolerancia entrada
+                  </span>
+                )}
+                {tolerancia.aplica_tolerancia_salida && (
+                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold">
+                    <CheckCircle2 className="w-3 h-3" /> Tolerancia salida
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
+
         <div className="px-5 pb-5 pt-2 bg-slate-50/50 dark:bg-slate-800/50">
           <button
             onClick={onClose}

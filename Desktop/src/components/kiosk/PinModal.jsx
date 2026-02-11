@@ -6,8 +6,11 @@ import {
   cargarDatosAsistencia,
   obtenerDepartamentoEmpleado,
   registrarAsistenciaEnServidor,
-  obtenerInfoClasificacion
+  obtenerInfoClasificacion,
+  formatearTiempoRestante,
+  normalizarRespuestaRegistro
 } from "../../services/asistenciaLogicService";
+
 
 export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
   const [showPassword, setShowPassword] = useState(false);
@@ -167,7 +170,8 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
         } else if (estadoActual.estadoHorario === 'fuera_horario') {
           mensaje = "Estás fuera del horario de registro";
         } else if (estadoActual.estadoHorario === 'tiempo_insuficiente') {
-          mensaje = estadoActual.mensajeEspera || `Debes esperar ${estadoActual.minutosRestantes || 'más'} minutos`;
+          const tiempoRestante = formatearTiempoRestante(estadoActual.minutosRestantes);
+          mensaje = estadoActual.mensajeEspera || `Faltan ${tiempoRestante} para habilitar tu salida`;
         }
 
         agregarEvento({
@@ -557,7 +561,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                     {result.estadoHorario === "completado"
                       ? "Jornada completada"
                       : result.estadoHorario === "tiempo_insuficiente"
-                        ? `Espera ${result.minutosRestantes || ''} min`
+                        ? `Espera ${formatearTiempoRestante(result.minutosRestantes)}`
                         : "Fuera de horario"}
                   </span>
 

@@ -9,6 +9,7 @@ import { HistoryScreen } from './components/homes/history';
 import { ScheduleScreen } from './components/homes/schedule';
 import { SettingsScreen } from './components/settingsPages/settings';
 import { BottomNavigation } from './components/homes/nav';
+import { NotifyScreen } from './components/homes/NotifyScreen';
 import { OnboardingNavigator } from './components/devicesetup/onBoardNavigator';
 import { getSolicitudPorToken } from './services/solicitudMovilService';
 import { getUsuarioCompleto } from './services/empleadoServices';
@@ -320,7 +321,8 @@ export default function App() {
         edges={['top']}
       >
         <View style={[styles.container, darkMode && styles.containerDark]}>
-          {currentScreen === 'home' && <HomeScreen userData={userData} darkMode={darkMode} />}
+          {currentScreen === 'home' && <HomeScreen userData={userData} darkMode={darkMode} onOpenAvisos={() => setCurrentScreen('avisos')} />}
+          {currentScreen === 'avisos' && <NotifyScreen userData={userData} darkMode={darkMode} onGoBack={() => setCurrentScreen('home')} />}
           {currentScreen === 'history' && <HistoryScreen darkMode={darkMode} userData={userData} />}
           {currentScreen === 'schedule' && <ScheduleScreen userData={userData} darkMode={darkMode} />}
           {currentScreen === 'settings' && (
@@ -333,11 +335,13 @@ export default function App() {
             />
           )}
 
-          <BottomNavigation
-            currentScreen={currentScreen}
-            onScreenChange={setCurrentScreen}
-            darkMode={darkMode}
-          />
+          {currentScreen !== 'avisos' && (
+            <BottomNavigation
+              currentScreen={currentScreen}
+              onScreenChange={setCurrentScreen}
+              darkMode={darkMode}
+            />
+          )}
         </View>
       </SafeAreaView>
     </SafeAreaProvider>

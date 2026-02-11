@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Camera, User, ClipboardList, Bell, Fingerprint } from "lucide-react";
 import { formatTime, formatDate, formatDay } from "../utils/dateHelpers";
-import { notices } from "../constants/notices";
+import { useAvisosGlobales } from "../hooks/useAvisosGlobales";
 import PinModal from "../components/kiosk/PinModal";
 import LoginModal from "../components/kiosk/LoginModal";
 import BitacoraModal from "../components/kiosk/BitacoraModal";
@@ -33,6 +33,7 @@ export default function KioskScreen() {
   const [showBiometricReader, setShowBiometricReader] = useState(false);
   const [showAsistenciaFacial, setShowAsistenciaFacial] = useState(false);
   const [isReaderConnected, setIsReaderConnected] = useState(false); // Estado del lector biométrico
+  const [activeNoticeIndex, setActiveNoticeIndex] = useState(0); // Índice del aviso activo en el carrusel
 
   // Obtener métodos activos ordenados desde backend
   const getActiveMethods = () => {
@@ -51,6 +52,18 @@ export default function KioskScreen() {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Avisos globales con polling en tiempo real (se pausa al estar en sesión)
+  const { notices, loading: loadingNotices } = useAvisosGlobales({ pausado: isLoggedIn });
+
+  // Rotación automática del aviso destacado cada 6 segundos
+  useEffect(() => {
+    if (notices.length === 0) return;
+    const noticeTimer = setInterval(() => {
+      setActiveNoticeIndex((prevIndex) => (prevIndex + 1) % notices.length);
+    }, 6000);
+    return () => clearInterval(noticeTimer);
+  }, [notices.length]);
 
   // Cargar orden de credenciales desde el backend
   const cargarCredenciales = async () => {
@@ -467,28 +480,94 @@ export default function KioskScreen() {
         {/* Sección de avisos - Compacta */}
         <div className="flex-1 flex flex-col min-h-0">
           <div className="animated-border bg-bg-primary rounded-2xl shadow-sm p-4 h-full flex flex-col border border-border-subtle">
-            <h3 className="text-lg font-bold text-text-primary mb-3 flex-shrink-0">
+            <h3 className="text-lg font-bold text-text-primary mb-3 flex-shrink-0 text-center">
               Avisos Generales
             </h3>
 
-            <div className="flex gap-3 overflow-x-auto pb-2">
-              {notices.map((notice, index) => (
-                <div
-                  key={index}
-                  onClick={() => setSelectedNotice(notice)}
-                  className="flex-shrink-0 w-56 bg-bg-secondary rounded-xl shadow-sm border border-border-subtle hover:shadow-md transition-all p-3 cursor-pointer hover:bg-bg-tertiary"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-accent">
-                      {notice.time}
-                    </span>
-                    <Bell className="w-4 h-4 text-accent" />
-                  </div>
-                  <h4 className="font-bold text-text-primary text-sm leading-tight line-clamp-2">
-                    {notice.subject || notice.message.substring(0, 50)}
-                  </h4>
-                </div>
-              ))}
+            <div
+              className="flex-1 flex items-center overflow-hidden cursor-grab active:cursor-grabbing relative"
+              onMouseDown={(e) => {
+                const startX = e.clientX;
+                const handleMouseMove = (moveEvent) => {
+                  const diff = moveEvent.clientX - startX;
+                  if (Math.abs(diff) > 50) {
+                    if (diff > 0) {
+                      setActiveNoticeIndex((prev) => (prev - 1 + notices.length) % notices.length);
+                    } else {
+                      setActiveNoticeIndex((prev) => (prev + 1) % notices.length);
+                    }
+                    document.removeEventListener('mousemove', handleMouseMove);
+                    document.removeEventListener('mouseup', handleMouseUp);
+                  }
+                };
+                const handleMouseUp = () => {
+                  document.removeEventListener('mousemove', handleMouseMove);
+                  document.removeEventListener('mouseup', handleMouseUp);
+                };
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', handleMouseUp);
+              }}
+              onTouchStart={(e) => {
+                const startX = e.touches[0].clientX;
+                const handleTouchMove = (moveEvent) => {
+                  const diff = moveEvent.touches[0].clientX - startX;
+                  if (Math.abs(diff) > 50) {
+                    if (diff > 0) {
+                      setActiveNoticeIndex((prev) => (prev - 1 + notices.length) % notices.length);
+                    } else {
+                      setActiveNoticeIndex((prev) => (prev + 1) % notices.length);
+                    }
+                    document.removeEventListener('touchmove', handleTouchMove);
+                    document.removeEventListener('touchend', handleTouchEnd);
+                  }
+                };
+                const handleTouchEnd = () => {
+                  document.removeEventListener('touchmove', handleTouchMove);
+                  document.removeEventListener('touchend', handleTouchEnd);
+                };
+                document.addEventListener('touchmove', handleTouchMove);
+                document.addEventListener('touchend', handleTouchEnd);
+              }}
+            >
+              <div
+                className="flex gap-3 items-center transition-transform duration-500 ease-in-out absolute"
+                style={{
+                  left: '50%',
+                  transform: `translateX(calc(-${(notices.length + activeNoticeIndex) * 172 + 112}px))`
+                }}
+              >
+                {/* Crear array infinito: avisos originales duplicados para efecto continuo */}
+                {[...notices, ...notices, ...notices].map((notice, index) => {
+                  // Calcular el índice real considerando el array triplicado
+                  const realIndex = index % notices.length;
+                  // La tarjeta central es la que coincide con activeNoticeIndex en el grupo del medio
+                  const isCenterCard = index === (activeNoticeIndex + notices.length);
+
+                  return (
+                    <div
+                      key={index}
+                      onClick={() => setSelectedNotice(notice)}
+                      className={`flex-shrink-0 rounded-xl transition-all duration-500 ease-in-out p-3 cursor-pointer select-none ${isCenterCard
+                        ? "w-56 bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/40 dark:to-blue-800/20 scale-105 shadow-xl z-10 ring-2 ring-blue-400/50"
+                        : "w-40 bg-bg-secondary border border-border-subtle hover:shadow-md hover:bg-bg-tertiary scale-90 opacity-60"
+                        }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`font-bold ${isCenterCard ? "text-blue-600 dark:text-blue-400 text-base" : "text-text-secondary text-xs"}`}>
+                          {notice.time}
+                        </span>
+                        {isCenterCard && <Bell className="w-6 h-6 text-blue-500 dark:text-blue-400 animate-pulse" />}
+                      </div>
+                      <h4 className={`font-bold leading-tight ${isCenterCard
+                        ? "text-blue-800 dark:text-blue-200 text-base line-clamp-2"
+                        : "text-text-primary text-sm line-clamp-2"
+                        }`}>
+                        {notice.subject || notice.message.substring(0, 50)}
+                      </h4>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>

@@ -50,6 +50,14 @@ export const loginUsuario = async (usuarioOCorreo, pin) => {
     if (token) {
       localStorage.setItem('auth_token', token);
       console.log("🔑 Token guardado");
+      // Enviar token al SyncManager para que pueda hacer Pull autenticado
+      if (window.electronAPI && window.electronAPI.syncManager) {
+        try {
+          window.electronAPI.syncManager.updateToken(token);
+        } catch (e) {
+          // Silenciar errores de IPC
+        }
+      }
     }
 
     // El usuario puede venir directamente en data o en data.usuario

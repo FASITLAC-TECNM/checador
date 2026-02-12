@@ -14,11 +14,13 @@
   },
   "dependencies": {
     "@vladmandic/face-api": "^1.7.15",
+    "better-sqlite3": "^12.6.2",
     "canvas": "^3.2.0",
     "face-api.js": "^0.22.2",
     "lucide-react": "^0.263.1",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",
@@ -51,7 +53,11 @@
       {
         "from": "electron/BiometricMiddleware/bin/",
         "to": "BiometricMiddleware",
-        "filter": ["**/*.exe", "**/*.dll", "**/*.config"]
+        "filter": [
+          "**/*.exe",
+          "**/*.dll",
+          "**/*.config"
+        ]
       }
     ],
     "win": {

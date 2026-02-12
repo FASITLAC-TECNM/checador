@@ -11,6 +11,10 @@ import crypto from "crypto";
 import { fileURLToPath } from "url";
 import { spawn, execSync } from "child_process";
 
+// Offline-First: SyncManager y SQLiteManager
+import syncManager from "./offline/syncManager.mjs";
+import sqliteManager from "./offline/sqliteManager.mjs";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -409,6 +413,22 @@ app.whenReady().then(() => {
   // Crear la ventana principal
   createWindow();
 
+  // Inicializar sistema Offline-First
+  try {
+    const apiBaseUrl = getBackendUrl();
+    syncManager.init({
+      apiBaseUrl,
+      authToken: '', // Se actualizará cuando el usuario inicie sesión
+      window: mainWindow,
+    });
+    // Asumir online inicialmente, el renderer confirmará
+    syncManager.setOnlineStatus(true);
+    syncManager.startPeriodicSync();
+    console.log('🚀 [Main] Sistema Offline-First inicializado');
+  } catch (error) {
+    console.error('❌ [Main] Error inicializando sistema offline:', error);
+  }
+
   app.on("activate", function () {
     // En macOS es común recrear una ventana cuando se hace clic en el icono del dock
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -424,9 +444,10 @@ app.on("window-all-closed", function () {
   }
 });
 
-// Detener el BiometricMiddleware cuando la app se cierre
+// Detener el BiometricMiddleware y limpiar recursos offline cuando la app se cierre
 app.on("will-quit", () => {
   stopBiometricMiddleware();
+  syncManager.destroy();
 });
 
 // ===== IPC Handlers =====
@@ -696,8 +717,8 @@ function calculateEuclideanDistance(descriptor1, descriptor2) {
  */
 function getBackendUrl() {
   const configPath = getConfigPath();
-  // URL por defecto - Dev Tunnel
-  let backendUrl = "https://9dm7dqf9-3001.usw3.devtunnels.ms";
+  // URL por defecto - Dev Tunnel (debe coincidir con apiEndPoint.js)
+  let backendUrl = "https://9dm7dqf9-3002.usw3.devtunnels.ms";
 
   try {
     if (fs.existsSync(configPath)) {
@@ -1461,5 +1482,168 @@ ipcMain.handle("check-biometric-server", async () => {
     });
   } catch (error) {
     return { connected: false, message: error.message };
+  }
+});
+
+// ===== IPC Handlers: Sistema Offline-First =====
+
+/**
+ * Guardar asistencia en la cola offline
+ */
+ipcMain.handle("offline-save-asistencia", async (event, data) => {
+  try {
+    const result = sqliteManager.saveOfflineAsistencia(data);
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("[Offline] Error guardando asistencia:", error);
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Obtener credenciales de un empleado desde la caché
+ */
+ipcMain.handle("offline-get-credenciales", async (event, empleadoId) => {
+  try {
+    return sqliteManager.getCredenciales(empleadoId) || null;
+  } catch (error) {
+    return null;
+  }
+});
+
+/**
+ * Obtener TODAS las credenciales para matching 1:N
+ */
+ipcMain.handle("offline-get-all-credenciales", async () => {
+  try {
+    return sqliteManager.getAllCredenciales();
+  } catch (error) {
+    return [];
+  }
+});
+
+/**
+ * Obtener horario de un empleado desde la caché
+ */
+ipcMain.handle("offline-get-horario", async (event, empleadoId) => {
+  try {
+    return sqliteManager.getHorario(empleadoId) || null;
+  } catch (error) {
+    return null;
+  }
+});
+
+/**
+ * Obtener tolerancia de un empleado desde la caché
+ */
+ipcMain.handle("offline-get-tolerancia", async (event, empleadoId) => {
+  try {
+    return sqliteManager.getTolerancia(empleadoId);
+  } catch (error) {
+    return { minutos_retardo: 10, minutos_falta: 30, permite_anticipado: 1, minutos_anticipado_max: 60 };
+  }
+});
+
+/**
+ * Obtener empleado desde la caché
+ */
+ipcMain.handle("offline-get-empleado", async (event, empleadoId) => {
+  try {
+    return sqliteManager.getEmpleado(empleadoId) || null;
+  } catch (error) {
+    return null;
+  }
+});
+
+/**
+ * Obtener TODOS los empleados activos
+ */
+ipcMain.handle("offline-get-all-empleados", async () => {
+  try {
+    return sqliteManager.getAllEmpleados();
+  } catch (error) {
+    return [];
+  }
+});
+
+/**
+ * Obtener registros de asistencia del día actual para un empleado
+ */
+ipcMain.handle("offline-get-registros-hoy", async (event, empleadoId) => {
+  try {
+    return sqliteManager.getRegistrosHoy(empleadoId);
+  } catch (error) {
+    return [];
+  }
+});
+
+/**
+ * Obtener conteo de registros pendientes
+ */
+ipcMain.handle("offline-pending-count", async () => {
+  try {
+    return sqliteManager.getPendingCount();
+  } catch (error) {
+    return { pending: 0, errors: 0, synced: 0 };
+  }
+});
+
+/**
+ * Obtener estado de sincronización
+ */
+ipcMain.handle("sync-status", async () => {
+  try {
+    return syncManager.getStatus();
+  } catch (error) {
+    return { state: 'error', isOnline: false, pending: 0, errors: 0 };
+  }
+});
+
+/**
+ * Forzar Pull inmediato
+ */
+ipcMain.handle("sync-pull-now", async () => {
+  try {
+    return await syncManager.forcePull();
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Forzar Push inmediato
+ */
+ipcMain.handle("sync-push-now", async () => {
+  try {
+    return await syncManager.forcePush();
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+/**
+ * Actualizar estado de conectividad (desde el renderer)
+ */
+ipcMain.handle("sync-set-online", async (event, online) => {
+  syncManager.setOnlineStatus(online);
+  return { success: true };
+});
+
+/**
+ * Actualizar token de autenticación (después del login)
+ */
+ipcMain.handle("sync-update-token", async (event, token) => {
+  syncManager.updateAuthToken(token);
+  return { success: true };
+});
+
+/**
+ * Obtener registros con error para administración
+ */
+ipcMain.handle("offline-get-errors", async () => {
+  try {
+    return sqliteManager.getErrorRecords();
+  } catch (error) {
+    return [];
   }
 });

@@ -46,4 +46,36 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,
   platform: process.platform,
   versions: process.versions,
+
+  // ===== Sistema Offline-First =====
+  offlineDB: {
+    // Cola de asistencias
+    saveAsistencia: (data) => ipcRenderer.invoke('offline-save-asistencia', data),
+    getRegistrosHoy: (empleadoId) => ipcRenderer.invoke('offline-get-registros-hoy', empleadoId),
+    getPendingCount: () => ipcRenderer.invoke('offline-pending-count'),
+    getErrors: () => ipcRenderer.invoke('offline-get-errors'),
+
+    // Caché de datos maestros
+    getCredenciales: (empleadoId) => ipcRenderer.invoke('offline-get-credenciales', empleadoId),
+    getAllCredenciales: () => ipcRenderer.invoke('offline-get-all-credenciales'),
+    getHorario: (empleadoId) => ipcRenderer.invoke('offline-get-horario', empleadoId),
+    getTolerancia: (empleadoId) => ipcRenderer.invoke('offline-get-tolerancia', empleadoId),
+    getEmpleado: (empleadoId) => ipcRenderer.invoke('offline-get-empleado', empleadoId),
+    getAllEmpleados: () => ipcRenderer.invoke('offline-get-all-empleados'),
+  },
+
+  // Control de sincronización
+  syncManager: {
+    getStatus: () => ipcRenderer.invoke('sync-status'),
+    pullNow: () => ipcRenderer.invoke('sync-pull-now'),
+    pushNow: () => ipcRenderer.invoke('sync-push-now'),
+    setOnline: (online) => ipcRenderer.invoke('sync-set-online', online),
+    updateToken: (token) => ipcRenderer.invoke('sync-update-token', token),
+    onStatusUpdate: (callback) => {
+      ipcRenderer.on('sync-status-update', (event, status) => callback(status));
+    },
+    removeStatusListener: () => {
+      ipcRenderer.removeAllListeners('sync-status-update');
+    },
+  },
 });

@@ -151,6 +151,15 @@ export const useConnectivity = () => {
         setIsDatabaseConnected(false);
       }
 
+      // 3. Notificar al SyncManager del estado de conectividad
+      if (window.electronAPI && window.electronAPI.syncManager) {
+        try {
+          window.electronAPI.syncManager.setOnline(internetStatus);
+        } catch (e) {
+          // Silenciar errores de IPC
+        }
+      }
+
       setLastChecked(new Date());
     } catch (error) {
       console.error("Error en verificación de conectividad:", error);

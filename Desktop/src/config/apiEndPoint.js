@@ -19,6 +19,7 @@ export const API_CONFIG = {
     BIOMETRICO: "/api/biometrico",
     SOLICITUDES: "/api/solicitudes",
     EVENTOS: "/api/eventos",
+    AVISOS: "/api/avisos",
   },
   TIMEOUT: 30000,
 };

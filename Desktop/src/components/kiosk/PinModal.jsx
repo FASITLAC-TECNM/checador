@@ -87,6 +87,14 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
       // Guardar token temporalmente para las peticiones
       if (token) {
         localStorage.setItem('auth_token', token);
+        // Enviar token al SyncManager para que pueda hacer Pull autenticado
+        if (window.electronAPI && window.electronAPI.syncManager) {
+          try {
+            window.electronAPI.syncManager.updateToken(token);
+          } catch (e) {
+            // Silenciar errores de IPC
+          }
+        }
       }
 
       // 2. Obtener datos del empleado
@@ -267,6 +275,97 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
 
     } catch (error) {
       console.error("❌ Error:", error);
+
+      // === FALLBACK OFFLINE ===
+      const isNetworkError = error.name === 'TypeError'
+        || error.message.includes('Failed to fetch')
+        || error.message.includes('NetworkError')
+        || error.message.includes('ERR_INTERNET_DISCONNECTED');
+
+      if (isNetworkError && window.electronAPI && window.electronAPI.offlineDB) {
+        console.log('📴 [PinModal] Sin conexión — intentando registro offline...');
+
+        try {
+          // 1. Buscar empleado en caché local por usuario, correo o nombre
+          const { cargarDatosOffline, guardarAsistenciaOffline } =
+            await import('../../services/offlineAuthService');
+
+          // Obtener todos los empleados cacheados (incluye usuario, correo, nombre)
+          const allEmpleados = await window.electronAPI.offlineDB.getAllEmpleados();
+
+          // Buscar por usuario, correo o nombre (case-insensitive)
+          const userInput = usuarioOCorreo.trim().toLowerCase();
+          let matchedEmpleado = allEmpleados.find(emp => {
+            const usuario = (emp.usuario || '').toLowerCase();
+            const correo = (emp.correo || '').toLowerCase();
+            const nombre = (emp.nombre || '').toLowerCase();
+            return usuario === userInput
+              || correo === userInput
+              || nombre === userInput
+              || nombre.includes(userInput);
+          });
+
+          if (!matchedEmpleado) {
+            throw new Error('Empleado no encontrado en caché offline. Necesitas conexión a internet para el primer registro.');
+          }
+
+          const empleadoId = matchedEmpleado.empleado_id;
+
+          console.log(`✅ [PinModal] Empleado encontrado offline: ${matchedEmpleado.nombre}`);
+
+          // 2. Cargar datos de horario y determinar tipo de registro
+          const datosOffline = await cargarDatosOffline(empleadoId);
+          const registrosHoy = datosOffline.registrosHoy || [];
+          const tipoRegistro = registrosHoy.length % 2 === 0 ? 'entrada' : 'salida';
+
+          // 3. Guardar en cola offline (sin estado — el servidor lo calculará al hacer Push)
+          await guardarAsistenciaOffline({
+            empleadoId,
+            tipo: tipoRegistro,
+            estado: tipoRegistro === 'entrada' ? 'puntual' : 'salida_puntual',
+            metodoRegistro: 'PIN',
+            departamentoId: null,
+          });
+
+          const now = new Date();
+          const horaActual = now.toLocaleTimeString("es-MX", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          const tipoMovimiento = tipoRegistro === 'salida' ? 'SALIDA' : 'ENTRADA';
+
+          // Mensaje de voz
+          const utterance = new SpeechSynthesisUtterance(
+            `Registro offline exitoso, ${matchedEmpleado.nombre}`
+          );
+          utterance.lang = "es-MX";
+          utterance.rate = 0.9;
+          window.speechSynthesis.speak(utterance);
+
+          setResult({
+            success: true,
+            offline: true,
+            message: "Asistencia registrada (modo offline)",
+            empleado: matchedEmpleado,
+            tipoMovimiento,
+            hora: horaActual,
+            estado: 'pendiente_sync',
+            estadoTexto: '📴 Modo Offline',
+            clasificacion: tipoRegistro === 'salida' ? 'salida_puntual' : 'entrada',
+          });
+          return;
+        } catch (offlineError) {
+          console.error('❌ [PinModal] Offline fallback también falló:', offlineError);
+          // Mostrar error original si el offline también falla
+          setErrorMessage(offlineError.message || error.message);
+          setResult({
+            success: false,
+            message: offlineError.message || 'Sin conexión a internet. No se pudo registrar.',
+          });
+          return;
+        }
+      }
 
       agregarEvento({
         user: usuarioOCorreo,

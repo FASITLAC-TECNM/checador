@@ -138,7 +138,7 @@ export default function GeneralNodoModal({ onClose, onBack }) {
   if (isLoading) {
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-bg-primary rounded-3xl shadow-2xl max-w-md w-full overflow-hidden p-8">
+        <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden p-8">
           <div className="flex flex-col items-center justify-center gap-4">
             <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
             <p className="text-text-primary font-medium">Cargando datos del escritorio...</p>
@@ -152,11 +152,11 @@ export default function GeneralNodoModal({ onClose, onBack }) {
   if (error) {
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-bg-primary rounded-3xl shadow-2xl max-w-md w-full overflow-hidden">
-          <div className="bg-gradient-to-r from-red-600 to-red-500 px-4 py-3">
+        <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden">
+          <div className="bg-bg-primary p-6 border-b border-border-subtle">
             <div className="flex items-center gap-3">
-              <AlertCircle className="w-6 h-6 text-white" />
-              <h3 className="text-lg font-bold text-white">Error</h3>
+              <AlertCircle className="w-6 h-6 text-red-500" />
+              <h3 className="text-lg font-bold text-text-primary">Error</h3>
             </div>
           </div>
           <div className="p-6">
@@ -187,11 +187,10 @@ export default function GeneralNodoModal({ onClose, onBack }) {
       {/* Toast de notificación */}
       {toast.show && (
         <div
-          className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-pulse ${
-            toast.type === "success"
-              ? "bg-green-500 text-white"
-              : "bg-red-500 text-white"
-          }`}
+          className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-pulse ${toast.type === "success"
+            ? "bg-green-500 text-white"
+            : "bg-red-500 text-white"
+            }`}
         >
           {toast.type === "success" ? (
             <CheckCircle className="w-5 h-5" />
@@ -202,24 +201,22 @@ export default function GeneralNodoModal({ onClose, onBack }) {
         </div>
       )}
 
-      <div className="bg-bg-primary rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden">
+      <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-500 dark:from-blue-800 dark:to-blue-900 px-4 py-3">
+        <div className="bg-bg-primary p-6 border-b border-border-subtle">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 dark:bg-white/10 rounded-xl flex items-center justify-center">
-                <HardDrive className="w-5 h-5 text-white" />
-              </div>
+              <HardDrive className="w-8 h-8 text-text-primary" />
               <div>
-                <h3 className="text-xl font-bold text-white">General del Nodo</h3>
-                <p className="text-blue-100 dark:text-blue-200 text-xs">
+                <h3 className="text-2xl font-bold text-text-primary">General del Nodo</h3>
+                <p className="text-text-secondary text-sm mt-1">
                   Configuración general del sistema y nodo de trabajo
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="text-white hover:bg-white/20 dark:hover:bg-white/10 rounded-lg p-2 transition-colors"
+              className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors"
             >
               <X className="w-6 h-6" />
             </button>
@@ -245,7 +242,7 @@ export default function GeneralNodoModal({ onClose, onBack }) {
             </p>
           </div>
 
-          <div className="bg-bg-secondary border-2 border-blue-200 dark:border-blue-800 rounded-2xl p-3">
+          <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3">
             <div className="flex items-center justify-between mb-3">
               <h4 className="font-semibold text-text-primary flex items-center gap-2 text-sm">
                 <HardDrive className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -363,14 +360,14 @@ export default function GeneralNodoModal({ onClose, onBack }) {
           <div className="flex gap-3 mt-3">
             <button
               onClick={onBack || onClose}
-              className="flex-1 px-4 py-2 text-sm bg-bg-primary border-2 border-border-subtle text-text-secondary rounded-2xl font-semibold hover:bg-bg-secondary transition-colors"
+              className="flex-1 px-4 py-2 text-sm bg-bg-primary border border-border-subtle text-text-secondary rounded-xl font-semibold hover:bg-bg-secondary transition-colors"
             >
               {onBack ? "Volver" : "Cancelar"}
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="flex-1 px-4 py-2 text-sm bg-gradient-to-r from-blue-600 to-blue-500 dark:from-blue-700 dark:to-blue-800 text-white rounded-2xl font-semibold hover:from-blue-700 hover:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2 text-sm bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl font-semibold hover:bg-gray-800 dark:hover:bg-gray-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving ? (
                 <>

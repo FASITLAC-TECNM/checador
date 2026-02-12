@@ -20,7 +20,8 @@ import {
   getDaysInMonth,
   formatDateKey,
 } from "../utils/dateHelpers";
-import { notices, registrosPorDia } from "../constants/notices";
+import { registrosPorDia } from "../constants/notices";
+import { getAvisosDeEmpleado } from "../services/avisosService";
 import HistorialModal from "../components/session/HistorialModal";
 import ConfigModal from "../components/session/ConfigModal";
 import GeneralNodoModal from "../components/session/GeneralNodoModal";
@@ -37,6 +38,7 @@ import useBiometricWebSocket from "../hooks/useBiometricWebSocket";
 export default function SessionScreen({ onLogout, usuario }) {
   const [time, setTime] = useState(new Date());
   const [selectedNotice, setSelectedNotice] = useState(null);
+  const [notices, setNotices] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showHorarioModal, setShowHorarioModal] = useState(false);
@@ -123,6 +125,23 @@ export default function SessionScreen({ onLogout, usuario }) {
 
     if (usuario?.es_empleado) {
       cargarDepartamentos();
+    }
+  }, [usuario]);
+
+  // Cargar avisos personales del empleado
+  useEffect(() => {
+    const cargarAvisos = async () => {
+      const empId = usuario?.empleado_id;
+      if (!empId) return;
+      try {
+        const data = await getAvisosDeEmpleado(empId);
+        setNotices(data);
+      } catch (error) {
+        console.error("Error cargando avisos del empleado:", error);
+      }
+    };
+    if (usuario?.es_empleado) {
+      cargarAvisos();
     }
   }, [usuario]);
 
@@ -491,8 +510,8 @@ export default function SessionScreen({ onLogout, usuario }) {
                   disabled={!readerConnected}
                   title={!readerConnected ? "Lector de huella desconectado" : ""}
                   className={`w-full rounded-2xl shadow-lg p-5 text-white transition-all flex flex-col items-center justify-center ${readerConnected
-                      ? "bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 dark:from-orange-800 dark:to-orange-900 dark:hover:from-orange-700 dark:hover:to-orange-800 hover:shadow-xl cursor-pointer"
-                      : "bg-gradient-to-br from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700 opacity-60 cursor-not-allowed"
+                    ? "bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 dark:from-orange-800 dark:to-orange-900 dark:hover:from-orange-700 dark:hover:to-orange-800 hover:shadow-xl cursor-pointer"
+                    : "bg-gradient-to-br from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700 opacity-60 cursor-not-allowed"
                     }`}
                 >
                   <Fingerprint className={`w-12 h-12 mx-auto mb-2 ${!readerConnected ? "text-gray-300" : ""}`} />
@@ -603,32 +622,32 @@ export default function SessionScreen({ onLogout, usuario }) {
       {/* Notice Detail Modal */}
       {selectedNotice && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-500 dark:from-blue-800 dark:to-blue-900 p-6">
+          <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden">
+            <div className="bg-bg-primary p-6 border-b border-border-subtle">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <Bell className="w-6 h-6 text-white" />
-                  <h3 className="text-xl font-bold text-white">
+                  <Bell className="w-8 h-8 text-text-primary" />
+                  <h3 className="text-2xl font-bold text-text-primary">
                     Detalle del Aviso
                   </h3>
                 </div>
                 <button
                   onClick={() => setSelectedNotice(null)}
-                  className="text-white hover:bg-white/20 dark:hover:bg-white/10 rounded-lg p-2"
+                  className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
             </div>
             <div className="p-6 space-y-4">
-              <div className="bg-bg-secondary border-l-4 border-blue-500 dark:border-blue-600 rounded-lg p-4">
-                <h4 className="font-bold text-lg text-blue-800 dark:text-blue-300 mb-2">
+              <div className="bg-bg-secondary border border-border-subtle rounded-xl p-4">
+                <h4 className="font-bold text-lg text-text-primary mb-2">
                   {selectedNotice.subject}
                 </h4>
                 <p className="text-text-secondary">{selectedNotice.detail}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-bg-secondary rounded-lg p-4">
+                <div className="bg-bg-secondary border border-border-subtle rounded-xl p-4">
                   <p className="text-xs font-semibold text-text-secondary mb-1">
                     AUTOR
                   </p>
@@ -636,7 +655,7 @@ export default function SessionScreen({ onLogout, usuario }) {
                     {selectedNotice.author}
                   </p>
                 </div>
-                <div className="bg-bg-secondary rounded-lg p-4">
+                <div className="bg-bg-secondary border border-border-subtle rounded-xl p-4">
                   <p className="text-xs font-semibold text-text-secondary mb-1">
                     FECHA Y HORA
                   </p>
@@ -645,12 +664,6 @@ export default function SessionScreen({ onLogout, usuario }) {
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => setSelectedNotice(null)}
-                className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-500 dark:from-blue-700 dark:to-blue-800 hover:from-blue-700 hover:to-blue-600 dark:hover:from-blue-600 dark:hover:to-blue-700 text-white rounded-xl font-bold transition-all"
-              >
-                CERRAR
-              </button>
             </div>
           </div>
         </div>

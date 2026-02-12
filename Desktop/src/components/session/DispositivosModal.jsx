@@ -154,26 +154,24 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-gradient-to-r from-green-600 to-green-500 dark:from-green-800 dark:to-green-900 p-6 flex-shrink-0">
+        <div className="bg-bg-primary p-6 border-b border-border-subtle flex-shrink-0">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 dark:bg-white/10 rounded-xl flex items-center justify-center">
-                <Smartphone className="w-6 h-6 text-white" />
-              </div>
+              <Smartphone className="w-8 h-8 text-text-primary" />
               <div>
-                <h3 className="text-2xl font-bold text-white">
+                <h3 className="text-2xl font-bold text-text-primary">
                   Dispositivos Biométricos
                 </h3>
-                <p className="text-green-100 dark:text-green-200 text-sm mt-1">
+                <p className="text-text-secondary text-sm mt-1">
                   Gestiona los dispositivos vinculados a este nodo
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="text-white hover:bg-white/20 dark:hover:bg-white/10 rounded-lg p-2 transition-colors"
+              className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors"
             >
               <X className="w-6 h-6" />
             </button>
@@ -211,7 +209,7 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
                   devices.map((device) => (
                     <div
                       key={device.id}
-                      className="bg-bg-secondary border-2 border-green-500 dark:border-green-800 rounded-xl p-4"
+                      className="bg-bg-secondary border border-border-subtle rounded-xl p-4"
                     >
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center gap-3">
@@ -302,18 +300,18 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
         </div>
 
         {/* Footer */}
-        <div className="bg-bg-secondary p-4 border-t border-border-subtle flex-shrink-0">
+        <div className="bg-bg-primary p-4 border-t border-border-subtle flex-shrink-0">
           <div className="flex gap-4">
             <button
               onClick={onBack || onClose}
-              className="flex-1 px-6 py-3 bg-bg-primary border-2 border-border-subtle text-text-secondary rounded-xl font-bold hover:bg-bg-secondary transition-colors"
+              className="flex-1 px-6 py-3 bg-bg-primary border border-border-subtle text-text-secondary rounded-xl font-bold hover:bg-bg-secondary transition-colors"
             >
               {onBack ? "Volver" : "Cancelar"}
             </button>
             <button
               onClick={handleSave}
               disabled={saving || loading}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-green-500 dark:from-green-700 dark:to-green-800 text-white rounded-xl font-bold hover:from-green-700 hover:to-green-600 dark:hover:from-green-600 dark:hover:to-green-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 disabled:opacity-50"
+              className="flex-1 px-6 py-3 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl font-bold hover:bg-gray-800 dark:hover:bg-gray-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {saving ? (
                 <Loader2 className="w-5 h-5 animate-spin" />

@@ -9,7 +9,7 @@ export default function ConfigModal({ onClose, onSelectOption }) {
       description: "Configuración general del sistema y nodo de trabajo",
       icon: Settings,
       bgColor: "bg-bg-secondary",
-      iconBg: "bg-blue-500 dark:bg-blue-700",
+      iconBg: "bg-bg-secondary",
       borderColor: "border-blue-200 dark:border-blue-800",
     },
     {
@@ -18,7 +18,7 @@ export default function ConfigModal({ onClose, onSelectOption }) {
       description: "Gestiona los dispositivos vinculados a tu cuenta",
       icon: Smartphone,
       bgColor: "bg-bg-secondary",
-      iconBg: "bg-green-500 dark:bg-green-700",
+      iconBg: "bg-bg-secondary",
       borderColor: "border-green-200 dark:border-green-800",
     },
     {
@@ -27,7 +27,7 @@ export default function ConfigModal({ onClose, onSelectOption }) {
       description: "Personaliza tu experiencia y ajustes del usuario",
       icon: Sliders,
       bgColor: "bg-bg-secondary",
-      iconBg: "bg-purple-500 dark:bg-purple-700",
+      iconBg: "bg-bg-secondary",
       borderColor: "border-purple-200 dark:border-purple-800",
     },
   ];
@@ -38,22 +38,22 @@ export default function ConfigModal({ onClose, onSelectOption }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden">
+      <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-blue-500 dark:from-blue-800 dark:to-blue-900 p-6">
+        <div className="bg-bg-primary p-6 border-b border-border-subtle">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <Settings className="w-8 h-8 text-white" />
+              <Settings className="w-8 h-8 text-text-primary" />
               <div>
-                <h3 className="text-2xl font-bold text-white">Configuración</h3>
-                <p className="text-blue-100 dark:text-blue-200 text-sm mt-1">
+                <h3 className="text-2xl font-bold text-text-primary">Configuración</h3>
+                <p className="text-text-secondary text-sm mt-1">
                   Gestiona la configuración del sistema
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="text-white hover:bg-white/20 dark:hover:bg-white/10 rounded-lg p-2 transition-colors"
+              className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors"
             >
               <X className="w-6 h-6" />
             </button>
@@ -68,13 +68,13 @@ export default function ConfigModal({ onClose, onSelectOption }) {
               <button
                 key={option.id}
                 onClick={() => handleOptionClick(option.id)}
-                className={`w-full ${option.bgColor} border-2 ${option.borderColor} rounded-xl p-5 hover:shadow-lg transition-all group`}
+                className={`w-full ${option.bgColor} border ${option.borderColor} rounded-xl p-5 hover:shadow-lg transition-all group`}
               >
                 <div className="flex items-center gap-4">
                   <div
                     className={`w-14 h-14 ${option.iconBg} rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform`}
                   >
-                    <Icon className="w-7 h-7 text-white" />
+                    <Icon className="w-7 h-7 text-text-primary" />
                   </div>
                   <div className="flex-1 text-left">
                     <h4 className="font-bold text-text-primary text-lg mb-1">
@@ -101,16 +101,6 @@ export default function ConfigModal({ onClose, onSelectOption }) {
               </button>
             );
           })}
-        </div>
-
-        {/* Footer */}
-        <div className="bg-bg-secondary p-4 border-t border-border-subtle">
-          <button
-            onClick={onClose}
-            className="w-full py-3 bg-bg-primary border-2 border-border-subtle hover:bg-bg-secondary text-text-primary rounded-xl font-bold transition-colors"
-          >
-            Cerrar
-          </button>
         </div>
       </div>
     </div>

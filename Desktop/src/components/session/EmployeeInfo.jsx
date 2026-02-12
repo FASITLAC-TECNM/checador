@@ -271,23 +271,21 @@ export default function EmployeeInfo({ time, empleado, horario: horarioProp, loa
                   return (
                     <div
                       key={index}
-                      className={`rounded-xl p-3 ${
-                        esActivo
-                          ? 'bg-green-50 dark:bg-green-900/20 border-2 border-green-500'
-                          : esProximo
-                            ? 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-500 border-dashed'
-                            : 'bg-bg-tertiary border border-border-subtle'
-                      }`}
+                      className={`rounded-xl p-3 ${esActivo
+                        ? 'bg-green-50 dark:bg-green-900/20 border-2 border-green-500'
+                        : esProximo
+                          ? 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-500 border-dashed'
+                          : 'bg-bg-tertiary border border-border-subtle'
+                        }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                            esActivo
-                              ? 'bg-green-500 text-white'
-                              : esProximo
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-gray-200 dark:bg-gray-700 text-text-secondary'
-                          }`}>
+                          <span className={`text-xs font-bold px-2 py-1 rounded-full ${esActivo
+                            ? 'bg-green-500 text-white'
+                            : esProximo
+                              ? 'bg-blue-500 text-white'
+                              : 'bg-gray-200 dark:bg-gray-700 text-text-secondary'
+                            }`}>
                             T{index + 1}
                           </span>
                           <span className="text-sm font-semibold text-text-primary">
@@ -330,12 +328,12 @@ export default function EmployeeInfo({ time, empleado, horario: horarioProp, loa
           </div>
         ) : !errorHorario && horarioParsed && !infoHoy.trabaja ? (
           /* Día de Descanso */
-          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-purple-200 dark:border-purple-800 text-center">
-            <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center">
-              <Coffee className="w-8 h-8 text-purple-500" />
+          <div className="bg-bg-secondary rounded-xl p-4 border border-border-subtle text-center">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+              <Coffee className="w-6 h-6 text-purple-500" />
             </div>
-            <p className="text-lg font-bold text-text-primary mb-1">Día de Descanso</p>
-            <p className="text-sm text-text-secondary">Disfruta tu día libre</p>
+            <p className="text-text-primary font-semibold">Día de Descanso</p>
+            <p className="text-xs text-text-secondary mt-1">Disfruta tu día libre</p>
           </div>
         ) : !errorHorario && !horarioParsed ? (
           /* Sin horario asignado */
@@ -379,24 +377,24 @@ export default function EmployeeInfo({ time, empleado, horario: horarioProp, loa
       </div>
 
       {/* Estadísticas del Mes */}
-      <div className="bg-bg-primary rounded-2xl shadow-lg p-4 flex-1 min-h-0 overflow-auto">
-        <div className="flex items-center gap-2 mb-3">
-          <Briefcase className="w-4 h-4 text-purple-600" />
+      <div className="bg-bg-primary rounded-2xl shadow-lg p-3 flex-shrink-0">
+        <div className="flex items-center gap-2 mb-2">
+          <Briefcase className="w-4 h-4 text-text-secondary" />
           <h3 className="text-sm font-bold text-text-primary">
             Estadísticas del Mes
           </h3>
         </div>
         <div className="grid grid-cols-3 gap-2">
-          <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-center">
-            <p className="text-2xl font-bold text-green-500">8</p>
+          <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-2 text-center">
+            <p className="text-xl font-bold text-green-500">8</p>
             <p className="text-[10px] text-green-600 dark:text-green-400 font-medium">Asistencias</p>
           </div>
-          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-center">
-            <p className="text-2xl font-bold text-red-500">2</p>
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-2 text-center">
+            <p className="text-xl font-bold text-red-500">2</p>
             <p className="text-[10px] text-red-600 dark:text-red-400 font-medium">Faltas</p>
           </div>
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 text-center">
-            <p className="text-2xl font-bold text-blue-500">90%</p>
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-2 text-center">
+            <p className="text-xl font-bold text-blue-500">90%</p>
             <p className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">Asistencia</p>
           </div>
         </div>

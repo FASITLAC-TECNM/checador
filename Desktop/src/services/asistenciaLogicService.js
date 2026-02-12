@@ -785,30 +785,65 @@ export const registrarAsistenciaEnServidor = async ({
 
   console.log('[AsistenciaLogic] Enviando registro:', payload);
 
-  const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ASISTENCIAS}/registrar`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token || localStorage.getItem('auth_token') || ''}`,
-    },
-    body: JSON.stringify(payload)
-  });
-
-  const responseText = await response.text();
-  let data;
-
   try {
-    data = responseText ? JSON.parse(responseText) : {};
-  } catch (parseError) {
-    throw new Error('Error del servidor: respuesta inválida');
-  }
+    const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.ASISTENCIAS}/registrar`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token || localStorage.getItem('auth_token') || ''}`,
+      },
+      body: JSON.stringify(payload)
+    });
 
-  if (!response.ok) {
-    const errorMsg = data.message || data.error || `Error del servidor (${response.status})`;
-    throw new Error(errorMsg);
-  }
+    const responseText = await response.text();
+    let data;
 
-  return data;
+    try {
+      data = responseText ? JSON.parse(responseText) : {};
+    } catch (parseError) {
+      throw new Error('Error del servidor: respuesta inválida');
+    }
+
+    if (!response.ok) {
+      const errorMsg = data.message || data.error || `Error del servidor (${response.status})`;
+      throw new Error(errorMsg);
+    }
+
+    return data;
+  } catch (fetchError) {
+    // === FALLBACK OFFLINE ===
+    // Si el fetch falla por red, guardar en cola offline (solo en Electron)
+    const isNetworkError = fetchError.name === 'TypeError'
+      || fetchError.message.includes('Failed to fetch')
+      || fetchError.message.includes('NetworkError')
+      || fetchError.message.includes('ERR_INTERNET_DISCONNECTED');
+
+    if (isNetworkError && window.electronAPI && window.electronAPI.offlineDB) {
+      console.log('📴 [AsistenciaLogic] Sin conexión — guardando en cola offline');
+
+      const offlineResult = await window.electronAPI.offlineDB.saveAsistencia({
+        empleado_id: empleadoId,
+        tipo: tipoRegistro || 'entrada',
+        estado: estadoHorario || 'puntual',
+        dispositivo_origen: 'escritorio',
+        metodo_registro: metodoRegistro,
+        departamento_id: departamentoId || null,
+        fecha_registro: new Date().toISOString(),
+      });
+
+      if (offlineResult && offlineResult.success) {
+        return {
+          success: true,
+          offline: true,
+          message: 'Asistencia registrada localmente. Se sincronizará al reconectar.',
+          data: offlineResult.data,
+        };
+      }
+    }
+
+    // Si no es error de red o no hay offlineDB, re-lanzar el error original
+    throw fetchError;
+  }
 };
 
 /**

@@ -3,13 +3,6 @@ import { getApiEndpoint } from '../config/api';
 
 const API_URL = getApiEndpoint('/api');
 
-// Orden por defecto si no hay datos en el backend
-const ORDEN_CREDENCIALES_DEFAULT = {
-    pin: { prioridad: 1, activo: true },
-    dactilar: { prioridad: 2, activo: true },
-    facial: { prioridad: 3, activo: true }
-};
-
 /**
  * Servicio para gestionar configuración del sistema
  */
@@ -17,7 +10,6 @@ const ORDEN_CREDENCIALES_DEFAULT = {
 // Obtener configuración actual
 export const getConfiguracion = async (token) => {
     try {
-        // Obtener la configuración directamente
         const configResponse = await fetch(`${API_URL}/configuracion`, {
             method: 'GET',
             headers: {
@@ -31,7 +23,10 @@ export const getConfiguracion = async (token) => {
             throw new Error(errorData.error || 'Error al obtener configuración');
         }
 
-        const config = await configResponse.json();
+        const responseJson = await configResponse.json();
+
+        // El backend retorna { success, data: { ...campos... } }
+        const config = responseJson.data || responseJson;
 
         // Parsear campos JSON si vienen como string
         let paletaColores = config.paleta_colores;
@@ -39,31 +34,28 @@ export const getConfiguracion = async (token) => {
             try {
                 paletaColores = JSON.parse(paletaColores);
             } catch (e) {
-                console.error('Error parseando paleta_colores:', e);
+                // ignorar error de parseo
             }
         }
 
+        // Buscar orden_credenciales en los campos posibles
         let ordenCredenciales = config.credenciales_orden || config.orden_credenciales;
+
         if (typeof ordenCredenciales === 'string') {
             try {
                 ordenCredenciales = JSON.parse(ordenCredenciales);
             } catch (e) {
-                console.error('Error parseando orden_credenciales:', e);
+                // ignorar error de parseo
             }
         }
 
-        // Si es un array (formato antiguo), convertir a objeto
+        // Si es un array, convertir a objeto con prioridad por posición
         if (Array.isArray(ordenCredenciales)) {
             const nuevoOrden = {};
             ordenCredenciales.forEach((metodo, index) => {
                 nuevoOrden[metodo] = { prioridad: index + 1, activo: true };
             });
             ordenCredenciales = nuevoOrden;
-        }
-
-        // Si no hay orden_credenciales, usar el por defecto
-        if (!ordenCredenciales) {
-            ordenCredenciales = { ...ORDEN_CREDENCIALES_DEFAULT };
         }
 
         const configuracion = {
@@ -79,16 +71,14 @@ export const getConfiguracion = async (token) => {
         };
 
     } catch (error) {
-        console.error('Error en getConfiguracion:', error);
         throw error;
     }
 };
 
 // Actualizar configuración (solo admin)
-export const updateConfiguracion = async (configuracionData, token) => {
+export const updateConfiguracion = async (configId, configuracionData, token) => {
     try {
-        
-        const response = await fetch(`${API_URL}/configuracion`, {
+        const response = await fetch(`${API_URL}/configuracion/${configId}`, {
             method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -103,27 +93,23 @@ export const updateConfiguracion = async (configuracionData, token) => {
         }
 
         const data = await response.json();
+        return { success: true, data };
 
-        return {
-            success: true,
-            data
-        };
-        
     } catch (error) {
         throw error;
     }
 };
 
 // Alternar modo mantenimiento (solo admin)
-export const toggleMantenimiento = async (token) => {
+export const toggleMantenimiento = async (configId, esMantenimiento, token) => {
     try {
-        
-        const response = await fetch(`${API_URL}/configuracion/mantenimiento`, {
-            method: 'POST',
+        const response = await fetch(`${API_URL}/configuracion/${configId}/mantenimiento`, {
+            method: 'PATCH',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({ es_mantenimiento: esMantenimiento })
         });
 
         if (!response.ok) {
@@ -132,12 +118,8 @@ export const toggleMantenimiento = async (token) => {
         }
 
         const data = await response.json();
+        return { success: true, data };
 
-        return {
-            success: true,
-            data
-        };
-        
     } catch (error) {
         throw error;
     }
@@ -155,17 +137,15 @@ export const getOrdenCredenciales = async (token) => {
             };
         }
 
-        // Orden por defecto si no hay configuración
         return {
             success: true,
-            ordenCredenciales: { ...ORDEN_CREDENCIALES_DEFAULT }
+            ordenCredenciales: null
         };
 
     } catch (error) {
-        console.error('Error obteniendo orden de credenciales:', error);
         return {
             success: true,
-            ordenCredenciales: { ...ORDEN_CREDENCIALES_DEFAULT }
+            ordenCredenciales: null
         };
     }
 };

@@ -13,10 +13,16 @@ const API_URL = getApiEndpoint('/api');
 
 /**
  * Obtener todos los usuarios
+ * GET /api/usuarios
  */
-export const getUsuarios = async () => {
+export const getUsuarios = async (token) => {
     try {
-        const response = await fetch(`${API_URL}/usuarios`);
+        const response = await fetch(`${API_URL}/usuarios`, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
         if (!response.ok) throw new Error('Error al obtener usuarios');
         return await response.json();
     } catch (error) {
@@ -26,10 +32,16 @@ export const getUsuarios = async () => {
 
 /**
  * Obtener un usuario por ID
+ * GET /api/usuarios/:id
  */
-export const getUsuario = async (id) => {
+export const getUsuario = async (id, token) => {
     try {
-        const response = await fetch(`${API_URL}/usuarios/${id}`);
+        const response = await fetch(`${API_URL}/usuarios/${id}`, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
         if (!response.ok) throw new Error('Error al obtener usuario');
         return await response.json();
     } catch (error) {
@@ -39,8 +51,9 @@ export const getUsuario = async (id) => {
 
 /**
  * Crear un nuevo usuario
+ * POST /api/usuarios
  */
-export const crearUsuario = async (usuario) => {
+export const crearUsuario = async (usuario, token) => {
     try {
         // Mapear campos del frontend a la BD
         const usuarioDB = {
@@ -58,6 +71,7 @@ export const crearUsuario = async (usuario) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify(usuarioDB),
         });
@@ -75,8 +89,9 @@ export const crearUsuario = async (usuario) => {
 
 /**
  * Actualizar un usuario existente
+ * PUT /api/usuarios/:id
  */
-export const actualizarUsuario = async (id, usuario) => {
+export const actualizarUsuario = async (id, usuario, token) => {
     try {
         const usuarioDB = {
             username: usuario.username,
@@ -97,6 +112,7 @@ export const actualizarUsuario = async (id, usuario) => {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify(usuarioDB),
         });
@@ -113,216 +129,19 @@ export const actualizarUsuario = async (id, usuario) => {
 };
 
 /**
- * Eliminar un usuario
+ * Eliminar un usuario (soft delete)
+ * DELETE /api/usuarios/:id
  */
-export const eliminarUsuario = async (id) => {
+export const eliminarUsuario = async (id, token) => {
     try {
         const response = await fetch(`${API_URL}/usuarios/${id}`, {
             method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
         });
 
         if (!response.ok) throw new Error('Error al eliminar usuario');
-        return await response.json();
-    } catch (error) {
-        throw error;
-    }
-};
-
-/**
- * Actualizar solo el estado de conexión de un usuario
- */
-export const actualizarEstadoConexion = async (id, estado) => {
-    try {
-        const response = await fetch(`${API_URL}/usuarios/${id}/estado`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ estado }),
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Error al actualizar estado');
-        }
-
-        return await response.json();
-    } catch (error) {
-        throw error;
-    }
-};
-
-/**
- * Filtrar usuarios por estado activo y/o estado de conexión
- */
-export const filtrarUsuarios = async (filtros) => {
-    try {
-        const params = new URLSearchParams();
-
-        if (filtros.activo) params.append('activo', filtros.activo);
-        if (filtros.estado) params.append('estado', filtros.estado);
-
-        const response = await fetch(`${API_URL}/usuarios/filtrar?${params.toString()}`);
-
-        if (!response.ok) throw new Error('Error al filtrar usuarios');
-        return await response.json();
-    } catch (error) {
-        throw error;
-    }
-};
-
-/**
- * Obtener estadísticas de usuarios
- */
-export const getEstadisticas = async () => {
-    try {
-        const response = await fetch(`${API_URL}/usuarios/stats`);
-
-        if (!response.ok) throw new Error('Error al obtener estadísticas');
-        return await response.json();
-    } catch (error) {
-        throw error;
-    }
-};
-
-// ============================================
-// SERVICIOS DE EMPLEADOS
-// ============================================
-
-/**
- * Obtener todos los empleados
- */
-export const getEmpleados = async () => {
-    try {
-        const response = await fetch(`${API_URL}/empleados`);
-        if (!response.ok) throw new Error('Error al obtener empleados');
-        return await response.json();
-    } catch (error) {
-        throw error;
-    }
-};
-
-/**
- * Obtener un empleado por ID
- */
-export const getEmpleado = async (id) => {
-    try {
-        const response = await fetch(`${API_URL}/empleados/${id}`);
-        if (!response.ok) throw new Error('Error al obtener empleado');
-        return await response.json();
-    } catch (error) {
-        throw error;
-    }
-};
-
-/**
- * Obtener empleado por ID de usuario
- */
-export const getEmpleadoPorUsuario = async (idUsuario) => {
-    try {
-        const response = await fetch(`${API_URL}/empleados/usuario/${idUsuario}`);
-        if (!response.ok) throw new Error('Error al obtener empleado');
-        return await response.json();
-    } catch (error) {
-        throw error;
-    }
-};
-
-/**
- * Crear un nuevo empleado
- */
-export const crearEmpleado = async (empleado) => {
-    try {
-        const empleadoDB = {
-            id_usuario: empleado.id_usuario,
-            nss: empleado.nss,
-            rfc: empleado.rfc,
-            pin: empleado.pin
-        };
-
-        const response = await fetch(`${API_URL}/empleados`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(empleadoDB),
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Error al crear empleado');
-        }
-
-        return await response.json();
-    } catch (error) {
-        throw error;
-    }
-};
-
-/**
- * Actualizar un empleado existente
- */
-export const actualizarEmpleado = async (id, empleado) => {
-    try {
-        const empleadoDB = {
-            nss: empleado.nss,
-            rfc: empleado.rfc,
-            pin: empleado.pin
-        };
-
-        const response = await fetch(`${API_URL}/empleados/${id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(empleadoDB),
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Error al actualizar empleado');
-        }
-
-        return await response.json();
-    } catch (error) {
-        throw error;
-    }
-};
-
-/**
- * Eliminar un empleado
- */
-export const eliminarEmpleado = async (id) => {
-    try {
-        const response = await fetch(`${API_URL}/empleados/${id}`, {
-            method: 'DELETE',
-        });
-
-        if (!response.ok) throw new Error('Error al eliminar empleado');
-        return await response.json();
-    } catch (error) {
-        throw error;
-    }
-};
-
-/**
- * Validar PIN de empleado
- */
-export const validarPinEmpleado = async (idEmpleado, pin) => {
-    try {
-        const response = await fetch(`${API_URL}/empleados/${idEmpleado}/validar-pin`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ pin }),
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Error al validar PIN');
-        }
-
         return await response.json();
     } catch (error) {
         throw error;

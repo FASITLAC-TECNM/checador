@@ -30,14 +30,14 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [registrando, setRegistrando] = useState(false);
   const [mostrarMapa, setMostrarMapa] = useState(false);
   const [mostrarDepartamentos, setMostrarDepartamentos] = useState(false);
-  
+
   const [mostrarAutenticacion, setMostrarAutenticacion] = useState(false);
   const [mostrarPinAuth, setMostrarPinAuth] = useState(false);
   const [mostrarCapturaFacial, setMostrarCapturaFacial] = useState(false);
   const [credencialesUsuario, setCredencialesUsuario] = useState(null);
   const [metodosDisponibles, setMetodosDisponibles] = useState([]);
   const [ordenCredenciales, setOrdenCredenciales] = useState([]);
-  
+
   const [ubicacionActual, setUbicacionActual] = useState(null);
   const [departamentos, setDepartamentos] = useState([]);
   const [departamentosDisponibles, setDepartamentosDisponibles] = useState([]);
@@ -45,7 +45,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [horarioInfo, setHorarioInfo] = useState(null);
   const [toleranciaInfo, setToleranciaInfo] = useState(null);
   const [ultimoRegistroHoy, setUltimoRegistroHoy] = useState(null);
-  
+
   const [dentroDelArea, setDentroDelArea] = useState(false);
   const [puedeRegistrar, setPuedeRegistrar] = useState(false);
   const [tipoSiguienteRegistro, setTipoSiguienteRegistro] = useState('entrada');
@@ -71,7 +71,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         userData.empleado_id,
         userData.token
       );
-      
+
       setCredencialesUsuario(credsResponse.data || {
         tiene_dactilar: false,
         tiene_facial: false,
@@ -80,12 +80,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       const ordenResponse = await getOrdenCredenciales(userData.token);
       setOrdenCredenciales(ordenResponse.orden || ['pin', 'dactilar', 'facial']);
-      
+
       construirMetodosDisponibles(
         credsResponse.data,
         ordenResponse.orden || ['pin', 'dactilar', 'facial']
       );
-      
+
     } catch (error) {
       setCredencialesUsuario({
         tiene_dactilar: false,
@@ -140,7 +140,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   useEffect(() => {
     const intervalo = setInterval(() => {
       setHoraActual(new Date());
-      
+
       if (horarioInfo && toleranciaInfo) {
         const estado = calcularEstadoRegistro(ultimoRegistroHoy, horarioInfo, toleranciaInfo);
         setPuedeRegistrar(estado.puedeRegistrar);
@@ -167,7 +167,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     if (!turnos || !Array.isArray(turnos) || turnos.length === 0) {
       return [];
     }
-    
+
     if (turnos.length === 1) {
       return [turnos];
     }
@@ -243,14 +243,14 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       if (!registrosHoy.length) return null;
 
       const ultimo = registrosHoy[0];
-      
+
       return {
         tipo: ultimo.tipo,
         estado: ultimo.estado,
         fecha_registro: new Date(ultimo.fecha_registro),
-        hora: new Date(ultimo.fecha_registro).toLocaleTimeString('es-MX', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
+        hora: new Date(ultimo.fecha_registro).toLocaleTimeString('es-MX', {
+          hour: '2-digit',
+          minute: '2-digit'
         }),
         totalRegistrosHoy: registrosHoy.length
       };
@@ -278,11 +278,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       const data = await response.json();
       const horario = data.data || data.horario || data;
-      
+
       if (!horario?.configuracion) return null;
 
-      let config = typeof horario.configuracion === 'string' 
-        ? JSON.parse(horario.configuracion) 
+      let config = typeof horario.configuracion === 'string'
+        ? JSON.parse(horario.configuracion)
         : horario.configuracion;
 
       const diaHoy = getDiaSemana();
@@ -298,9 +298,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       }
 
       if (!turnosHoy || !Array.isArray(turnosHoy) || turnosHoy.length === 0) {
-        return { 
-          trabaja: false, 
-          turnos: [], 
+        return {
+          trabaja: false,
+          turnos: [],
           gruposTurnos: [],
           entrada: null,
           salida: null,
@@ -368,7 +368,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       const toleranciaData = await toleranciaResponse.json();
       const tolerancia = toleranciaData.data || toleranciaData;
-      
+
       // Asegurar que tenga los valores de salida
       return {
         ...defaultTolerancia,
@@ -383,7 +383,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const obtenerDepartamentos = useCallback(async () => {
     try {
       const departamentosAsignados = userData?.empleadoInfo?.departamentos;
-      
+
       if (!departamentosAsignados || departamentosAsignados.length === 0) {
         return [];
       }
@@ -430,18 +430,18 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }
 
     let hayTurnoFuturo = false;
-    
+
     for (const grupo of horario.gruposTurnos) {
       const { entrada: horaEntrada, salida: horaSalida } = getEntradaSalidaGrupo(grupo);
-      
+
       if (!horaEntrada || !horaSalida) continue;
-      
+
       const [hE, mE] = horaEntrada.split(':').map(Number);
       const [hS, mS] = horaSalida.split(':').map(Number);
-      
+
       const minEntrada = hE * 60 + mE;
       const minSalida = hS * 60 + mS;
-      
+
       // 🎯 USAR TOLERANCIA DEL SISTEMA
       const ventanaInicio = minEntrada - (tolerancia.minutos_anticipado_max || 60);
       const ventanaRetardo = minEntrada + (tolerancia.minutos_retardo || 10);
@@ -479,7 +479,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           mensaje: 'Fuera de tolerancia (falta)'
         };
       }
-      
+
       if (minutosActuales < ventanaInicio) {
         hayTurnoFuturo = true;
       }
@@ -512,30 +512,30 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const ahora = new Date();
       const horaUltimoRegistro = new Date(ultimoRegistro.fecha_registro);
       const diferenciaMinutos = (ahora - horaUltimoRegistro) / 1000 / 60;
-      
+
       const totalRegistros = ultimoRegistro.totalRegistrosHoy || 1;
       const gruposCompletados = Math.floor(totalRegistros / 2);
-      
+
       if (gruposCompletados < horario.gruposTurnos.length) {
         const grupoActual = horario.gruposTurnos[gruposCompletados];
         const { entrada: horaEntrada, salida: horaSalida } = getEntradaSalidaGrupo(grupoActual);
-        
+
         const [hE, mE] = horaEntrada.split(':').map(Number);
         const [hS, mS] = horaSalida.split(':').map(Number);
         const minEntrada = hE * 60 + mE;
         const minSalida = hS * 60 + mS;
         const duracionTurno = minSalida - minEntrada;
-        
+
         // 🎯 USAR TOLERANCIA DEL SISTEMA:
         // - Si existe `minutos_anticipado_salida` en tolerancia, usarlo
         // - Si no, usar `minutos_retardo` como fallback
         // - Si aplica_tolerancia_salida es false, permitir salida solo en hora exacta (tolerancia 0)
-        const toleranciaSalidaAnticipada = tolerancia.aplica_tolerancia_salida === false 
-          ? 0 
+        const toleranciaSalidaAnticipada = tolerancia.aplica_tolerancia_salida === false
+          ? 0
           : (tolerancia.minutos_anticipado_salida || tolerancia.minutos_retardo || 10);
-        
+
         const tiempoMinimoRequerido = Math.max(5, duracionTurno - toleranciaSalidaAnticipada);
-        
+
         if (diferenciaMinutos < tiempoMinimoRequerido) {
           const minutosRestantes = Math.ceil(tiempoMinimoRequerido - diferenciaMinutos);
           return {
@@ -552,17 +552,17 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }
 
     // 🎯 Validación normal de ventana de salida (también basada en TOLERANCIA)
-    const toleranciaSalida = tolerancia?.aplica_tolerancia_salida === false 
-      ? 0 
+    const toleranciaSalida = tolerancia?.aplica_tolerancia_salida === false
+      ? 0
       : (tolerancia?.minutos_anticipado_salida || tolerancia?.minutos_retardo || 10);
-    
+
     const toleranciaSalidaTarde = 5; // Pequeña ventana después de la hora de salida
-    
+
     for (const grupo of horario.gruposTurnos) {
       const { salida: horaSalida } = getEntradaSalidaGrupo(grupo);
-      
+
       if (!horaSalida) continue;
-      
+
       const [hS, mS] = horaSalida.split(':').map(Number);
       const minSalida = hS * 60 + mS;
 
@@ -612,22 +612,22 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
     const ahora = getMinutosDelDia();
     const totalGrupos = horario.gruposTurnos.length;
-    
+
     if (!ultimo) {
       return validarEntrada(horario, tolerancia, ahora);
     }
 
     const registrosHoy = ultimo.totalRegistrosHoy || 1;
     const gruposCompletados = Math.floor(registrosHoy / 2);
-    
+
     if (ultimo.tipo === 'entrada') {
       return validarSalida(horario, ahora, ultimo, tolerancia);
     }
-    
+
     if (ultimo.tipo === 'salida') {
       if (gruposCompletados >= totalGrupos) {
         const resultadoEntrada = validarEntrada(horario, tolerancia, ahora);
-        
+
         if (!resultadoEntrada.hayTurnoFuturo) {
           return {
             puedeRegistrar: false,
@@ -637,10 +637,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             mensaje: 'Jornada completada por hoy'
           };
         }
-        
+
         return resultadoEntrada;
       }
-      
+
       return validarEntrada(horario, tolerancia, ahora);
     }
 
@@ -740,7 +740,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         if (!coordenadas || coordenadas.length < 3) continue;
 
         const dentro = isPointInPolygon(ubicacionActual, coordenadas);
-        
+
         if (dentro) {
           deptsDisponibles.push(depto);
         }
@@ -751,11 +751,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
     setDepartamentosDisponibles(deptsDisponibles);
     setDentroDelArea(deptsDisponibles.length > 0);
-    
+
     if (deptsDisponibles.length > 0 && !departamentoSeleccionado) {
       setDepartamentoSeleccionado(deptsDisponibles[0]);
     }
-    
+
     if (departamentoSeleccionado && !deptsDisponibles.find(d => d.id === departamentoSeleccionado.id)) {
       setDepartamentoSeleccionado(deptsDisponibles[0] || null);
     }
@@ -787,7 +787,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       setRegistrando(true);
 
       const resultado = await capturarHuellaDigital(userData.empleado_id);
-      
+
       if (resultado.success) {
         await procederConRegistro();
       } else {
@@ -795,7 +795,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       }
     } catch (error) {
       let mensaje = 'No se pudo verificar tu identidad';
-      
+
       if (error.message?.includes('cancelada') || error.message?.includes('cancel')) {
         mensaje = 'Autenticación cancelada';
       } else if (error.message?.includes('sensor') || error.message?.includes('hardware')) {
@@ -803,7 +803,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       } else if (error.message) {
         mensaje = error.message;
       }
-      
+
       Alert.alert(
         'Error de Autenticación',
         mensaje,
@@ -900,28 +900,28 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     try {
       const departamento = datosRegistroRef.current.departamento;
       let ubicacionFinal = datosRegistroRef.current.ubicacion;
-      
+
       try {
         const location = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.High,
           maximumAge: 3000,
         });
-        
+
         ubicacionFinal = {
           lat: location.coords.latitude,
           lng: location.coords.longitude
         };
       } catch (locationError) {
       }
-      
+
       if (!ubicacionFinal || !ubicacionFinal.lat || !ubicacionFinal.lng) {
         throw new Error('No se pudo obtener la ubicación');
       }
-      
+
       if (!departamento || !departamento.id) {
         throw new Error('No se pudo obtener el departamento');
       }
-      
+
       setRegistrando(true);
 
       const payload = {
@@ -963,7 +963,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       const nuevoUltimo = await obtenerUltimoRegistro();
       setUltimoRegistroHoy(nuevoUltimo);
-      
+
       if (horarioInfo && toleranciaInfo) {
         const nuevoEstado = calcularEstadoRegistro(nuevoUltimo, horarioInfo, toleranciaInfo);
         setPuedeRegistrar(nuevoEstado.puedeRegistrar);
@@ -975,7 +975,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       const tipoRegistrado = data.data?.tipo || tipoSiguienteRegistro;
       const estadoRegistrado = data.data?.estado || 'registrado';
-      
+
       let estadoTexto = estadoRegistrado;
       let emoji = '✅';
 
@@ -1032,7 +1032,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
     if (!puedeRegistrar || !dentroDelArea || !departamentoSeleccionado) {
       let mensaje = 'No puedes registrar en este momento';
-      
+
       if (!dentroDelArea) {
         mensaje = 'Debes estar dentro de un área permitida';
       } else if (!departamentoSeleccionado) {
@@ -1068,7 +1068,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       ubicacion: ubicacionActual,
       departamento: departamentoSeleccionado
     };
-    
+
     setMostrarAutenticacion(true);
   };
 
@@ -1158,10 +1158,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           {!loading && !jornadaCompletada && (
             <View style={styles.statusIndicators}>
               <View style={styles.indicator}>
-                <Ionicons 
-                  name={dentroDelArea ? 'checkmark-circle' : 'close-circle'} 
-                  size={16} 
-                  color={dentroDelArea ? '#10b981' : '#ef4444'} 
+                <Ionicons
+                  name={dentroDelArea ? 'checkmark-circle' : 'close-circle'}
+                  size={16}
+                  color={dentroDelArea ? '#10b981' : '#ef4444'}
                 />
                 <Text style={[styles.indicatorText, { color: dentroDelArea ? '#10b981' : '#ef4444' }]}>
                   {dentroDelArea ? 'Dentro de zona' : 'Fuera de zona'}
@@ -1169,42 +1169,42 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
               </View>
 
               <View style={styles.indicator}>
-                <Ionicons 
+                <Ionicons
                   name={
                     estadoHorario === 'tiempo_insuficiente' ? 'time-outline' :
-                    tipoSiguienteRegistro === 'salida' ? 'checkmark-circle' :
-                    estadoHorario === 'puntual' ? 'checkmark-circle' :
-                    estadoHorario === 'retardo' ? 'time' :
-                    estadoHorario === 'falta' ? 'alert-circle' :
-                    'close-circle'
-                  } 
-                  size={16} 
+                      tipoSiguienteRegistro === 'salida' ? 'checkmark-circle' :
+                        estadoHorario === 'puntual' ? 'checkmark-circle' :
+                          estadoHorario === 'retardo' ? 'time' :
+                            estadoHorario === 'falta' ? 'alert-circle' :
+                              'close-circle'
+                  }
+                  size={16}
                   color={
                     estadoHorario === 'tiempo_insuficiente' ? '#f59e0b' :
-                    tipoSiguienteRegistro === 'salida' && puedeRegistrar ? '#10b981' :
-                    estadoHorario === 'puntual' ? '#10b981' :
-                    estadoHorario === 'retardo' ? '#f59e0b' :
-                    estadoHorario === 'falta' ? '#ef4444' :
-                    '#ef4444'
-                  } 
+                      tipoSiguienteRegistro === 'salida' && puedeRegistrar ? '#10b981' :
+                        estadoHorario === 'puntual' ? '#10b981' :
+                          estadoHorario === 'retardo' ? '#f59e0b' :
+                            estadoHorario === 'falta' ? '#ef4444' :
+                              '#ef4444'
+                  }
                 />
                 <Text style={[
-                  styles.indicatorText, 
-                  { 
+                  styles.indicatorText,
+                  {
                     color: estadoHorario === 'tiempo_insuficiente' ? '#f59e0b' :
-                           tipoSiguienteRegistro === 'salida' && puedeRegistrar ? '#10b981' :
-                           estadoHorario === 'puntual' ? '#10b981' :
-                           estadoHorario === 'retardo' ? '#f59e0b' :
-                           estadoHorario === 'falta' ? '#ef4444' :
-                           '#ef4444'
+                      tipoSiguienteRegistro === 'salida' && puedeRegistrar ? '#10b981' :
+                        estadoHorario === 'puntual' ? '#10b981' :
+                          estadoHorario === 'retardo' ? '#f59e0b' :
+                            estadoHorario === 'falta' ? '#ef4444' :
+                              '#ef4444'
                   }
                 ]}>
                   {estadoHorario === 'tiempo_insuficiente' ? 'Trabajando...' :
-                   tipoSiguienteRegistro === 'salida' && puedeRegistrar ? 'Hora de salida' :
-                   estadoHorario === 'puntual' ? 'A tiempo' :
-                   estadoHorario === 'retardo' ? 'Con retardo' :
-                   estadoHorario === 'falta' ? 'Fuera tolerancia' :
-                   'Fuera de horario'}
+                    tipoSiguienteRegistro === 'salida' && puedeRegistrar ? 'Hora de salida' :
+                      estadoHorario === 'puntual' ? 'A tiempo' :
+                        estadoHorario === 'retardo' ? 'Con retardo' :
+                          estadoHorario === 'falta' ? 'Fuera tolerancia' :
+                            'Fuera de horario'}
                 </Text>
               </View>
             </View>
@@ -1356,19 +1356,19 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           transparent={true}
           onRequestClose={() => setMostrarDepartamentos(false)}
         >
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.modalOverlay}
             activeOpacity={1}
             onPress={() => setMostrarDepartamentos(false)}
           >
-            <TouchableOpacity 
-              activeOpacity={1} 
+            <TouchableOpacity
+              activeOpacity={1}
               style={styles.modalContent}
               onPress={(e) => e.stopPropagation()}
             >
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Departamentos Disponibles</Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => setMostrarDepartamentos(false)}
                   style={styles.modalCloseButton}
                 >
@@ -1379,7 +1379,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
               <ScrollView style={styles.departamentosList}>
                 {departamentosDisponibles.map((depto, index) => {
                   const esSeleccionado = departamentoSeleccionado?.id === depto.id;
-                  
+
                   return (
                     <TouchableOpacity
                       key={depto.id || index}
@@ -1395,10 +1395,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                     >
                       <View style={styles.departamentoInfo}>
                         <View style={styles.departamentoHeader}>
-                          <Ionicons 
-                            name={esSeleccionado ? 'location' : 'location-outline'} 
-                            size={20} 
-                            color={esSeleccionado ? '#10b981' : '#6b7280'} 
+                          <Ionicons
+                            name={esSeleccionado ? 'location' : 'location-outline'}
+                            size={20}
+                            color={esSeleccionado ? '#10b981' : '#6b7280'}
                           />
                           <Text style={[
                             styles.departamentoNombre,
@@ -1407,7 +1407,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                             {depto.nombre}
                           </Text>
                         </View>
-                        
+
                         {esSeleccionado && (
                           <View style={styles.departamentoBadge}>
                             <Ionicons name="checkmark-circle" size={14} color="#10b981" />

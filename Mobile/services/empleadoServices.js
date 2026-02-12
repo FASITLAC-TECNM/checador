@@ -9,7 +9,7 @@ export const getEmpleados = async (token, params = {}) => {
     try {
         const queryParams = new URLSearchParams(params).toString();
         const url = queryParams ? `${API_URL}/empleados?${queryParams}` : `${API_URL}/empleados`;
-        
+
         const response = await fetch(url, {
             method: 'GET',
             headers: {
@@ -150,7 +150,7 @@ export const getEmpleadoPorUsuario = async (idUsuario, token) => {
                 'Authorization': `Bearer ${token}`
             }
         });
-        
+
         if (!response.ok) throw new Error('Error al obtener empleado');
         return await response.json();
     } catch (error) {
@@ -295,19 +295,20 @@ export const validarPinEmpleado = async (idEmpleado, pin, token) => {
 };
 
 /**
- * Obtiene empleado con permisos
+ * Obtiene los departamentos de un empleado
+ * GET /api/empleados/:id/departamentos
  */
-export const getEmpleadoConPermisos = async (id, token) => {
+export const getDepartamentosDeEmpleado = async (empleadoId, token) => {
     try {
-        const response = await fetch(`${API_URL}/empleados/${id}/permisos`, {
+        const response = await fetch(`${API_URL}/empleados/${empleadoId}/departamentos`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             }
         });
-        
-        if (!response.ok) throw new Error('Error al obtener empleado con permisos');
+
+        if (!response.ok) throw new Error('Error al obtener departamentos del empleado');
         return await response.json();
     } catch (error) {
         throw error;
@@ -315,154 +316,24 @@ export const getEmpleadoConPermisos = async (id, token) => {
 };
 
 /**
- * Obtiene estadísticas de empleados
+ * Asigna un departamento a un empleado
+ * POST /api/empleados/:id/departamentos
  */
-export const getStats = async (token) => {
+export const asignarDepartamento = async (empleadoId, departamentoId, token) => {
     try {
-        const response = await fetch(`${API_URL}/empleados/stats`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        if (!response.ok) throw new Error('Error al obtener estadísticas');
-        return await response.json();
-    } catch (error) {
-        throw error;
-    }
-};
-
-/**
- * Busca empleado por NSS
- */
-export const buscarPorNSS = async (nss, token) => {
-    try {
-        const response = await fetch(`${API_URL}/empleados/buscar/nss/${nss}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        if (!response.ok) throw new Error('Error al buscar empleado por NSS');
-        return await response.json();
-    } catch (error) {
-        throw error;
-    }
-};
-
-/**
- * Busca empleado por RFC
- */
-export const buscarPorRFC = async (rfc, token) => {
-    try {
-        const response = await fetch(`${API_URL}/empleados/buscar/rfc/${rfc.toUpperCase()}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        if (!response.ok) throw new Error('Error al buscar empleado por RFC');
-        return await response.json();
-    } catch (error) {
-        throw error;
-    }
-};
-
-/**
- * Obtiene empleados con información de usuarios
- */
-export const getEmpleadosConUsuarios = async (token) => {
-    try {
-        const response = await fetch(`${API_URL}/empleados/completo`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        if (!response.ok) throw new Error('Error al obtener empleados completos');
-        return await response.json();
-    } catch (error) {
-        throw error;
-    }
-};
-
-/**
- * Valida que un NSS sea único
- */
-export const validarNSSUnico = async (nss, idEmpleadoExcluir = null, token) => {
-    try {
-        const params = new URLSearchParams({ nss });
-        if (idEmpleadoExcluir) {
-            params.append('excluir_id', idEmpleadoExcluir);
-        }
-
-        const response = await fetch(`${API_URL}/empleados/validar/nss?${params.toString()}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        if (!response.ok) throw new Error('Error al validar NSS');
-        return await response.json();
-    } catch (error) {
-        throw error;
-    }
-};
-
-/**
- * Valida que un RFC sea único
- */
-export const validarRFCUnico = async (rfc, idEmpleadoExcluir = null, token) => {
-    try {
-        const params = new URLSearchParams({ rfc: rfc.toUpperCase() });
-        if (idEmpleadoExcluir) {
-            params.append('excluir_id', idEmpleadoExcluir);
-        }
-
-        const response = await fetch(`${API_URL}/empleados/validar/rfc?${params.toString()}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        if (!response.ok) throw new Error('Error al validar RFC');
-        return await response.json();
-    } catch (error) {
-        throw error;
-    }
-};
-
-/**
- * Cambia el estado de un empleado
- */
-export const cambiarEstadoEmpleado = async (id, estado, motivo = null, token) => {
-    try {
-        const response = await fetch(`${API_URL}/empleados/${id}/estado`, {
-            method: 'PATCH',
+        const response = await fetch(`${API_URL}/empleados/${empleadoId}/departamentos`, {
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ estado, motivo }),
+            body: JSON.stringify({ departamento_id: departamentoId })
         });
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || 'Error al cambiar estado del empleado');
+            throw new Error(error.message || 'Error al asignar departamento');
         }
-
         return await response.json();
     } catch (error) {
         throw error;
@@ -470,19 +341,23 @@ export const cambiarEstadoEmpleado = async (id, estado, motivo = null, token) =>
 };
 
 /**
- * Obtiene el historial de estado de un empleado
+ * Remueve un empleado de un departamento
+ * DELETE /api/empleados/:id/departamentos/:deptoId
  */
-export const getHistorialEstadoEmpleado = async (id, token) => {
+export const removerDepartamento = async (empleadoId, departamentoId, token) => {
     try {
-        const response = await fetch(`${API_URL}/empleados/${id}/historial-estado`, {
-            method: 'GET',
+        const response = await fetch(`${API_URL}/empleados/${empleadoId}/departamentos/${departamentoId}`, {
+            method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             }
         });
-        
-        if (!response.ok) throw new Error('Error al obtener historial de estado');
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Error al remover departamento');
+        }
         return await response.json();
     } catch (error) {
         throw error;
@@ -501,8 +376,56 @@ export const getHorarioDeEmpleado = async (empleadoId, token) => {
                 'Authorization': `Bearer ${token}`
             }
         });
-        
+
         if (!response.ok) throw new Error('Error al obtener horario');
+        return await response.json();
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * Buscar empleado por NSS
+ * GET /api/empleados/buscar/nss/:nss
+ */
+export const buscarPorNSS = async (nss, token) => {
+    try {
+        const response = await fetch(`${API_URL}/empleados/buscar/nss/${nss}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Error al buscar por NSS');
+        }
+        return await response.json();
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * Buscar empleado por RFC
+ * GET /api/empleados/buscar/rfc/:rfc
+ */
+export const buscarPorRFC = async (rfc, token) => {
+    try {
+        const response = await fetch(`${API_URL}/empleados/buscar/rfc/${rfc}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Error al buscar por RFC');
+        }
         return await response.json();
     } catch (error) {
         throw error;
@@ -513,20 +436,16 @@ export default {
     getEmpleados,
     getEmpleado,
     getEmpleadoById,
-    getUsuarioCompleto, // NUEVA FUNCIÓN para obtener usuario completo con foto
+    getUsuarioCompleto,
     getEmpleadoPorUsuario,
-    getEmpleadoConPermisos,
-    getStats,
     crearEmpleado,
     actualizarEmpleado,
     eliminarEmpleado,
     validarPinEmpleado,
     buscarPorNSS,
     buscarPorRFC,
-    getEmpleadosConUsuarios,
-    validarNSSUnico,
-    validarRFCUnico,
-    cambiarEstadoEmpleado,
-    getHistorialEstadoEmpleado,
+    getDepartamentosDeEmpleado,
+    asignarDepartamento,
+    removerDepartamento,
     getHorarioDeEmpleado
 };

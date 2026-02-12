@@ -32,7 +32,7 @@ export const login = async (usuario, contraseña) => {
 
         const responseText = await response.text();
         let data;
-        
+
         try {
             data = responseText ? JSON.parse(responseText) : {};
         } catch (parseError) {
@@ -50,7 +50,7 @@ export const login = async (usuario, contraseña) => {
 
         // ⭐ OBTENER INFORMACIÓN DEL EMPLEADO
         let empleadoInfo = null;
-        
+
         if (data.data.usuario.es_empleado && data.data.usuario.empleado_id) {
             try {
                 const empleadoId = data.data.usuario.empleado_id;
@@ -76,7 +76,7 @@ export const login = async (usuario, contraseña) => {
                 const empText = await empResponse.text();
                 const empData = JSON.parse(empText);
                 empleadoInfo = empData.data || empData;
-                
+
 
                 if (empleadoInfo.departamentos && empleadoInfo.departamentos.length > 0) {
                     const deptoId = empleadoInfo.departamentos[0].id;
@@ -96,10 +96,10 @@ export const login = async (usuario, contraseña) => {
                         const errorText = await deptoResponse.text();
                     } else {
                         const deptoText = await deptoResponse.text();
-                        
+
                         const deptoData = JSON.parse(deptoText);
                         const departamentoCompleto = deptoData.data || deptoData;
-                        
+
                         // ⭐ AGREGAR AL empleadoInfo
                         empleadoInfo.departamento = departamentoCompleto;
                         empleadoInfo.id_departamento = deptoId;
@@ -138,16 +138,22 @@ export const login = async (usuario, contraseña) => {
 };
 /**
  * Cerrar sesión del usuario
+ * @param {string} token - Token de autenticación
  * @returns {Promise<Object>}
  */
-export const logout = async () => {
+export const logout = async (token) => {
     try {
+
+        const headers = {
+            'Content-Type': 'application/json',
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
 
         const response = await fetch(`${API_URL}/auth/logout`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers,
         });
 
         const responseText = await response.text();
@@ -165,15 +171,21 @@ export const logout = async () => {
 
 /**
  * Verificar sesión actual
+ * @param {string} token - Token de autenticación
  * @returns {Promise<Object>}
  */
-export const verificarSesion = async () => {
+export const verificarSesion = async (token) => {
     try {
+        const headers = {
+            'Content-Type': 'application/json',
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const response = await fetch(`${API_URL}/auth/verificar`, {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers,
         });
 
         const responseText = await response.text();
@@ -193,19 +205,25 @@ export const verificarSesion = async () => {
  * Cambiar contraseña del usuario autenticado
  * @param {string} contraseñaActual - Contraseña actual
  * @param {string} contraseñaNueva - Nueva contraseña
+ * @param {string} token - Token de autenticación
  * @returns {Promise<Object>}
  */
-export const cambiarPassword = async (contraseñaActual, contraseñaNueva) => {
+export const cambiarPassword = async (contraseñaActual, contraseñaNueva, token) => {
     try {
         if (contraseñaNueva.length < 6) {
             throw new Error('La nueva contraseña debe tener al menos 6 caracteres');
         }
 
+        const headers = {
+            'Content-Type': 'application/json',
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
         const response = await fetch(`${API_URL}/auth/cambiar-password`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers,
             body: JSON.stringify({
                 contraseña_actual: contraseñaActual,
                 contraseña_nueva: contraseñaNueva
@@ -225,9 +243,44 @@ export const cambiarPassword = async (contraseñaActual, contraseñaNueva) => {
     }
 };
 
+/**
+ * Login biométrico
+ * @param {Object} biometricData - Datos biométricos (empleado_id, template, tipo, etc.)
+ * @returns {Promise<Object>}
+ */
+export const loginBiometrico = async (biometricData) => {
+    try {
+        const response = await fetch(`${API_URL}/auth/biometric`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(biometricData),
+        });
+
+        const responseText = await response.text();
+        let data;
+
+        try {
+            data = responseText ? JSON.parse(responseText) : {};
+        } catch (parseError) {
+            throw new Error(`Error del servidor: respuesta no válida (${response.status})`);
+        }
+
+        if (!response.ok) {
+            throw new Error(data.message || data.error || `Error del servidor (${response.status})`);
+        }
+
+        return data;
+    } catch (error) {
+        throw error;
+    }
+};
+
 export default {
     login,
     logout,
     verificarSesion,
-    cambiarPassword
+    cambiarPassword,
+    loginBiometrico
 };

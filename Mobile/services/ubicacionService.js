@@ -12,13 +12,13 @@ const API_URL = getApiEndpoint('/api');
  * @returns {Object} {lat, lng}
  */
 const normalizarCoordenada = (coords) => {
-  if (Array.isArray(coords)) {
-    return {
-      lat: coords[0],
-      lng: coords[1]
-    };
-  }
-  return coords;
+    if (Array.isArray(coords)) {
+        return {
+            lat: coords[0],
+            lng: coords[1]
+        };
+    }
+    return coords;
 };
 
 /**
@@ -31,30 +31,30 @@ export const isPointInPolygon = (point, polygon) => {
     if (!polygon || polygon.length < 3) {
         return false;
     }
-    
+
     // Normalizar el punto
     const normalizedPoint = normalizarCoordenada(point);
-    
+
     // Normalizar todas las coordenadas del polígono
     const normalizedPolygon = polygon.map(coord => normalizarCoordenada(coord));
-    
-    
+
+
     let inside = false;
     const x = normalizedPoint.lat;
     const y = normalizedPoint.lng;
-    
+
     for (let i = 0, j = normalizedPolygon.length - 1; i < normalizedPolygon.length; j = i++) {
         const xi = normalizedPolygon[i].lat;
         const yi = normalizedPolygon[i].lng;
         const xj = normalizedPolygon[j].lat;
         const yj = normalizedPolygon[j].lng;
-        
+
         const intersect = ((yi > y) !== (yj > y)) &&
             (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-        
+
         if (intersect) inside = !inside;
     }
-    
+
     return inside;
 };
 
@@ -81,10 +81,10 @@ const extraerCoordenadas = (ubicacion) => {
 
         // ⭐ CASO NUEVO: Objeto con propiedad 'zonas' (array de zonas)
         if (parsed.zonas && Array.isArray(parsed.zonas) && parsed.zonas.length > 0) {
-            
+
             // Tomar la primera zona (puedes modificar esto si necesitas manejar múltiples zonas)
             const primeraZona = parsed.zonas[0];
-            
+
             if (primeraZona.coordinates && Array.isArray(primeraZona.coordinates)) {
                 coordenadas = primeraZona.coordinates;
             }
@@ -99,7 +99,7 @@ const extraerCoordenadas = (ubicacion) => {
         }
         // Caso C: Array directo de coordenadas
         else if (Array.isArray(parsed)) {
-            
+
             // Sub-caso 1: Array de objetos polígono/rectángulo [{type: 'polygon'/'rectangle', coordinates: [...]}]
             if (parsed.length > 0 && parsed[0].coordinates && Array.isArray(parsed[0].coordinates)) {
                 coordenadas = parsed[0].coordinates;
@@ -125,13 +125,21 @@ const extraerCoordenadas = (ubicacion) => {
 /**
  * Obtener ubicación del departamento por ID
  * @param {number} departamentoId - ID del departamento
+ * @param {string} token - Token de autenticación
  * @returns {Promise<Object>} Datos de ubicación del departamento
  */
-export const getUbicacionDepartamento = async (departamentoId) => {
+export const getUbicacionDepartamento = async (departamentoId, token) => {
     try {
         const url = `${API_URL}/departamentos/${departamentoId}`;
 
-        const response = await fetch(url);
+        const headers = {
+            'Content-Type': 'application/json',
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(url, { headers });
 
 
         if (!response.ok) {
@@ -171,13 +179,14 @@ export const getUbicacionDepartamento = async (departamentoId) => {
  * Validar si usuario está dentro del área permitida
  * @param {Object} ubicacionUsuario - {lat, lng}
  * @param {number} departamentoId - ID del departamento
+ * @param {string} token - Token de autenticación
  * @returns {Promise<Object>} {dentroDelArea: boolean, departamento: Object}
  */
-export const validarUbicacionPermitida = async (ubicacionUsuario, departamentoId) => {
+export const validarUbicacionPermitida = async (ubicacionUsuario, departamentoId, token) => {
     try {
 
         // Obtener ubicación del departamento
-        const departamento = await getUbicacionDepartamento(departamentoId);
+        const departamento = await getUbicacionDepartamento(departamentoId, token);
 
         if (!departamento || !departamento.ubicacion) {
             return {
@@ -189,7 +198,7 @@ export const validarUbicacionPermitida = async (ubicacionUsuario, departamentoId
 
         // Obtener coordenadas
         const coordenadas = departamento.ubicacion.coordenadas;
-        
+
         if (!Array.isArray(coordenadas) || coordenadas.length < 3) {
             return {
                 dentroDelArea: false,
@@ -232,13 +241,13 @@ export const calcularDistancia = (point1, point2) => {
     const Δλ = (point2.lng - point1.lng) * Math.PI / 180;
 
     const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-    
+        Math.cos(φ1) * Math.cos(φ2) *
+        Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     const distancia = R * c;
-    
+
     return distancia;
 };
 
@@ -249,13 +258,13 @@ export const calcularDistancia = (point1, point2) => {
  */
 export const getCentroPoligono = (coordenadas) => {
     if (!coordenadas || coordenadas.length === 0) return null;
-    
+
     // Normalizar coordenadas
     const normalizedCoords = coordenadas.map(coord => normalizarCoordenada(coord));
-    
+
     const sumLat = normalizedCoords.reduce((sum, coord) => sum + coord.lat, 0);
     const sumLng = normalizedCoords.reduce((sum, coord) => sum + coord.lng, 0);
-    
+
     return {
         lat: sumLat / normalizedCoords.length,
         lng: sumLng / normalizedCoords.length
@@ -269,7 +278,7 @@ export const getCentroPoligono = (coordenadas) => {
  */
 export const formatearCoordenadas = (coords) => {
     if (!coords) return 'Sin coordenadas';
-    
+
     const normalized = normalizarCoordenada(coords);
     return `${normalized.lat.toFixed(6)}, ${normalized.lng.toFixed(6)}`;
 };

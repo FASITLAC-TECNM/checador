@@ -67,12 +67,8 @@ export const MetodoAutenticacionModal = ({
   const [showPinModal, setShowPinModal] = useState(false);
   // Qué botón está siendo presionado (para feedback visual)
   const [presionado, setPresionado] = useState(null);
-  // Orden de credenciales desde la configuración
-  const [ordenCredenciales, setOrdenCredenciales] = useState({
-    pin: { prioridad: 1, activo: true },
-    dactilar: { prioridad: 2, activo: true },
-    facial: { prioridad: 3, activo: true },
-  });
+  // Orden de credenciales desde la configuración (null = sin config en BD)
+  const [ordenCredenciales, setOrdenCredenciales] = useState(null);
 
   const styles = darkMode ? authStylesDark : authStyles;
 
@@ -103,7 +99,7 @@ export const MetodoAutenticacionModal = ({
           setOrdenCredenciales(ordenResult.ordenCredenciales);
         }
       } catch (error) {
-        console.error('Error al obtener orden de credenciales:', error);
+        // Sin config de orden, se muestran todos los métodos
       }
 
       // 3. Obtener credenciales del empleado desde el backend
@@ -136,7 +132,7 @@ export const MetodoAutenticacionModal = ({
   // noDisponible → el hardware no lo soporta o está desactivado en configuración
   const getEstado = (tipo) => {
     // Verificar si el método está desactivado en la configuración
-    if (ordenCredenciales[tipo] && !ordenCredenciales[tipo].activo) {
+    if (ordenCredenciales && ordenCredenciales[tipo] && !ordenCredenciales[tipo].activo) {
       return 'noDisponible';
     }
 
@@ -148,12 +144,10 @@ export const MetodoAutenticacionModal = ({
 
       case 'facial':
         if (credenciales.tiene_facial) return 'activo';
-        // Facial usa Face ID / Reconocimiento facial nativo
         if (!soporteHardware.facial) return 'noDisponible';
         return 'inactivo';
 
       case 'pin':
-        // PIN siempre disponible (no necesita hardware)
         if (credenciales.tiene_pin) return 'activo';
         return 'inactivo';
 
@@ -220,7 +214,7 @@ export const MetodoAutenticacionModal = ({
                 Alert.alert(
                   'Error',
                   error.message ||
-                    'No se pudo registrar la huella. Verifica que tu dispositivo tenga sensor biométrico.'
+                  'No se pudo registrar la huella. Verifica que tu dispositivo tenga sensor biométrico.'
                 );
               } finally {
                 setProcesando(false);
@@ -393,16 +387,23 @@ export const MetodoAutenticacionModal = ({
     },
   };
 
-  // Ordenar métodos según la configuración
-  const metodos = Object.keys(ordenCredenciales)
-    .filter((key) => ordenCredenciales[key]?.activo !== false) // Solo mostrar los activos
-    .sort((a, b) => {
-      const prioridadA = ordenCredenciales[a]?.prioridad || 999;
-      const prioridadB = ordenCredenciales[b]?.prioridad || 999;
-      return prioridadA - prioridadB;
-    })
-    .map((key) => metodosDisponibles[key])
-    .filter(Boolean); // Eliminar undefined si hay claves desconocidas
+  // Ordenar métodos según la configuración de la BD
+  let metodos;
+  if (ordenCredenciales) {
+    // Hay config en la BD: ordenar por prioridad y filtrar por activo
+    metodos = Object.keys(ordenCredenciales)
+      .filter((key) => ordenCredenciales[key]?.activo !== false)
+      .sort((a, b) => {
+        const prioridadA = ordenCredenciales[a]?.prioridad || 999;
+        const prioridadB = ordenCredenciales[b]?.prioridad || 999;
+        return prioridadA - prioridadB;
+      })
+      .map((key) => metodosDisponibles[key])
+      .filter(Boolean);
+  } else {
+    // Sin config en la BD: mostrar todos los métodos
+    metodos = Object.values(metodosDisponibles);
+  }
 
   // ─── Render ─────────────────────────────────────────────────────────────
 

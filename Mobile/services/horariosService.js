@@ -27,15 +27,15 @@ export const getHorarioPorEmpleado = async (empleadoId, token = null) => {
 
         if (!response.ok) {
             const errorText = await response.text();
-            
+
             if (response.status === 404) {
                 throw new Error('No tienes un horario asignado');
             }
-            
+
             if (response.status === 401) {
                 throw new Error('No autorizado. Verifica tu sesión.');
             }
-            
+
             throw new Error(`Error del servidor (${response.status}): ${errorText}`);
         }
 
@@ -77,18 +77,18 @@ const parsearHorarioNuevo = (configuracionSemanal) => {
     };
 
     const diasSemana = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
-    
+
     return diasSemana.map(dia => {
         const turnosDelDia = configuracionSemanal[dia] || [];
         const diaActivo = turnosDelDia.length > 0;
-        
+
         const turnos = turnosDelDia.map(turno => ({
             entrada: turno.inicio,
             salida: turno.fin
         }));
 
         const tipo = turnos.length > 1 ? 'quebrado' : 'continuo';
-        
+
         return {
             day: diasMap[dia],
             active: diaActivo,
@@ -120,8 +120,8 @@ export const parsearHorario = (horario) => {
 
         let config;
         try {
-            config = typeof configRaw === 'string' 
-                ? JSON.parse(configRaw) 
+            config = typeof configRaw === 'string'
+                ? JSON.parse(configRaw)
                 : configRaw;
         } catch (parseError) {
             return obtenerHorarioVacio();
@@ -150,11 +150,11 @@ export const parsearHorario = (horario) => {
         };
 
         const diasSemana = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
-        
+
         return diasSemana.map(dia => {
             const diaActivo = config.dias.includes(dia);
             const turnos = config.turnos || [];
-            
+
             return {
                 day: diasMap[dia],
                 active: diaActivo,
@@ -177,11 +177,11 @@ export const parsearHorario = (horario) => {
  */
 const formatearHorarioTurnos = (turnos) => {
     if (!turnos || turnos.length === 0) return '---';
-    
+
     if (turnos.length === 1) {
         return `${turnos[0].entrada} - ${turnos[0].salida}`;
     }
-    
+
     return turnos.map(t => `${t.entrada}-${t.salida}`).join(' | ');
 };
 
@@ -192,9 +192,9 @@ const formatearHorarioTurnos = (turnos) => {
  */
 const calcularHorasTurnos = (turnos) => {
     if (!turnos || turnos.length === 0) return '';
-    
+
     let totalMinutos = 0;
-    
+
     turnos.forEach(turno => {
         if (!turno.entrada || !turno.salida) {
             return;
@@ -202,20 +202,20 @@ const calcularHorasTurnos = (turnos) => {
 
         const [horaEntrada, minEntrada] = turno.entrada.split(':').map(Number);
         const [horaSalida, minSalida] = turno.salida.split(':').map(Number);
-        
+
         const minutosTotalesEntrada = horaEntrada * 60 + minEntrada;
         const minutosTotalesSalida = horaSalida * 60 + minSalida;
-        
+
         totalMinutos += minutosTotalesSalida - minutosTotalesEntrada;
     });
-    
+
     const horas = Math.floor(totalMinutos / 60);
     const minutos = totalMinutos % 60;
-    
+
     if (minutos === 0) {
         return `${horas} horas`;
     }
-    
+
     return `${horas}h ${minutos}m`;
 };
 
@@ -225,7 +225,7 @@ const calcularHorasTurnos = (turnos) => {
  */
 const obtenerHorarioVacio = () => {
     const dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-    
+
     return dias.map(day => ({
         day,
         active: false,
@@ -245,7 +245,7 @@ const obtenerHorarioVacio = () => {
 export const calcularResumenSemanal = (horarioParsed) => {
     try {
         const diasActivos = horarioParsed.filter(d => d.active);
-        
+
         let horasTotales = 0;
         diasActivos.forEach(dia => {
             if (!dia.turnos || dia.turnos.length === 0) return;
@@ -255,14 +255,14 @@ export const calcularResumenSemanal = (horarioParsed) => {
 
                 const [horaEntrada, minEntrada] = turno.entrada.split(':').map(Number);
                 const [horaSalida, minSalida] = turno.salida.split(':').map(Number);
-                
+
                 const minutosTotalesEntrada = horaEntrada * 60 + minEntrada;
                 const minutosTotalesSalida = horaSalida * 60 + minSalida;
-                
+
                 horasTotales += (minutosTotalesSalida - minutosTotalesEntrada) / 60;
             });
         });
-        
+
         return {
             diasLaborales: diasActivos.length,
             totalDias: horarioParsed.length,
@@ -287,9 +287,9 @@ export const getInfoDiaActual = (horarioParsed) => {
         const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
         const hoy = new Date().getDay();
         const nombreDiaHoy = diasSemana[hoy];
-        
+
         const diaActual = horarioParsed.find(d => d.day === nombreDiaHoy);
-        
+
         if (!diaActual || !diaActual.active) {
             return {
                 trabaja: false,
@@ -298,7 +298,7 @@ export const getInfoDiaActual = (horarioParsed) => {
                 turnos: []
             };
         }
-        
+
         return {
             trabaja: true,
             entrada: diaActual.turnos[0]?.entrada || null,
@@ -317,70 +317,12 @@ export const getInfoDiaActual = (horarioParsed) => {
 };
 
 /**
- * Obtener tolerancia del empleado (por rol)
- * @param {string} token - Token de autenticación
- * @returns {Promise<Object>} Datos de la tolerancia
+ * Obtiene todos los horarios
+ * GET /api/horarios
  */
-export const getToleranciaEmpleado = async (token) => {
+export const getHorarios = async (token) => {
     try {
-        const url = `${API_URL}/tolerancias`;
-
-        const headers = {
-            'Content-Type': 'application/json'
-        };
-
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: headers
-        });
-
-        if (!response.ok) {
-            throw new Error(`Error al obtener tolerancia (${response.status})`);
-        }
-
-        const data = await response.json();
-
-        // Devolver la primera tolerancia activa (la del rol del usuario)
-        if (data.data && data.data.length > 0) {
-            return data.data[0];
-        }
-
-        // Tolerancia por defecto si no hay ninguna configurada
-        return {
-            minutos_retardo: 10,
-            minutos_falta: 30,
-            permite_registro_anticipado: true,
-            minutos_anticipado_max: 60,
-            aplica_tolerancia_entrada: true,
-            aplica_tolerancia_salida: false
-        };
-    } catch (error) {
-        // Devolver tolerancia por defecto en caso de error
-        return {
-            minutos_retardo: 10,
-            minutos_falta: 30,
-            permite_registro_anticipado: true,
-            minutos_anticipado_max: 60,
-            aplica_tolerancia_entrada: true,
-            aplica_tolerancia_salida: false
-        };
-    }
-};
-
-/**
- * Obtener todas las tolerancias
- * @param {string} token - Token de autenticación
- * @returns {Promise<Object>} Lista de tolerancias
- */
-export const getTolerancias = async (token) => {
-    try {
-        const url = `${API_URL}/tolerancias`;
-
-        const response = await fetch(url, {
+        const response = await fetch(`${API_URL}/horarios`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -389,7 +331,168 @@ export const getTolerancias = async (token) => {
         });
 
         if (!response.ok) {
-            throw new Error(`Error al obtener tolerancias (${response.status})`);
+            throw new Error(`Error del servidor (${response.status})`);
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * Obtiene un horario por ID
+ * GET /api/horarios/:id
+ */
+export const getHorarioById = async (horarioId, token) => {
+    try {
+        const response = await fetch(`${API_URL}/horarios/${horarioId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error del servidor (${response.status})`);
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * Crea un nuevo horario
+ * POST /api/horarios
+ */
+export const createHorario = async (horarioData, token) => {
+    try {
+        const response = await fetch(`${API_URL}/horarios`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(horarioData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Error del servidor (${response.status})`);
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * Actualiza un horario existente
+ * PUT /api/horarios/:id
+ */
+export const updateHorario = async (horarioId, horarioData, token) => {
+    try {
+        const response = await fetch(`${API_URL}/horarios/${horarioId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(horarioData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Error del servidor (${response.status})`);
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * Elimina un horario (soft delete)
+ * DELETE /api/horarios/:id
+ */
+export const deleteHorario = async (horarioId, token) => {
+    try {
+        const response = await fetch(`${API_URL}/horarios/${horarioId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Error del servidor (${response.status})`);
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * Reactiva un horario desactivado
+ * PATCH /api/horarios/:id/reactivar
+ */
+export const reactivarHorario = async (horarioId, token) => {
+    try {
+        const response = await fetch(`${API_URL}/horarios/${horarioId}/reactivar`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Error del servidor (${response.status})`);
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        throw error;
+    }
+};
+
+/**
+ * Asigna un horario a uno o varios empleados
+ * POST /api/horarios/:id/asignar
+ * @param {string} horarioId - ID del horario
+ * @param {Array<string>} empleadoIds - Array de IDs de empleados
+ * @param {string} token - Token de autenticación
+ */
+export const asignarHorario = async (horarioId, empleadoIds, token) => {
+    try {
+        const response = await fetch(`${API_URL}/horarios/${horarioId}/asignar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ empleado_ids: empleadoIds })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Error del servidor (${response.status})`);
         }
 
         const data = await response.json();
@@ -405,6 +508,11 @@ export default {
     parsearHorario,
     calcularResumenSemanal,
     getInfoDiaActual,
-    getToleranciaEmpleado,
-    getTolerancias
+    getHorarios,
+    getHorarioById,
+    createHorario,
+    updateHorario,
+    deleteHorario,
+    reactivarHorario,
+    asignarHorario
 };

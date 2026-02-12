@@ -68,7 +68,7 @@ export const getAsistenciasEmpleado = async (empleadoId, token, filtros = {}) =>
 export const getUltimoRegistroHoy = async (empleadoId, token) => {
     try {
         const data = await getAsistenciasEmpleado(empleadoId, token);
-        
+
         if (!data.data || !Array.isArray(data.data) || data.data.length === 0) {
             return null;
         }
@@ -83,12 +83,12 @@ export const getUltimoRegistroHoy = async (empleadoId, token) => {
 
         const ultimaAsistencia = registrosHoy[0];
         const fechaRegistro = new Date(ultimaAsistencia.fecha_registro);
-        
+
         return {
             tipo: ultimaAsistencia.tipo,
-            hora: fechaRegistro.toLocaleTimeString('es-MX', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
+            hora: fechaRegistro.toLocaleTimeString('es-MX', {
+                hour: '2-digit',
+                minute: '2-digit'
             }),
             estado: ultimaAsistencia.estado,
             esEntrada: ultimaAsistencia.tipo === 'entrada',
@@ -96,6 +96,38 @@ export const getUltimoRegistroHoy = async (empleadoId, token) => {
         };
     } catch (error) {
         return null;
+    }
+};
+
+export const getAsistencias = async (token, filtros = {}) => {
+    try {
+        const params = new URLSearchParams();
+        if (filtros.empleado_id) params.append('empleado_id', filtros.empleado_id);
+        if (filtros.departamento_id) params.append('departamento_id', filtros.departamento_id);
+        if (filtros.estado) params.append('estado', filtros.estado);
+        if (filtros.fecha_inicio) params.append('fecha_inicio', filtros.fecha_inicio);
+        if (filtros.fecha_fin) params.append('fecha_fin', filtros.fecha_fin);
+        if (filtros.limit) params.append('limit', filtros.limit);
+        if (filtros.offset) params.append('offset', filtros.offset);
+
+        const url = `${API_URL}/asistencias${params.toString() ? `?${params}` : ''}`;
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error del servidor (${response.status})`);
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        throw error;
     }
 };
 
@@ -124,6 +156,7 @@ export const getAsistenciasHoy = async (token, departamentoId = null) => {
 
 export default {
     registrarAsistencia,
+    getAsistencias,
     getAsistenciasEmpleado,
     getUltimoRegistroHoy,
     getAsistenciasHoy

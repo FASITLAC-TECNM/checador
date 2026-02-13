@@ -515,7 +515,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           resultados = cached.map(c => ({
             id: c.departamento_id,
             nombre: c.nombre,
-            ubicacion: null, // Offline usually has no location
+            ubicacion: c.ubicacion || null,
             es_activo: c.es_activo
           }));
         }
@@ -838,19 +838,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
   useEffect(() => {
     const validarArea = async () => {
-      // Bypass for Offline Mode
-      const online = await syncManager.isOnline();
-      if (!online) {
-        // Offline: we allow registration if we have departments (even without location)
-        if (departamentos && departamentos.length > 0) {
-          setDepartamentosDisponibles(departamentos);
-          setDentroDelArea(true);
-          if (!departamentoSeleccionado) {
-            setDepartamentoSeleccionado(departamentos[0]);
-          }
-          return;
-        }
-      }
+      // Bypass for Offline Mode removed — geofencing now works offline with GPS + cached polygons
 
       if (!ubicacionActual || !departamentos.length) {
         setDentroDelArea(false);
@@ -1075,6 +1063,18 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       if (!departamento || !departamento.id) {
         throw new Error('No se pudo obtener el departamento');
+      }
+
+      // ⭐ Re-validación final de geofencing con ubicación GPS fresca
+      // El backend (sincronizarAsistencias) NO valida zona — toda validación es client-side
+      if (departamento.ubicacion) {
+        const coordsDepto = extraerCoordenadas(departamento.ubicacion);
+        if (coordsDepto && coordsDepto.length >= 3) {
+          const dentroAhora = isPointInPolygon(ubicacionFinal, coordsDepto);
+          if (!dentroAhora) {
+            throw new Error('Te has movido fuera de la zona permitida. Regresa al área del departamento para registrar tu asistencia.');
+          }
+        }
       }
 
       setRegistrando(true);

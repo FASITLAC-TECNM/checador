@@ -150,7 +150,7 @@ export default function App() {
 
         await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(updatedUserData));
         setUserData(updatedUserData);
-        syncManager.setAuthToken(token); // Update token for sync
+        syncManager.setAuthToken(token, response.data.empleado_id?.toString()); // Update token + empleadoId for sync
       }
     } catch (error) {
       // Silent error
@@ -246,9 +246,9 @@ export default function App() {
       await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(data));
       setUserData(data);
       if (data.token) {
-        syncManager.setAuthToken(data.token);
-        // Pull solo datos del empleado logueado
         const empId = data.empleado_id || data.empleadoInfo?.id || null;
+        syncManager.setAuthToken(data.token, empId?.toString());
+        // Pull solo datos del empleado logueado
         syncManager.pullData(empId).catch(e => console.log('Initial pull failed:', e.message));
       }
 
@@ -310,6 +310,22 @@ export default function App() {
   const handleLogout = async () => {
     stopDeviceVerification();
     stopUserDataRefresh();
+
+    // Guardar sesión de logout antes de limpiar datos
+    if (userData) {
+      try {
+        const isOnline = await syncManager.isOnline();
+        await sqliteManager.saveOfflineSession({
+          usuario_id: userData.id?.toString(),
+          empleado_id: userData.empleado_id?.toString(),
+          tipo: 'logout',
+          modo: isOnline ? 'online' : 'offline'
+        });
+        await syncManager.pushSessions().catch(() => { });
+      } catch (e) {
+        console.log('Error guardando sesión logout:', e);
+      }
+    }
 
     await Promise.all([
       AsyncStorage.removeItem(STORAGE_KEYS.USER_TOKEN),

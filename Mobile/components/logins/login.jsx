@@ -216,15 +216,28 @@ export const LoginScreen = ({ onLoginSuccess }) => {
 
         // Registrar evento de sesión online
         try {
-          await sqliteManager.saveOfflineSession({
+          const sessionData = {
             usuario_id: datosCompletos.id?.toString(),
             empleado_id: datosCompletos.empleado_id?.toString(),
             tipo: 'login',
             modo: 'online'
-          });
+          };
+          console.log('🔐 [Login] Guardando sesión en SQLite:', JSON.stringify(sessionData));
+          await sqliteManager.saveOfflineSession(sessionData);
+          console.log('🔐 [Login] ✅ Sesión guardada en SQLite correctamente');
+
+          // Configurar token en syncManager ANTES de pushSessions
+          if (token) {
+            syncManager.setAuthToken(token, datosCompletos.empleado_id?.toString());
+          }
+
           // Intentar enviar inmediatamente la sesión al servidor
-          syncManager.pushSessions().catch(err => console.log('Sync session error (online flow):', err));
-        } catch (e) { console.log('Error guardando sesión online:', e); }
+          console.log('🔐 [Login] Enviando sesión al servidor...');
+          const pushResult = await syncManager.pushSessions();
+          console.log('🔐 [Login] 📡 Resultado pushSessions:', JSON.stringify(pushResult));
+        } catch (e) {
+          console.error('🔐 [Login] ❌ Error guardando/enviando sesión online:', e.message || e);
+        }
 
         onLoginSuccess(datosCompletos);
       }
@@ -240,17 +253,29 @@ export const LoginScreen = ({ onLoginSuccess }) => {
         const offlineResult = await validateOffline(usuario, password);
 
         if (offlineResult.success) {
-          // Registrar evento de sesión offline (se sincronizará cuando haya red)
           try {
-            await sqliteManager.saveOfflineSession({
+            const sessionData = {
               usuario_id: offlineResult.data.id?.toString(),
               empleado_id: offlineResult.data.empleado_id?.toString(),
               tipo: 'login',
               modo: 'offline'
-            });
-            // Intentar enviar inmediatamente (si por milagro volvió la red o era intermitente)
-            syncManager.pushSessions().catch(err => console.log('Sync session error (offline flow):', err));
-          } catch (e) { console.log('Error guardando sesión offline:', e); }
+            };
+            console.log('🔐 [Login] Guardando sesión OFFLINE en SQLite:', JSON.stringify(sessionData));
+            await sqliteManager.saveOfflineSession(sessionData);
+            console.log('🔐 [Login] ✅ Sesión offline guardada en SQLite');
+
+            // Configurar token cacheado en syncManager antes de push
+            if (offlineResult.data.token) {
+              syncManager.setAuthToken(offlineResult.data.token, offlineResult.data.empleado_id?.toString());
+            }
+
+            // Intentar enviar inmediatamente
+            console.log('🔐 [Login] Intentando push de sesión offline...');
+            const pushResult = await syncManager.pushSessions();
+            console.log('🔐 [Login] 📡 Resultado pushSessions (offline):', JSON.stringify(pushResult));
+          } catch (e) {
+            console.error('🔐 [Login] ❌ Error guardando/enviando sesión offline:', e.message || e);
+          }
 
           onLoginSuccess(offlineResult.data);
           return;

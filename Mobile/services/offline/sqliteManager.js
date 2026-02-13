@@ -120,6 +120,7 @@ async function runMigrations() {
       empleado_id TEXT NOT NULL,
       departamento_id TEXT NOT NULL,
       nombre TEXT,
+      ubicacion TEXT,
       es_activo INTEGER DEFAULT 1,
       updated_at TEXT NOT NULL,
       PRIMARY KEY (empleado_id, departamento_id)
@@ -154,6 +155,14 @@ async function runMigrations() {
     CREATE INDEX IF NOT EXISTS idx_cache_horarios_empleado ON cache_horarios(empleado_id);
     CREATE INDEX IF NOT EXISTS idx_sesiones_offline_synced ON sesiones_offline(is_synced);
   `);
+
+    // Migración segura: agregar columna ubicacion si no existe (para DBs existentes)
+    try {
+        await db.execAsync('ALTER TABLE cache_departamentos ADD COLUMN ubicacion TEXT');
+        console.log('📦 [SQLite] Columna ubicacion agregada a cache_departamentos');
+    } catch (e) {
+        // La columna ya existe — ignorar
+    }
 
     // Inicializar sync_metadata si están vacías
     const tables = ['cache_empleados', 'cache_credenciales', 'cache_horarios', 'cache_tolerancias', 'cache_departamentos'];
@@ -412,13 +421,19 @@ export async function upsertDepartamentos(empleadoId, departamentos) {
         await db.runAsync('DELETE FROM cache_departamentos WHERE empleado_id = ?', [empleadoId]);
 
         for (const dep of departamentos) {
+            // Serializar ubicacion si viene como objeto
+            const ubicacionStr = dep.ubicacion
+                ? (typeof dep.ubicacion === 'string' ? dep.ubicacion : JSON.stringify(dep.ubicacion))
+                : null;
+
             await db.runAsync(`
-                INSERT INTO cache_departamentos (empleado_id, departamento_id, nombre, es_activo, updated_at)
-                VALUES (?, ?, ?, ?, datetime('now', 'localtime'))
+                INSERT INTO cache_departamentos (empleado_id, departamento_id, nombre, ubicacion, es_activo, updated_at)
+                VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))
              `, [
                 empleadoId,
                 dep.departamento_id,
                 dep.nombre,
+                ubicacionStr,
                 dep.es_activo ? 1 : 0
             ]);
         }

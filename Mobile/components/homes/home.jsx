@@ -13,9 +13,11 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TouchableOpacity } from 'react-native';
 import { RegisterButton } from '../map/RegisterButton';
-import { getHorarioPorEmpleado, parsearHorario } from '../../services/horariosService';
+import { ScheduleBento } from './ScheduleBento';
+import sqliteManager from '../../services/offline/sqliteManager';
+import { parsearHorario } from '../../services/horariosService';
 
-const obtenerUrlFotoPerfil = (foto) => {  
+const obtenerUrlFotoPerfil = (foto) => {
   if (!foto) {
     return null;
   }
@@ -27,7 +29,7 @@ const obtenerUrlFotoPerfil = (foto) => {
   }
   const BASE_URL = 'https://9dm7dqf9-3001.usw3.devtunnels.ms';
   const url = `${BASE_URL}${foto.startsWith('/') ? '' : '/'}${foto}`;
-  
+
   return url;
 };
 export const HomeScreen = ({ userData, darkMode, onOpenAvisos }) => {
@@ -56,15 +58,16 @@ export const HomeScreen = ({ userData, darkMode, onOpenAvisos }) => {
       }
 
       try {
-        const horario = await getHorarioPorEmpleado(userData.empleado_id, userData.token);
+        // Usar SQLite local en lugar de API
+        const horario = await sqliteManager.getHorario(userData.empleado_id);
         const horarioParsed = parsearHorario(horario);
-        
+
         const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
         const hoy = new Date();
         const nombreHoy = diasSemana[hoy.getDay()];
-        
+
         const diaHoy = horarioParsed.find(d => d.day === nombreHoy);
-        
+
         if (diaHoy && diaHoy.active && diaHoy.turnos && diaHoy.turnos.length > 0) {
           const ahora = hoy.getHours() * 60 + hoy.getMinutes();
           const convertirAMinutos = (hora) => {
@@ -78,7 +81,7 @@ export const HomeScreen = ({ userData, darkMode, onOpenAvisos }) => {
           for (const turno of diaHoy.turnos) {
             const inicio = convertirAMinutos(turno.entrada);
             const fin = convertirAMinutos(turno.salida);
-            
+
             if (ahora >= inicio && ahora <= fin) {
               turnoActual = turno;
               break;
@@ -133,8 +136,8 @@ export const HomeScreen = ({ userData, darkMode, onOpenAvisos }) => {
 
   return (
     <View style={styles.mainContainer}>
-      <StatusBar 
-        barStyle="light-content" 
+      <StatusBar
+        barStyle="light-content"
         backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
       />
       <View style={styles.headerWrapper}>
@@ -184,109 +187,18 @@ export const HomeScreen = ({ userData, darkMode, onOpenAvisos }) => {
         </View>
       </View>
 
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* 3 Bloques de información */}
         {esEmpleado && (
-          <View style={styles.infoBloques}>
-            {/* Bloque 1: Día de hoy */}
-            <View style={styles.infoBloque}>
-              <View style={[styles.infoBloqueIcon, { backgroundColor: '#dbeafe' }]}>
-                <Ionicons name="calendar-outline" size={18} color="#2563eb" />
-              </View>
-              <Text style={styles.infoBloqueLabel}>Hoy</Text>
-              <Text style={styles.infoBloqueValue} numberOfLines={1}>
-                {new Date().toLocaleDateString('es-ES', { weekday: 'short' })}
-              </Text>
-            </View>
-
-            {/* Bloque 2: Estado del turno */}
-            <View style={styles.infoBloque}>
-              {loadingHorario ? (
-                <>
-                  <ActivityIndicator size="small" color="#2563eb" />
-                  <Text style={styles.infoBloqueLabel}>Cargando...</Text>
-                </>
-              ) : infoHoy === null ? (
-                <>
-                  <View style={[styles.infoBloqueIcon, { backgroundColor: '#fee2e2' }]}>
-                    <Ionicons name="close-circle-outline" size={18} color="#ef4444" />
-                  </View>
-                  <Text style={styles.infoBloqueLabel}>Estado</Text>
-                  <Text style={styles.infoBloqueValue}>Sin horario</Text>
-                </>
-              ) : infoHoy.trabaja ? (
-                infoHoy.turnoActual ? (
-                  <>
-                    <View style={[styles.infoBloqueIcon, { backgroundColor: '#dcfce7' }]}>
-                      <Ionicons name="checkmark-circle" size={18} color="#16a34a" />
-                    </View>
-                    <Text style={styles.infoBloqueLabel}>En turno</Text>
-                    <Text style={styles.infoBloqueValue} numberOfLines={1}>
-                      {infoHoy.turnoActual.salida}
-                    </Text>
-                  </>
-                ) : infoHoy.proximoTurno ? (
-                  <>
-                    <View style={[styles.infoBloqueIcon, { backgroundColor: '#fef3c7' }]}>
-                      <Ionicons name="time-outline" size={18} color="#d97706" />
-                    </View>
-                    <Text style={styles.infoBloqueLabel}>Próximo</Text>
-                    <Text style={styles.infoBloqueValue} numberOfLines={1}>
-                      {infoHoy.proximoTurno.entrada}
-                    </Text>
-                  </>
-                ) : (
-                  <>
-                    <View style={[styles.infoBloqueIcon, { backgroundColor: '#e0e7ff' }]}>
-                      <Ionicons name="moon-outline" size={18} color="#6366f1" />
-                    </View>
-                    <Text style={styles.infoBloqueLabel}>Estado</Text>
-                    <Text style={styles.infoBloqueValue}>Finalizado</Text>
-                  </>
-                )
-              ) : (
-                <>
-                  <View style={[styles.infoBloqueIcon, { backgroundColor: '#f3e8ff' }]}>
-                    <Ionicons name="cafe-outline" size={18} color="#9333ea" />
-                  </View>
-                  <Text style={styles.infoBloqueLabel}>Descanso</Text>
-                  <Text style={styles.infoBloqueValue}>Hoy libre</Text>
-                </>
-              )}
-            </View>
-
-            {/* Bloque 3: Total de turnos */}
-            <View style={styles.infoBloque}>
-              {loadingHorario ? (
-                <>
-                  <ActivityIndicator size="small" color="#2563eb" />
-                  <Text style={styles.infoBloqueLabel}>...</Text>
-                </>
-              ) : infoHoy && infoHoy.trabaja ? (
-                <>
-                  <View style={[styles.infoBloqueIcon, { backgroundColor: '#f0fdfa' }]}>
-                    <Ionicons name="albums-outline" size={18} color="#14b8a6" />
-                  </View>
-                  <Text style={styles.infoBloqueLabel}>Turnos</Text>
-                  <Text style={styles.infoBloqueValue}>
-                    {infoHoy.totalTurnos || 0}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <View style={[styles.infoBloqueIcon, { backgroundColor: '#f3f4f6' }]}>
-                    <Ionicons name="remove-circle-outline" size={18} color="#6b7280" />
-                  </View>
-                  <Text style={styles.infoBloqueLabel}>Turnos</Text>
-                  <Text style={styles.infoBloqueValue}>0</Text>
-                </>
-              )}
-            </View>
-          </View>
+          <ScheduleBento
+            infoHoy={infoHoy}
+            loading={loadingHorario}
+            darkMode={darkMode}
+          />
         )}
 
         {/* Register Button - Solo visible para empleados */}
@@ -402,7 +314,7 @@ const homeStyles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 100,
   },
-  
+
   // 3 Bloques de info
   infoBloques: {
     flexDirection: 'row',

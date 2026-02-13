@@ -173,7 +173,7 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       Alert.alert(
         'No disponible',
         biometricSupport?.message ||
-          'Tu dispositivo no tiene sensor de huellas dactilares compatible.'
+        'Tu dispositivo no tiene sensor de huellas dactilares compatible.'
       );
       return;
     }
@@ -306,7 +306,7 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
         Alert.alert(
           'Permisos necesarios',
           permission.message ||
-            'Se necesita acceso a la cámara para usar reconocimiento facial'
+          'Se necesita acceso a la cámara para usar reconocimiento facial'
         );
         return;
       }

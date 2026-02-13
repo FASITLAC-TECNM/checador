@@ -10,15 +10,18 @@ import { getApiEndpoint } from '../../config/api';
 // Estado interno
 let isPushing = false;
 let isPulling = false;
+let isPushingSessions = false;
 let authToken = null;
+let storedEmpleadoId = null;
 
 const API_URL = getApiEndpoint('/api');
 
 /**
  * Configura el token de autenticación
  */
-export function setAuthToken(token) {
+export function setAuthToken(token, empleadoId = null) {
     authToken = token;
+    if (empleadoId) storedEmpleadoId = empleadoId;
 }
 
 /**
@@ -44,7 +47,8 @@ export async function pullData(empleadoId = null) {
     if (!online) return { success: false, error: 'Sin conexión' };
 
     isPulling = true;
-    console.log(`🔄 [Sync] Pull de datos para empleado ${empleadoId}...`);
+    console.log(`🔄 [Sync] Pull de datos para empleado: "${empleadoId}" (tipo: ${typeof empleadoId})`);
+    console.log(`🔑 [Sync] Token disponible: ${authToken ? 'Sí (' + authToken.substring(0, 20) + '...)' : 'NO'}`);
 
     try {
         const url = `${API_URL}/movil/sync/mis-datos?empleado_id=${empleadoId}`;
@@ -57,11 +61,12 @@ export async function pullData(empleadoId = null) {
             }
         });
 
-        console.log(`📡 [Sync] Response: ${response.status}`);
+        console.log(`📡 [Sync] Response status: ${response.status}`);
 
         if (!response.ok) {
             const txt = await response.text();
-            console.error(`❌ [Sync] Error: ${txt}`);
+            console.error(`❌ [Sync] Error completo del servidor: ${txt}`);
+            console.error(`❌ [Sync] empleado_id enviado: "${empleadoId}"`);
             throw new Error(`HTTP ${response.status}`);
         }
 
@@ -105,8 +110,10 @@ export async function pullData(empleadoId = null) {
                 departamento_id: d.departamento_id,
                 es_activo: d.es_activo,
                 nombre: d.nombre,
-                // Mapear campos extra si vienen del nuevo backend
-                ubicacion: d.ubicacion,
+                // ⭐ Persistir ubicacion (polígono de zona) para geofencing offline
+                ubicacion: d.ubicacion
+                    ? (typeof d.ubicacion === 'string' ? d.ubicacion : JSON.stringify(d.ubicacion))
+                    : null,
                 latitud: d.latitud,
                 longitud: d.longitud,
                 radio: d.radio
@@ -208,16 +215,36 @@ export async function pushData() {
  * Endpoint: POST /api/movil/sync/sesiones
  */
 export async function pushSessions() {
-    if (!authToken) return { success: false, error: 'No token' };
+    if (isPushingSessions) {
+        console.log('📤 [Sync] pushSessions ya en curso, saltando...');
+        return { success: false, busy: true };
+    }
+    isPushingSessions = true;
+    console.log('📤 [Sync] === PUSH SESSIONS INICIO ===');
+    // El endpoint /api/movil/sync/sesiones REQUIERE autenticación
+    if (!authToken) {
+        console.log('📤 [Sync] ⚠️ Sin token de autenticación, sesiones se enviarán cuando haya token.');
+        isPushingSessions = false;
+        return { success: false, error: 'No hay token' };
+    }
 
     const online = await isOnline();
-    if (!online) return { success: false, error: 'Offline' };
+    console.log(`📤 [Sync] Online: ${online}`);
+    if (!online) { isPushingSessions = false; return { success: false, error: 'Offline' }; }
 
     try {
         const pending = await sqliteManager.getPendingSessions(50);
-        if (pending.length === 0) return { success: true, count: 0 };
+        console.log(`📤 [Sync] Sesiones pendientes encontradas: ${pending.length}`);
 
-        console.log(`⬆️ [Sync] Subiendo ${pending.length} sesiones...`);
+        if (pending.length === 0) {
+            console.log('📤 [Sync] No hay sesiones pendientes. Nada que enviar.');
+            return { success: true, count: 0 };
+        }
+
+        // Mostrar cada sesión pendiente
+        pending.forEach((s, i) => {
+            console.log(`📤 [Sync] Sesión ${i + 1}: local_id=${s.local_id}, usuario=${s.usuario_id}, empleado=${s.empleado_id}, tipo=${s.tipo}, modo=${s.modo}, fecha=${s.fecha_evento}, is_synced=${s.is_synced}`);
+        });
 
         const sesiones = pending.map(s => ({
             local_id: s.local_id,
@@ -229,41 +256,60 @@ export async function pushSessions() {
             dispositivo: s.dispositivo || 'movil'
         }));
 
-        const response = await fetch(`${API_URL}/movil/sync/sesiones`, {
+        const url = `${API_URL}/movil/sync/sesiones`;
+        console.log(`📤 [Sync] POST ${url}`);
+        console.log(`📤 [Sync] Body: ${JSON.stringify({ sesiones }, null, 2)}`);
+
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        // Agregar token si está disponible (no es obligatorio para este endpoint)
+        if (authToken) {
+            headers['Authorization'] = `Bearer ${authToken}`;
+        }
+
+        const response = await fetch(url, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${authToken}`,
-                'Content-Type': 'application/json'
-            },
+            headers,
             body: JSON.stringify({ sesiones })
         });
 
+        console.log(`📤 [Sync] Response status: ${response.status}`);
+
         if (!response.ok) {
+            const errorTxt = await response.text();
+            console.error(`📤 [Sync] ❌ Error del servidor: ${errorTxt}`);
             throw new Error(`HTTP ${response.status}`);
         }
 
         const result = await response.json();
+        console.log(`📤 [Sync] Response body: ${JSON.stringify(result)}`);
 
         if (result.sincronizados) {
             for (const s of result.sincronizados) {
+                console.log(`📤 [Sync] ✅ Marcando local_id=${s.local_id} como synced`);
                 await sqliteManager.markSessionSynced(s.local_id);
             }
         }
 
-        if (result.errores) {
+        if (result.errores && result.errores.length > 0) {
             for (const e of result.errores) {
+                console.error(`📤 [Sync] ❌ Error para local_id=${e.local_id}: ${e.error}`);
                 await sqliteManager.markSessionSyncError(e.local_id, e.error);
             }
         }
 
-        console.log(`✅ [Sync] Sesiones: ${result.sincronizados?.length || 0} OK`);
+        console.log(`📤 [Sync] === PUSH SESSIONS FIN: ${result.sincronizados?.length || 0} OK, ${result.errores?.length || 0} errores ===`);
         return { success: true, count: result.sincronizados?.length };
 
     } catch (error) {
-        console.error('❌ [Sync] Error en pushSessions:', error);
+        console.error(`📤 [Sync] ❌ Error en pushSessions: ${error.message}`);
         return { success: false, error: error.message };
+    } finally {
+        isPushingSessions = false;
     }
 }
+
 
 /**
  * Inicializa el monitor de red para auto-push
@@ -275,18 +321,25 @@ export function initAutoSync() {
     console.log('🔄 [SyncManager] Iniciando servicio de autosincronización...');
 
     const syncAll = async () => {
-        if (isPushing || isPulling) return;
         console.log('🔄 [SyncManager] Ejecutando SyncFull...');
 
-        // 1. Enviar sesiones (Prioridad Alta - Login/Logout)
+        // 1. Enviar sesiones SIEMPRE primero (no requiere token ni guard)
         await pushSessions().catch(e => console.log('Error pushSessions:', e.message));
 
-        // 2. Enviar asistencias pendientes
-        await pushData().catch(e => console.log('Error pushData:', e.message));
+        // 2-3: Solo si hay token y no hay otra sync en curso
+        if (isPushing || isPulling) {
+            console.log('🔄 [SyncManager] Push/Pull ya en curso, saltando asistencias y pull');
+            return;
+        }
+
+        // 2. Enviar asistencias pendientes (requiere token)
+        if (authToken) {
+            await pushData().catch(e => console.log('Error pushData:', e.message));
+        }
 
         // 3. Traer datos nuevos (si hay token)
-        if (authToken) {
-            await pullData(authToken.empleado_id).catch(e => console.log('Error pullData:', e.message));
+        if (authToken && storedEmpleadoId) {
+            await pullData(storedEmpleadoId).catch(e => console.log('Error pullData:', e.message));
         }
     };
 

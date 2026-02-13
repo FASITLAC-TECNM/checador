@@ -11,7 +11,7 @@ console.log('Connecting to database:', dbPath);
 try {
     const db = new Database(dbPath, { readonly: true });
 
-    const tables = ['offline_asistencias', 'cache_empleados', 'cache_credenciales', 'cache_horarios', 'cache_tolerancias', 'cache_departamentos', 'sync_metadata'];
+    const tables = ['offline_asistencias', 'cache_empleados', 'cache_credenciales', 'cache_horarios', 'cache_tolerancias', 'cache_roles', 'cache_usuarios_roles', 'cache_departamentos', 'sync_metadata'];
 
     console.log('--- Database Summary ---');
     for (const table of tables) {

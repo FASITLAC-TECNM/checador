@@ -64,6 +64,21 @@ export default function SessionScreen({ onLogout, usuario }) {
   const [ipComputadora, setIpComputadora] = useState("192.168.1.100");
   const [direccionMAC, setDireccionMAC] = useState("00:1A:2B:3C:4D:5E");
   const [sistemaOperativo, setSistemaOperativo] = useState("Linux Debian 11");
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Monitor de estado online/offline
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   const [dispositivos, setDispositivos] = useState([
     {
@@ -523,13 +538,18 @@ export default function SessionScreen({ onLogout, usuario }) {
 
                 {/* Registro Biométrico - Rostro */}
                 <button
-                  onClick={() => setShowRegisterFace(true)}
-                  className="w-full bg-gradient-to-br from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 dark:from-cyan-800 dark:to-cyan-900 dark:hover:from-cyan-700 dark:hover:to-cyan-800 rounded-2xl shadow-lg p-5 text-white transition-all hover:shadow-xl"
+                  disabled={!isOnline}
+                  onClick={() => isOnline && setShowRegisterFace(true)}
+                  title={!isOnline ? "Sin conexión" : ""}
+                  className={`w-full rounded-2xl shadow-lg p-5 text-white transition-all flex flex-col items-center justify-center ${isOnline
+                    ? "bg-gradient-to-br from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 dark:from-cyan-800 dark:to-cyan-900 dark:hover:from-cyan-700 dark:hover:to-cyan-800 hover:shadow-xl cursor-pointer"
+                    : "bg-gradient-to-br from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700 opacity-60 cursor-not-allowed"
+                    }`}
                 >
-                  <Camera className="w-12 h-12 mx-auto mb-2" />
+                  <Camera className={`w-12 h-12 mx-auto mb-2 ${!isOnline ? "text-gray-300" : ""}`} />
                   <h3 className="text-base font-bold mb-1">Registrar Rostro</h3>
-                  <p className="text-xs text-cyan-100">
-                    Vincular reconocimiento facial
+                  <p className={`text-xs ${isOnline ? "text-cyan-100" : "text-gray-300"}`}>
+                    {isOnline ? "Vincular reconocimiento facial" : "Sin conexión"}
                   </p>
                 </button>
               </div>

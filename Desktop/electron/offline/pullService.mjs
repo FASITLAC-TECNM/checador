@@ -194,81 +194,55 @@ export async function fullPull() {
     // ========== TOLERANCIAS ==========
     try {
       const tolerancias = data.tolerancias || [];
-      const usuarios_roles = data.usuarios_roles || [];
-      const empleados = data.empleados || [];
-
-      console.log(`📊 [Pull] Datos recibidos: ${tolerancias.length} tolerancias, ${usuarios_roles.length} usuarios_roles, ${empleados.length} empleados`);
-
-      // DEBUG: Mostrar estructura de datos para diagnóstico
-      if (usuarios_roles.length > 0) {
-        console.log('🔍 [Pull] Estructura usuarios_roles[0]:', JSON.stringify(usuarios_roles[0]));
-      }
       if (tolerancias.length > 0) {
-        console.log('🔍 [Pull] Estructura tolerancias[0]:', JSON.stringify(tolerancias[0]));
+        sqliteManager.upsertToleranciasBulk(tolerancias);
+        sqliteManager.setLastFullSync('cache_tolerancias');
+        results.tolerancias = { success: true, count: tolerancias.length };
+        console.log(`✅ [Pull] ${tolerancias.length} tolerancias sincronizadas`);
+      } else {
+        console.warn('⚠️ [Pull] El servidor no devolvió tolerancias');
+        results.tolerancias = { success: true, count: 0 };
       }
-      if (empleados.length > 0) {
-        console.log('🔍 [Pull] Estructura empleados[0]:', JSON.stringify({ id: empleados[0].id, usuario_id: empleados[0].usuario_id }));
-      }
-
-      if (tolerancias.length === 0) {
-        console.warn('⚠️ [Pull] El servidor no devolvió tolerancias — verificar tabla tolerancias en BD');
-      }
-      if (usuarios_roles.length === 0) {
-        console.warn('⚠️ [Pull] El servidor no devolvió usuarios_roles — verificar asignación de roles');
-      }
-
-      // Mapear tolerancias a empleados:
-      // empleado → usuario_id → usuarios_roles → rol → tolerancia_id → tolerancia
-      let tolCount = 0;
-      let sinRol = 0;
-      let sinToleranciaId = 0;
-      let sinMatch = 0;
-
-      for (const emp of empleados) {
-        // Buscar el rol con mayor posición para este usuario
-        const rolesDelUsuario = usuarios_roles
-          .filter(ur => ur.usuario_id === emp.usuario_id)
-          .sort((a, b) => (b.posicion || 0) - (a.posicion || 0));
-
-        if (rolesDelUsuario.length === 0) {
-          sinRol++;
-          continue;
-        }
-
-        if (!rolesDelUsuario[0].tolerancia_id) {
-          sinToleranciaId++;
-          continue;
-        }
-
-        const tolerancia = tolerancias.find(t => t.id === rolesDelUsuario[0].tolerancia_id);
-        if (!tolerancia) {
-          sinMatch++;
-          console.warn(`⚠️ [Pull] Tolerancia ID "${rolesDelUsuario[0].tolerancia_id}" no encontrada para empleado ${emp.id}`);
-          continue;
-        }
-
-        sqliteManager.upsertTolerancia(emp.id, {
-          nombre: tolerancia.nombre,
-          minutos_retardo: tolerancia.minutos_retardo,
-          minutos_falta: tolerancia.minutos_falta,
-          permite_registro_anticipado: tolerancia.permite_registro_anticipado,
-          minutos_anticipado_max: tolerancia.minutos_anticipado_max,
-          aplica_tolerancia_entrada: tolerancia.aplica_tolerancia_entrada,
-          aplica_tolerancia_salida: tolerancia.aplica_tolerancia_salida,
-          dias_aplica: tolerancia.dias_aplica,
-        });
-        tolCount++;
-      }
-
-      sqliteManager.setLastFullSync('cache_tolerancias');
-      results.tolerancias = { success: true, count: tolCount };
-      console.log(`✅ [Pull] ${tolCount} tolerancias sincronizadas`);
-      if (sinRol > 0) console.warn(`⚠️ [Pull] ${sinRol} empleados sin rol asignado`);
-      if (sinToleranciaId > 0) console.warn(`⚠️ [Pull] ${sinToleranciaId} roles sin tolerancia_id asignado`);
-      if (sinMatch > 0) console.warn(`⚠️ [Pull] ${sinMatch} tolerancia_id sin match en catálogo`);
     } catch (tolError) {
       console.error('❌ [Pull] Error procesando tolerancias:', tolError.message);
       results.tolerancias = { success: false, error: tolError.message };
+    }
+
+    // ========== ROLES + USUARIOS_ROLES ==========
+    try {
+      const usuarios_roles = data.usuarios_roles || [];
+
+      if (usuarios_roles.length > 0) {
+        // Extraer roles únicos de los datos joinados del servidor
+        // El backend envía: {usuario_id, rol_id, tolerancia_id, posicion}
+        const rolesMap = new Map();
+        for (const ur of usuarios_roles) {
+          if (!rolesMap.has(ur.rol_id)) {
+            rolesMap.set(ur.rol_id, {
+              id: ur.rol_id,
+              nombre: null,
+              tolerancia_id: ur.tolerancia_id || null,
+              posicion: ur.posicion ?? 0,
+            });
+          }
+        }
+        const roles = Array.from(rolesMap.values());
+        sqliteManager.upsertRoles(roles);
+        sqliteManager.setLastFullSync('cache_roles');
+        console.log(`✅ [Pull] ${roles.length} roles sincronizados`);
+
+        // Insertar usuarios_roles
+        const urMapped = usuarios_roles.map(ur => ({
+          usuario_id: ur.usuario_id,
+          rol_id: ur.rol_id,
+          es_activo: true,
+        }));
+        sqliteManager.upsertUsuariosRoles(urMapped);
+        sqliteManager.setLastFullSync('cache_usuarios_roles');
+        console.log(`✅ [Pull] ${urMapped.length} usuarios_roles sincronizados`);
+      }
+    } catch (urError) {
+      console.error('❌ [Pull] Error procesando roles/usuarios_roles:', urError.message);
     }
 
     // ========== DEPARTAMENTOS ==========

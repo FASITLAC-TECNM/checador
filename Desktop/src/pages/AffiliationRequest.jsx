@@ -9,6 +9,8 @@ import {
   obtenerEstadoSolicitud,
   obtenerSolicitudGuardada,
   limpiarSolicitudGuardada,
+  cancelarSolicitud,
+  actualizarSolicitudAPendiente,
 } from "../services/affiliationService";
 
 export default function AffiliationRequest({ onComplete }) {
@@ -156,29 +158,60 @@ export default function AffiliationRequest({ onComplete }) {
     }
   };
 
-  const handleRetryRequest = () => {
-    // Limpiar datos locales de la solicitud anterior
-    limpiarSolicitudGuardada();
+  const handleRetryRequest = async () => {
+    if (!solicitudId) return;
 
-    // Resetear estados para permitir un nuevo envío limpio
-    setError(null);
+    // 1. Cancelar la solicitud actual en backend (marcar como rechazada)
+    try {
+      await cancelarSolicitud(solicitudId);
+    } catch (error) {
+      console.error("Error al cancelar solicitud previa:", error);
+      // Continuamos aunque falle, para permitir al usuario reintentar
+    }
+
+    // 2. Limpiar token/id de la solicitud anterior
+    limpiarSolicitudGuardada();
     setSolicitudId(null);
     setSolicitudToken(null);
     setRequestStatus("pending");
+    setError(null);
 
-    // Volver al paso de afiliación (Paso 3)
-    setStep(3);
+    // 3. Volver al paso 1 CON los datos preservados
+    setStep(1);
   };
 
-  const handleCancelRequest = () => {
-    // Limpiar datos locales (no hay endpoint público para eliminar solicitudes)
+  const handleCancelRequest = async () => {
+    // Intentar cancelar en el backend si existe ID
+    if (solicitudId) {
+      try {
+        await cancelarSolicitud(solicitudId);
+      } catch (error) {
+        console.error("Error al cancelar la solicitud:", error);
+        // Continuamos con el reset local aunque falle el backend
+      }
+    }
+
+    // Limpiar datos locales
     limpiarSolicitudGuardada();
+
+    // Resetear todos los estados
     setSolicitudId(null);
     setSolicitudToken(null);
-    setRequestStatus("pending");
+    setRequestStatus("pending"); // Se reinicia a pending para la nueva solicitud
     setError(null);
-    // Volver al paso de afiliación
-    setStep(3);
+
+    // Reiniciar formularios
+    setNodeConfig({
+      nodeName: "",
+      description: "",
+      macAddress: "",
+      operatingSystem: "",
+    });
+    setDevices([]);
+    setCompanyId("");
+
+    // Volver al primer paso
+    setStep(1);
   };
 
   if (showWelcome) {

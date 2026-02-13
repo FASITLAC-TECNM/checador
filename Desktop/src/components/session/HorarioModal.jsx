@@ -74,17 +74,38 @@ export default function HorarioModal({ onClose, usuario }) {
 
         if (usuarioIdReal) {
           try {
-            const tol = await obtenerTolerancia(usuarioIdReal);
-            setTolerancia(tol);
+            const tolOnline = await obtenerTolerancia(usuarioIdReal);
+            let tolFinal = tolOnline;
+
+            // Si la tolerancia online es la por defecto (no tiene ID) o hubo error, intentar local
+            // Nota: obtenerTolerancia ya retorna un objeto default si falla, por lo que no siempre lanza error
+            if ((!tolFinal || !tolFinal.id) && window.electronAPI?.offlineDB?.getTolerancia) {
+              try {
+                const cachedTol = await window.electronAPI.offlineDB.getTolerancia(empleadoId);
+                if (cachedTol && cachedTol.id) {
+                  console.log('[HorarioModal] Usando tolerancia desde cache local:', cachedTol.nombre);
+                  tolFinal = cachedTol;
+                }
+              } catch (localErr) {
+                console.warn('[HorarioModal] Error leyendo tolerancia local:', localErr);
+              }
+            }
+
+            setTolerancia(tolFinal);
           } catch (tolError) {
-            console.warn('[HorarioModal] Tolerancia online no disponible, intentando cache local');
-            // Fallback: tolerancia desde la BD local
+            console.warn('[HorarioModal] Error general tolerancia, intentando cache local:', tolError);
             if (window.electronAPI?.offlineDB?.getTolerancia) {
               const cachedTol = await window.electronAPI.offlineDB.getTolerancia(empleadoId);
               if (cachedTol) {
                 setTolerancia(cachedTol);
               }
             }
+          }
+        } else {
+          // Caso borde: usuario sin ID real (ej: admin puro o error), intentar solo local si posible
+          if (window.electronAPI?.offlineDB?.getTolerancia) {
+            const cachedTol = await window.electronAPI.offlineDB.getTolerancia(empleadoId);
+            if (cachedTol) setTolerancia(cachedTol);
           }
         }
       } catch (err) {

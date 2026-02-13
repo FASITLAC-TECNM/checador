@@ -38,26 +38,54 @@ export default function HorarioModal({ onClose, usuario }) {
       try {
         setLoading(true);
         setError(null);
-        const horario = await getHorarioPorEmpleado(empleadoId, token);
+
+        let horario = null;
+
+        // Intentar cargar del servidor
+        try {
+          horario = await getHorarioPorEmpleado(empleadoId, token);
+        } catch (apiError) {
+          console.warn('[HorarioModal] API no disponible, intentando cache local:', apiError.message);
+
+          // Fallback: cargar desde la BD local (offline)
+          if (window.electronAPI?.offlineDB?.getHorario) {
+            const cachedHorario = await window.electronAPI.offlineDB.getHorario(empleadoId);
+            if (cachedHorario && cachedHorario.configuracion) {
+              horario = cachedHorario;
+              console.log('[HorarioModal] Horario cargado desde cache local');
+            }
+          }
+
+          if (!horario) {
+            throw new Error('Sin conexión — No se pudo cargar el horario');
+          }
+        }
+
         setHorarioRaw(horario);
 
         // Cargar tolerancia según el rol del usuario
-        // Buscar el ID de usuario correcto (prefijo USU, no EMP)
         const posiblesIds = [
-          usuario?.token, // A veces el token contiene el usuario_id
+          usuario?.token,
           usuario?.usuario_id,
           usuario?.id,
           usuario?.usuarioInfo?.id
         ];
         const usuarioIdReal = posiblesIds.find(id => id && typeof id === 'string' && id.startsWith('USU'));
 
-        console.log('[HorarioModal] Buscando usuarioId para tolerancia:', { posiblesIds, usuarioIdReal });
-
         if (usuarioIdReal) {
-          const tol = await obtenerTolerancia(usuarioIdReal);
-          setTolerancia(tol);
-        } else {
-          console.warn('[HorarioModal] No se encontró un usuario_id válido (prefijo USU)');
+          try {
+            const tol = await obtenerTolerancia(usuarioIdReal);
+            setTolerancia(tol);
+          } catch (tolError) {
+            console.warn('[HorarioModal] Tolerancia online no disponible, intentando cache local');
+            // Fallback: tolerancia desde la BD local
+            if (window.electronAPI?.offlineDB?.getTolerancia) {
+              const cachedTol = await window.electronAPI.offlineDB.getTolerancia(empleadoId);
+              if (cachedTol) {
+                setTolerancia(cachedTol);
+              }
+            }
+          }
         }
       } catch (err) {
         setError(err.message);

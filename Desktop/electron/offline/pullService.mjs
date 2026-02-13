@@ -127,13 +127,30 @@ export async function fullPull() {
     try {
       const credenciales = data.credenciales || [];
       if (credenciales.length > 0) {
-        const mapped = credenciales.map(cred => ({
-          id: cred.id,
-          empleado_id: cred.empleado_id,
-          pin_hash: cred.pin || null,
-          dactilar_template: cred.dactilar || null,
-          facial_descriptor: cred.facial || null,
-        }));
+        // Serializar campos que pueden venir como objetos desde PostgreSQL
+        // better-sqlite3 interpreta objetos planos como named parameters,
+        // causando "You cannot specify named parameters in two different objects"
+        const mapped = credenciales.map(cred => {
+          let dactilar = cred.dactilar || null;
+          let facial = cred.facial || null;
+          let pin = cred.pin || null;
+
+          // Si son objetos, serializarlos a JSON string
+          if (dactilar && typeof dactilar === 'object') {
+            dactilar = JSON.stringify(dactilar);
+          }
+          if (facial && typeof facial === 'object') {
+            facial = JSON.stringify(facial);
+          }
+
+          return {
+            id: cred.id,
+            empleado_id: cred.empleado_id,
+            pin_hash: pin,
+            dactilar_template: dactilar,
+            facial_descriptor: facial,
+          };
+        });
 
         sqliteManager.upsertCredenciales(mapped);
         sqliteManager.setLastFullSync('cache_credenciales');
@@ -181,6 +198,17 @@ export async function fullPull() {
       const empleados = data.empleados || [];
 
       console.log(`📊 [Pull] Datos recibidos: ${tolerancias.length} tolerancias, ${usuarios_roles.length} usuarios_roles, ${empleados.length} empleados`);
+
+      // DEBUG: Mostrar estructura de datos para diagnóstico
+      if (usuarios_roles.length > 0) {
+        console.log('🔍 [Pull] Estructura usuarios_roles[0]:', JSON.stringify(usuarios_roles[0]));
+      }
+      if (tolerancias.length > 0) {
+        console.log('🔍 [Pull] Estructura tolerancias[0]:', JSON.stringify(tolerancias[0]));
+      }
+      if (empleados.length > 0) {
+        console.log('🔍 [Pull] Estructura empleados[0]:', JSON.stringify({ id: empleados[0].id, usuario_id: empleados[0].usuario_id }));
+      }
 
       if (tolerancias.length === 0) {
         console.warn('⚠️ [Pull] El servidor no devolvió tolerancias — verificar tabla tolerancias en BD');

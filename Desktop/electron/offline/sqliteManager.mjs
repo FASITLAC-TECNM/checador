@@ -330,6 +330,24 @@ export function getRegistrosHoy(empleadoId) {
 }
 
 /**
+ * Obtiene registros de asistencia offline de un empleado en un rango de fechas
+ * @param {string} empleadoId
+ * @param {string} fechaInicio - formato YYYY-MM-DD
+ * @param {string} fechaFin - formato YYYY-MM-DD
+ * @returns {Array}
+ */
+export function getRegistrosByRange(empleadoId, fechaInicio, fechaFin) {
+  const stmt = db.prepare(`
+    SELECT * FROM offline_asistencias
+    WHERE empleado_id = ?
+      AND fecha_registro >= ?
+      AND fecha_registro < date(?, '+1 day')
+    ORDER BY fecha_registro DESC
+  `);
+  return stmt.all(empleadoId, fechaInicio, fechaFin);
+}
+
+/**
  * Obtiene registros con error definitivo para revisión administrativa
  * @returns {Array}
  */
@@ -403,12 +421,22 @@ export function upsertCredenciales(credenciales) {
 
   const upsertMany = db.transaction((items) => {
     for (const cred of items) {
+      // Serializar campos que puedan ser objetos (defensivo)
+      let dactilar = cred.dactilar_template || cred.dactilar || null;
+      let facial = cred.facial_descriptor || cred.facial || null;
+      if (dactilar && typeof dactilar === 'object') {
+        dactilar = JSON.stringify(dactilar);
+      }
+      if (facial && typeof facial === 'object') {
+        facial = JSON.stringify(facial);
+      }
+
       stmt.run(
         cred.id,
         cred.empleado_id,
         cred.pin_hash || cred.pin || null,
-        cred.dactilar_template || cred.dactilar || null,
-        cred.facial_descriptor || cred.facial || null
+        dactilar,
+        facial
       );
     }
   });

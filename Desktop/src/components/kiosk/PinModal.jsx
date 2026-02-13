@@ -618,7 +618,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                           // Asegurar que es_empleado esté definido
                           es_empleado: true,
                           // Asegurar empleado_id
-                          empleado_id: result.empleado?.id || result.usuario?.empleado_id,
+                          empleado_id: result.empleado?.empleado_id || result.empleado?.id || result.usuario?.empleado_id,
                           // Nombre para mostrar
                           nombre: result.empleado?.nombre || result.usuario?.nombre || result.usuario?.username,
                           // Token de autenticación
@@ -688,7 +688,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                           // Asegurar que es_empleado esté definido
                           es_empleado: true,
                           // Asegurar empleado_id
-                          empleado_id: result.empleado?.id || result.usuario?.empleado_id,
+                          empleado_id: result.empleado?.empleado_id || result.empleado?.id || result.usuario?.empleado_id,
                           // Nombre para mostrar
                           nombre: result.empleado?.nombre || result.usuario?.nombre || result.usuario?.username,
                           // Token de autenticación
@@ -778,7 +778,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                           ...result.usuario,
                           ...result.empleado,
                           es_empleado: true,
-                          empleado_id: result.empleado?.id,
+                          empleado_id: result.empleado?.empleado_id || result.empleado?.id,
                           token: result.token
                         };
                         onLoginRequest(usuarioParaSesion);

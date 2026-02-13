@@ -48,7 +48,23 @@ export default function EmployeeInfo({ time, empleado, horario: horarioProp, loa
         setLoadingHorario(true);
         setErrorHorario(null);
 
-        const horario = await getHorarioPorEmpleado(empleadoId, token);
+        let horario = null;
+        try {
+          horario = await getHorarioPorEmpleado(empleadoId, token);
+        } catch (apiError) {
+          console.warn('[EmployeeInfo] API no disponible, intentando cache local:', apiError.message);
+          // Fallback: cargar desde la BD local (offline)
+          if (window.electronAPI?.offlineDB?.getHorario) {
+            const cachedHorario = await window.electronAPI.offlineDB.getHorario(empleadoId);
+            if (cachedHorario && cachedHorario.configuracion) {
+              horario = cachedHorario;
+              console.log('[EmployeeInfo] Horario cargado desde cache local');
+            }
+          }
+          if (!horario) {
+            throw apiError;
+          }
+        }
         setHorarioData(horario);
 
       } catch (error) {
@@ -108,7 +124,18 @@ export default function EmployeeInfo({ time, empleado, horario: horarioProp, loa
     try {
       setLoadingHorario(true);
       setErrorHorario(null);
-      const horario = await getHorarioPorEmpleado(empleadoId, token);
+      let horario = null;
+      try {
+        horario = await getHorarioPorEmpleado(empleadoId, token);
+      } catch (apiError) {
+        if (window.electronAPI?.offlineDB?.getHorario) {
+          const cachedHorario = await window.electronAPI.offlineDB.getHorario(empleadoId);
+          if (cachedHorario && cachedHorario.configuracion) {
+            horario = cachedHorario;
+          }
+        }
+        if (!horario) throw apiError;
+      }
       setHorarioData(horario);
     } catch (error) {
       setErrorHorario(error.message);

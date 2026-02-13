@@ -1578,6 +1578,17 @@ ipcMain.handle("offline-get-registros-hoy", async (event, empleadoId) => {
 });
 
 /**
+ * Obtener registros de asistencia offline por rango de fechas
+ */
+ipcMain.handle("offline-get-registros-rango", async (event, empleadoId, fechaInicio, fechaFin) => {
+  try {
+    return sqliteManager.getRegistrosByRange(empleadoId, fechaInicio, fechaFin);
+  } catch (error) {
+    return [];
+  }
+});
+
+/**
  * Obtener conteo de registros pendientes
  */
 ipcMain.handle("offline-pending-count", async () => {

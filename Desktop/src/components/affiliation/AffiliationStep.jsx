@@ -123,24 +123,24 @@ export default function AffiliationStep({
       {/* Modal de ayuda para conocer el ID de empresa */}
       {showHelpModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+          <div className="bg-bg-primary rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-purple-600 to-purple-500 dark:from-purple-800 dark:to-purple-900 p-5">
+            <div className="bg-bg-primary p-5 border-b border-border-subtle">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <HelpCircle className="w-7 h-7 text-white" />
+                  <HelpCircle className="w-7 h-7 text-text-primary" />
                   <div>
-                    <h3 className="text-xl font-bold text-white">
+                    <h3 className="text-xl font-bold text-text-primary">
                       ¿Cómo obtener el ID?
                     </h3>
-                    <p className="text-purple-100 dark:text-purple-200 text-sm mt-1">
+                    <p className="text-text-secondary text-sm mt-1">
                       Sugerencias para conocer su ID de empresa
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowHelpModal(false)}
-                  className="text-white hover:bg-white/20 dark:hover:bg-white/10 rounded-lg p-2 transition-colors"
+                  className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -150,16 +150,16 @@ export default function AffiliationStep({
             {/* Body */}
             <div className="p-5">
               <ul className="space-y-3">
-                <li className="flex items-start gap-3 p-3 bg-bg-secondary rounded-lg border border-border-subtle">
-                  <span className="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                <li className="flex items-start gap-3 p-3 bg-bg-secondary rounded-xl border border-border-subtle">
+                  <span className="flex-shrink-0 w-6 h-6 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full flex items-center justify-center text-sm font-bold">
                     1
                   </span>
                   <p className="text-text-primary text-sm">
                     Revise el <strong>contrato de licencia</strong> con FASITLAC
                   </p>
                 </li>
-                <li className="flex items-start gap-3 p-3 bg-bg-secondary rounded-lg border border-border-subtle">
-                  <span className="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                <li className="flex items-start gap-3 p-3 bg-bg-secondary rounded-xl border border-border-subtle">
+                  <span className="flex-shrink-0 w-6 h-6 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full flex items-center justify-center text-sm font-bold">
                     2
                   </span>
                   <p className="text-text-primary text-sm">
@@ -167,8 +167,8 @@ export default function AffiliationStep({
                     "Creación de una empresa"
                   </p>
                 </li>
-                <li className="flex items-start gap-3 p-3 bg-bg-secondary rounded-lg border border-border-subtle">
-                  <span className="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                <li className="flex items-start gap-3 p-3 bg-bg-secondary rounded-xl border border-border-subtle">
+                  <span className="flex-shrink-0 w-6 h-6 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full flex items-center justify-center text-sm font-bold">
                     3
                   </span>
                   <p className="text-text-primary text-sm">
@@ -177,16 +177,6 @@ export default function AffiliationStep({
                   </p>
                 </li>
               </ul>
-            </div>
-
-            {/* Footer */}
-            <div className="bg-bg-secondary p-4 border-t border-border-subtle">
-              <button
-                onClick={() => setShowHelpModal(false)}
-                className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white rounded-xl font-bold transition-all"
-              >
-                Entendido
-              </button>
             </div>
           </div>
         </div>

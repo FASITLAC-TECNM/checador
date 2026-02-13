@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { X, Calendar, Clock, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, ArrowDown, ArrowUp, RefreshCw, CalendarDays } from "lucide-react";
+import { X, Calendar, Clock, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, ArrowDown, ArrowUp, RefreshCw, CalendarDays, WifiOff } from "lucide-react";
 import { API_CONFIG, fetchApi } from "../../config/apiEndPoint";
 
 export default function HistorialModal({ onClose, usuario }) {
@@ -8,6 +8,7 @@ export default function HistorialModal({ onClose, usuario }) {
   const [asistencias, setAsistencias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [isOfflineData, setIsOfflineData] = useState(false);
   const [estadisticas, setEstadisticas] = useState({
     puntuales: 0,
     retardos: 0,
@@ -20,6 +21,31 @@ export default function HistorialModal({ onClose, usuario }) {
   ];
 
   const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+  /**
+   * Carga asistencias desde la BD local (offline)
+   */
+  const cargarAsistenciasOffline = useCallback(async () => {
+    try {
+      if (!window.electronAPI?.offlineDB?.getRegistrosRango) return [];
+
+      const primerDia = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+      const ultimoDia = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+      const fechaInicio = primerDia.toISOString().split('T')[0];
+      const fechaFin = ultimoDia.toISOString().split('T')[0];
+
+      const registros = await window.electronAPI.offlineDB.getRegistrosRango(
+        usuario.empleado_id,
+        fechaInicio,
+        fechaFin
+      );
+
+      return Array.isArray(registros) ? registros : [];
+    } catch (error) {
+      console.error('[Historial] Error cargando datos offline:', error);
+      return [];
+    }
+  }, [usuario, currentMonth]);
 
   const cargarAsistencias = useCallback(async () => {
     if (!usuario?.empleado_id) {
@@ -41,14 +67,20 @@ export default function HistorialModal({ onClose, usuario }) {
       const asistenciasOrdenadas = data.sort((a, b) => new Date(b.fecha_registro) - new Date(a.fecha_registro));
       setAsistencias(asistenciasOrdenadas);
       calcularEstadisticas(asistenciasOrdenadas);
+      setIsOfflineData(false);
     } catch (error) {
-      console.error('Error cargando asistencias:', error);
-      setAsistencias([]);
+      console.error('[Historial] Error cargando asistencias online, intentando offline:', error);
+      // Fallback: cargar desde la BD local
+      const offlineData = await cargarAsistenciasOffline();
+      const asistenciasOrdenadas = offlineData.sort((a, b) => new Date(b.fecha_registro) - new Date(a.fecha_registro));
+      setAsistencias(asistenciasOrdenadas);
+      calcularEstadisticas(asistenciasOrdenadas);
+      setIsOfflineData(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [usuario, currentMonth]);
+  }, [usuario, currentMonth, cargarAsistenciasOffline]);
 
   const calcularEstadisticas = (data) => {
     const stats = { puntuales: 0, retardos: 0, faltas: 0 };
@@ -144,6 +176,12 @@ export default function HistorialModal({ onClose, usuario }) {
             <div>
               <h3 className="text-2xl font-bold text-text-primary">Historial de Asistencia</h3>
               <p className="text-text-secondary text-sm mt-1">Registro de entradas y salidas</p>
+              {isOfflineData && (
+                <div className="flex items-center gap-1 mt-1">
+                  <WifiOff className="w-3 h-3 text-amber-500" />
+                  <span className="text-[10px] font-bold text-amber-500 uppercase">Modo Offline — Solo registros locales</span>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-1">

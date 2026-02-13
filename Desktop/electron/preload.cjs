@@ -52,6 +52,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Cola de asistencias
     saveAsistencia: (data) => ipcRenderer.invoke('offline-save-asistencia', data),
     getRegistrosHoy: (empleadoId) => ipcRenderer.invoke('offline-get-registros-hoy', empleadoId),
+    getRegistrosRango: (empleadoId, fechaInicio, fechaFin) => ipcRenderer.invoke('offline-get-registros-rango', empleadoId, fechaInicio, fechaFin),
     getPendingCount: () => ipcRenderer.invoke('offline-pending-count'),
     getErrors: () => ipcRenderer.invoke('offline-get-errors'),
 

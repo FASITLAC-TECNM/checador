@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { HardDrive, Info, RefreshCw } from "lucide-react";
+import { HardDrive, Info, RefreshCw, ChevronRight } from "lucide-react";
 import StepIndicator from "./StepIndicator";
 import { getSystemInfo } from "../../utils/systemInfo";
 
@@ -57,7 +57,7 @@ export default function NodeConfigStep({
         <div className="max-w-4xl mx-auto p-6">
           <button
             onClick={onShowWelcome}
-            className="absolute top-20 right-6 w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 flex items-center justify-center z-10"
+            className="absolute top-20 right-6 w-12 h-12 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full shadow-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-all hover:scale-110 flex items-center justify-center z-10"
             title="Ver información de bienvenida"
           >
             <Info className="w-6 h-6" />
@@ -72,10 +72,10 @@ export default function NodeConfigStep({
           </div>
 
           <div className="space-y-3">
-            <div className="bg-bg-secondary border-2 border-blue-200 rounded-xl p-4">
+            <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-5 hover:shadow-sm transition-shadow duration-300">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <HardDrive className="w-5 h-5 text-white" />
+                <div className="w-11 h-11 bg-gray-900 dark:bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                  <HardDrive className="w-5 h-5 text-white dark:text-gray-900" />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-bold text-text-primary mb-2">
@@ -96,7 +96,7 @@ export default function NodeConfigStep({
                           })
                         }
                         placeholder="ej. Edificio M"
-                        className="w-full px-3 py-2 border border-border-subtle rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent transition-all duration-200"
                       />
                     </div>
                     <div>
@@ -113,7 +113,7 @@ export default function NodeConfigStep({
                         }
                         placeholder="Describa la ubicación o función de este nodo"
                         rows="1"
-                        className="w-full px-3 py-2 border border-border-subtle rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                        className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent resize-none text-sm transition-all duration-200"
                       />
                     </div>
                     <div>
@@ -125,7 +125,7 @@ export default function NodeConfigStep({
                           type="button"
                           onClick={detectSystemInfo}
                           disabled={isDetecting}
-                          className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-bg-tertiary text-text-primary rounded-lg hover:bg-border-subtle transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                         >
                           <RefreshCw
                             className={`w-3 h-3 ${isDetecting ? "animate-spin" : ""}`}
@@ -143,7 +143,7 @@ export default function NodeConfigStep({
                             value={nodeConfig.ipAddress || ""}
                             disabled
                             placeholder="192.168.1.100"
-                            className="w-full px-2 py-1.5 bg-bg-secondary border border-border-subtle rounded-lg font-mono text-xs text-text-secondary cursor-not-allowed"
+                            className="w-full px-2.5 py-2 bg-bg-secondary border border-border-subtle rounded-xl font-mono text-xs text-text-secondary cursor-not-allowed"
                           />
                         </div>
                         <div>
@@ -155,7 +155,7 @@ export default function NodeConfigStep({
                             value={nodeConfig.macAddress}
                             disabled
                             placeholder="00:1A:2B:3C:4D:5E"
-                            className="w-full px-2 py-1.5 bg-bg-secondary border border-border-subtle rounded-lg font-mono text-xs text-text-secondary cursor-not-allowed"
+                            className="w-full px-2.5 py-2 bg-bg-secondary border border-border-subtle rounded-xl font-mono text-xs text-text-secondary cursor-not-allowed"
                           />
                         </div>
                         <div>
@@ -167,7 +167,7 @@ export default function NodeConfigStep({
                             value={nodeConfig.operatingSystem}
                             disabled
                             placeholder="Windows 10/11"
-                            className="w-full px-2 py-1.5 bg-bg-secondary border border-border-subtle rounded-lg text-xs text-text-secondary cursor-not-allowed"
+                            className="w-full px-2.5 py-2 bg-bg-secondary border border-border-subtle rounded-xl text-xs text-text-secondary cursor-not-allowed"
                           />
                         </div>
                       </div>
@@ -177,9 +177,9 @@ export default function NodeConfigStep({
               </div>
             </div>
 
-            <div className="bg-bg-secondary border border-amber-200 rounded-lg p-2 flex items-start gap-2">
+            <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3 flex items-start gap-2.5">
               <svg
-                className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5"
+                className="w-4 h-4 text-text-secondary flex-shrink-0 mt-0.5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -206,26 +206,13 @@ export default function NodeConfigStep({
           <button
             onClick={onNext}
             disabled={!isFormValid()}
-            className={`px-6 py-2.5 rounded-lg font-medium transition-all shadow-sm flex items-center gap-2 ${
-              isFormValid()
-                ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:shadow-md cursor-pointer"
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
-            }`}
+            className={`group px-6 py-2.5 rounded-xl font-medium transition-all duration-200 shadow-sm flex items-center gap-2 ${isFormValid()
+                ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
+                : "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+              }`}
           >
             Siguiente
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
+            <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-200" />
           </button>
         </div>
       </div>

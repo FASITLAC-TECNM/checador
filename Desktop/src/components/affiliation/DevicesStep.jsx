@@ -8,6 +8,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Camera,
+  ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
 import StepIndicator from "./StepIndicator";
 import { useDeviceDetection } from "../../hooks/useDeviceDetection";
@@ -58,7 +60,7 @@ export default function DevicesStep({
         <div className="max-w-5xl mx-auto px-6 py-4">
           <button
             onClick={onShowWelcome}
-            className="absolute top-20 right-6 w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 flex items-center justify-center z-10"
+            className="absolute top-20 right-6 w-12 h-12 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full shadow-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-all hover:scale-110 flex items-center justify-center z-10"
             title="Ver información de bienvenida"
           >
             <Info className="w-6 h-6" />
@@ -74,10 +76,10 @@ export default function DevicesStep({
           </div>
 
           <div className="flex-1">
-            <div className="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-4">
+            <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-5 hover:shadow-sm transition-shadow duration-300">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Wifi className="w-4 h-4 text-white" />
+                <div className="w-9 h-9 bg-gray-900 dark:bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                  <Wifi className="w-4 h-4 text-white dark:text-gray-900" />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-semibold text-text-primary text-sm">
@@ -93,7 +95,7 @@ export default function DevicesStep({
                     <button
                       onClick={() => detectAllDevices(true)}
                       disabled={isDetecting}
-                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-3 py-1.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 transition-all duration-200 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
                     >
                       {isDetecting ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -109,15 +111,14 @@ export default function DevicesStep({
               {/* Mensaje de estado de detección */}
               {detectionStatus && (
                 <div
-                  className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${
-                    detectionStatus.type === "success"
-                      ? "bg-green-100 text-green-800 border border-green-200"
-                      : detectionStatus.type === "error"
-                        ? "bg-red-100 text-red-800 border border-red-200"
-                        : detectionStatus.type === "warning"
-                          ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
-                          : "bg-blue-100 text-blue-800 border border-blue-200"
-                  }`}
+                  className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${detectionStatus.type === "success"
+                    ? "bg-green-100 text-green-800 border border-green-200"
+                    : detectionStatus.type === "error"
+                      ? "bg-red-100 text-red-800 border border-red-200"
+                      : detectionStatus.type === "warning"
+                        ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
+                        : "bg-blue-100 text-blue-800 border border-blue-200"
+                    }`}
                 >
                   {detectionStatus.type === "success" && (
                     <CheckCircle2 className="w-5 h-5" />
@@ -145,11 +146,10 @@ export default function DevicesStep({
                 {devices.map((device) => (
                   <div
                     key={device.id}
-                    className={`bg-bg-primary border-2 rounded-lg p-4 ${
-                      device.detected
-                        ? "border-emerald-300 bg-emerald-50/30"
-                        : "border-border-subtle"
-                    }`}
+                    className={`bg-bg-primary border-2 rounded-xl p-4 transition-all duration-200 ${device.detected
+                      ? "border-emerald-300 bg-emerald-50/30"
+                      : "border-border-subtle"
+                      }`}
                   >
                     {device.detected && (
                       <div className="flex items-center gap-1 text-emerald-600 text-xs mb-2">
@@ -169,7 +169,7 @@ export default function DevicesStep({
                             updateDevice(device.id, "name", e.target.value)
                           }
                           placeholder="ej. Cámara Principal"
-                          className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent transition-all duration-200"
                         />
                       </div>
                       <div>
@@ -181,7 +181,7 @@ export default function DevicesStep({
                           onChange={(e) =>
                             updateDevice(device.id, "type", e.target.value)
                           }
-                          className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent transition-all duration-200"
                         >
                           <option value="facial">Facial</option>
                           <option value="dactilar">Dactilar</option>
@@ -200,7 +200,7 @@ export default function DevicesStep({
                               e.target.value,
                             )
                           }
-                          className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent transition-all duration-200"
                         >
                           <option value="IP">IP</option>
                           <option value="USB">USB</option>
@@ -209,7 +209,7 @@ export default function DevicesStep({
                       <div className="flex items-end">
                         <button
                           onClick={() => removeDevice(device.id)}
-                          className="w-full px-3 py-2 bg-bg-secondary border border-red-500 text-red-500 rounded-lg hover:bg-bg-tertiary transition-colors text-sm font-medium"
+                          className="w-full px-3 py-2.5 bg-bg-secondary border border-red-400 dark:border-red-500 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 text-sm font-medium"
                         >
                           Eliminar
                         </button>
@@ -228,7 +228,7 @@ export default function DevicesStep({
                               updateDevice(device.id, "ip", e.target.value)
                             }
                             placeholder="192.168.1.100"
-                            className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent transition-all duration-200"
                           />
                         </div>
                         <div>
@@ -242,7 +242,7 @@ export default function DevicesStep({
                               updateDevice(device.id, "port", e.target.value)
                             }
                             placeholder="8080"
-                            className="w-full px-3 py-2 border border-border-subtle rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent transition-all duration-200"
                           />
                         </div>
                       </div>
@@ -251,8 +251,8 @@ export default function DevicesStep({
                 ))}
                 {devices.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-8">
-                    <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
-                      <Camera className="w-8 h-8 text-indigo-600" />
+                    <div className="w-16 h-16 bg-bg-tertiary rounded-2xl flex items-center justify-center mb-4 shadow-inner">
+                      <Camera className="w-8 h-8 text-text-secondary" />
                     </div>
                     <p className="text-base text-text-secondary font-medium mb-1">
                       No hay dispositivos configurados
@@ -264,7 +264,7 @@ export default function DevicesStep({
                     <button
                       onClick={() => detectAllDevices(true)}
                       disabled={isDetecting}
-                      className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-all text-base font-medium flex items-center gap-2 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="group px-8 py-3 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 transition-all duration-200 text-base font-medium flex items-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                     >
                       {isDetecting ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -288,41 +288,17 @@ export default function DevicesStep({
         <div className="max-w-5xl mx-auto flex justify-between">
           <button
             onClick={onPrevious}
-            className="px-5 py-2 text-text-secondary hover:text-text-primary font-medium transition-colors flex items-center gap-2 text-sm"
+            className="px-5 py-2.5 text-text-secondary hover:text-text-primary font-medium transition-all duration-200 flex items-center gap-2 text-sm rounded-xl hover:bg-bg-tertiary"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
+            <ChevronLeft className="w-4 h-4" />
             Anterior
           </button>
           <button
             onClick={onNext}
-            className="px-5 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium transition-all shadow-sm hover:shadow-md flex items-center gap-2 text-sm"
+            className="group px-5 py-2.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 font-medium transition-all duration-200 shadow-sm hover:shadow-lg hover:-translate-y-0.5 flex items-center gap-2 text-sm"
           >
             Siguiente
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
+            <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-200" />
           </button>
         </div>
       </div>

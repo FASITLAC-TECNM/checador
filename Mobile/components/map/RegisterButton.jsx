@@ -22,6 +22,11 @@ import { PinInputModal } from '../settingsPages/PinModal';
 import { FacialCaptureScreen } from '../../services/FacialCaptureScreen';
 import MapaZonasPermitidas from './MapScreen';
 
+// Offline Services
+import sqliteManager from '../../services/offline/sqliteManager';
+import offlineAuthService from '../../services/offline/offlineAuthService';
+import syncManager from '../../services/offline/syncManager';
+
 const API_URL = getApiEndpoint('/api');
 const MINUTOS_SEPARACION_TURNOS = 15;
 
@@ -63,10 +68,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
   useEffect(() => {
     cargarCredencialesYOrden();
+    syncManager.initAutoSync(); // Iniciar monitor de red
   }, []);
 
   const cargarCredencialesYOrden = async () => {
     try {
+      // Intentar online
       const credsResponse = await getCredencialesByEmpleado(
         userData.empleado_id,
         userData.token
@@ -87,11 +94,36 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       );
 
     } catch (error) {
-      setCredencialesUsuario({
-        tiene_dactilar: false,
-        tiene_facial: false,
-        tiene_pin: false
-      });
+      console.log('Using offline credentials');
+      // Fallback offline
+      try {
+        const creds = await sqliteManager.getAllCredenciales();
+        // Filtrar credenciales del usuario actual
+        // Nota: getAllCredenciales devuelve una lista plana, necesitamos saber si ESTE usuario tiene credenciales
+        // Pero getAllCredenciales devuelve cache_credenciales join cache_empleados.
+        const misCreds = creds.filter(c => c.empleado_id === userData.empleado_id);
+
+        const tienePin = misCreds.some(c => c.pin_hash);
+        const tieneDactilar = misCreds.some(c => c.dactilar_template);
+        const tieneFacial = misCreds.some(c => c.facial_descriptor);
+
+        const offlineCreds = {
+          tiene_pin: tienePin,
+          tiene_dactilar: tieneDactilar,
+          tiene_facial: tieneFacial
+        };
+
+        setCredencialesUsuario(offlineCreds);
+        // Orden default offline
+        construirMetodosDisponibles(offlineCreds, ['pin', 'dactilar', 'facial']);
+
+      } catch (offlineError) {
+        setCredencialesUsuario({
+          tiene_dactilar: false,
+          tiene_facial: false,
+          tiene_pin: false
+        });
+      }
     }
   };
 
@@ -219,41 +251,74 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const empleadoId = userData?.empleado_id;
       if (!empleadoId) return null;
 
-      const response = await fetch(
-        `${API_URL}/asistencias/empleado/${empleadoId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${userData.token}`,
-            'Content-Type': 'application/json'
+      const online = await syncManager.isOnline();
+
+      if (online) {
+        try {
+          const response = await fetch(
+            `${API_URL}/asistencias/empleado/${empleadoId}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${userData.token}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.data?.length) {
+              const hoy = new Date().toDateString();
+              const registrosHoy = data.data.filter(registro => {
+                const fechaRegistro = new Date(registro.fecha_registro);
+                return fechaRegistro.toDateString() === hoy;
+              });
+
+              if (registrosHoy.length > 0) {
+                const ultimo = registrosHoy[0];
+                return {
+                  tipo: ultimo.tipo,
+                  estado: ultimo.estado,
+                  fecha_registro: new Date(ultimo.fecha_registro),
+                  hora: new Date(ultimo.fecha_registro).toLocaleTimeString('es-MX', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  }),
+                  totalRegistrosHoy: registrosHoy.length
+                };
+              }
+            }
           }
+        } catch (e) {
+          console.log('Online fetch failed, falling back to offline');
         }
-      );
+      }
 
-      if (!response.ok) return null;
+      // Offline Fallback
+      const registrosOffline = await sqliteManager.getRegistrosHoy(empleadoId);
+      // Incluir registros pendientes de sync y registros historicos si tuvieramos tabla de historial
+      // Por ahora solo offline_asistencias tiene lo que se ha hecho HOY en offline.
+      // Y si hicimos pull, tal vez podriamos tener historial, pero el pull es de datos maestros.
+      // Asumimos que si estamos offline, solo vemos lo que acabamos de hacer (offline_asistencias).
 
-      const data = await response.json();
-      if (!data.data?.length) return null;
+      if (registrosOffline && registrosOffline.length > 0) {
+        // Ordenar descendente para obtener el ultimo
+        // getRegistrosHoy ya retorna ordenado ASC por fecha
+        const ultimo = registrosOffline[registrosOffline.length - 1]; // Ultimo del array (mas reciente)
 
-      const hoy = new Date().toDateString();
-      const registrosHoy = data.data.filter(registro => {
-        const fechaRegistro = new Date(registro.fecha_registro);
-        return fechaRegistro.toDateString() === hoy;
-      });
+        return {
+          tipo: ultimo.tipo,
+          estado: ultimo.estado,
+          fecha_registro: new Date(ultimo.fecha_registro),
+          hora: new Date(ultimo.fecha_registro).toLocaleTimeString('es-MX', {
+            hour: '2-digit',
+            minute: '2-digit'
+          }),
+          totalRegistrosHoy: registrosOffline.length
+        };
+      }
 
-      if (!registrosHoy.length) return null;
-
-      const ultimo = registrosHoy[0];
-
-      return {
-        tipo: ultimo.tipo,
-        estado: ultimo.estado,
-        fecha_registro: new Date(ultimo.fecha_registro),
-        hora: new Date(ultimo.fecha_registro).toLocaleTimeString('es-MX', {
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-        totalRegistrosHoy: registrosHoy.length
-      };
+      return null;
     } catch (err) {
       return null;
     }
@@ -264,20 +329,34 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const empleadoId = userData?.empleado_id;
       if (!empleadoId) return null;
 
-      const response = await fetch(
-        `${API_URL}/empleados/${empleadoId}/horario`,
-        {
-          headers: {
-            'Authorization': `Bearer ${userData.token}`,
-            'Content-Type': 'application/json'
+      let horario = null;
+      const online = await syncManager.isOnline();
+
+      if (online) {
+        try {
+          const response = await fetch(
+            `${API_URL}/empleados/${empleadoId}/horario`,
+            {
+              headers: {
+                'Authorization': `Bearer ${userData.token}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          if (response.ok) {
+            const data = await response.json();
+            horario = data.data || data.horario || data;
           }
+        } catch (e) { console.log('Online horario failed'); }
+      }
+
+      // Offline Fallback
+      if (!horario) {
+        const hLocal = await sqliteManager.getHorario(empleadoId);
+        if (hLocal) {
+          horario = hLocal;
         }
-      );
-
-      if (!response.ok) return null;
-
-      const data = await response.json();
-      const horario = data.data || data.horario || data;
+      }
 
       if (!horario?.configuracion) return null;
 
@@ -334,42 +413,54 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     };
 
     try {
-      const rolesResponse = await fetch(
-        `${API_URL}/usuarios/${userData.id}/roles`,
-        {
-          headers: {
-            'Authorization': `Bearer ${userData.token}`,
-            'Content-Type': 'application/json'
+      let tolerancia = null;
+      const online = await syncManager.isOnline();
+
+      if (online) {
+        try {
+          const rolesResponse = await fetch(
+            `${API_URL}/usuarios/${userData.id}/roles`,
+            {
+              headers: {
+                'Authorization': `Bearer ${userData.token}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+
+          if (rolesResponse.ok) {
+            const rolesData = await rolesResponse.json();
+            const roles = rolesData.data || [];
+            const rolConTolerancia = roles
+              .filter(r => r.tolerancia_id)
+              .sort((a, b) => b.posicion - a.posicion)[0];
+
+            if (rolConTolerancia) {
+              const toleranciaResponse = await fetch(
+                `${API_URL}/tolerancias/${rolConTolerancia.tolerancia_id}`,
+                {
+                  headers: {
+                    'Authorization': `Bearer ${userData.token}`,
+                    'Content-Type': 'application/json'
+                  }
+                }
+              );
+              if (toleranciaResponse.ok) {
+                const toleranciaData = await toleranciaResponse.json();
+                tolerancia = toleranciaData.data || toleranciaData;
+              }
+            }
           }
-        }
-      );
+        } catch (e) { console.log('Online tolerancia failed'); }
+      }
 
-      if (!rolesResponse.ok) return defaultTolerancia;
+      // Offline Fallback
+      if (!tolerancia) {
+        tolerancia = await sqliteManager.getTolerancia(userData.empleado_id);
+      }
 
-      const rolesData = await rolesResponse.json();
-      const roles = rolesData.data || [];
-      const rolConTolerancia = roles
-        .filter(r => r.tolerancia_id)
-        .sort((a, b) => b.posicion - a.posicion)[0];
+      if (!tolerancia) return defaultTolerancia;
 
-      if (!rolConTolerancia) return defaultTolerancia;
-
-      const toleranciaResponse = await fetch(
-        `${API_URL}/tolerancias/${rolConTolerancia.tolerancia_id}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${userData.token}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      if (!toleranciaResponse.ok) return defaultTolerancia;
-
-      const toleranciaData = await toleranciaResponse.json();
-      const tolerancia = toleranciaData.data || toleranciaData;
-
-      // Asegurar que tenga los valores de salida
       return {
         ...defaultTolerancia,
         ...tolerancia,
@@ -390,19 +481,22 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       const promesas = departamentosAsignados.map(async (depto) => {
         try {
-          const response = await fetch(
-            `${API_URL}/departamentos/${depto.id}`,
-            {
-              headers: {
-                'Authorization': `Bearer ${userData.token}`,
-                'Content-Type': 'application/json'
+          // Check online
+          const online = await syncManager.isOnline();
+          if (online) {
+            const response = await fetch(
+              `${API_URL}/departamentos/${depto.id}`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${userData.token}`,
+                  'Content-Type': 'application/json'
+                }
               }
+            );
+            if (response.ok) {
+              const data = await response.json();
+              return data.data || data;
             }
-          );
-
-          if (response.ok) {
-            const data = await response.json();
-            return data.data || data;
           }
           return null;
         } catch (err) {
@@ -410,8 +504,26 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         }
       });
 
-      const resultados = await Promise.all(promesas);
-      return resultados.filter(depto => depto !== null && depto.ubicacion);
+      let resultados = await Promise.all(promesas);
+      resultados = resultados.filter(d => d !== null);
+
+      // Offline Fallback
+      if (resultados.length === 0) {
+        const cached = await sqliteManager.getDepartamentos(userData.empleado_id);
+        if (cached && cached.length > 0) {
+          // Map to expected format
+          resultados = cached.map(c => ({
+            id: c.departamento_id,
+            nombre: c.nombre,
+            ubicacion: null, // Offline usually has no location
+            es_activo: c.es_activo
+          }));
+        }
+      }
+
+      // Filter by location ONLY if we have online results or care about geofence strictness
+      // But for offline mode, we return what we have.
+      return resultados;
     } catch (err) {
       return [];
     }
@@ -725,57 +837,100 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   }, []);
 
   useEffect(() => {
-    if (!ubicacionActual || !departamentos.length) {
-      setDentroDelArea(false);
-      setDepartamentosDisponibles([]);
-      setDepartamentoSeleccionado(null);
-      return;
-    }
-
-    const deptsDisponibles = [];
-
-    for (const depto of departamentos) {
-      try {
-        const coordenadas = extraerCoordenadas(depto.ubicacion);
-        if (!coordenadas || coordenadas.length < 3) continue;
-
-        const dentro = isPointInPolygon(ubicacionActual, coordenadas);
-
-        if (dentro) {
-          deptsDisponibles.push(depto);
+    const validarArea = async () => {
+      // Bypass for Offline Mode
+      const online = await syncManager.isOnline();
+      if (!online) {
+        // Offline: we allow registration if we have departments (even without location)
+        if (departamentos && departamentos.length > 0) {
+          setDepartamentosDisponibles(departamentos);
+          setDentroDelArea(true);
+          if (!departamentoSeleccionado) {
+            setDepartamentoSeleccionado(departamentos[0]);
+          }
+          return;
         }
-      } catch (err) {
-        continue;
       }
-    }
 
-    setDepartamentosDisponibles(deptsDisponibles);
-    setDentroDelArea(deptsDisponibles.length > 0);
+      if (!ubicacionActual || !departamentos.length) {
+        setDentroDelArea(false);
+        setDepartamentosDisponibles([]);
+        setDepartamentoSeleccionado(null);
+        return;
+      }
 
-    if (deptsDisponibles.length > 0 && !departamentoSeleccionado) {
-      setDepartamentoSeleccionado(deptsDisponibles[0]);
-    }
+      const deptsDisponibles = [];
 
-    if (departamentoSeleccionado && !deptsDisponibles.find(d => d.id === departamentoSeleccionado.id)) {
-      setDepartamentoSeleccionado(deptsDisponibles[0] || null);
-    }
+      for (const depto of departamentos) {
+        try {
+          if (!depto.ubicacion) continue; // Skip if no location (e.g. offline cached without location data)
+
+          const coordenadas = extraerCoordenadas(depto.ubicacion);
+          if (!coordenadas || coordenadas.length < 3) continue;
+
+          const dentro = isPointInPolygon(ubicacionActual, coordenadas);
+
+          if (dentro) {
+            deptsDisponibles.push(depto);
+          }
+        } catch (err) {
+          continue;
+        }
+      }
+
+      setDepartamentosDisponibles(deptsDisponibles);
+      setDentroDelArea(deptsDisponibles.length > 0);
+
+      if (deptsDisponibles.length > 0 && !departamentoSeleccionado) {
+        setDepartamentoSeleccionado(deptsDisponibles[0]);
+      }
+
+      if (departamentoSeleccionado && !deptsDisponibles.find(d => d.id === departamentoSeleccionado.id)) {
+        setDepartamentoSeleccionado(deptsDisponibles[0] || null);
+      }
+    };
+
+    validarArea();
+
   }, [ubicacionActual, departamentos]);
 
   const handleVerificarPin = async (pin) => {
     try {
-      const resultado = await verificarPin(
-        userData.empleado_id,
-        pin,
-        userData.token
-      );
+      const online = await syncManager.isOnline();
 
-      if (resultado.success && resultado.data?.valido) {
+      if (online) {
+        try {
+          const resultado = await verificarPin(
+            userData.empleado_id,
+            pin,
+            userData.token
+          );
+
+          if (resultado.success && resultado.data?.valido) {
+            setMostrarPinAuth(false);
+            setMostrarAutenticacion(false);
+            await procederConRegistro();
+            return;
+          } else {
+            throw new Error('PIN incorrecto');
+          }
+        } catch (e) {
+          if (e.message === 'PIN incorrecto') throw e;
+          // If network error, fall through to offline
+          console.log('Online PIN check failed, trying offline');
+        }
+      }
+
+      // Offline Fallback
+      const identified = await offlineAuthService.identificarPorPinOffline(pin);
+      if (identified && identified.empleado_id === userData.empleado_id) {
         setMostrarPinAuth(false);
         setMostrarAutenticacion(false);
         await procederConRegistro();
       } else {
         throw new Error('PIN incorrecto');
       }
+
     } catch (error) {
       throw error;
     }
@@ -928,40 +1083,79 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         empleado_id: userData.empleado_id,
         dispositivo_origen: 'movil',
         ubicacion: [ubicacionFinal.lat, ubicacionFinal.lng],
-        departamento_id: departamento.id
+        departamento_id: departamento.id,
+        tipo: tipoSiguienteRegistro, // Asegurar que mandamos el tipo correcto
+        estado: 'puntual' // Default, el backend recalcula
       };
 
-      const response = await fetch(`${API_URL}/asistencias/registrar`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userData.token}`,
-        },
-        body: JSON.stringify(payload)
-      });
+      const online = await syncManager.isOnline();
+      let success = false;
+      let data = null;
 
-      const responseText = await response.text();
+      if (online) {
+        try {
+          const response = await fetch(`${API_URL}/asistencias/registrar`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${userData.token}`,
+            },
+            body: JSON.stringify(payload)
+          });
 
-      if (response.status === 502) {
-        throw new Error('El servidor no está disponible en este momento. Por favor intenta de nuevo.');
+          const responseText = await response.text();
+
+          if (response.status === 502 || response.status === 500) {
+            throw new Error('Server Error');
+          }
+
+          try {
+            data = responseText ? JSON.parse(responseText) : {};
+          } catch (parseError) {
+            throw new Error('Error del servidor: respuesta inválida');
+          }
+
+          if (!response.ok) {
+            const errorMsg = data.message || data.error || `Error del servidor (${response.status})`;
+            throw new Error(errorMsg);
+          }
+
+          success = true;
+
+        } catch (e) {
+          if (e.message !== 'Server Error' && !e.message.includes('Network request failed')) {
+            throw e; // Re-throw valid logic errors
+          }
+          console.log('Online registration failed, saving offline');
+          // Fallthrough to offline
+        }
       }
-      if (response.status === 500) {
-        throw new Error('Error interno del servidor. Contacta al administrador.');
+
+      if (!success) {
+        // Guardar Offline
+        console.log('Saving offline attendance...');
+
+        await sqliteManager.saveOfflineAsistencia({
+          ...payload,
+          metodo_registro: 'PIN', // TODO: Pasar el metodo real usado
+          fecha_registro: new Date().toISOString()
+        });
+
+        data = {
+          data: {
+            tipo: tipoSiguienteRegistro,
+            estado: 'pendiente_sync'
+          }
+        };
+
+        Alert.alert(
+          'Modo Offline',
+          'No hay conexión con el servidor. Tu asistencia se ha guardado localmente y se sincronizará cuando recuperes la conexión.',
+          [{ text: 'Entendido' }]
+        );
       }
 
-      let data;
-      try {
-        data = responseText ? JSON.parse(responseText) : {};
-      } catch (parseError) {
-        throw new Error('Error del servidor: respuesta inválida');
-      }
-
-      if (!response.ok) {
-        const errorMsg = data.message || data.error || `Error del servidor (${response.status})`;
-        throw new Error(errorMsg);
-      }
-
-      const nuevoUltimo = await obtenerUltimoRegistro();
+      const nuevoUltimo = await obtenerUltimoRegistro(); // This now uses offline fallback too
       setUltimoRegistroHoy(nuevoUltimo);
 
       if (horarioInfo && toleranciaInfo) {
@@ -992,16 +1186,21 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         } else if (estadoRegistrado === 'puntual') {
           estadoTexto = 'puntual';
           emoji = '✅';
+        } else if (estadoRegistrado === 'pendiente_sync') {
+          estadoTexto = 'guardado offline';
+          emoji = 'cloud-offline';
         }
       }
 
       const tipoMayuscula = tipoRegistrado === 'entrada' ? 'Entrada' : 'Salida';
 
-      Alert.alert(
-        '¡Éxito!',
-        `${emoji} ${tipoMayuscula} registrada como ${estadoTexto}\nDepartamento: ${departamento.nombre}\nHora: ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
-        [{ text: 'OK' }]
-      );
+      if (success) {
+        Alert.alert(
+          '¡Éxito!',
+          `${emoji} ${tipoMayuscula} registrada como ${estadoTexto}\nDepartamento: ${departamento.nombre}\nHora: ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
+          [{ text: 'OK' }]
+        );
+      }
 
       if (onRegistroExitoso) {
         onRegistroExitoso(data);

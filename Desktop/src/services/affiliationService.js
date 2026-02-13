@@ -42,7 +42,7 @@ export const crearSolicitudAfiliacion = async (datos) => {
       datos.dispositivos?.map((d) => ({
         nombre: d.name?.substring(0, 55) || "",
         tipo: d.type || "facial",
-        ip: d.ip?.substring(0, 12) || "",
+        ip: d.ip || "",
         puerto: d.port?.substring(0, 55) || "",
       })) || [];
 
@@ -51,8 +51,8 @@ export const crearSolicitudAfiliacion = async (datos) => {
       nombre: datos.nombre?.substring(0, 55) || "",
       descripcion: datos.descripcion || "",
       correo: datos.correo?.substring(0, 55) || null,
-      ip: datos.ip?.substring(0, 12) || "",
-      mac: datos.mac?.substring(0, 12) || "",
+      ip: datos.ip || "",
+      mac: datos.mac || "",
       sistema_operativo: datos.sistema_operativo?.substring(0, 55) || "",
       token: token,
       empresa_id: datos.empresa_id?.substring(0, 8) || "",

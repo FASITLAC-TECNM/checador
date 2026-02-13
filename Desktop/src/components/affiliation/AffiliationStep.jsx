@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Building2, Info, X, HelpCircle } from "lucide-react";
+import { Building2, Info, X, HelpCircle, ChevronRight, ChevronLeft } from "lucide-react";
 import StepIndicator from "./StepIndicator";
 
 export default function AffiliationStep({
@@ -21,7 +21,7 @@ export default function AffiliationStep({
       {/* Botón de información */}
       <button
         onClick={onShowWelcome}
-        className="fixed top-20 right-6 w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 flex items-center justify-center z-10"
+        className="fixed top-20 right-6 w-12 h-12 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full shadow-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-all hover:scale-110 flex items-center justify-center z-10"
         title="Ver información de bienvenida"
       >
         <Info className="w-6 h-6" />
@@ -39,10 +39,10 @@ export default function AffiliationStep({
             </p>
           </div>
 
-          <div className="bg-bg-secondary border-2 border-purple-200 rounded-xl p-5">
+          <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-6 hover:shadow-sm transition-shadow duration-300">
             <div className="flex items-start gap-4">
-              <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                <Building2 className="w-5 h-5 text-white" />
+              <div className="w-11 h-11 bg-gray-900 dark:bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                <Building2 className="w-5 h-5 text-white dark:text-gray-900" />
               </div>
               <div className="flex-1">
                 <h3 className="font-bold text-text-primary mb-2">
@@ -57,7 +57,7 @@ export default function AffiliationStep({
                   value={companyId}
                   onChange={(e) => setCompanyId(e.target.value)}
                   placeholder="EMA-XXXXX"
-                  className="w-full px-3 py-2 border border-border-subtle rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center font-mono"
+                  className="w-full px-4 py-3 bg-bg-primary border border-border-subtle rounded-xl focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent text-center font-mono text-lg tracking-widest transition-all duration-200"
                 />
               </div>
             </div>
@@ -66,7 +66,7 @@ export default function AffiliationStep({
               ¿No conoce el ID de su empresa?{" "}
               <button
                 onClick={() => setShowHelpModal(true)}
-                className="text-blue-600 hover:underline font-medium"
+                className="text-text-primary hover:underline font-semibold transition-colors duration-200"
               >
                 Click aquí
               </button>{" "}
@@ -81,41 +81,17 @@ export default function AffiliationStep({
         <div className="max-w-4xl mx-auto flex justify-between">
           <button
             onClick={onPrevious}
-            className="px-6 py-2.5 text-text-secondary hover:text-text-primary font-medium transition-colors flex items-center gap-2"
+            className="px-6 py-2.5 text-text-secondary hover:text-text-primary font-medium transition-all duration-200 flex items-center gap-2 rounded-xl hover:bg-bg-tertiary"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
+            <ChevronLeft className="w-4 h-4" />
             Anterior
           </button>
           <button
             onClick={onSubmit}
-            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium transition-all shadow-sm hover:shadow-md flex items-center gap-2"
+            className="group px-6 py-2.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 font-medium transition-all duration-200 shadow-sm hover:shadow-lg hover:-translate-y-0.5 flex items-center gap-2"
           >
             Solicitar Afiliación
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
+            <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-200" />
           </button>
         </div>
       </div>
@@ -123,24 +99,24 @@ export default function AffiliationStep({
       {/* Modal de ayuda para conocer el ID de empresa */}
       {showHelpModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+          <div className="bg-bg-primary rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-purple-600 to-purple-500 dark:from-purple-800 dark:to-purple-900 p-5">
+            <div className="bg-bg-primary p-5 border-b border-border-subtle">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <HelpCircle className="w-7 h-7 text-white" />
+                  <HelpCircle className="w-7 h-7 text-text-primary" />
                   <div>
-                    <h3 className="text-xl font-bold text-white">
+                    <h3 className="text-xl font-bold text-text-primary">
                       ¿Cómo obtener el ID?
                     </h3>
-                    <p className="text-purple-100 dark:text-purple-200 text-sm mt-1">
+                    <p className="text-text-secondary text-sm mt-1">
                       Sugerencias para conocer su ID de empresa
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowHelpModal(false)}
-                  className="text-white hover:bg-white/20 dark:hover:bg-white/10 rounded-lg p-2 transition-colors"
+                  className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -150,16 +126,16 @@ export default function AffiliationStep({
             {/* Body */}
             <div className="p-5">
               <ul className="space-y-3">
-                <li className="flex items-start gap-3 p-3 bg-bg-secondary rounded-lg border border-border-subtle">
-                  <span className="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                <li className="flex items-start gap-3 p-3 bg-bg-secondary rounded-xl border border-border-subtle">
+                  <span className="flex-shrink-0 w-6 h-6 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full flex items-center justify-center text-sm font-bold">
                     1
                   </span>
                   <p className="text-text-primary text-sm">
                     Revise el <strong>contrato de licencia</strong> con FASITLAC
                   </p>
                 </li>
-                <li className="flex items-start gap-3 p-3 bg-bg-secondary rounded-lg border border-border-subtle">
-                  <span className="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                <li className="flex items-start gap-3 p-3 bg-bg-secondary rounded-xl border border-border-subtle">
+                  <span className="flex-shrink-0 w-6 h-6 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full flex items-center justify-center text-sm font-bold">
                     2
                   </span>
                   <p className="text-text-primary text-sm">
@@ -167,8 +143,8 @@ export default function AffiliationStep({
                     "Creación de una empresa"
                   </p>
                 </li>
-                <li className="flex items-start gap-3 p-3 bg-bg-secondary rounded-lg border border-border-subtle">
-                  <span className="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                <li className="flex items-start gap-3 p-3 bg-bg-secondary rounded-xl border border-border-subtle">
+                  <span className="flex-shrink-0 w-6 h-6 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full flex items-center justify-center text-sm font-bold">
                     3
                   </span>
                   <p className="text-text-primary text-sm">
@@ -177,16 +153,6 @@ export default function AffiliationStep({
                   </p>
                 </li>
               </ul>
-            </div>
-
-            {/* Footer */}
-            <div className="bg-bg-secondary p-4 border-t border-border-subtle">
-              <button
-                onClick={() => setShowHelpModal(false)}
-                className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 text-white rounded-xl font-bold transition-all"
-              >
-                Entendido
-              </button>
             </div>
           </div>
         </div>

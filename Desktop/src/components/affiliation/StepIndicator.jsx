@@ -1,4 +1,4 @@
-import { CheckCircle } from "lucide-react";
+import { Check } from "lucide-react";
 
 export default function StepIndicator({ currentStep }) {
   const steps = [
@@ -17,29 +17,27 @@ export default function StepIndicator({ currentStep }) {
             <div className="flex flex-col items-center w-20">
               <div
                 className={`
-                  w-10 h-10 rounded-full flex items-center justify-center font-bold text-base transition-all duration-300
-                  ${
-                    currentStep > stepItem.number
-                      ? "bg-green-500 text-white shadow-md"
-                      : currentStep === stepItem.number
-                      ? "bg-blue-600 text-white ring-4 ring-blue-200 shadow-md"
+                  w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all duration-500
+                  ${currentStep > stepItem.number
+                    ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 shadow-md"
+                    : currentStep === stepItem.number
+                      ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 ring-[3px] ring-gray-300 dark:ring-gray-600 ring-offset-2 ring-offset-bg-secondary shadow-lg scale-110"
                       : "bg-bg-primary text-text-disabled border-2 border-border-subtle"
                   }
                 `}
               >
                 {currentStep > stepItem.number ? (
-                  <CheckCircle className="w-5 h-5" />
+                  <Check className="w-4 h-4" strokeWidth={3} />
                 ) : (
                   <span>{stepItem.number}</span>
                 )}
               </div>
               <span
                 className={`
-                  mt-2 text-xs font-medium text-center whitespace-pre-line leading-tight
-                  ${
-                    currentStep >= stepItem.number
-                      ? "text-text-primary"
-                      : "text-text-disabled"
+                  mt-2.5 text-xs font-medium text-center whitespace-pre-line leading-tight transition-colors duration-300
+                  ${currentStep >= stepItem.number
+                    ? "text-text-primary font-semibold"
+                    : "text-text-disabled"
                   }
                 `}
               >
@@ -49,14 +47,13 @@ export default function StepIndicator({ currentStep }) {
 
             {/* Connector line */}
             {index < steps.length - 1 && (
-              <div className="flex-1 h-1 -mt-4 mx-1">
+              <div className="flex-1 h-0.5 -mt-4 mx-1">
                 <div
                   className={`
-                    h-full rounded transition-all duration-300
-                    ${
-                      currentStep > stepItem.number
-                        ? "bg-green-500"
-                        : "bg-border-subtle"
+                    h-full rounded-full transition-all duration-500
+                    ${currentStep > stepItem.number
+                      ? "bg-gray-900 dark:bg-gray-400"
+                      : "bg-border-subtle"
                     }
                   `}
                 />

@@ -1,4 +1,4 @@
-import { Clock, Lock, CheckCircle, XCircle, Info } from "lucide-react";
+import { Clock, Lock, CheckCircle, XCircle, Info, ChevronRight } from "lucide-react";
 import StepIndicator from "./StepIndicator";
 
 export default function ApprovalStep({
@@ -21,7 +21,7 @@ export default function ApprovalStep({
         {/* Botón de información */}
         <button
           onClick={onShowWelcome}
-          className="fixed top-20 right-6 w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 flex items-center justify-center z-10"
+          className="fixed top-20 right-6 w-12 h-12 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full shadow-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-all hover:scale-110 flex items-center justify-center z-10"
           title="Ver información de bienvenida"
         >
           <Info className="w-6 h-6" />
@@ -30,7 +30,7 @@ export default function ApprovalStep({
         {/* Contenido scrollable */}
         <div className="flex-1 overflow-y-auto flex items-center justify-center">
           <div className="max-w-2xl w-full p-6">
-            <div className="bg-bg-secondary border-2 border-green-400 rounded-2xl p-6">
+            <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8">
               <div className="mb-4">
                 <h1 className="text-xl font-bold text-text-primary mb-1 text-center">
                   ¡Solicitud Aceptada!
@@ -43,11 +43,11 @@ export default function ApprovalStep({
               <div className="space-y-3">
                 <div className="text-center">
                   <div className="inline-flex items-center justify-center w-16 h-16 mb-2">
-                    <CheckCircle className="w-16 h-16 text-green-500" />
+                    <CheckCircle className="w-16 h-16 text-text-primary" />
                   </div>
                 </div>
 
-                <div className="bg-bg-primary border border-green-500 rounded-lg p-3">
+                <div className="bg-bg-primary border border-border-subtle rounded-xl p-4">
                   <p className="text-sm text-text-secondary text-center">
                     Ya puede iniciar sesión para comenzar a utilizar el sistema.
                   </p>
@@ -62,22 +62,10 @@ export default function ApprovalStep({
           <div className="max-w-2xl mx-auto flex justify-end">
             <button
               onClick={onGoToLogin}
-              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium transition-all shadow-sm hover:shadow-md flex items-center gap-2"
+              className="group px-6 py-2.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 font-medium transition-all duration-200 shadow-sm hover:shadow-lg hover:-translate-y-0.5 flex items-center gap-2"
             >
               Ir al Inicio de Sesión
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
+              <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-200" />
             </button>
           </div>
         </div>
@@ -96,7 +84,7 @@ export default function ApprovalStep({
         {/* Botón de información */}
         <button
           onClick={onShowWelcome}
-          className="fixed top-20 right-6 w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 flex items-center justify-center z-10"
+          className="fixed top-20 right-6 w-12 h-12 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full shadow-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-all hover:scale-110 flex items-center justify-center z-10"
           title="Ver información de bienvenida"
         >
           <Info className="w-6 h-6" />
@@ -105,7 +93,7 @@ export default function ApprovalStep({
         {/* Contenido scrollable */}
         <div className="flex-1 overflow-y-auto flex items-center justify-center">
           <div className="max-w-2xl w-full p-6">
-            <div className="bg-bg-secondary border-2 border-red-400 rounded-2xl p-6">
+            <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8">
               <div className="mb-4">
                 <h1 className="text-xl font-bold text-text-primary mb-1 text-center">
                   Solicitud Rechazada
@@ -118,19 +106,19 @@ export default function ApprovalStep({
               <div className="space-y-3">
                 <div className="text-center">
                   <div className="inline-flex items-center justify-center w-16 h-16 mb-2">
-                    <XCircle className="w-16 h-16 text-red-500" />
+                    <XCircle className="w-16 h-16 text-text-primary" />
                   </div>
                 </div>
 
                 {error && (
-                  <div className="bg-red-50 border border-red-500 rounded-lg p-3">
-                    <p className="text-sm text-red-700 text-center font-medium">
+                  <div className="bg-bg-tertiary border border-border-subtle rounded-xl p-4">
+                    <p className="text-sm text-text-secondary text-center font-medium">
                       {error}
                     </p>
                   </div>
                 )}
 
-                <div className="bg-bg-primary border border-red-200 rounded-lg p-3">
+                <div className="bg-bg-primary border border-border-subtle rounded-xl p-4">
                   <p className="text-sm text-text-secondary text-center">
                     Puede intentar nuevamente o contactar al administrador para
                     más información.
@@ -146,7 +134,7 @@ export default function ApprovalStep({
           <div className="max-w-2xl mx-auto flex justify-center">
             <button
               onClick={onRetry}
-              className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium transition-all shadow-sm hover:shadow-md"
+              className="px-6 py-2.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 font-medium transition-all duration-200 shadow-sm hover:shadow-lg hover:-translate-y-0.5"
             >
               Intentar Nuevamente
             </button>
@@ -184,16 +172,16 @@ export default function ApprovalStep({
             </p>
           </div>
 
-          <div className="bg-bg-secondary border-2 border-amber-400 rounded-xl p-5 space-y-3">
+          <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-6 space-y-4">
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-14 h-14 mb-2">
                 <div className="relative">
-                  <Clock className="w-14 h-14 text-amber-500 animate-pulse" />
-                  <Lock className="w-5 h-5 text-amber-600 absolute bottom-0 right-0" />
+                  <Clock className="w-14 h-14 text-text-secondary animate-pulse" />
+                  <Lock className="w-5 h-5 text-text-primary absolute bottom-0 right-0" />
                 </div>
               </div>
 
-              <div className="bg-bg-primary border border-amber-200 rounded-lg p-3 space-y-2 mb-3">
+              <div className="bg-bg-primary border border-border-subtle rounded-xl p-4 space-y-2 mb-3">
                 <p className="text-sm text-text-secondary">
                   <strong>ID de la Empresa:</strong>{" "}
                   {companyId || "No especificado"}
@@ -204,8 +192,8 @@ export default function ApprovalStep({
               </div>
 
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
-                  <p className="text-sm text-red-700">{error}</p>
+                <div className="bg-bg-tertiary border border-border-subtle rounded-xl p-4 mb-3">
+                  <p className="text-sm text-text-secondary">{error}</p>
                 </div>
               )}
 
@@ -217,14 +205,14 @@ export default function ApprovalStep({
               <div className="space-y-2">
                 <button
                   onClick={onRetry}
-                  className="w-full px-6 py-2 bg-bg-primary text-text-secondary rounded-lg hover:bg-bg-tertiary text-sm font-medium transition-colors border border-border-subtle"
+                  className="w-full px-6 py-2.5 bg-bg-primary text-text-secondary rounded-xl hover:bg-bg-tertiary text-sm font-medium transition-all duration-200 border border-border-subtle hover:shadow-sm"
                 >
                   Reenviar Solicitud
                 </button>
 
                 <button
                   onClick={onCancel}
-                  className="w-full px-6 py-2 text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+                  className="w-full px-6 py-2.5 text-text-secondary hover:text-text-primary text-sm font-medium transition-all duration-200 rounded-xl hover:bg-bg-tertiary"
                 >
                   Cancelar Solicitud
                 </button>

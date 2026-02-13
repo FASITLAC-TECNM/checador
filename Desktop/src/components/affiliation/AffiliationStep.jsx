@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Building2, Info, X, HelpCircle } from "lucide-react";
+import { Building2, Info, X, HelpCircle, ChevronRight, ChevronLeft } from "lucide-react";
 import StepIndicator from "./StepIndicator";
 
 export default function AffiliationStep({
@@ -21,7 +21,7 @@ export default function AffiliationStep({
       {/* Botón de información */}
       <button
         onClick={onShowWelcome}
-        className="fixed top-20 right-6 w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 flex items-center justify-center z-10"
+        className="fixed top-20 right-6 w-12 h-12 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full shadow-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-all hover:scale-110 flex items-center justify-center z-10"
         title="Ver información de bienvenida"
       >
         <Info className="w-6 h-6" />
@@ -39,10 +39,10 @@ export default function AffiliationStep({
             </p>
           </div>
 
-          <div className="bg-bg-secondary border-2 border-purple-200 rounded-xl p-5">
+          <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-6 hover:shadow-sm transition-shadow duration-300">
             <div className="flex items-start gap-4">
-              <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                <Building2 className="w-5 h-5 text-white" />
+              <div className="w-11 h-11 bg-gray-900 dark:bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+                <Building2 className="w-5 h-5 text-white dark:text-gray-900" />
               </div>
               <div className="flex-1">
                 <h3 className="font-bold text-text-primary mb-2">
@@ -57,7 +57,7 @@ export default function AffiliationStep({
                   value={companyId}
                   onChange={(e) => setCompanyId(e.target.value)}
                   placeholder="EMA-XXXXX"
-                  className="w-full px-3 py-2 border border-border-subtle rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center font-mono"
+                  className="w-full px-4 py-3 bg-bg-primary border border-border-subtle rounded-xl focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent text-center font-mono text-lg tracking-widest transition-all duration-200"
                 />
               </div>
             </div>
@@ -66,7 +66,7 @@ export default function AffiliationStep({
               ¿No conoce el ID de su empresa?{" "}
               <button
                 onClick={() => setShowHelpModal(true)}
-                className="text-blue-600 hover:underline font-medium"
+                className="text-text-primary hover:underline font-semibold transition-colors duration-200"
               >
                 Click aquí
               </button>{" "}
@@ -81,41 +81,17 @@ export default function AffiliationStep({
         <div className="max-w-4xl mx-auto flex justify-between">
           <button
             onClick={onPrevious}
-            className="px-6 py-2.5 text-text-secondary hover:text-text-primary font-medium transition-colors flex items-center gap-2"
+            className="px-6 py-2.5 text-text-secondary hover:text-text-primary font-medium transition-all duration-200 flex items-center gap-2 rounded-xl hover:bg-bg-tertiary"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
+            <ChevronLeft className="w-4 h-4" />
             Anterior
           </button>
           <button
             onClick={onSubmit}
-            className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 font-medium transition-all shadow-sm hover:shadow-md flex items-center gap-2"
+            className="group px-6 py-2.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 font-medium transition-all duration-200 shadow-sm hover:shadow-lg hover:-translate-y-0.5 flex items-center gap-2"
           >
             Solicitar Afiliación
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
+            <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-200" />
           </button>
         </div>
       </div>

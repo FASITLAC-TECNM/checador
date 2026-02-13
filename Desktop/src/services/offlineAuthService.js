@@ -316,7 +316,7 @@ export async function cargarDatosOffline(empleadoId) {
       tolerancia: tolerancia || {
         minutos_retardo: 10,
         minutos_falta: 30,
-        permite_registro_anticipado: tolerancia?.permite_anticipado ?? true,
+        permite_registro_anticipado: tolerancia?.permite_registro_anticipado ?? true,
         minutos_anticipado_max: tolerancia?.minutos_anticipado_max ?? 60,
         aplica_tolerancia_salida: tolerancia?.aplica_tolerancia_salida ?? false,
       },

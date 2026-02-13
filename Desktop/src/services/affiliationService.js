@@ -218,3 +218,32 @@ export const obtenerInfoSistema = async () => {
     };
   }
 };
+
+/**
+ * Actualizar una solicitud a estado pendiente (Reenviar)
+ * @param {string} solicitudId - ID de la solicitud
+ * @returns {Promise<Object>} - Datos de la solicitud actualizada
+ */
+export const actualizarSolicitudAPendiente = async (solicitudId) => {
+  try {
+    const response = await fetch(`${API_URL}/solicitudes/${solicitudId}/pendiente`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        observaciones: "Reenviado por el usuario"
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Error al reenviar la solicitud");
+    }
+
+    const resultado = await response.json();
+    return resultado.data || resultado;
+  } catch (error) {
+    console.error("❌ Error al reenviar solicitud:", error);
+    throw error;
+  }
+};

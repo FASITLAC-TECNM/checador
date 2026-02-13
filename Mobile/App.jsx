@@ -14,6 +14,8 @@ import { OnboardingNavigator } from './components/devicesetup/onBoardNavigator';
 import { getSolicitudPorToken } from './services/solicitudMovilService';
 import { getUsuarioCompleto } from './services/empleadoServices';
 import { useNavigationBarColor } from './services/useNavigationBarColor';
+import sqliteManager from './services/offline/sqliteManager';
+import syncManager from './services/offline/syncManager';
 
 const STORAGE_KEYS = {
   DARK_MODE: '@dark_mode',
@@ -34,7 +36,7 @@ export default function App() {
   const [userData, setUserData] = useState(null);
   const [deviceRegistered, setDeviceRegistered] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   const appState = useRef(AppState.currentState);
   const verificationInterval = useRef(null);
   const userDataRefreshInterval = useRef(null);
@@ -49,6 +51,18 @@ export default function App() {
 
   useEffect(() => {
     checkAppState();
+
+    // Inicializar DB Offline y AutoSync
+    const initOffline = async () => {
+      try {
+        await sqliteManager.initDatabase();
+        console.log('✅ Offline DB Initialized');
+        syncManager.initAutoSync();
+      } catch (e) {
+        console.error('❌ Failed to init offline DB', e);
+      }
+    };
+    initOffline();
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
 
@@ -67,7 +81,7 @@ export default function App() {
       stopDeviceVerification();
       stopUserDataRefresh();
     }
-    
+
     return () => {
       stopDeviceVerification();
       stopUserDataRefresh();
@@ -116,12 +130,12 @@ export default function App() {
         AsyncStorage.getItem(STORAGE_KEYS.USER_DATA),
         AsyncStorage.getItem(STORAGE_KEYS.USER_TOKEN)
       ]);
-      
+
       const currentUserData = JSON.parse(storedUserData);
       const usuarioId = currentUserData.id || currentUserData.usuario_id;
 
       const response = await getUsuarioCompleto(usuarioId, token);
-      
+
       if (response.success && response.data) {
         const updatedUserData = {
           ...response.data,
@@ -136,6 +150,7 @@ export default function App() {
 
         await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(updatedUserData));
         setUserData(updatedUserData);
+        syncManager.setAuthToken(token); // Update token for sync
       }
     } catch (error) {
       // Silent error
@@ -144,6 +159,10 @@ export default function App() {
 
   const verificarEstadoDispositivo = async () => {
     try {
+      // No verificar si estamos offline — confiar en estado local
+      const online = await syncManager.isOnline();
+      if (!online) return;
+
       const [solicitudId, tokenSolicitud, onboardingCompleted] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.SOLICITUD_ID),
         AsyncStorage.getItem(STORAGE_KEYS.TOKEN_SOLICITUD),
@@ -173,6 +192,7 @@ export default function App() {
       if (error.code === 'SOLICITUD_NOT_FOUND' || error.status === 404) {
         await handleDeviceInvalidated('Tu registro de dispositivo fue eliminado');
       }
+      // Otros errores de red: silenciar (no invalidar offline)
     }
   };
 
@@ -181,7 +201,7 @@ export default function App() {
     stopDeviceVerification();
     stopUserDataRefresh();
     setDeviceRegistered(false);
-    
+
     Alert.alert(
       'Registro de Dispositivo Requerido',
       `${mensaje}\n\nDebes registrar nuevamente este dispositivo para continuar.`,
@@ -196,11 +216,14 @@ export default function App() {
         AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETED),
         AsyncStorage.getItem(STORAGE_KEYS.DARK_MODE),
       ]);
-      
-      setIsLoggedIn(false);
+
       setDeviceRegistered(deviceCompleted === 'true');
       setDarkMode(savedDarkMode === 'true');
+      // Siempre mostrar login por seguridad — LoginScreen maneja validación offline
+      setIsLoggedIn(false);
+      console.log('🔒 [App] Login screen enforced on startup');
     } catch (error) {
+      console.error('CheckAppState error:', error);
       setIsLoggedIn(false);
       setDeviceRegistered(false);
     } finally {
@@ -222,37 +245,57 @@ export default function App() {
 
       await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(data));
       setUserData(data);
+      if (data.token) {
+        syncManager.setAuthToken(data.token);
+        // Pull solo datos del empleado logueado
+        const empId = data.empleado_id || data.empleadoInfo?.id || null;
+        syncManager.pullData(empId).catch(e => console.log('Initial pull failed:', e.message));
+      }
 
       const deviceCompleted = await AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
-      
+
       if (deviceCompleted === 'true') {
-        const tokenSolicitud = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN_SOLICITUD);
-        
-        if (tokenSolicitud) {
-          try {
-            const response = await getSolicitudPorToken(tokenSolicitud);
-            const estadoLower = response.estado?.toLowerCase();
-            
-            if (estadoLower === 'aceptado') {
-              setDeviceRegistered(true);
-            } else {
-              await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
-              setDeviceRegistered(false);
+        // Verificar si estamos online para validar con el servidor
+        const online = await syncManager.isOnline();
+
+        if (!online) {
+          // OFFLINE: confiar en el estado local del dispositivo
+          console.log('📴 [App] Offline — confiando en estado local del dispositivo (verificado)');
+          setDeviceRegistered(true);
+        } else {
+          // ONLINE: verificar contra el servidor
+          const tokenSolicitud = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN_SOLICITUD);
+
+          if (tokenSolicitud) {
+            try {
+              const response = await getSolicitudPorToken(tokenSolicitud);
+              const estadoLower = response.estado?.toLowerCase();
+
+              if (estadoLower === 'aceptado') {
+                setDeviceRegistered(true);
+              } else {
+                await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
+                setDeviceRegistered(false);
+              }
+            } catch (error) {
+              if (error.code === 'SOLICITUD_NOT_FOUND' || error.status === 404) {
+                await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
+                setDeviceRegistered(false);
+              } else {
+                // Error de red u otro — confiar en estado local
+                console.log('⚠️ [App] Error verificando solicitud, confiando en estado local');
+                setDeviceRegistered(true);
+              }
             }
-          } catch (error) {
-            if (error.code === 'SOLICITUD_NOT_FOUND' || error.status === 404) {
-              await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
-            }
+          } else {
+            await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
             setDeviceRegistered(false);
           }
-        } else {
-          await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
-          setDeviceRegistered(false);
         }
       } else {
         setDeviceRegistered(false);
       }
-      
+
       setIsLoggedIn(true);
     } catch (error) {
       // Silent error
@@ -267,12 +310,12 @@ export default function App() {
   const handleLogout = async () => {
     stopDeviceVerification();
     stopUserDataRefresh();
-    
+
     await Promise.all([
       AsyncStorage.removeItem(STORAGE_KEYS.USER_TOKEN),
       AsyncStorage.removeItem(STORAGE_KEYS.USER_DATA)
     ]);
-    
+
     setIsLoggedIn(false);
     setCurrentScreen('home');
     setUserData(null);
@@ -302,7 +345,7 @@ export default function App() {
     return (
       <SafeAreaProvider>
         <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
-        <OnboardingNavigator 
+        <OnboardingNavigator
           onComplete={handleOnboardingComplete}
           userData={userData}
         />
@@ -312,9 +355,9 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar 
-        barStyle="light-content" 
-        backgroundColor={darkMode ? "#1e40af" : "#2563eb"} 
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
       />
       <SafeAreaView
         style={[styles.safeArea, darkMode && styles.safeAreaDark]}

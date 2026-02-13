@@ -21,6 +21,8 @@ import {
   getInfoDiaActual
 } from '../../services/horariosService';
 import { IncidenciasScreen } from '../settingsPages/IncidentScreen';
+import sqliteManager from '../../services/offline/sqliteManager';
+import syncManager from '../../services/offline/syncManager';
 
 export const ScheduleScreen = ({ darkMode, userData }) => {
   const [scheduleData, setScheduleData] = useState([]);
@@ -127,10 +129,29 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
       setIsLoading(true);
       setError(null);
 
-      const horario = await getHorarioPorEmpleado(empleadoId, userData?.token);
+      let horario = null;
+      const online = await syncManager.isOnline();
+
+      if (online) {
+        try {
+          horario = await getHorarioPorEmpleado(empleadoId, userData?.token);
+        } catch (e) {
+          console.log('Online fetch failed for schedule:', e.message);
+        }
+      }
+
+      // Offline Fallback
+      if (!horario) {
+        console.log('Trying offline schedule...');
+        const hLocal = await sqliteManager.getHorario(empleadoId);
+        if (hLocal) {
+          horario = hLocal;
+          console.log('Loaded offline schedule');
+        }
+      }
 
       if (!horario) {
-        throw new Error('No se recibió información del horario');
+        throw new Error('No se recibió información del horario (ni online ni offline)');
       }
 
       const horarioParsed = parsearHorario(horario);

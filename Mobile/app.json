@@ -24,7 +24,8 @@
         {
           "cameraPermissionText": "FASITLAC necesita acceso a la cámara para reconocimiento facial"
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",

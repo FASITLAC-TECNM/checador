@@ -290,48 +290,160 @@ export async function identificarPorFacialOffline(descriptorCapturado, umbral = 
 // CÁLCULO DE ESTADO OFFLINE
 // ============================================================
 
+import {
+  calcularEstadoRegistro,
+  getDiaSemana,
+  agruparTurnosConcatenados,
+  getEntradaSalidaGrupo
+} from './asistenciaLogicService';
+
+// Variables para control de duplicados (en memoria)
+let lastRequestTimestamp = 0;
+let lastRequestEmpleadoId = null;
+const MIN_REQUEST_INTERVAL_MS = 5000; // 5 segundos
+
+/**
+ * Normaliza un registro offline para que coincida con el formato esperado por asistenciaLogicService
+ * @param {Object} reg - Registro offline
+ * @param {Array} todosRegistros - Array completo para calcular total
+ */
+function normalizarRegistroOffline(reg, todosRegistros) {
+  if (!reg) return null;
+  return {
+    tipo: reg.tipo,
+    estado: reg.estado,
+    fecha_registro: new Date(reg.fecha_registro),
+    hora: new Date(reg.fecha_registro).toLocaleTimeString('es-MX', {
+      hour: '2-digit',
+      minute: '2-digit'
+    }),
+    totalRegistrosHoy: todosRegistros.length
+  };
+}
+
 /**
  * Carga datos necesarios para el cálculo de estado desde la caché local
+ * Y calcula el estado actual usando la lógica compartida
  * @param {string} empleadoId
- * @returns {Promise<Object>} { horario, tolerancia, registrosHoy, departamento }
+ * @returns {Promise<Object>} { horario, tolerancia, registrosHoy, departamento, estado, ultimo }
  */
 export async function cargarDatosOffline(empleadoId) {
   if (!hasOfflineDB()) {
-    return { horario: null, tolerancia: null, registrosHoy: [], departamento: null };
+    return { horario: null, tolerancia: null, registrosHoy: [], departamento: null, estado: null };
   }
 
   try {
-    const [horario, tolerancia, registrosHoy] = await Promise.all([
+    const [horarioRaw, toleranciaRaw, registrosHoyRaw] = await Promise.all([
       window.electronAPI.offlineDB.getHorario(empleadoId),
       window.electronAPI.offlineDB.getTolerancia(empleadoId),
       window.electronAPI.offlineDB.getRegistrosHoy(empleadoId),
     ]);
 
+    // 1. Procesar Horario
+    const horario = horarioRaw ? {
+      id: horarioRaw.horario_id,
+      horario_id: horarioRaw.horario_id,
+      configuracion: horarioRaw.configuracion, // Ya viene parseado u objeto desde sqliteManager
+      es_activo: horarioRaw.es_activo,
+      trabaja: true // Asumimos true si existe, asistenciaLogic lo validará a fondo
+    } : null;
+
+    // asistenciaLogic espera un objeto con 'turnos', 'gruposTurnos' ya procesados.
+    // PERO obtenerHorario en asistenciaLogic hace fetch y procesa. 
+    // Aquí tenemos el raw config. Debemos procesarlo similar a obtenerHorario.
+    // Reutilizaremos logic de obtenerHorario parseando la config aqui mismo o
+    // simulando la estructura si asistenciaLogic exporta el procesador.
+    // Revisando asistenciaLogic, 'obtenerHorario' hace todo el trabajo.
+    // Como no exporta la función de procesar config aislada (está dentro de obtenerHorario),
+    // vamos a replicar la parte de extracción de turnos aquí para pasarle un objeto compatible.
+
+    // Helpers importados arriba
+    // const { getDiaSemana, agruparTurnosConcatenados, getEntradaSalidaGrupo } = require('./asistenciaLogicService');
+
+    let horarioProcesado = null;
+    if (horario && horario.configuracion) {
+      let config = typeof horario.configuracion === 'string'
+        ? JSON.parse(horario.configuracion)
+        : horario.configuracion;
+
+      const diaHoy = getDiaSemana(); // "lunes", "martes"...
+      let turnosHoy = [];
+
+      if (config.configuracion_semanal?.[diaHoy]) {
+        turnosHoy = config.configuracion_semanal[diaHoy].map(t => ({
+          entrada: t.inicio,
+          salida: t.fin
+        }));
+      } else if (config.dias?.includes(diaHoy)) {
+        turnosHoy = config.turnos || [];
+      }
+
+      if (turnosHoy && Array.isArray(turnosHoy) && turnosHoy.length > 0) {
+        const gruposTurnos = agruparTurnosConcatenados(turnosHoy);
+        const primerGrupo = gruposTurnos[0];
+        const ultimoGrupo = gruposTurnos[gruposTurnos.length - 1];
+        const entradaGeneral = getEntradaSalidaGrupo(primerGrupo).entrada;
+        const salidaGeneral = getEntradaSalidaGrupo(ultimoGrupo).salida;
+
+        horarioProcesado = {
+          trabaja: true,
+          turnos: turnosHoy,
+          gruposTurnos: gruposTurnos,
+          turnosOriginales: turnosHoy,
+          entrada: entradaGeneral,
+          salida: salidaGeneral,
+          tipo: gruposTurnos.length > 1 ? 'quebrado' : 'continuo',
+          configuracion: config
+        };
+      } else {
+        horarioProcesado = { trabaja: false, turnos: [], gruposTurnos: [] };
+      }
+    }
+
+    // 2. Procesar Tolerancia
+    const tolerancia = toleranciaRaw || {
+      minutos_retardo: 10,
+      minutos_falta: 30,
+      permite_registro_anticipado: true,
+      minutos_anticipado_max: 60,
+      aplica_tolerancia_entrada: true,
+      aplica_tolerancia_salida: true,
+      minutos_anticipado_salida: 10
+    };
+
+    // 3. Procesar Registros
+    const registrosHoy = registrosHoyRaw || [];
+    // Ordenar para encontrar el último (descendiente)
+    const registrosOrdenados = [...registrosHoy].sort((a, b) => {
+      return new Date(b.fecha_registro) - new Date(a.fecha_registro);
+    });
+
+    const ultimoRaw = registrosOrdenados[0];
+    const ultimo = ultimoRaw ? normalizarRegistroOffline(ultimoRaw, registrosOrdenados) : null;
+
+    // 4. Calcular Estado
+    let estado = null;
+    if (horarioProcesado && tolerancia) {
+      estado = calcularEstadoRegistro(ultimo, horarioProcesado, tolerancia, registrosHoy);
+    }
+
     return {
-      horario: horario ? {
-        id: horario.horario_id,
-        configuracion: horario.configuracion,
-        es_activo: horario.es_activo,
-      } : null,
-      tolerancia: tolerancia || {
-        minutos_retardo: 10,
-        minutos_falta: 30,
-        permite_registro_anticipado: tolerancia?.permite_registro_anticipado ?? true,
-        minutos_anticipado_max: tolerancia?.minutos_anticipado_max ?? 60,
-        aplica_tolerancia_salida: tolerancia?.aplica_tolerancia_salida ?? false,
-      },
-      registrosHoy: registrosHoy || [],
-      departamento: null, // Se puede obtener si es necesario
+      horario: horarioProcesado, // Devolvemos el procesado
+      tolerancia: tolerancia,
+      registrosHoy: registrosOrdenados,
+      ultimo: ultimo,
+      estado: estado,
+      departamento: null,
     };
   } catch (error) {
     console.error('[OfflineAuth] Error cargando datos offline:', error);
-    return { horario: null, tolerancia: null, registrosHoy: [], departamento: null };
+    return { horario: null, tolerancia: null, registrosHoy: [], departamento: null, estado: null };
   }
 }
 
 /**
- * Guarda un registro de asistencia en la cola offline
- * @param {Object} data
+ * Guarda un registro de asistencia en la cola offline con validaciones estrictas
+ * @param {Object} data - { empleadoId, metodo_registro, payload_biometrico, ... }
  * @returns {Promise<Object>}
  */
 export async function guardarAsistenciaOffline(data) {
@@ -339,23 +451,64 @@ export async function guardarAsistenciaOffline(data) {
     throw new Error('Sistema offline no disponible');
   }
 
-  const result = await window.electronAPI.offlineDB.saveAsistencia({
-    empleado_id: data.empleadoId || data.empleado_id,
-    tipo: data.tipoRegistro || data.tipo || 'entrada',
-    estado: data.estado || data.clasificacion || 'puntual',
-    dispositivo_origen: 'escritorio',
-    metodo_registro: data.metodoRegistro || data.metodo_registro || 'PIN',
-    departamento_id: data.departamentoId || data.departamento_id || null,
-    fecha_registro: new Date().toISOString(),
-    payload_biometrico: data.payload_biometrico || null,
-  });
+  const empleadoId = data.empleadoId || data.empleado_id;
 
-  if (!result.success) {
-    throw new Error(result.error || 'Error guardando asistencia offline');
+  // 1. Validación Anti-Duplicados (Memoria)
+  const now = Date.now();
+  if (
+    lastRequestEmpleadoId === empleadoId &&
+    now - lastRequestTimestamp < MIN_REQUEST_INTERVAL_MS
+  ) {
+    const segundosRestantes = Math.ceil((MIN_REQUEST_INTERVAL_MS - (now - lastRequestTimestamp)) / 1000);
+    console.warn(`⚠️ [Offline] Solicitud duplicada bloqueada. Espera ${segundosRestantes}s`);
+    throw new Error(`Por favor espera ${segundosRestantes} segundos antes de intentar nuevamente`);
   }
 
-  console.log('📝 [OfflineAuth] Asistencia guardada en cola offline');
-  return result.data;
+  // 2. Validación de Reglas de Negocio (Horario, Tolerancia)
+  console.log(`[OfflineAuth] Validando reglas de asistencia para ${empleadoId}...`);
+  const datosValidacion = await cargarDatosOffline(empleadoId);
+  const estadoCalculado = datosValidacion.estado;
+
+  if (!estadoCalculado) {
+    throw new Error('No se pudo validar el horario del empleado');
+  }
+
+  // Si no puede registrar (fuera de horario, muy temprano, etc.), bloquear
+  if (!estadoCalculado.puedeRegistrar) {
+    console.warn(`❌ [OfflineAuth] Registro bloqueado: ${estadoCalculado.mensaje}`);
+    throw new Error(estadoCalculado.mensaje || 'No puedes registrar asistencia en este momento');
+  }
+
+  // Actualizar tracking
+  lastRequestTimestamp = now;
+  lastRequestEmpleadoId = empleadoId;
+
+  // 3. Guardar en SQLite usando los datos CALCULADOS para integridad
+  try {
+    const result = await window.electronAPI.offlineDB.saveAsistencia({
+      empleado_id: empleadoId,
+      tipo: estadoCalculado.tipoRegistro || 'entrada',
+      estado: estadoCalculado.clasificacion || estadoCalculado.estadoHorario || 'puntual',
+      dispositivo_origen: 'escritorio',
+      metodo_registro: data.metodoRegistro || data.metodo_registro || 'PIN',
+      departamento_id: data.departamentoId || data.departamento_id || datosValidacion.departamento?.id || null, // Intentar obtener depto
+      fecha_registro: new Date().toISOString(),
+      payload_biometrico: data.payload_biometrico || null,
+    });
+
+    if (!result.success) {
+      throw new Error(result.error || 'Error guardando asistencia offline');
+    }
+
+    console.log('📝 [OfflineAuth] Asistencia guardada en cola offline:', result.data);
+    return {
+      ...result.data,
+      ...estadoCalculado // Devolver info calculada para la UI
+    };
+  } catch (err) {
+    console.error('[OfflineAuth] Error en guardarAsistenciaOffline:', err);
+    throw err;
+  }
 }
 
 // ============================================================

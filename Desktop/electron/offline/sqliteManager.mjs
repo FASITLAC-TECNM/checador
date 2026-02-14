@@ -709,7 +709,7 @@ export function getTolerancia(empleadoId) {
     INNER JOIN cache_roles r ON r.id = ur.rol_id
     INNER JOIN cache_tolerancias t ON t.id = r.tolerancia_id
     WHERE e.empleado_id = ?
-    ORDER BY r.posicion DESC
+    ORDER BY r.posicion ASC
     LIMIT 1
   `);
   const row = stmt.get(empleadoId);

@@ -158,10 +158,16 @@ export default function App() {
   };
 
   const verificarEstadoDispositivo = async () => {
+    console.log('🔍 [App] verificandoEstadoDispositivo INICIO');
     try {
       // No verificar si estamos offline — confiar en estado local
       const online = await syncManager.isOnline();
-      if (!online) return;
+      console.log('🔍 [App] isOnline:', online);
+
+      if (!online) {
+        console.log('🔍 [App] Offline -> Saltando verificación de servidor');
+        return;
+      }
 
       const [solicitudId, tokenSolicitud, onboardingCompleted] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.SOLICITUD_ID),
@@ -169,17 +175,28 @@ export default function App() {
         AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETED)
       ]);
 
+      console.log('🔍 [App] Datos Storage:', { solicitudId, tokenSolicitud, onboardingCompleted });
+
       if (onboardingCompleted !== 'true' || !solicitudId || !tokenSolicitud) {
         if (onboardingCompleted === 'true') {
+          console.log('🔍 [App] Datos corruptos, invalidando...');
           await handleDeviceInvalidated('No se encontró información del dispositivo registrado');
+        } else {
+          console.log('🔍 [App] Onboarding no completado / datos faltantes.');
         }
         return;
       }
 
+      console.log('🔍 [App] Consultando getSolicitudPorToken...');
       const response = await getSolicitudPorToken(tokenSolicitud);
+      console.log('🔍 [App] Respuesta Servidor:', JSON.stringify(response));
+
       const estadoLower = response.estado?.toLowerCase();
 
-      if (estadoLower === 'aceptado') return;
+      if (estadoLower === 'aceptado') {
+        console.log('🔍 [App] Estado es ACEPTADO. Todo bien.');
+        return;
+      }
 
       const mensajes = {
         pendiente: 'Tu dispositivo está pendiente de aprobación nuevamente',
@@ -237,7 +254,7 @@ export default function App() {
     await AsyncStorage.setItem(STORAGE_KEYS.DARK_MODE, String(newValue));
   };
 
-  const handleLoginSuccess = async (data) => {
+  const handleLoginSuccess = async (data, isOnlineLogin = false) => {
     try {
       if (data.token) {
         await AsyncStorage.setItem(STORAGE_KEYS.USER_TOKEN, data.token);
@@ -264,32 +281,42 @@ export default function App() {
           setDeviceRegistered(true);
         } else {
           // ONLINE: verificar contra el servidor
-          const tokenSolicitud = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN_SOLICITUD);
+          // Verificar si estamos online para validar con el servidor
+          const online = await syncManager.isOnline();
 
-          if (tokenSolicitud) {
-            try {
-              const response = await getSolicitudPorToken(tokenSolicitud);
-              const estadoLower = response.estado?.toLowerCase();
-
-              if (estadoLower === 'aceptado') {
-                setDeviceRegistered(true);
-              } else {
-                await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
-                setDeviceRegistered(false);
-              }
-            } catch (error) {
-              if (error.code === 'SOLICITUD_NOT_FOUND' || error.status === 404) {
-                await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
-                setDeviceRegistered(false);
-              } else {
-                // Error de red u otro — confiar en estado local
-                console.log('⚠️ [App] Error verificando solicitud, confiando en estado local');
-                setDeviceRegistered(true);
-              }
-            }
+          if (!online) {
+            // OFFLINE: confiar en el estado local del dispositivo
+            console.log('📴 [App] Offline — confiando en estado local del dispositivo (verificado)');
+            setDeviceRegistered(true);
           } else {
-            await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
-            setDeviceRegistered(false);
+            // ONLINE: verificar contra el servidor
+            const tokenSolicitud = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN_SOLICITUD);
+
+            if (tokenSolicitud) {
+              try {
+                const response = await getSolicitudPorToken(tokenSolicitud);
+                const estadoLower = response.estado?.toLowerCase();
+
+                if (estadoLower === 'aceptado') {
+                  setDeviceRegistered(true);
+                } else {
+                  await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
+                  setDeviceRegistered(false);
+                }
+              } catch (error) {
+                if (error.code === 'SOLICITUD_NOT_FOUND' || error.status === 404) {
+                  await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
+                  setDeviceRegistered(false);
+                } else {
+                  // Error de red u otro — confiar en estado local
+                  console.log('⚠️ [App] Error verificando solicitud, confiando en estado local');
+                  setDeviceRegistered(true);
+                }
+              }
+            } else {
+              await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
+              setDeviceRegistered(false);
+            }
           }
         }
       } else {
@@ -329,7 +356,11 @@ export default function App() {
 
     await Promise.all([
       AsyncStorage.removeItem(STORAGE_KEYS.USER_TOKEN),
-      AsyncStorage.removeItem(STORAGE_KEYS.USER_DATA)
+      AsyncStorage.removeItem(STORAGE_KEYS.USER_DATA),
+      // 🗑️ Limpiar también datos del dispositivo para evitar "ghost logins" en dispositivos compartidos
+      AsyncStorage.removeItem(STORAGE_KEYS.SOLICITUD_ID),
+      AsyncStorage.removeItem(STORAGE_KEYS.TOKEN_SOLICITUD),
+      AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED)
     ]);
 
     setIsLoggedIn(false);

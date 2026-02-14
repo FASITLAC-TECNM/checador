@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   StatusBar,
   ActivityIndicator,
   Platform,
@@ -19,7 +18,7 @@ import { detectDeviceInfo } from '../../services/deviceUtils';
 
 const DEVICE_CONFIG = {
   title: "Configuración del Dispositivo",
-  subtitle: "Paso 1 de 3",
+  subtitle: "Paso 2 de 3",
   fields: [
     {
       id: "email",
@@ -70,7 +69,7 @@ const DEVICE_CONFIG = {
 export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPrevious, initialEmail, userData }) => {
   const insets = useSafeAreaInsets();
   const deviceConfig = DEVICE_CONFIG;
-  
+
   const [formData, setFormData] = useState({
     email: '',
     registrationDate: '',
@@ -79,11 +78,11 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
     deviceModel: '',
     os: '',
   });
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [isDetecting, setIsDetecting] = useState(true);
   const [solicitudExistente, setSolicitudExistente] = useState(null);
-  
+
   // Estados para validación de correo
   const [isValidatingEmail, setIsValidatingEmail] = useState(false);
   const [emailValidation, setEmailValidation] = useState({
@@ -112,21 +111,21 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
   const initializeScreen = async () => {
     try {
       setIsDetecting(true);
-      
+
       // 1. Verificar solicitud rechazada existente
       const solicitudRechazadaId = await AsyncStorage.getItem('@solicitud_rechazada_id');
       const solicitudRechazadaToken = await AsyncStorage.getItem('@solicitud_rechazada_token');
-      
+
       if (solicitudRechazadaId && solicitudRechazadaToken) {
         setSolicitudExistente({ id: solicitudRechazadaId, token: solicitudRechazadaToken });
       }
-      
+
       // 2. Detectar información del dispositivo
       await detectDevice();
-      
+
       // 3. Auto-llenar email desde userData, initialEmail o AsyncStorage
       let emailToUse = '';
-      
+
       if (userData?.correo) {
         emailToUse = userData.correo;
       } else if (initialEmail) {
@@ -137,18 +136,17 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
           emailToUse = savedEmail;
         }
       }
-      
+
       if (emailToUse) {
         setFormData(prev => ({ ...prev, email: emailToUse }));
       } else {
-        // ❌ No se encontró email - esto es crítico
         Alert.alert(
           'Error de Configuración',
           'No se pudo obtener tu correo electrónico. Por favor, cierra sesión e intenta nuevamente.',
           [{ text: 'Entendido' }]
         );
       }
-      
+
     } catch (error) {
       Alert.alert('Error', 'No se pudo inicializar la configuración del dispositivo');
     } finally {
@@ -187,7 +185,7 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
 
   const handleEmailBlur = async () => {
     const emailTrimmed = formData.email.trim();
-    
+
     if (!emailTrimmed) {
       setEmailValidation({
         isValid: null,
@@ -211,19 +209,17 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
     }
 
     setIsValidatingEmail(true);
-    
+
     try {
       const result = await verificarCorreoEnEmpresa(emailTrimmed, empresaId);
-      
-      
-      // Marcar como válido si: existe Y activo Y (tiene usuario O está pendiente de validación)
+
       const esValido = result.existe && result.activo && (result.usuario || result.pendienteValidacion);
-      
+
       if (esValido) {
-        let mensaje = result.usuario 
+        let mensaje = result.usuario
           ? `✓ Correo verificado: ${result.usuario.nombre}`
           : `⚠️ ${result.mensaje || 'Correo pendiente de verificación'}`;
-        
+
         setEmailValidation({
           isValid: true,
           message: mensaje,
@@ -249,7 +245,7 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
         });
       }
     } catch (error) {
-      
+
       setEmailValidation({
         isValid: false,
         message: '⚠️ No se pudo verificar el correo. Verifica tu conexión a internet.',
@@ -264,7 +260,7 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
 
   const handleNext = async () => {
     const emailTrimmed = formData.email.trim().toLowerCase();
-    
+
     if (!emailTrimmed) {
       Alert.alert('Error', 'Por favor ingresa tu correo electrónico');
       return;
@@ -290,18 +286,18 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
       let response;
 
       if (solicitudExistente?.id) {
-        
+
         const observaciones = `Reintento desde app móvil el ${formData.registrationDate}. Email: ${emailTrimmed}, SO: ${formData.os}`;
         response = await reabrirSolicitudMovil(solicitudExistente.id, observaciones);
-        
+
         response.id = solicitudExistente.id;
         response.token_solicitud = solicitudExistente.token;
-        
+
         await AsyncStorage.removeItem('@solicitud_rechazada_id');
         await AsyncStorage.removeItem('@solicitud_rechazada_token');
-        
+
       } else {
-        
+
         const solicitudData = {
           nombre: formData.deviceModel,
           correo: emailTrimmed,
@@ -323,11 +319,11 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
 
       Alert.alert(
         solicitudExistente?.id ? '¡Solicitud Reabierta!' : '¡Solicitud Enviada!',
-        solicitudExistente?.id 
+        solicitudExistente?.id
           ? 'Tu solicitud ha sido reabierta y está pendiente de aprobación nuevamente.'
           : 'Tu solicitud ha sido enviada correctamente. Recibirás una notificación cuando sea aprobada.',
-        [{ 
-          text: 'Continuar', 
+        [{
+          text: 'Continuar',
           onPress: () => {
             onNext({
               email: emailTrimmed,
@@ -366,24 +362,24 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
   const renderField = (field) => {
     const isReadonly = field.readonly;
     const isEmailField = field.id === 'email';
-    
+
     // ✅ El campo de email SIEMPRE es readonly (auto-detectado desde userData)
     const fieldIsReadonly = isReadonly || isEmailField;
-    
+
     return (
       <View key={field.id} style={styles.fieldContainer}>
         <Text style={styles.label}>
           {field.label} {field.required && <Text style={styles.required}>*</Text>}
         </Text>
         <View style={[
-          styles.inputWrapper, 
+          styles.inputWrapper,
           fieldIsReadonly && styles.inputWrapperReadonly,
           isEmailField && emailValidation.checked && emailValidation.isValid && styles.inputWrapperValid,
           isEmailField && emailValidation.checked && !emailValidation.isValid && styles.inputWrapperInvalid
         ]}>
           <Ionicons
             name={field.icon}
-            size={16}
+            size={15}
             color={fieldIsReadonly ? '#9ca3af' : '#2563eb'}
             style={styles.inputIcon}
           />
@@ -398,17 +394,17 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
             editable={false} // ✅ TODOS los campos bloqueados (auto-detectados)
           />
           {fieldIsReadonly && (
-            <Ionicons 
-              name="checkmark-circle" 
-              size={16} 
-              color={isEmailField && emailValidation.isValid ? "#10b981" : "#10b981"} 
+            <Ionicons
+              name="checkmark-circle"
+              size={15}
+              color="#10b981"
             />
           )}
           {isEmailField && isValidatingEmail && (
-            <ActivityIndicator size="small" color="#2563eb" style={{ marginLeft: 8 }} />
+            <ActivityIndicator size="small" color="#2563eb" style={{ marginLeft: 6 }} />
           )}
         </View>
-        
+
         {isEmailField && isValidatingEmail && (
           <Text style={styles.validatingText}>Verificando correo...</Text>
         )}
@@ -420,13 +416,13 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
             {emailValidation.message}
           </Text>
         )}
-        
+
         {isEmailField && !emailValidation.checked && (
           <Text style={styles.helpText}>
             ✓ Correo detectado automáticamente desde tu sesión
           </Text>
         )}
-        
+
         {field.helpText && !isEmailField && (
           <Text style={styles.helpText}>{field.helpText}</Text>
         )}
@@ -437,7 +433,7 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
   if (isDetecting) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
-        <StatusBar barStyle="dark-content" />
+        <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
         <ActivityIndicator size="large" color="#2563eb" />
         <Text style={styles.loadingText}>Detectando información del dispositivo...</Text>
       </View>
@@ -446,42 +442,39 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
 
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+      {/* Header Azul con Stepper */}
+      <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? insets.top + 16 : insets.top + 8 }]}>
         <Text style={styles.headerTitle}>{deviceConfig.title}</Text>
         <Text style={styles.headerSubtitle}>{deviceConfig.subtitle}</Text>
-        
+
         <View style={styles.stepperContainer}>
           <View style={styles.stepComplete}>
             <Ionicons name="checkmark" size={12} color="#fff" />
           </View>
           <View style={styles.stepLine} />
-          <View style={styles.stepComplete}>
-            <Ionicons name="checkmark" size={12} color="#fff" />
-          </View>
-          <View style={styles.stepLine} />
           <View style={styles.stepActive}>
-            <Text style={styles.stepActiveText}>3</Text>
+            <Text style={styles.stepActiveText}>2</Text>
+          </View>
+          <View style={styles.stepLineInactive} />
+          <View style={styles.stepInactive}>
+            <Text style={styles.stepInactiveText}>3</Text>
           </View>
         </View>
       </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: Platform.OS === 'android' ? 100 : 80 }]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
+      {/* Content — Static */}
+      <View style={styles.contentArea}>
         {solicitudExistente && (
           <View style={styles.retryBadge}>
-            <Ionicons name="refresh-circle" size={20} color="#f59e0b" />
+            <Ionicons name="refresh-circle" size={18} color="#f59e0b" />
             <Text style={styles.retryText}>Reintentando solicitud anterior</Text>
           </View>
         )}
 
         <View style={styles.empresaCard}>
-          <Ionicons name="business" size={20} color="#2563eb" />
+          <Ionicons name="business" size={18} color="#2563eb" />
           <View style={styles.empresaInfo}>
             <Text style={styles.empresaLabel}>Empresa:</Text>
             <Text style={styles.empresaNombre}>{empresaNombre || empresaId}</Text>
@@ -492,31 +485,24 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
           {deviceConfig.fields.map(renderField)}
         </View>
 
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>{deviceConfig.deviceInfo.title}</Text>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Modelo:</Text>
-            <Text style={styles.infoValue}>{formData.deviceModel}</Text>
+        <View style={styles.deviceInfoRow}>
+          <View style={styles.deviceInfoChip}>
+            <Ionicons name="phone-portrait-outline" size={12} color="#2563eb" />
+            <Text style={styles.deviceInfoChipText}>{formData.deviceModel}</Text>
           </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>SO:</Text>
-            <Text style={styles.infoValue}>{formData.os}</Text>
+          <View style={styles.deviceInfoChip}>
+            <Ionicons name="logo-android" size={12} color="#2563eb" />
+            <Text style={styles.deviceInfoChipText}>{formData.os}</Text>
           </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Plataforma:</Text>
-            <Text style={styles.infoValue}>{Platform.OS === 'ios' ? 'iOS' : 'Android'}</Text>
+          <View style={styles.deviceInfoChip}>
+            <Ionicons name="layers-outline" size={12} color="#2563eb" />
+            <Text style={styles.deviceInfoChipText}>{Platform.OS === 'ios' ? 'iOS' : 'Android'}</Text>
           </View>
         </View>
+      </View>
 
-        <View style={styles.warningCard}>
-          <Ionicons name="information-circle" size={20} color="#f59e0b" />
-          <Text style={styles.warningText}>
-            Esta información será enviada a tu administrador para aprobar el acceso de tu dispositivo.
-          </Text>
-        </View>
-      </ScrollView>
-
-      <View style={[styles.footer, { paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 8) : insets.bottom }]}>
+      {/* Footer */}
+      <View style={[styles.footer, { paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 16) : insets.bottom + 8 }]}>
         <View style={styles.buttonRow}>
           <TouchableOpacity
             style={styles.backButton}
@@ -530,7 +516,7 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
 
           <TouchableOpacity
             style={[
-              styles.nextButton, 
+              styles.nextButton,
               (!emailValidation.isValid || isLoading || isValidatingEmail) && styles.nextButtonDisabled
             ]}
             onPress={handleNext}
@@ -549,7 +535,7 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
                 <Text style={styles.nextButtonText}>
                   {solicitudExistente ? 'Reabrir Solicitud' : 'Enviar Solicitud'}
                 </Text>
-                <Ionicons name="send" size={16} color="#fff" />
+                <Ionicons name="send" size={14} color="#fff" />
               </>
             )}
           </TouchableOpacity>
@@ -574,70 +560,88 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   header: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: '#ffffff',
     marginBottom: 2,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#6b7280',
-    marginBottom: 12,
+    color: '#dbeafe',
+    marginBottom: 14,
   },
   stepperContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 4,
   },
   stepComplete: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#10b981',
     justifyContent: 'center',
     alignItems: 'center',
   },
   stepActive: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#2563eb',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
   },
   stepActiveText: {
-    color: '#fff',
-    fontSize: 11,
+    color: '#2563eb',
+    fontSize: 12,
     fontWeight: 'bold',
   },
   stepLine: {
     flex: 1,
-    height: 2,
+    height: 3,
     backgroundColor: '#10b981',
-    marginHorizontal: 6,
+    marginHorizontal: 8,
     maxWidth: 80,
+    borderRadius: 2,
   },
-  scrollView: {
+  stepInactive: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepInactiveText: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  stepLineInactive: {
     flex: 1,
+    height: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    marginHorizontal: 8,
+    maxWidth: 80,
+    borderRadius: 2,
   },
-  scrollContent: {
-    padding: 16,
+  contentArea: {
+    flex: 1,
+    padding: 14,
   },
   retryBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fef3c7',
-    borderRadius: 8,
+    borderRadius: 10,
     padding: 10,
-    marginBottom: 12,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#fde68a',
   },
@@ -653,44 +657,46 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#eff6ff',
     borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
+    padding: 12,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#dbeafe',
   },
   empresaInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 10,
   },
   empresaLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#6b7280',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   empresaNombre: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: '#1e40af',
   },
   formCard: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 3,
+    shadowRadius: 4,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: '#f0f0f4',
   },
   fieldContainer: {
-    marginBottom: 12,
+    marginBottom: 10,
   },
   label: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   required: {
     color: '#ef4444',
@@ -699,10 +705,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f9fafb',
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
   },
   inputWrapperReadonly: {
     backgroundColor: '#f3f4f6',
@@ -719,12 +725,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#fef2f2',
   },
   inputIcon: {
-    marginRight: 8,
+    marginRight: 6,
   },
   input: {
     flex: 1,
-    height: 42,
-    fontSize: 14,
+    height: 38,
+    fontSize: 13,
     color: '#374151',
   },
   inputReadonly: {
@@ -733,18 +739,18 @@ const styles = StyleSheet.create({
   helpText: {
     fontSize: 10,
     color: '#6b7280',
-    marginTop: 4,
+    marginTop: 3,
     marginLeft: 2,
   },
   validatingText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#2563eb',
-    marginTop: 6,
+    marginTop: 4,
     marginLeft: 2,
   },
   validationMessage: {
-    fontSize: 12,
-    marginTop: 6,
+    fontSize: 11,
+    marginTop: 4,
     marginLeft: 2,
   },
   validMessage: {
@@ -753,47 +759,26 @@ const styles = StyleSheet.create({
   invalidMessage: {
     color: '#ef4444',
   },
-  infoCard: {
+  deviceInfoRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  deviceInfoChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#eff6ff',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 12,
-  },
-  infoTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 8,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  infoLabel: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  infoValue: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#1f2937',
-  },
-  warningCard: {
-    backgroundColor: '#fef3c7',
-    borderRadius: 12,
-    padding: 14,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 5,
     borderWidth: 1,
-    borderColor: '#fde68a',
+    borderColor: '#dbeafe',
   },
-  warningText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#92400e',
-    marginLeft: 10,
-    lineHeight: 18,
+  deviceInfoChipText: {
+    fontSize: 11,
+    color: '#1e40af',
+    fontWeight: '500',
   },
   footer: {
     backgroundColor: '#fff',
@@ -802,17 +787,33 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
   },
+  warningRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef3c7',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#92400e',
+    lineHeight: 15,
+  },
   buttonRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 8,
   },
   backButton: {
     flex: 1,
     backgroundColor: '#fff',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#e5e7eb',
-    borderRadius: 10,
+    borderRadius: 14,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -827,16 +828,22 @@ const styles = StyleSheet.create({
   nextButton: {
     flex: 2,
     backgroundColor: '#2563eb',
-    borderRadius: 10,
+    borderRadius: 14,
     padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
   },
   nextButtonDisabled: {
     backgroundColor: '#9ca3af',
-    opacity: 0.5,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   nextButtonText: {
     color: '#fff',

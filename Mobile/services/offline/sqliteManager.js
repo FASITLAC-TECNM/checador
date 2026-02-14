@@ -9,6 +9,7 @@ import 'react-native-get-random-values'; // Polyfill para uuid
 import { v4 as uuidv4 } from 'uuid';
 
 let db = null;
+let initializationPromise = null;
 const DB_NAME = 'checador_offline.db';
 
 // ============================================================
@@ -16,29 +17,51 @@ const DB_NAME = 'checador_offline.db';
 // ============================================================
 
 /**
- * Inicializa la base de datos SQLite y ejecuta migraciones
+ * Inicializa la base de datos SQLite y ejecuta migraciones.
+ * Implementa patrón Singleton para evitar condiciones de carrera.
  * @returns {Promise<SQLite.SQLiteDatabase>} instancia de la base de datos
  */
 export async function initDatabase() {
     if (db) return db;
 
-    console.log('📦 [SQLite] Inicializando base de datos:', DB_NAME);
-
-    try {
-        db = await SQLite.openDatabaseAsync(DB_NAME);
-
-        // Habilitar WAL para mejor concurrencia
-        await db.execAsync('PRAGMA journal_mode = WAL');
-        await db.execAsync('PRAGMA foreign_keys = ON');
-
-        await runMigrations();
-        console.log('✅ [SQLite] Base de datos inicializada correctamente');
-        return db;
-    } catch (error) {
-        console.error('❌ [SQLite] Error abriendo base de datos:', error);
-        db = null;
-        throw error;
+    // Si ya hay una inicialización en curso, devolver esa promesa
+    if (initializationPromise) {
+        return initializationPromise;
     }
+
+    initializationPromise = (async () => {
+        console.log('📦 [SQLite] Inicializando base de datos:', DB_NAME);
+        try {
+            const database = await SQLite.openDatabaseAsync(DB_NAME);
+
+            // Verificar conexión
+            try {
+                await database.execAsync('SELECT 1');
+            } catch (e) {
+                console.warn('⚠️ [SQLite] Verificación fallida, reintentando apertura...', e);
+                // Intentar cerrar si es posible (aunque openDatabaseAsync retorna objeto manejado)
+                // En Expo SQLite moderno, simplemente reintentamos obtener la referencia
+                throw new Error('Database verification failed');
+            }
+
+            // Habilitar WAL para mejor concurrencia
+            await database.execAsync('PRAGMA journal_mode = WAL');
+            await database.execAsync('PRAGMA foreign_keys = ON');
+
+            db = database; // Asignar instancia global
+            await runMigrations();
+
+            console.log('✅ [SQLite] Base de datos inicializada y verificada correctamente');
+            return db;
+        } catch (error) {
+            console.error('❌ [SQLite] Error CRÍTICO inicializando base de datos:', error);
+            db = null;
+            initializationPromise = null; // Permitir reintento
+            throw error;
+        }
+    })();
+
+    return initializationPromise;
 }
 
 /**

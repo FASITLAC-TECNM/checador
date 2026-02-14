@@ -7,7 +7,6 @@ import getApiEndpoint from '../config/api';
 // Configuración del API usando tu configuración centralizada
 const API_BASE_URL = getApiEndpoint('/api');
 
-
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
@@ -25,6 +24,7 @@ api.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (error) {
+      console.log('Error al obtener token:', error);
     }
     return config;
   },
@@ -52,7 +52,6 @@ export const crearSolicitudMovil = async (data) => {
 
     const response = await api.post('/solicitudes', payload);
 
-
     return {
       id: response.data.data.id,
       token_solicitud: response.data.data.token,
@@ -61,13 +60,10 @@ export const crearSolicitudMovil = async (data) => {
 
   } catch (error) {
     if (error.response) {
-      // Error de respuesta del servidor
       throw new Error(error.response.data.message || 'Error al crear solicitud');
     } else if (error.request) {
-      // No se recibió respuesta
       throw new Error(`No se pudo conectar con el servidor en ${API_BASE_URL}. Verifica tu conexión y que el backend esté corriendo.`);
     } else {
-      // Error en la configuración
       throw new Error('Error al configurar la solicitud');
     }
   }
@@ -82,9 +78,7 @@ export const reabrirSolicitudMovil = async (solicitudId, observaciones) => {
       observaciones: observaciones || 'Solicitud reabierta desde dispositivo móvil'
     };
 
-
     const response = await api.patch(`/solicitudes/${solicitudId}/pendiente`, payload);
-
 
     return {
       id: response.data.data.id,
@@ -94,7 +88,6 @@ export const reabrirSolicitudMovil = async (solicitudId, observaciones) => {
 
   } catch (error) {
     if (error.response) {
-      // Si ya está pendiente
       if (error.response.status === 400 && error.response.data?.message?.includes('ya está en estado pendiente')) {
         return {
           id: solicitudId,
@@ -113,26 +106,18 @@ export const reabrirSolicitudMovil = async (solicitudId, observaciones) => {
 
 /**
  * Obtener estado de solicitud por token
- * Maneja los errores 404 de forma silenciosa para evitar logs alarmantes
  */
 export const getSolicitudPorToken = async (token) => {
   try {
-
     const response = await api.get(`/solicitudes/verificar/${token}`);
-
-
     return response.data.data;
-
   } catch (error) {
-    // Manejar 404 de forma más amigable
     if (error.response?.status === 404) {
-      // Crear un error específico que sea fácil de identificar
       const notFoundError = new Error('Solicitud no encontrada');
       notFoundError.code = 'SOLICITUD_NOT_FOUND';
       notFoundError.status = 404;
       throw notFoundError;
     }
-
     throw new Error('Error al verificar el estado de la solicitud');
   }
 };
@@ -142,8 +127,6 @@ export const getSolicitudPorToken = async (token) => {
  */
 export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
   try {
-
-    // Validación básica
     if (!correo || !empresaId) {
       return {
         existe: false,
@@ -153,7 +136,6 @@ export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
 
     const correoLower = correo.trim().toLowerCase();
 
-    // Intentar verificar en el backend
     try {
       const response = await api.get(`/empleados/verificar-correo`, {
         params: {
@@ -162,10 +144,9 @@ export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
         }
       });
 
-
       if (response.data.success && response.data.data) {
         const empleado = response.data.data;
-        
+
         return {
           existe: true,
           activo: empleado.es_activo,
@@ -175,8 +156,8 @@ export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
             nombre: empleado.nombre,
             correo: empleado.correo
           },
-          mensaje: empleado.es_activo 
-            ? `Correo verificado: ${empleado.nombre}` 
+          mensaje: empleado.es_activo
+            ? `Correo verificado: ${empleado.nombre}`
             : 'Usuario inactivo'
         };
       }
@@ -187,7 +168,6 @@ export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
       };
 
     } catch (error) {
-      // Si es 404, el correo no existe
       if (error.response?.status === 404) {
         return {
           existe: false,
@@ -195,10 +175,7 @@ export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
         };
       }
 
-      // Si es 401/403, la ruta está protegida
       if (error.response?.status === 401 || error.response?.status === 403) {
-        // Permitir continuar si la ruta requiere autenticación
-        // El backend validará al crear la solicitud
         return {
           existe: true,
           activo: true,
@@ -213,14 +190,11 @@ export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
         };
       }
 
-      // Otro error
       throw error;
     }
 
   } catch (error) {
-    
-    // En caso de error, permitir continuar
-    // La validación real se hará en el backend
+    console.log('Error en verificarCorreoEnEmpresa:', error);
     return {
       existe: true,
       activo: true,
@@ -237,10 +211,12 @@ export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
 };
 
 /**
- * Verificar si una empresa existe por su ID
+ * ✅ Verificar si una empresa existe por su ID
+ * ACTUALIZADO: Usa el endpoint público /solicitudes/empresa/:id/verificar
  */
 export const verificarEmpresa = async (empresaId) => {
   try {
+    console.log('🔍 Verificando empresa:', empresaId);
 
     // Validación básica del formato
     if (!empresaId || empresaId.trim().length < 3) {
@@ -250,27 +226,27 @@ export const verificarEmpresa = async (empresaId) => {
       };
     }
 
-    // Intenta hacer la consulta al servidor
     try {
-      const response = await api.get(`/empresas/${empresaId}`);
-      
+      // ✅ CAMBIO PRINCIPAL: Usar el endpoint público que ya existe en el backend
+      const response = await api.get(`/empresas/public/${empresaId}`);
 
-      return {
-        existe: true,
-        nombre: response.data.data.nombre,
-        activa: response.data.data.es_activo
-      };
-    } catch (error) {
-      // Si es 401 o 403 (sin autenticación), asumimos que la empresa existe
-      // El backend validará el ID cuando se envíe la solicitud
-      if (error.response?.status === 401 || error.response?.status === 403) {
+      console.log('✅ Empresa verificada:', response.data);
+
+      if (response.data.success && response.data.data) {
         return {
-          existe: true,
-          nombre: empresaId,
-          activa: true,
-          pendienteValidacion: true
+          existe: true,  // ✅ Si llegó aquí con éxito, la empresa existe
+          nombre: response.data.data.nombre,
+          activa: response.data.data.es_activo  // ✅ El backend devuelve es_activo, no activa
         };
       }
+
+      return {
+        existe: false,
+        mensaje: 'Empresa no encontrada'
+      };
+
+    } catch (error) {
+      console.log('❌ Error al verificar empresa:', error.response?.status, error.message);
 
       // Si es 404, la empresa no existe
       if (error.response?.status === 404) {
@@ -280,20 +256,18 @@ export const verificarEmpresa = async (empresaId) => {
         };
       }
 
-      // Otros errores
-      throw error;
+      // Si hay error de red, lanzar excepción
+      if (!error.response) {
+        throw new Error('No se pudo conectar con el servidor. Verifica tu conexión.');
+      }
+
+      // Otros errores del servidor
+      throw new Error(error.response?.data?.message || 'Error al verificar empresa');
     }
 
   } catch (error) {
-    
-    // En caso de error de red u otro, permitimos continuar
-    // La validación real se hará en el backend al crear la solicitud
-    return {
-      existe: true,
-      nombre: empresaId,
-      activa: true,
-      pendienteValidacion: true
-    };
+    console.error('❌ Error crítico en verificarEmpresa:', error);
+    throw error;
   }
 };
 
@@ -304,6 +278,7 @@ export const guardarToken = async (token) => {
   try {
     await AsyncStorage.setItem('@auth_token', token);
   } catch (error) {
+    console.log('Error al guardar token:', error);
   }
 };
 
@@ -312,14 +287,11 @@ export const guardarToken = async (token) => {
  */
 export const verificarDispositivoActivo = async (solicitudId) => {
   try {
-
     const response = await api.get(`/solicitudes/${solicitudId}`);
 
-
-    // Verificar que la solicitud existe y está aceptada
     if (response.data.success && response.data.data) {
       const solicitud = response.data.data;
-      
+
       if (solicitud.estado?.toLowerCase() === 'aceptado') {
         return {
           valido: true,
@@ -340,7 +312,6 @@ export const verificarDispositivoActivo = async (solicitudId) => {
     };
 
   } catch (error) {
-    // Manejar 404 de forma más amigable
     if (error.response?.status === 404) {
       return {
         valido: false,
@@ -367,5 +338,6 @@ export const limpiarToken = async () => {
   try {
     await AsyncStorage.removeItem('@auth_token');
   } catch (error) {
+    console.log('Error al limpiar token:', error);
   }
 };

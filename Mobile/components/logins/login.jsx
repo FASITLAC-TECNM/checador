@@ -214,6 +214,50 @@ export const LoginScreen = ({ onLoginSuccess }) => {
         // Cachear credenciales para uso offline futuro
         await cacheCredentials(usuario, password, datosCompletos);
 
+        // ------------------------------------------------------------------
+        // 🛡️ VERIFICACIÓN ESTRICTA DISPOSITIVO <-> USUARIO
+        // ------------------------------------------------------------------
+        try {
+          // 1. Obtener token de solicitud (device token)
+          const tokenSolicitud = await AsyncStorage.getItem('token_solicitud'); // Usar string directo por si STORAGE_KEYS no está importado aquí
+
+          if (tokenSolicitud) {
+            // 2. Consultar info de la solicitud en backend
+            const { getSolicitudPorToken } = require('../../services/solicitudMovilService');
+            const solicitud = await getSolicitudPorToken(tokenSolicitud);
+
+            // 3. Normalizar correos para comparar
+            const emailUsuario = datosCompletos.usuario.correo.trim().toLowerCase();
+            const emailDispositivo = solicitud.correo.trim().toLowerCase();
+
+            // 4. Comparar
+            if (emailUsuario !== emailDispositivo) {
+              console.warn('⚠️ [Login] Mismatch dispositivo/usuario:', { emailUsuario, emailDispositivo });
+
+              // Cerrar sesión inmediatamente
+              const { logout } = require('../../services/authService');
+              await logout(token);
+
+              // Limpiar datos
+              await AsyncStorage.removeItem('userToken');
+              await AsyncStorage.removeItem('@user_data');
+
+              alert(`ACCESO DENEGADO\n\nEste dispositivo está registrado para:\n${emailDispositivo}\n\nNo puedes iniciar sesión con:\n${emailUsuario}`);
+
+              setIsLoading(false);
+              return; // ⛔ DETENER LOGIN
+            } else {
+              console.log('✅ [Login] Verificación dispositivo aprobada (Emails coinciden)');
+            }
+          } else {
+            console.log('⚠️ [Login] No hay token de solicitud almacenado. Saltando verificación de dispositivo.');
+          }
+        } catch (verifyError) {
+          console.error('❌ [Login] Error verificando dispositivo:', verifyError);
+          // Opcional: ¿Bloquear si falla la verificación por red?
+        }
+        // ------------------------------------------------------------------
+
         // Registrar evento de sesión online
         try {
           const sessionData = {
@@ -239,7 +283,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
           console.error('🔐 [Login] ❌ Error guardando/enviando sesión online:', e.message || e);
         }
 
-        onLoginSuccess(datosCompletos);
+        onLoginSuccess(datosCompletos, true);
       }
     } catch (error) {
       console.log('Login online falló:', error.message);
@@ -277,7 +321,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
             console.error('🔐 [Login] ❌ Error guardando/enviando sesión offline:', e.message || e);
           }
 
-          onLoginSuccess(offlineResult.data);
+          onLoginSuccess(offlineResult.data, false);
           return;
         } else {
           setGeneralError(offlineResult.error);

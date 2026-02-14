@@ -24,14 +24,13 @@ export const ApprovedScreen = ({ email, empresaNombre, deviceInfo, onComplete })
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
 
-      {/* Header con Stepper */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+      {/* Header Azul con Stepper completado */}
+      <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? insets.top + 16 : insets.top + 8 }]}>
         <Text style={styles.headerTitle}>{approved.title}</Text>
         <Text style={styles.headerSubtitle}>{approved.subtitle}</Text>
-        
-        {/* Stepper en el Header - Todos completados */}
+
         <View style={styles.stepperContainer}>
           <View style={styles.stepComplete}>
             <Ionicons name="checkmark" size={12} color="#fff" />
@@ -47,11 +46,11 @@ export const ApprovedScreen = ({ email, empresaNombre, deviceInfo, onComplete })
         </View>
       </View>
 
-      {/* Content */}
+      {/* Content — Static, centered */}
       <View style={styles.content}>
         {/* Icon de éxito */}
         <View style={styles.successIcon}>
-          <Ionicons name={approved.icon} size={64} color="#10b981" />
+          <Ionicons name={approved.icon} size={56} color="#10b981" />
         </View>
 
         {/* Mensaje */}
@@ -93,18 +92,16 @@ export const ApprovedScreen = ({ email, empresaNombre, deviceInfo, onComplete })
             </View>
           </View>
         </View>
+      </View>
 
-        {/* Info adicional */}
+      {/* Footer */}
+      <View style={[styles.footer, { paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 20) : insets.bottom + 12 }]}>
         <View style={styles.infoBox}>
           <Ionicons name="information-circle" size={14} color="#065f46" />
           <Text style={styles.infoText}>
-            Tu dispositivo ha sido vinculado exitosamente a {empresaNombre}. Ahora puedes acceder a todas las funciones.
+            Tu dispositivo ha sido vinculado exitosamente a {empresaNombre}.
           </Text>
         </View>
-      </View>
-
-      {/* Footer - Solo botón, sin stepper */}
-      <View style={[styles.footer, { paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 8) : insets.bottom }]}>
         <TouchableOpacity
           style={styles.completeButton}
           onPress={onComplete}
@@ -124,43 +121,42 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
   },
   header: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: '#ffffff',
     marginBottom: 2,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#6b7280',
-    marginBottom: 12,
+    color: '#dbeafe',
+    marginBottom: 14,
   },
   stepperContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 4,
   },
   stepComplete: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#10b981',
     justifyContent: 'center',
     alignItems: 'center',
   },
   stepLine: {
     flex: 1,
-    height: 2,
+    height: 3,
     backgroundColor: '#10b981',
-    marginHorizontal: 6,
+    marginHorizontal: 8,
     maxWidth: 80,
+    borderRadius: 2,
   },
   content: {
     flex: 1,
@@ -172,10 +168,12 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     backgroundColor: '#d1fae5',
-    borderRadius: 40,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
   },
   message: {
     fontSize: 13,
@@ -187,15 +185,16 @@ const styles = StyleSheet.create({
   },
   checklist: {
     width: '100%',
-    marginBottom: 16,
   },
   checkItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#d1fae5',
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 12,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
   },
   checkContent: {
     flex: 1,
@@ -205,43 +204,49 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#065f46',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   checkValue: {
     fontSize: 11,
     color: '#047857',
   },
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#6ee7b7',
-    borderRadius: 8,
-    padding: 10,
-    width: '100%',
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 10,
-    color: '#065f46',
-    marginLeft: 6,
-    lineHeight: 14,
-  },
   footer: {
     backgroundColor: '#fff',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
   },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#d1fae5',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#065f46',
+    lineHeight: 15,
+  },
   completeButton: {
     backgroundColor: '#10b981',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginBottom: 8,
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
   },
   completeButtonText: {
     color: '#fff',

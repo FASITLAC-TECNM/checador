@@ -11,7 +11,7 @@ import { SettingsScreen } from './components/settingsPages/settings';
 import { BottomNavigation } from './components/homes/nav';
 import { NotifyScreen } from './components/homes/NotifyScreen';
 import { OnboardingNavigator } from './components/devicesetup/onBoardNavigator';
-import { getSolicitudPorToken } from './services/solicitudMovilService';
+import { getSolicitudPorToken, verificarDispositivoPorEmpleado } from './services/solicitudMovilService';
 import { getUsuarioCompleto } from './services/empleadoServices';
 import { useNavigationBarColor } from './services/useNavigationBarColor';
 import sqliteManager from './services/offline/sqliteManager';
@@ -150,7 +150,7 @@ export default function App() {
 
         await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(updatedUserData));
         setUserData(updatedUserData);
-        syncManager.setAuthToken(token, response.data.empleado_id?.toString()); // Update token + empleadoId for sync
+        syncManager.setAuthToken(token, response.data.empleado_id?.toString());
       }
     } catch (error) {
       // Silent error
@@ -160,7 +160,6 @@ export default function App() {
   const verificarEstadoDispositivo = async () => {
     console.log('🔍 [App] verificandoEstadoDispositivo INICIO');
     try {
-      // No verificar si estamos offline — confiar en estado local
       const online = await syncManager.isOnline();
       console.log('🔍 [App] isOnline:', online);
 
@@ -177,13 +176,13 @@ export default function App() {
 
       console.log('🔍 [App] Datos Storage:', { solicitudId, tokenSolicitud, onboardingCompleted });
 
-      if (onboardingCompleted !== 'true' || !solicitudId || !tokenSolicitud) {
-        if (onboardingCompleted === 'true') {
-          console.log('🔍 [App] Datos corruptos, invalidando...');
-          await handleDeviceInvalidated('No se encontró información del dispositivo registrado');
-        } else {
-          console.log('🔍 [App] Onboarding no completado / datos faltantes.');
-        }
+      if (onboardingCompleted !== 'true') {
+        console.log('🔍 [App] Onboarding no completado.');
+        return;
+      }
+
+      if (!solicitudId || !tokenSolicitud) {
+        console.log('🔍 [App] IDs de solicitud faltantes, saltando verificación de servidor');
         return;
       }
 
@@ -209,7 +208,6 @@ export default function App() {
       if (error.code === 'SOLICITUD_NOT_FOUND' || error.status === 404) {
         await handleDeviceInvalidated('Tu registro de dispositivo fue eliminado');
       }
-      // Otros errores de red: silenciar (no invalidar offline)
     }
   };
 
@@ -236,7 +234,6 @@ export default function App() {
 
       setDeviceRegistered(deviceCompleted === 'true');
       setDarkMode(savedDarkMode === 'true');
-      // Siempre mostrar login por seguridad — LoginScreen maneja validación offline
       setIsLoggedIn(false);
       console.log('🔒 [App] Login screen enforced on startup');
     } catch (error) {
@@ -254,6 +251,7 @@ export default function App() {
     await AsyncStorage.setItem(STORAGE_KEYS.DARK_MODE, String(newValue));
   };
 
+  // 🔥 FUNCIÓN CORREGIDA: Verifica dispositivo en BD primero
   const handleLoginSuccess = async (data, isOnlineLogin = false) => {
     try {
       if (data.token) {
@@ -265,58 +263,94 @@ export default function App() {
       if (data.token) {
         const empId = data.empleado_id || data.empleadoInfo?.id || null;
         syncManager.setAuthToken(data.token, empId?.toString());
-        // Pull solo datos del empleado logueado
         syncManager.pullData(empId).catch(e => console.log('Initial pull failed:', e.message));
       }
 
+      // 🔥 CORRECCIÓN CRÍTICA: SIEMPRE verificar en BD primero si el empleado tiene dispositivo
+      const empleadoId = data.empleado_id || data.empleadoInfo?.id;
+
+      if (!empleadoId) {
+        console.log('⚠️ [App] Usuario no es empleado, no requiere dispositivo');
+        setDeviceRegistered(true);
+        setIsLoggedIn(true);
+        return;
+      }
+
+      const online = await syncManager.isOnline();
+
+      if (online && data.token) {
+        try {
+          console.log('🔍 [App] Verificando dispositivo en BD para empleado:', empleadoId);
+
+          const dispositivoEnBD = await verificarDispositivoPorEmpleado(empleadoId, data.token);
+
+          if (dispositivoEnBD.existe && dispositivoEnBD.activo) {
+            console.log('✅ [App] Dispositivo encontrado en BD y activo');
+
+            // Restaurar datos en AsyncStorage si no existen
+            const tokenSolicitudLocal = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN_SOLICITUD);
+
+            if (!tokenSolicitudLocal && dispositivoEnBD.token) {
+              console.log('📝 [App] Restaurando datos de dispositivo en AsyncStorage');
+              await AsyncStorage.setItem(STORAGE_KEYS.TOKEN_SOLICITUD, dispositivoEnBD.token || '');
+              await AsyncStorage.setItem(STORAGE_KEYS.SOLICITUD_ID, dispositivoEnBD.solicitud_id || '');
+              await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETED, 'true');
+            } else if (!tokenSolicitudLocal) {
+              // Aunque no tengamos token, si está en BD y activo, marcar como completo
+              await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETED, 'true');
+            }
+
+            setDeviceRegistered(true);
+            setIsLoggedIn(true);
+            return;
+          } else if (dispositivoEnBD.existe && !dispositivoEnBD.activo) {
+            console.log('⚠️ [App] Dispositivo existe pero está inactivo');
+            await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
+            setDeviceRegistered(false);
+            setIsLoggedIn(true);
+            return;
+          }
+
+          console.log('ℹ️ [App] No se encontró dispositivo en BD, verificando estado local');
+
+        } catch (bdError) {
+          console.log('⚠️ [App] Error consultando BD, verificando estado local:', bdError.message);
+        }
+      }
+
+      // Verificación local (fallback para offline o error de BD)
       const deviceCompleted = await AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
 
       if (deviceCompleted === 'true') {
-        // Verificar si estamos online para validar con el servidor
-        const online = await syncManager.isOnline();
-
         if (!online) {
-          // OFFLINE: confiar en el estado local del dispositivo
-          console.log('📴 [App] Offline — confiando en estado local del dispositivo (verificado)');
+          console.log('📴 [App] Offline — confiando en estado local del dispositivo');
           setDeviceRegistered(true);
         } else {
-          // ONLINE: verificar contra el servidor
-          // Verificar si estamos online para validar con el servidor
-          const online = await syncManager.isOnline();
+          const tokenSolicitud = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN_SOLICITUD);
 
-          if (!online) {
-            // OFFLINE: confiar en el estado local del dispositivo
-            console.log('📴 [App] Offline — confiando en estado local del dispositivo (verificado)');
-            setDeviceRegistered(true);
-          } else {
-            // ONLINE: verificar contra el servidor
-            const tokenSolicitud = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN_SOLICITUD);
+          if (tokenSolicitud) {
+            try {
+              const response = await getSolicitudPorToken(tokenSolicitud);
+              const estadoLower = response.estado?.toLowerCase();
 
-            if (tokenSolicitud) {
-              try {
-                const response = await getSolicitudPorToken(tokenSolicitud);
-                const estadoLower = response.estado?.toLowerCase();
-
-                if (estadoLower === 'aceptado') {
-                  setDeviceRegistered(true);
-                } else {
-                  await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
-                  setDeviceRegistered(false);
-                }
-              } catch (error) {
-                if (error.code === 'SOLICITUD_NOT_FOUND' || error.status === 404) {
-                  await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
-                  setDeviceRegistered(false);
-                } else {
-                  // Error de red u otro — confiar en estado local
-                  console.log('⚠️ [App] Error verificando solicitud, confiando en estado local');
-                  setDeviceRegistered(true);
-                }
+              if (estadoLower === 'aceptado') {
+                setDeviceRegistered(true);
+              } else {
+                await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
+                setDeviceRegistered(false);
               }
-            } else {
-              await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
-              setDeviceRegistered(false);
+            } catch (error) {
+              if (error.code === 'SOLICITUD_NOT_FOUND' || error.status === 404) {
+                await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
+                setDeviceRegistered(false);
+              } else {
+                console.log('⚠️ [App] Error verificando solicitud, confiando en estado local');
+                setDeviceRegistered(true);
+              }
             }
+          } else {
+            console.log('⚠️ [App] Sin token de solicitud local, requiere registro');
+            setDeviceRegistered(false);
           }
         }
       } else {
@@ -325,7 +359,9 @@ export default function App() {
 
       setIsLoggedIn(true);
     } catch (error) {
-      // Silent error
+      console.error('[App] Error en handleLoginSuccess:', error);
+      setIsLoggedIn(true);
+      setDeviceRegistered(false);
     }
   };
 
@@ -338,7 +374,6 @@ export default function App() {
     stopDeviceVerification();
     stopUserDataRefresh();
 
-    // Guardar sesión de logout antes de limpiar datos
     if (userData) {
       try {
         const isOnline = await syncManager.isOnline();
@@ -357,10 +392,6 @@ export default function App() {
     await Promise.all([
       AsyncStorage.removeItem(STORAGE_KEYS.USER_TOKEN),
       AsyncStorage.removeItem(STORAGE_KEYS.USER_DATA),
-      // 🗑️ Limpiar también datos del dispositivo para evitar "ghost logins" en dispositivos compartidos
-      AsyncStorage.removeItem(STORAGE_KEYS.SOLICITUD_ID),
-      AsyncStorage.removeItem(STORAGE_KEYS.TOKEN_SOLICITUD),
-      AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED)
     ]);
 
     setIsLoggedIn(false);

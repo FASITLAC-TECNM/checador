@@ -332,6 +332,119 @@ export const verificarDispositivoActivo = async (solicitudId) => {
 };
 
 /**
+ * 🔥 NUEVA FUNCIÓN: Verificar si un empleado tiene dispositivo móvil registrado en la BD
+ * Usa el endpoint dedicado: GET /api/movil/sync/dispositivos/:empleadoId
+ * 
+ * Resuelve el problema de cuando se borra la caché de la app - ahora consulta la BD real
+ * 
+ * @param {string} empleadoId - ID del empleado
+ * @param {string} token - Token de autenticación
+ * @returns {Promise<{existe: boolean, activo: boolean, solicitud_id?: string, token?: string}>}
+ */
+export const verificarDispositivoPorEmpleado = async (empleadoId, token) => {
+  try {
+    console.log('🔍 [solicitudMovilService] Verificando dispositivo para empleado:', empleadoId);
+
+    const tempApi = axios.create({
+      baseURL: API_BASE_URL,
+      timeout: 15000,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+    });
+
+    try {
+      const response = await tempApi.get(`/movil/sync/dispositivos/${empleadoId}`);
+
+      console.log('📱 [solicitudMovilService] Respuesta del servidor:', response.data);
+
+      // 🔥 FIX: El endpoint retorna { dispositivos: [...], total: N, success: true }
+      if (response.data.success && response.data.dispositivos) {
+        const dispositivos = response.data.dispositivos;
+
+        if (dispositivos.length > 0) {
+          const dispositivo = dispositivos[0]; // Tomar el primer dispositivo
+
+          console.log('✅ [solicitudMovilService] Dispositivo encontrado:', {
+            id: dispositivo.id,
+            sistema_operativo: dispositivo.sistema_operativo
+          });
+
+          // Ahora necesitamos verificar si tiene solicitud aceptada
+          // Buscar en tabla de solicitudes por empleado_id
+          try {
+            // Intentar obtener la solicitud asociada
+            const solicitudesResponse = await tempApi.get(`/solicitudes/empleado/${empleadoId}`);
+
+            if (solicitudesResponse.data.success && solicitudesResponse.data.data) {
+              const solicitudes = Array.isArray(solicitudesResponse.data.data)
+                ? solicitudesResponse.data.data
+                : [solicitudesResponse.data.data];
+
+              // Buscar solicitud aceptada de tipo móvil
+              const solicitudAceptada = solicitudes.find(s =>
+                s.tipo === 'movil' && s.estado?.toLowerCase() === 'aceptado'
+              );
+
+              if (solicitudAceptada) {
+                return {
+                  existe: true,
+                  activo: true,
+                  dispositivo_id: dispositivo.id,
+                  solicitud_id: solicitudAceptada.id,
+                  token: solicitudAceptada.token || null,
+                  sistema_operativo: dispositivo.sistema_operativo
+                };
+              }
+            }
+          } catch (solError) {
+            console.log('⚠️ [solicitudMovilService] No se pudo obtener solicitud, asumiendo activo');
+          }
+
+          // Si tiene dispositivo pero no pudimos verificar solicitud, asumir activo
+          return {
+            existe: true,
+            activo: true, // Asumir activo si tiene dispositivo registrado
+            dispositivo_id: dispositivo.id,
+            sistema_operativo: dispositivo.sistema_operativo
+          };
+        }
+
+        // No tiene dispositivos
+        console.log('ℹ️ [solicitudMovilService] Empleado no tiene dispositivo registrado');
+        return {
+          existe: false,
+          activo: false
+        };
+      }
+
+      console.log('⚠️ [solicitudMovilService] Respuesta inesperada del servidor');
+      return {
+        existe: false,
+        activo: false
+      };
+
+    } catch (error) {
+      if (error.response?.status === 404) {
+        console.log('ℹ️ [solicitudMovilService] Empleado no tiene dispositivo registrado (404)');
+        return {
+          existe: false,
+          activo: false
+        };
+      }
+
+      console.error('❌ [solicitudMovilService] Error consultando dispositivo:', error.message);
+      throw error;
+    }
+
+  } catch (error) {
+    console.error('❌ [solicitudMovilService] Error crítico en verificarDispositivoPorEmpleado:', error);
+    throw error;
+  }
+};
+
+/**
  * Limpiar token de autenticación
  */
 export const limpiarToken = async () => {

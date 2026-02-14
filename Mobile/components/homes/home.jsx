@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TouchableOpacity } from 'react-native';
 import { RegisterButton } from '../map/RegisterButton';
-import { ScheduleBento } from './ScheduleBento';
+import NetInfo from '@react-native-community/netinfo';
 import sqliteManager from '../../services/offline/sqliteManager';
 import { parsearHorario } from '../../services/horariosService';
 
@@ -32,10 +32,12 @@ const obtenerUrlFotoPerfil = (foto) => {
 
   return url;
 };
+
 export const HomeScreen = ({ userData, darkMode, onOpenAvisos }) => {
   const [token, setToken] = useState(null);
   const [infoHoy, setInfoHoy] = useState(null);
   const [loadingHorario, setLoadingHorario] = useState(true);
+  const [isConnected, setIsConnected] = useState(true);
 
   useEffect(() => {
     const obtenerToken = async () => {
@@ -48,6 +50,13 @@ export const HomeScreen = ({ userData, darkMode, onOpenAvisos }) => {
       }
     };
     obtenerToken();
+
+    // Monitor de red
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsConnected(state.isConnected && state.isInternetReachable);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -69,43 +78,13 @@ export const HomeScreen = ({ userData, darkMode, onOpenAvisos }) => {
         const diaHoy = horarioParsed.find(d => d.day === nombreHoy);
 
         if (diaHoy && diaHoy.active && diaHoy.turnos && diaHoy.turnos.length > 0) {
-          const ahora = hoy.getHours() * 60 + hoy.getMinutes();
-          const convertirAMinutos = (hora) => {
-            const [h, m] = hora.split(':').map(Number);
-            return h * 60 + m;
-          };
-
-          let turnoActual = null;
-          let proximoTurno = null;
-
-          for (const turno of diaHoy.turnos) {
-            const inicio = convertirAMinutos(turno.entrada);
-            const fin = convertirAMinutos(turno.salida);
-
-            if (ahora >= inicio && ahora <= fin) {
-              turnoActual = turno;
-              break;
-            }
-          }
-
-          if (!turnoActual) {
-            for (const turno of diaHoy.turnos) {
-              const inicio = convertirAMinutos(turno.entrada);
-              if (ahora < inicio) {
-                proximoTurno = turno;
-                break;
-              }
-            }
-          }
-
+          // Lógica simplificada solo para contar turnos por ahora
           setInfoHoy({
             trabaja: true,
-            turnoActual,
-            proximoTurno,
             totalTurnos: diaHoy.turnos.length
           });
         } else {
-          setInfoHoy({ trabaja: false });
+          setInfoHoy({ trabaja: false, totalTurnos: 0 });
         }
       } catch (error) {
         setInfoHoy(null);
@@ -122,6 +101,12 @@ export const HomeScreen = ({ userData, darkMode, onOpenAvisos }) => {
 
   const esEmpleado = userData.es_empleado && userData.empleado_id;
   const tipoUsuario = esEmpleado ? 'Empleado' : 'Usuario';
+
+  // Obtener nombre del día actual
+  const getNombreDia = () => {
+    const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    return dias[new Date().getDay()];
+  };
 
   const handleRegistroExitoso = () => {
     // Registro exitoso
@@ -157,7 +142,7 @@ export const HomeScreen = ({ userData, darkMode, onOpenAvisos }) => {
                 )}
                 <View style={[
                   styles.statusDot,
-                  { backgroundColor: '#10b981' }
+                  { backgroundColor: isConnected ? '#10b981' : '#9ca3af' }
                 ]} />
               </View>
 
@@ -194,11 +179,48 @@ export const HomeScreen = ({ userData, darkMode, onOpenAvisos }) => {
       >
         {/* 3 Bloques de información */}
         {esEmpleado && (
-          <ScheduleBento
-            infoHoy={infoHoy}
-            loading={loadingHorario}
-            darkMode={darkMode}
-          />
+          <View style={styles.infoBloques}>
+            {/* Bloque 1: Día */}
+            <View style={styles.infoBloque}>
+              <View style={[styles.infoBloqueIcon, { backgroundColor: darkMode ? 'rgba(59, 130, 246, 0.2)' : '#dbeafe' }]}>
+                <Ionicons name="calendar-outline" size={18} color={darkMode ? '#60a5fa' : '#2563eb'} />
+              </View>
+              <Text style={styles.infoBloqueLabel}>Hoy es</Text>
+              <Text style={styles.infoBloqueValue}>{getNombreDia()}</Text>
+            </View>
+
+            {/* Bloque 2: Estado Conexión */}
+            <View style={styles.infoBloque}>
+              <View style={[
+                styles.infoBloqueIcon,
+                { backgroundColor: isConnected ? (darkMode ? 'rgba(16, 185, 129, 0.2)' : '#d1fae5') : (darkMode ? 'rgba(156, 163, 175, 0.2)' : '#f3f4f6') }
+              ]}>
+                <Ionicons
+                  name={isConnected ? "wifi" : "cloud-offline-outline"}
+                  size={18}
+                  color={isConnected ? (darkMode ? '#34d399' : '#059669') : (darkMode ? '#9ca3af' : '#6b7280')}
+                />
+              </View>
+              <Text style={styles.infoBloqueLabel}>Estado</Text>
+              <Text style={[
+                styles.infoBloqueValue,
+                { color: isConnected ? (darkMode ? '#34d399' : '#059669') : (darkMode ? '#9ca3af' : '#6b7280') }
+              ]}>
+                {isConnected ? 'Online' : 'Offline'}
+              </Text>
+            </View>
+
+            {/* Bloque 3: Turnos */}
+            <View style={styles.infoBloque}>
+              <View style={[styles.infoBloqueIcon, { backgroundColor: darkMode ? 'rgba(245, 158, 11, 0.2)' : '#fef3c7' }]}>
+                <Ionicons name="layers-outline" size={18} color={darkMode ? '#fbbf24' : '#d97706'} />
+              </View>
+              <Text style={styles.infoBloqueLabel}>Turnos</Text>
+              <Text style={styles.infoBloqueValue}>
+                {loadingHorario ? '...' : (infoHoy?.totalTurnos || 0)}
+              </Text>
+            </View>
+          </View>
         )}
 
         {/* Register Button - Solo visible para empleados */}

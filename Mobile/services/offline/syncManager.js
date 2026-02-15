@@ -196,6 +196,35 @@ export async function pullData(empleadoId = null) {
 }
 
 /**
+ * Helper para registrar eventos en el backend (POST /api/eventos)
+ * Se usa para generar bitácora de acciones "Inicio de sesión", "Registro", etc.
+ */
+async function postEvent(titulo, tipo, descripcion, empleadoId, prioridad = 'media') {
+    if (!authToken) return;
+    try {
+        console.log(`📝 [Sync] Creando evento: ${titulo} (${tipo}) para emp=${empleadoId}`);
+        await fetch(`${API_URL}/eventos`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                titulo,
+                tipo_evento: tipo,
+                descripcion,
+                empleado_id: empleadoId,
+                prioridad,
+                detalles: { origen: 'movil_sync_offline' }
+            })
+        });
+    } catch (e) {
+        console.log(`⚠️ [Sync] No se pudo crear evento ${titulo}: ${e.message}`);
+        // No lanzamos error para no detener el proceso de sync principal
+    }
+}
+
+/**
  * Push de asistencias pendientes
  * Endpoint: POST /api/movil/sync/asistencias
  */
@@ -247,7 +276,18 @@ export async function pushData() {
         if (result.sincronizados) {
             for (const s of result.sincronizados) {
                 const local = pending.find(p => p.idempotency_key === s.id_local);
-                if (local) await sqliteManager.markAsSynced(local.local_id, s.id_servidor);
+                if (local) {
+                    await sqliteManager.markAsSynced(local.local_id, s.id_servidor);
+
+                    // ⭐ CREAR EVENTO DE SISTEMA
+                    await postEvent(
+                        `Registro de Asistencia (${local.tipo})`,
+                        'ASISTENCIA',
+                        `Registro de ${local.tipo} sincronizado desde móvil. Método: ${local.metodo_registro}`,
+                        local.empleado_id,
+                        'alta'
+                    );
+                }
             }
         }
 
@@ -348,6 +388,15 @@ export async function pushSessions() {
             for (const s of result.sincronizados) {
                 console.log(`📤 [Sync] ✅ Marcando local_id=${s.local_id} como synced`);
                 await sqliteManager.markSessionSynced(s.local_id);
+
+                // ⭐ CREAR EVENTO DE SISTEMA
+                // Buscamos info original para el título
+                const original = pending.find(p => p.local_id === s.local_id);
+                if (original && original.empleado_id) {
+                    const titulo = original.tipo === 'login' ? 'Inicio de Sesión (Móvil)' : 'Cierre de Sesión (Móvil)';
+                    const desc = `Sesión ${original.tipo} sincronizada. Modo: ${original.modo}`;
+                    await postEvent(titulo, 'SISTEMA', desc, original.empleado_id, 'media');
+                }
             }
         }
 
@@ -416,6 +465,16 @@ export async function pushIncidencias() {
                     await sqliteManager.markIncidenciaSynced(inc.local_id, serverId);
                     sincronizadas++;
                     console.log(`📤 [Sync] ✅ Incidencia local_id=${inc.local_id} sincronizada (server_id=${serverId})`);
+
+                    // ⭐ CREAR EVENTO DE SISTEMA
+                    await postEvent(
+                        `Nueva Incidencia (${inc.tipo})`,
+                        'INCIDENCIA',
+                        `Incidencia creada offline y sincronizada. Motivo: ${inc.motivo}`,
+                        inc.empleado_id,
+                        'media'
+                    );
+
                 } else {
                     const errText = await response.text();
                     await sqliteManager.markIncidenciaSyncError(inc.local_id, `HTTP ${response.status}: ${errText}`);

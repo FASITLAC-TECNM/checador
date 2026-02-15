@@ -1,8 +1,0 @@
-{
-	"devDependencies": {
-		"concurrently": "^9.2.1"
-	},
-	"scripts": {
-		"start": "concurrently \"pnpm --filter ./backend dev\" \"pnpm --filter ./Administrator dev\""
-	}
-}

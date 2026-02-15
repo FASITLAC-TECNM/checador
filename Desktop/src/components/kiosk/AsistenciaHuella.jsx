@@ -492,6 +492,128 @@ export default function AsistenciaHuella({
 
     } catch (error) {
       console.error("Error registrando asistencia:", error);
+
+      // === FALLBACK OFFLINE ===
+      const isNetworkError = error.name === 'TypeError'
+        || error.message.includes('Failed to fetch')
+        || error.message.includes('NetworkError')
+        || error.message.includes('ERR_INTERNET_DISCONNECTED');
+
+      if (isNetworkError && window.electronAPI && window.electronAPI.offlineDB) {
+        console.log('📴 [AsistenciaHuella] Sin conexión — intentando autenticación offline...');
+
+        try {
+          // 1. Importar servicios offline
+          const {
+            cargarDatosOffline,
+            guardarAsistenciaOffline
+          } = await import('../../services/offlineAuthService');
+
+          // 2. Recuperar datos completos del empleado para la sesión
+          const empleadoFull = await window.electronAPI.offlineDB.getEmpleado(empleadoId);
+
+          if (!empleadoFull) {
+            throw new Error("Empleado no encontrado en base de datos local");
+          }
+
+          // 3. Cargar estado de asistencia (Horario, Tolerancias, etc.)
+          const datosOffline = await cargarDatosOffline(empleadoId);
+          const estadoActual = datosOffline.estado;
+
+          // 4. Verificar si puede registrar
+          if (estadoActual && !estadoActual.puedeRegistrar) {
+            console.warn(`⚠️ [AsistenciaHuella] Bloqueo offline: ${estadoActual.mensaje}`);
+
+            // Construir resultado de bloqueo
+            const resultadoOfflineBloqueo = {
+              success: false,
+              message: estadoActual.mensaje,
+              empleado: empleadoFull,
+              empleadoId: empleadoId,
+              token: null, // Sin token en offline
+              estadoHorario: estadoActual.estadoHorario,
+              noPuedeRegistrar: true,
+              minutosRestantes: estadoActual.minutosRestantes,
+              mensajeEspera: estadoActual.mensajeEspera,
+              offline: true
+            };
+
+            setIdentificando(false);
+            setResult(resultadoOfflineBloqueo);
+
+            if (backgroundMode) {
+              setTimeout(() => {
+                setShowModal(true);
+              }, 50);
+            }
+            return;
+          }
+
+          // 5. Si puede registrar, guardar en cola offline
+          await guardarAsistenciaOffline({
+            empleadoId,
+            tipo: estadoActual?.tipoRegistro || 'entrada',
+            // Usar el estado calculado para consistencia
+            estado: estadoActual?.clasificacion || 'puntual',
+            metodoRegistro: 'HUELLA',
+            departamentoId: datosOffline.departamento?.id || null,
+          });
+
+          const now = new Date();
+          const horaActual = now.toLocaleTimeString("es-MX", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          // Obtener tipo movimiento basado en lo que se guardó o calculó
+          const tipoMovimiento = (estadoActual?.tipoRegistro || 'entrada') === 'salida' ? 'SALIDA' : 'ENTRADA';
+
+          // Mensaje de voz
+          const utterance = new SpeechSynthesisUtterance(
+            `Registro offline exitoso, ${empleadoFull.nombre}`
+          );
+          utterance.lang = "es-MX";
+          utterance.rate = 0.9;
+          window.speechSynthesis.speak(utterance);
+
+          const resultadoOfflineExito = {
+            success: true,
+            offline: true,
+            message: "Asistencia registrada (modo offline)",
+            empleado: empleadoFull,
+            empleadoId: empleadoId,
+            tipoMovimiento,
+            hora: horaActual,
+            estado: estadoActual?.clasificacion || 'puntual',
+            estadoTexto: '📴 Modo Offline',
+            clasificacion: estadoActual?.clasificacion || 'puntual',
+            // Permitir login también en éxito offline
+            usuario: {
+              id: empleadoFull.usuario_id,
+              nombre: empleadoFull.nombre,
+              es_empleado: true,
+              empleado_id: empleadoId,
+              offline: true
+            }
+          };
+
+          setIdentificando(false);
+          setResult(resultadoOfflineExito);
+
+          if (backgroundMode) {
+            setTimeout(() => {
+              setShowModal(true);
+            }, 50);
+          }
+          return;
+
+        } catch (offlineError) {
+          console.error('❌ [AsistenciaHuella] Error en flujo offline:', offlineError);
+          addMessage(`❌ Error Offline: ${offlineError.message}`, "error");
+        }
+      }
+
+      // Si no es error de red o falló el offline, mostrar error normal
       addMessage(`❌ Error: ${error.message}`, "error");
 
       // Preparar el resultado de error
@@ -598,6 +720,51 @@ export default function AsistenciaHuella({
 
     } catch (error) {
       console.error("Error procesando login biométrico:", error);
+
+      // === FALLBACK OFFLINE LOGIN ===
+      const isNetworkError = error.name === 'TypeError'
+        || error.message.includes('Failed to fetch')
+        || error.message.includes('NetworkError')
+        || error.message.includes('ERR_INTERNET_DISCONNECTED');
+
+      if (isNetworkError && window.electronAPI && window.electronAPI.offlineDB) {
+        console.log('📴 [AsistenciaHuella] Sin conexión — intentando Login offline...');
+        try {
+          // Recuperar datos completos del empleado para la sesión
+          const empleadoFull = await window.electronAPI.offlineDB.getEmpleado(empleadoId);
+          if (empleadoFull) {
+            const usuarioOffline = {
+              id: empleadoFull.usuario_id,
+              nombre: empleadoFull.nombre,
+              username: empleadoFull.nombre, // Fallback
+              es_empleado: true,
+              empleado_id: empleadoId,
+              // Datos extra para simular estructura de usuario
+              roles: [], // Roles se deberían cargar de cache_roles si existieran
+              permisos: [],
+              esAdmin: false,
+              offline: true,
+              metodoAutenticacion: "HUELLA_OFFLINE",
+              ...empleadoFull
+            };
+
+            // Guardar sesión
+            guardarSesion(usuarioOffline);
+
+            // Cerrar modal
+            if (onClose) onClose();
+
+            // Callback de login exitoso con datos completos
+            if (onLoginRequest) {
+              onLoginRequest(usuarioOffline);
+            }
+            return;
+          }
+        } catch (offlineErr) {
+          console.error('❌ [AsistenciaHuella] Error Login Offline:', offlineErr);
+        }
+      }
+
       addMessage(`❌ Error: ${error.message}`, "error");
       // Reiniciar countdown si hay error
       setCountdown(6);

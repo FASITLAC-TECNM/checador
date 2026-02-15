@@ -26,10 +26,19 @@ class DeviceMonitorService {
         // 1. Conectar WebSocket persistente para eventos en tiempo real
         this.connectWebSocket();
 
-        // 2. Ejecutar verificación inicial completa
+        // 2. Escuchar cambios de hardware en el navegador (para cámaras USB)
+        if (navigator.mediaDevices) {
+            navigator.mediaDevices.ondevicechange = () => {
+                console.log("[DeviceMonitor] 📷 Cambio de hardware detectado (navegador)");
+                // Pequeño delay para dar tiempo al navegador de actualizar la lista
+                setTimeout(() => this.checkDevices(), 1000);
+            };
+        }
+
+        // 3. Ejecutar verificación inicial completa
         this.checkDevices();
 
-        // 3. Iniciar loop de respaldo (polling)
+        // 4. Iniciar loop de respaldo (polling)
         this.intervalId = setInterval(() => {
             this.checkDevices();
         }, this.checkInterval);
@@ -49,6 +58,10 @@ class DeviceMonitorService {
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
             this.reconnectTimeout = null;
+        }
+
+        if (navigator.mediaDevices) {
+            navigator.mediaDevices.ondevicechange = null;
         }
 
         this.closeWebSocket();
@@ -210,6 +223,9 @@ class DeviceMonitorService {
             const videoDevices = devices.filter(d => d.kind === 'videoinput');
             const normalize = (str) => str?.toLowerCase().replace(/[^a-z0-9]/g, '');
             const targetName = normalize(device.nombre);
+
+            console.log(`[DeviceMonitor] Buscando cámara: "${device.nombre}" (Norm: ${targetName})`);
+            console.log(`[DeviceMonitor] Cámaras disponibles:`, videoDevices.map(d => `${d.label} (Norm: ${normalize(d.label)})`));
 
             const found = videoDevices.some(d => normalize(d.label).includes(targetName));
 

@@ -464,24 +464,38 @@ export async function guardarAsistenciaOffline(data) {
     throw new Error(`Por favor espera ${segundosRestantes} segundos antes de intentar nuevamente`);
   }
 
+  // ACTUALIZACIÓN INMEDIATA para prevenir condiciones de carrera
+  lastRequestTimestamp = now;
+  lastRequestEmpleadoId = empleadoId;
+
   // 2. Validación de Reglas de Negocio (Horario, Tolerancia)
   console.log(`[OfflineAuth] Validando reglas de asistencia para ${empleadoId}...`);
-  const datosValidacion = await cargarDatosOffline(empleadoId);
+  let datosValidacion;
+  try {
+    datosValidacion = await cargarDatosOffline(empleadoId);
+  } catch (error) {
+    // Si falla la validación, resetear el timestamp para permitir reintento
+    lastRequestTimestamp = 0;
+    lastRequestEmpleadoId = null;
+    throw error;
+  }
+
   const estadoCalculado = datosValidacion.estado;
 
   if (!estadoCalculado) {
+    // Si falla el cálculo, resetear para permitir reintento inmediato
+    lastRequestTimestamp = 0;
+    lastRequestEmpleadoId = null;
     throw new Error('No se pudo validar el horario del empleado');
   }
 
   // Si no puede registrar (fuera de horario, muy temprano, etc.), bloquear
   if (!estadoCalculado.puedeRegistrar) {
     console.warn(`❌ [OfflineAuth] Registro bloqueado: ${estadoCalculado.mensaje}`);
+    // MANTENER el bloqueo de tiempo si es un rechazo válido de negocio?
+    // Generalmente sí, para evitar spam de intentos fallidos.
     throw new Error(estadoCalculado.mensaje || 'No puedes registrar asistencia en este momento');
   }
-
-  // Actualizar tracking
-  lastRequestTimestamp = now;
-  lastRequestEmpleadoId = empleadoId;
 
   // 3. Guardar en SQLite usando los datos CALCULADOS para integridad
   try {

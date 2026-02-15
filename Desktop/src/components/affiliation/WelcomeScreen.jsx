@@ -76,15 +76,15 @@ export default function WelcomeScreen({ onClose }) {
               return (
                 <div
                   key={step.number}
-                  className="group bg-bg-secondary rounded-2xl p-5 border border-border-subtle hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 h-52 flex flex-col cursor-default"
+                  className="group bg-bg-secondary rounded-2xl p-5 border border-border-subtle hover:border-[#3b82f6]/40 hover:shadow-xl hover:shadow-[#2563eb]/5 hover:-translate-y-1 transition-all duration-300 h-52 flex flex-col cursor-default"
                 >
                   <div className="flex flex-col items-center text-center flex-1 justify-center">
                     {/* Número con glow sutil */}
-                    <div className="w-11 h-11 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl flex items-center justify-center font-bold text-lg mb-3 shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all duration-300">
+                    <div className="w-11 h-11 bg-[#2563eb] text-[#e0f2fe] rounded-xl flex items-center justify-center font-bold text-lg mb-3 shadow-md group-hover:shadow-lg group-hover:shadow-[#2563eb]/20 group-hover:scale-105 transition-all duration-300">
                       {step.number}
                     </div>
                     {/* Icono */}
-                    <div className="w-10 h-10 rounded-xl bg-bg-tertiary flex items-center justify-center mb-3 group-hover:bg-gray-100 dark:group-hover:bg-gray-800 transition-colors duration-300">
+                    <div className="w-10 h-10 rounded-xl bg-bg-tertiary flex items-center justify-center mb-3 group-hover:bg-[#e0f2fe] dark:group-hover:bg-[#2563eb]/10 transition-colors duration-300">
                       <Icon className="w-5 h-5 text-text-secondary group-hover:text-text-primary transition-colors duration-300" />
                     </div>
                     <h3 className="font-semibold text-text-primary mb-1 text-sm">
@@ -110,8 +110,8 @@ export default function WelcomeScreen({ onClose }) {
                   key={i}
                   className="flex items-start gap-3 p-3 rounded-xl hover:bg-bg-tertiary transition-colors duration-200"
                 >
-                  <div className="w-5 h-5 rounded-md bg-gray-900 dark:bg-gray-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-[10px] font-bold text-white dark:text-gray-900">
+                  <div className="w-5 h-5 rounded-md bg-[#2563eb] flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-[10px] font-bold text-[#e0f2fe]">
                       {i + 1}
                     </span>
                   </div>
@@ -135,7 +135,7 @@ export default function WelcomeScreen({ onClose }) {
         <div className="max-w-6xl mx-auto flex justify-center">
           <button
             onClick={onClose}
-            className="group px-10 py-3.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 font-semibold shadow-lg transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 flex items-center gap-3 text-base"
+            className="group px-10 py-3.5 bg-[#2563eb] text-[#e0f2fe] rounded-xl hover:bg-[#3b82f6] font-semibold shadow-lg shadow-[#2563eb]/20 transition-all duration-200 hover:shadow-xl hover:shadow-[#2563eb]/30 hover:-translate-y-0.5 flex items-center gap-3 text-base"
           >
             Comenzar Configuración
             <ChevronRight className="w-5 h-5 group-hover:translate-x-0.5 transition-transform duration-200" />

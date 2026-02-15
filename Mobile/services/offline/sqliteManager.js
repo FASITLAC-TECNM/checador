@@ -171,12 +171,86 @@ async function runMigrations() {
       created_at TEXT DEFAULT (datetime('now', 'localtime'))
     );
 
+    -- Caché de datos de empresa
+    CREATE TABLE IF NOT EXISTS cache_empresa (
+      id TEXT PRIMARY KEY,
+      nombre TEXT,
+      logo TEXT,
+      telefono TEXT,
+      correo TEXT,
+      es_activo INTEGER DEFAULT 1,
+      updated_at TEXT NOT NULL
+    );
+
+    -- Caché de asistencias (historial descargado del servidor)
+    CREATE TABLE IF NOT EXISTS cache_asistencias (
+      id TEXT PRIMARY KEY,
+      empleado_id TEXT NOT NULL,
+      tipo TEXT NOT NULL,
+      estado TEXT,
+      fecha_registro TEXT NOT NULL,
+      dispositivo_origen TEXT,
+      departamento_id TEXT,
+      departamento_nombre TEXT,
+      mes_key TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    -- Caché de avisos (globales y personales)
+    CREATE TABLE IF NOT EXISTS cache_avisos (
+      id TEXT NOT NULL,
+      tipo TEXT NOT NULL DEFAULT 'global',
+      empleado_id TEXT,
+      titulo TEXT,
+      contenido TEXT,
+      fecha_registro TEXT,
+      fecha_asignacion TEXT,
+      remitente_nombre TEXT,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (id, tipo)
+    );
+
+    -- Caché de incidencias (descargadas del servidor)
+    CREATE TABLE IF NOT EXISTS cache_incidencias (
+      id TEXT PRIMARY KEY,
+      empleado_id TEXT NOT NULL,
+      tipo TEXT NOT NULL,
+      motivo TEXT,
+      observaciones TEXT,
+      fecha_inicio TEXT,
+      fecha_fin TEXT,
+      estado TEXT NOT NULL DEFAULT 'pendiente',
+      empleado_nombre TEXT,
+      updated_at TEXT NOT NULL
+    );
+
+    -- Cola de incidencias creadas offline pendientes de sync
+    CREATE TABLE IF NOT EXISTS offline_incidencias (
+      local_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      idempotency_key TEXT NOT NULL UNIQUE,
+      server_id TEXT,
+      empleado_id TEXT NOT NULL,
+      tipo TEXT NOT NULL,
+      motivo TEXT,
+      fecha_inicio TEXT,
+      fecha_fin TEXT,
+      estado TEXT NOT NULL DEFAULT 'pendiente',
+      is_synced INTEGER DEFAULT 0,
+      sync_attempts INTEGER DEFAULT 0,
+      last_sync_error TEXT,
+      created_at TEXT DEFAULT (datetime('now', 'localtime'))
+    );
+
     -- Índices para rendimiento
     CREATE INDEX IF NOT EXISTS idx_offline_asistencias_synced ON offline_asistencias(is_synced);
     CREATE INDEX IF NOT EXISTS idx_offline_asistencias_empleado ON offline_asistencias(empleado_id, fecha_registro);
     CREATE INDEX IF NOT EXISTS idx_cache_credenciales_empleado ON cache_credenciales(empleado_id);
     CREATE INDEX IF NOT EXISTS idx_cache_horarios_empleado ON cache_horarios(empleado_id);
     CREATE INDEX IF NOT EXISTS idx_sesiones_offline_synced ON sesiones_offline(is_synced);
+    CREATE INDEX IF NOT EXISTS idx_cache_incidencias_empleado ON cache_incidencias(empleado_id);
+    CREATE INDEX IF NOT EXISTS idx_offline_incidencias_synced ON offline_incidencias(is_synced);
+    CREATE INDEX IF NOT EXISTS idx_cache_asistencias_empleado ON cache_asistencias(empleado_id, mes_key);
+    CREATE INDEX IF NOT EXISTS idx_cache_avisos_tipo ON cache_avisos(tipo, empleado_id);
   `);
 
     // Migración segura: agregar columna ubicacion si no existe (para DBs existentes)
@@ -521,6 +595,282 @@ export async function getDepartamentos(empleadoId) {
 }
 
 // ============================================================
+// CRUD — ASISTENCIAS (CACHÉ HISTORIAL)
+// ============================================================
+
+/**
+ * Guarda asistencias de un mes en caché local
+ * @param {string} empleadoId - ID del empleado
+ * @param {string} mesKey - Clave del mes (YYYY-MM)
+ * @param {Array} asistencias - Array de registros de asistencia
+ */
+export async function upsertAsistenciasMes(empleadoId, mesKey, asistencias) {
+    if (!db) await initDatabase();
+
+    await db.withTransactionAsync(async () => {
+        // Limpiar caché anterior de este empleado para este mes
+        await db.runAsync('DELETE FROM cache_asistencias WHERE empleado_id = ? AND mes_key = ?', [empleadoId, mesKey]);
+
+        for (const reg of asistencias) {
+            await db.runAsync(
+                `INSERT INTO cache_asistencias (id, empleado_id, tipo, estado, fecha_registro, dispositivo_origen, departamento_id, departamento_nombre, mes_key, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))`,
+                [
+                    reg.id,
+                    empleadoId,
+                    reg.tipo,
+                    reg.estado || null,
+                    reg.fecha_registro,
+                    reg.dispositivo_origen || null,
+                    reg.departamento_id || null,
+                    reg.departamento_nombre || null,
+                    mesKey
+                ]
+            );
+        }
+    });
+    console.log(`✅ [SQLite] ${asistencias.length} asistencias cacheadas para ${empleadoId} (${mesKey})`);
+}
+
+/**
+ * Obtiene asistencias de un mes desde caché local
+ */
+export async function getAsistenciasMesLocal(empleadoId, mesKey) {
+    if (!db) await initDatabase();
+    return await db.getAllAsync(
+        'SELECT * FROM cache_asistencias WHERE empleado_id = ? AND mes_key = ? ORDER BY fecha_registro DESC',
+        [empleadoId, mesKey]
+    );
+}
+
+// ============================================================
+// CRUD — INCIDENCIAS OFFLINE
+// ============================================================
+
+/**
+ * Guarda/actualiza incidencias descargadas del servidor en caché local
+ */
+export async function upsertIncidencias(empleadoId, incidencias) {
+    if (!db) await initDatabase();
+
+    await db.withTransactionAsync(async () => {
+        // Limpiar caché anterior de este empleado
+        await db.runAsync('DELETE FROM cache_incidencias WHERE empleado_id = ?', [empleadoId]);
+
+        for (const inc of incidencias) {
+            await db.runAsync(
+                `INSERT INTO cache_incidencias (id, empleado_id, tipo, motivo, observaciones, fecha_inicio, fecha_fin, estado, empleado_nombre, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))`,
+                [
+                    inc.id,
+                    inc.empleado_id || empleadoId,
+                    inc.tipo,
+                    inc.motivo || null,
+                    inc.observaciones || null,
+                    inc.fecha_inicio || null,
+                    inc.fecha_fin || null,
+                    inc.estado || 'pendiente',
+                    inc.empleado_nombre || null
+                ]
+            );
+        }
+    });
+    console.log(`✅ [SQLite] ${incidencias.length} incidencias cacheadas para empleado ${empleadoId}`);
+}
+
+/**
+ * Obtiene incidencias cacheadas de un empleado
+ */
+export async function getIncidenciasLocal(empleadoId) {
+    if (!db) await initDatabase();
+    return await db.getAllAsync(
+        'SELECT * FROM cache_incidencias WHERE empleado_id = ? ORDER BY fecha_inicio DESC',
+        [empleadoId]
+    );
+}
+
+/**
+ * Guarda una incidencia creada offline en la cola de sync
+ */
+export async function saveOfflineIncidencia(data) {
+    if (!db) await initDatabase();
+
+    const idempotencyKey = uuidv4();
+
+    const result = await db.runAsync(
+        `INSERT INTO offline_incidencias
+         (idempotency_key, empleado_id, tipo, motivo, fecha_inicio, fecha_fin, estado)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+            idempotencyKey,
+            data.empleado_id,
+            data.tipo,
+            data.motivo || null,
+            data.fecha_inicio || null,
+            data.fecha_fin || null,
+            'pendiente'
+        ]
+    );
+
+    console.log(`📝 [SQLite] Incidencia offline guardada: local_id=${result.lastInsertRowId}, key=${idempotencyKey}`);
+
+    return {
+        local_id: result.lastInsertRowId,
+        idempotency_key: idempotencyKey,
+        ...data,
+        estado: 'pendiente',
+        is_offline: true
+    };
+}
+
+/**
+ * Obtiene incidencias offline pendientes de sincronizar
+ */
+export async function getPendingIncidencias(limit = 50) {
+    if (!db) await initDatabase();
+    return await db.getAllAsync(
+        'SELECT * FROM offline_incidencias WHERE is_synced = 0 ORDER BY created_at ASC LIMIT ?',
+        [limit]
+    );
+}
+
+/**
+ * Marca una incidencia offline como sincronizada
+ */
+export async function markIncidenciaSynced(localId, serverId) {
+    if (!db) await initDatabase();
+    await db.runAsync(
+        `UPDATE offline_incidencias SET is_synced = 1, server_id = ? WHERE local_id = ?`,
+        [serverId, localId]
+    );
+}
+
+/**
+ * Marca error en sincronización de incidencia
+ */
+export async function markIncidenciaSyncError(localId, error) {
+    if (!db) await initDatabase();
+    await db.runAsync(
+        `UPDATE offline_incidencias SET sync_attempts = sync_attempts + 1, last_sync_error = ? WHERE local_id = ?`,
+        [error, localId]
+    );
+}
+
+// ============================================================
+// CRUD — EMPRESA (CACHÉ)
+// ============================================================
+
+/**
+ * Guarda/actualiza datos de empresa en caché local
+ */
+export async function upsertEmpresa(empresa) {
+    if (!db) await initDatabase();
+
+    await db.runAsync(
+        `INSERT OR REPLACE INTO cache_empresa (id, nombre, logo, telefono, correo, es_activo, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))`,
+        [
+            empresa.id,
+            empresa.nombre || null,
+            empresa.logo || null,
+            empresa.telefono || null,
+            empresa.correo || null,
+            empresa.es_activo !== false ? 1 : 0
+        ]
+    );
+    console.log(`✅ [SQLite] Empresa cacheada: ${empresa.nombre}`);
+}
+
+/**
+ * Obtiene datos de empresa desde caché local
+ */
+export async function getEmpresaLocal(empresaId) {
+    if (!db) await initDatabase();
+    return await db.getFirstAsync('SELECT * FROM cache_empresa WHERE id = ?', [empresaId]);
+}
+
+// ============================================================
+// CRUD — AVISOS (CACHÉ)
+// ============================================================
+
+/**
+ * Guarda avisos globales en caché local
+ */
+export async function upsertAvisosGlobales(avisos) {
+    if (!db) await initDatabase();
+
+    await db.withTransactionAsync(async () => {
+        // Limpiar avisos globales anteriores
+        await db.runAsync("DELETE FROM cache_avisos WHERE tipo = 'global'");
+
+        for (const aviso of avisos) {
+            await db.runAsync(
+                `INSERT INTO cache_avisos (id, tipo, empleado_id, titulo, contenido, fecha_registro, fecha_asignacion, remitente_nombre, updated_at)
+                 VALUES (?, 'global', NULL, ?, ?, ?, NULL, ?, datetime('now', 'localtime'))`,
+                [
+                    aviso.id,
+                    aviso.titulo || null,
+                    aviso.contenido || null,
+                    aviso.fecha_registro || null,
+                    aviso.remitente_nombre || null
+                ]
+            );
+        }
+    });
+    console.log(`✅ [SQLite] ${avisos.length} avisos globales cacheados`);
+}
+
+/**
+ * Guarda avisos personales de un empleado en caché local
+ */
+export async function upsertAvisosEmpleado(empleadoId, avisos) {
+    if (!db) await initDatabase();
+
+    await db.withTransactionAsync(async () => {
+        // Limpiar avisos personales anteriores de este empleado
+        await db.runAsync("DELETE FROM cache_avisos WHERE tipo = 'personal' AND empleado_id = ?", [empleadoId]);
+
+        for (const aviso of avisos) {
+            await db.runAsync(
+                `INSERT INTO cache_avisos (id, tipo, empleado_id, titulo, contenido, fecha_registro, fecha_asignacion, remitente_nombre, updated_at)
+                 VALUES (?, 'personal', ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))`,
+                [
+                    aviso.id,
+                    empleadoId,
+                    aviso.titulo || null,
+                    aviso.contenido || null,
+                    aviso.fecha_registro || null,
+                    aviso.fecha_asignacion || null,
+                    aviso.remitente_nombre || null
+                ]
+            );
+        }
+    });
+    console.log(`✅ [SQLite] ${avisos.length} avisos personales cacheados para empleado ${empleadoId}`);
+}
+
+/**
+ * Obtiene avisos globales desde caché local
+ */
+export async function getAvisosGlobalesLocal() {
+    if (!db) await initDatabase();
+    return await db.getAllAsync(
+        "SELECT * FROM cache_avisos WHERE tipo = 'global' ORDER BY fecha_registro DESC"
+    );
+}
+
+/**
+ * Obtiene avisos personales de un empleado desde caché local
+ */
+export async function getAvisosEmpleadoLocal(empleadoId) {
+    if (!db) await initDatabase();
+    return await db.getAllAsync(
+        "SELECT * FROM cache_avisos WHERE tipo = 'personal' AND empleado_id = ? ORDER BY fecha_registro DESC",
+        [empleadoId]
+    );
+}
+
+// ============================================================
 // CRUD — SESIONES OFFLINE
 // ============================================================
 
@@ -589,6 +939,25 @@ export default {
     getHorario,
     getTolerancia,
     getDepartamentos,
+    // Asistencias (historial)
+    upsertAsistenciasMes,
+    getAsistenciasMesLocal,
+    // Empresa
+    upsertEmpresa,
+    getEmpresaLocal,
+    // Avisos
+    upsertAvisosGlobales,
+    upsertAvisosEmpleado,
+    getAvisosGlobalesLocal,
+    getAvisosEmpleadoLocal,
+    // Incidencias
+    upsertIncidencias,
+    getIncidenciasLocal,
+    saveOfflineIncidencia,
+    getPendingIncidencias,
+    markIncidenciaSynced,
+    markIncidenciaSyncError,
+    // Sesiones
     saveOfflineSession,
     getPendingSessions,
     markSessionSynced,

@@ -105,11 +105,13 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         const offlineCreds = {
           tiene_pin: tienePin,
           tiene_dactilar: tieneDactilar,
-          tiene_facial: tieneFacial
+          tiene_facial: tieneFacial,
+          _offlineMode: true
         };
 
         setCredencialesUsuario(offlineCreds);
-        construirMetodosDisponibles(offlineCreds, ['pin', 'dactilar', 'facial']);
+        // Offline: solo PIN y huella, facial no funciona sin servidor
+        construirMetodosDisponibles(offlineCreds, ['pin', 'dactilar']);
 
       } catch (offlineError) {
         setCredencialesUsuario({
@@ -1506,7 +1508,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             </View>
 
             <View style={styles.authMethodsContainer}>
-              {metodosDisponibles.map((metodo) => (
+              {metodosDisponibles
+                .filter(metodo => metodo.id !== 'facial' || !credencialesUsuario?._offlineMode)
+                .map((metodo) => (
                 <TouchableOpacity
                   key={metodo.id}
                   style={styles.authMethodCard}

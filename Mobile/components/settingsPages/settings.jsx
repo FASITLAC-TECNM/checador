@@ -16,7 +16,7 @@ import { TermsAndConditionsScreen } from './TermsAndConditionsScreen';
 import { SupportScreen } from './SupportScreen';
 import { SecurityScreen } from './SecurityScreen';
 
-const obtenerUrlFotoPerfil = (foto) => {  
+const obtenerUrlFotoPerfil = (foto) => {
   if (!foto) {
     return null;
   }
@@ -28,38 +28,38 @@ const obtenerUrlFotoPerfil = (foto) => {
   }
   const BASE_URL = 'https://9dm7dqf9-3001.usw3.devtunnels.ms';
   const url = `${BASE_URL}${foto.startsWith('/') ? '' : '/'}${foto}`;
-  
+
   return url;
 };
 
-export const SettingsScreen = ({ 
-  userData, 
-  email, 
-  darkMode, 
-  onToggleDarkMode, 
-  onLogout 
+export const SettingsScreen = ({
+  userData,
+  email,
+  darkMode,
+  onToggleDarkMode,
+  onLogout
 }) => {
   const [showPersonalInfo, setShowPersonalInfo] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
   const [showSecurity, setShowSecurity] = useState(false);
-  
+
   const styles = darkMode ? settingsStylesDark : settingsStyles;
 
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
-  
+
   const esEmpleado = userData.es_empleado && userData.empleado_id;
   const rolMostrar = esEmpleado
     ? 'Empleado'
     : (userData.roles && userData.roles.length > 0
-        ? userData.roles[0].nombre
-        : (userData.esAdmin ? 'Administrador' : 'Usuario'));
+      ? userData.roles[0].nombre
+      : (userData.esAdmin ? 'Administrador' : 'Usuario'));
 
   const emailMostrar = userData.correo || email || 'usuario@correo.com';
 
   if (showPersonalInfo) {
     return (
-      <PersonalInfoScreen 
+      <PersonalInfoScreen
         userData={userData}
         darkMode={darkMode}
         onBack={() => setShowPersonalInfo(false)}
@@ -69,7 +69,7 @@ export const SettingsScreen = ({
 
   if (showTerms) {
     return (
-      <TermsAndConditionsScreen 
+      <TermsAndConditionsScreen
         darkMode={darkMode}
         onBack={() => setShowTerms(false)}
       />
@@ -78,7 +78,7 @@ export const SettingsScreen = ({
 
   if (showSupport) {
     return (
-      <SupportScreen 
+      <SupportScreen
         userData={userData}
         darkMode={darkMode}
         onBack={() => setShowSupport(false)}
@@ -88,7 +88,7 @@ export const SettingsScreen = ({
 
   if (showSecurity) {
     return (
-      <SecurityScreen 
+      <SecurityScreen
         darkMode={darkMode}
         onBack={() => setShowSecurity(false)}
         userData={userData}
@@ -98,19 +98,19 @@ export const SettingsScreen = ({
 
   return (
     <View style={styles.container}>
-      <StatusBar 
-        barStyle="light-content" 
-        backgroundColor={darkMode ? "#1e40af" : "#2563eb"} 
-        translucent={false} 
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
+        translucent={false}
       />
-      
+
       {/* Header con color sólido */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Configuración</Text>
         <Text style={styles.headerSubtitle}>Gestiona tu cuenta y preferencias</Text>
       </View>
 
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -121,7 +121,7 @@ export const SettingsScreen = ({
               <View style={styles.avatarWrapper}>
                 <View style={styles.avatarContainer}>
                   {fotoUrl ? (
-                    <Image 
+                    <Image
                       source={{ uri: fotoUrl }}
                       style={styles.avatarImage}
                     />
@@ -140,16 +140,16 @@ export const SettingsScreen = ({
               <View style={styles.profileInfo}>
                 <Text style={styles.profileName}>{userData.nombre}</Text>
                 <Text style={styles.profileEmail}>{emailMostrar}</Text>
-                
+
                 <View style={styles.badgesContainer}>
                   <View style={[
                     styles.roleBadge,
                     esEmpleado && styles.roleBadgeEmployee
                   ]}>
-                    <Ionicons 
-                      name={esEmpleado ? "briefcase" : "person"} 
-                      size={12} 
-                      color={esEmpleado ? '#166534' : '#2563eb'} 
+                    <Ionicons
+                      name={esEmpleado ? "briefcase" : "person"}
+                      size={12}
+                      color={esEmpleado ? '#166534' : '#2563eb'}
                     />
                     <Text style={[
                       styles.roleText,
@@ -170,7 +170,7 @@ export const SettingsScreen = ({
             <Ionicons name="image" size={18} color={darkMode ? '#3794fd' : '#6897ff'} />
             <Text style={styles.sectionTitle}>Apariencia</Text>
           </View>
-          
+
           <View style={styles.settingItem}>
             <View style={styles.settingLeft}>
               <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#2c1cd6' : '#0e8bff' }]}>
@@ -203,7 +203,7 @@ export const SettingsScreen = ({
             <Ionicons name="person-circle" size={18} color={darkMode ? '#3794fd' : '#6366f1'} />
             <Text style={styles.sectionTitle}>Cuenta</Text>
           </View>
-          
+
           <TouchableOpacity
             style={styles.settingItem}
             onPress={() => setShowPersonalInfo(true)}
@@ -222,7 +222,7 @@ export const SettingsScreen = ({
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.settingItem} 
+            style={styles.settingItem}
             onPress={() => setShowSecurity(true)}
             activeOpacity={0.7}
           >
@@ -244,8 +244,8 @@ export const SettingsScreen = ({
             <Ionicons name="apps" size={18} color={darkMode ? '#3794fd' : '#6366f1'} />
             <Text style={styles.sectionTitle}>Aplicación</Text>
           </View>
-          <TouchableOpacity 
-            style={styles.settingItem} 
+          <TouchableOpacity
+            style={styles.settingItem}
             onPress={() => setShowSupport(true)}
             activeOpacity={0.7}
           >
@@ -267,13 +267,13 @@ export const SettingsScreen = ({
             <Ionicons name="document-text" size={18} color={darkMode ? '#3794fd' : '#7476d3'} />
             <Text style={styles.sectionTitle}>Legal</Text>
           </View>
-          
-          <TouchableOpacity 
-            style={styles.settingItem} 
+
+          <TouchableOpacity
+            style={styles.settingItem}
             onPress={() => setShowTerms(true)}
             activeOpacity={0.7}
           >
-           <View style={styles.settingLeft}>
+            <View style={styles.settingLeft}>
               <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#4b5563' : '#f3f4f6' }]}>
                 <Ionicons name="document-text-outline" size={22} color={darkMode ? '#ffffff' : '#374151'} />
               </View>
@@ -284,36 +284,36 @@ export const SettingsScreen = ({
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
           </TouchableOpacity>
-        </View>       
+        </View>
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons 
-              name="information-circle" 
-              size={18} 
-              color={darkMode ? '#3794fd' : '#6366f1'} 
+            <Ionicons
+              name="information-circle"
+              size={18}
+              color={darkMode ? '#3794fd' : '#6366f1'}
             />
             <Text style={styles.sectionTitle}>Información de la App</Text>
-          </View> 
+          </View>
           <View style={styles.infoRow}>
             <View style={styles.infoLeft}>
               <Ionicons name="code-slash" size={18} color="#6b7280" />
               <Text style={styles.infoLabel}>Versión</Text>
             </View>
             <Text style={styles.infoValue}>1.0.0</Text>
-          </View>   
-          <View style={styles.infoDivider} /> 
+          </View>
+          <View style={styles.infoDivider} />
           <View style={styles.infoRow}>
             <View style={styles.infoLeft}>
               <Ionicons name="construct" size={18} color="#6b7280" />
               <Text style={styles.infoLabel}>Build</Text>
             </View>
-             <Text style={styles.infoValue}>01/02/2026</Text>
+            <Text style={styles.infoValue}>15/02/2026</Text>
           </View>
           <View style={styles.infoDivider} />
         </View>
 
         {/* Logout Button */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.logoutButton}
           onPress={onLogout}
           activeOpacity={0.85}

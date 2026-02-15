@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getAsistenciasEmpleado } from '../../services/asistenciasService';
+import sqliteManager from '../../services/offline/sqliteManager';
 
 export const HistoryScreen = ({ darkMode, userData }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -43,6 +44,8 @@ export const HistoryScreen = ({ darkMode, userData }) => {
       return;
     }
 
+    const mesKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+
     try {
       const primerDia = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
       const ultimoDia = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
@@ -52,21 +55,51 @@ export const HistoryScreen = ({ darkMode, userData }) => {
         fecha_fin: ultimoDia.toISOString().split('T')[0]
       };
 
-      const response = await getAsistenciasEmpleado(userData.empleado_id, userData.token, filtros);
-      
-      if (response?.data && Array.isArray(response.data)) {
-        const asistenciasOrdenadas = response.data.sort((a, b) => 
-          new Date(b.fecha_registro) - new Date(a.fecha_registro)
-        );
-        
-        setAsistencias(asistenciasOrdenadas);
-        calcularEstadisticas(asistenciasOrdenadas);
-      } else {
-        setAsistencias([]);
-        setEstadisticas({ puntuales: 0, retardos: 0, faltas: 0 });
+      let cargoOnline = false;
+
+      // Intentar online primero
+      try {
+        const response = await getAsistenciasEmpleado(userData.empleado_id, userData.token, filtros);
+
+        if (response?.data && Array.isArray(response.data)) {
+          const asistenciasOrdenadas = response.data.sort((a, b) =>
+            new Date(b.fecha_registro) - new Date(a.fecha_registro)
+          );
+
+          setAsistencias(asistenciasOrdenadas);
+          calcularEstadisticas(asistenciasOrdenadas);
+          cargoOnline = true;
+
+          // Cachear en SQLite
+          await sqliteManager.upsertAsistenciasMes(userData.empleado_id, mesKey, response.data).catch(e =>
+            console.warn('⚠️ No se pudo cachear asistencias:', e.message)
+          );
+        } else {
+          setAsistencias([]);
+          setEstadisticas({ puntuales: 0, retardos: 0, faltas: 0 });
+          cargoOnline = true;
+        }
+      } catch (onlineErr) {
+        console.warn('⚠️ No se pudieron cargar asistencias online:', onlineErr.message);
       }
-    } catch (error) {
-      setAsistencias([]);
+
+      // Fallback: cargar desde SQLite
+      if (!cargoOnline) {
+        try {
+          const datosLocal = await sqliteManager.getAsistenciasMesLocal(userData.empleado_id, mesKey);
+          if (datosLocal && datosLocal.length > 0) {
+            setAsistencias(datosLocal);
+            calcularEstadisticas(datosLocal);
+            console.log(`📦 [Offline] ${datosLocal.length} asistencias cargadas desde caché (${mesKey})`);
+          } else {
+            setAsistencias([]);
+            setEstadisticas({ puntuales: 0, retardos: 0, faltas: 0 });
+          }
+        } catch (localErr) {
+          console.warn('⚠️ Error cargando asistencias desde SQLite:', localErr.message);
+          setAsistencias([]);
+        }
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);

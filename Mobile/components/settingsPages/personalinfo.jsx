@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const obtenerUrlFotoPerfil = (foto) => {  
+const obtenerUrlFotoPerfil = (foto) => {
   if (!foto) {
     return null;
   }
@@ -23,7 +23,7 @@ const obtenerUrlFotoPerfil = (foto) => {
   }
   const BASE_URL = 'https://9dm7dqf9-3001.usw3.devtunnels.ms';
   const url = `${BASE_URL}${foto.startsWith('/') ? '' : '/'}${foto}`;
-  
+
   return url;
 };
 
@@ -36,11 +36,11 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
   const [expandirRoles, setExpandirRoles] = useState(false);
 
   const fotoUrl = userData.foto ? obtenerUrlFotoPerfil(userData.foto) : null;
-  
+
   const esEmpleado = userData.es_empleado && userData.empleado_id;
   const empleadoInfo = userData.empleadoInfo || null;
   const roles = userData.roles || [];
-  
+
   const rolMostrar = esEmpleado
     ? 'Empleado'
     : (roles.length > 0 ? roles[0].nombre : (userData.esAdmin ? 'Administrador' : 'Usuario'));
@@ -64,10 +64,10 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar 
-        barStyle="light-content" 
-        backgroundColor={darkMode ? "#1e40af" : "#2563eb"} 
-        translucent={false} 
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
+        translucent={false}
       />
 
       {/* Header */}
@@ -79,7 +79,7 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
         <View style={styles.headerPlaceholder} />
       </View>
 
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -101,13 +101,13 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
               <View style={styles.profileInfo}>
                 <Text style={styles.profileName}>{userData.nombre}</Text>
                 <Text style={styles.profileUsername}>@{userData.usuario}</Text>
-                
+
                 <View style={styles.badgesRow}>
                   <View style={[styles.roleBadge, esEmpleado && styles.roleBadgeEmployee]}>
-                    <Ionicons 
-                      name={esEmpleado ? "briefcase" : "person"} 
-                      size={10} 
-                      color={esEmpleado ? '#166534' : '#2563eb'} 
+                    <Ionicons
+                      name={esEmpleado ? "briefcase" : "person"}
+                      size={10}
+                      color={esEmpleado ? '#166534' : '#2563eb'}
                     />
                     <Text style={[styles.roleText, esEmpleado && styles.roleTextEmployee]}>
                       {rolMostrar}
@@ -139,15 +139,15 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
               <Text style={styles.sectionTitle}>Datos Laborales</Text>
             </View>
 
-            <InfoRow 
-              icon="document-text-outline" 
-              label="RFC" 
-              value={userData.rfc || empleadoInfo?.rfc || 'No registrado'} 
+            <InfoRow
+              icon="document-text-outline"
+              label="RFC"
+              value={userData.rfc || empleadoInfo?.rfc || 'No registrado'}
             />
-            <InfoRow 
-              icon="shield-outline" 
-              label="NSS" 
-              value={userData.nss || empleadoInfo?.nss || 'No registrado'} 
+            <InfoRow
+              icon="shield-outline"
+              label="NSS"
+              value={userData.nss || empleadoInfo?.nss || 'No registrado'}
             />
 
             {/* DEPARTAMENTOS con "Ver más" */}
@@ -159,7 +159,7 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
                   </View>
                   <Text style={styles.infoLabel}>Deptos.</Text>
                 </View>
-                
+
                 <View style={styles.departmentsContainer}>
                   {(expandirDeptos ? departamentos : departamentos.slice(0, 3)).map((depto, index) => (
                     <View key={index} style={styles.departmentBadge}>
@@ -168,9 +168,9 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
                       </Text>
                     </View>
                   ))}
-                  
+
                   {departamentos.length > 3 && (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       onPress={() => setExpandirDeptos(!expandirDeptos)}
                       style={{ marginTop: 4 }}
                     >
@@ -192,14 +192,14 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
                   </View>
                   <Text style={styles.infoLabel}>Roles</Text>
                 </View>
-                
+
                 <View style={styles.departmentsContainer}>
                   {(expandirRoles ? roles : roles.slice(0, 3)).map((rol, index) => (
-                    <View 
-                      key={index} 
+                    <View
+                      key={index}
                       style={[styles.departmentBadge, { backgroundColor: darkMode ? '#7f1d1d' : '#fee2e2' }]}
                     >
-                      <Text 
+                      <Text
                         style={[styles.departmentText, { color: darkMode ? '#fca5a5' : '#dc2626' }]}
                         numberOfLines={1}
                       >
@@ -207,9 +207,9 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
                       </Text>
                     </View>
                   ))}
-                   
+
                   {roles.length > 3 && (
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       onPress={() => setExpandirRoles(!expandirRoles)}
                       style={{ marginTop: 4 }}
                     >
@@ -223,44 +223,6 @@ export const PersonalInfoScreen = ({ userData, darkMode, onBack }) => {
             )}
           </View>
         )}
-
-        {/* Sección: Acciones */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="settings" size={18} color={darkMode ? '#818cf8' : '#6366f1'} />
-            <Text style={styles.sectionTitle}>Acciones</Text>
-          </View>
-
-          <TouchableOpacity style={styles.actionButton} activeOpacity={0.7}>
-            <View style={styles.actionLeft}>
-              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#1e3a8a' : '#dbeafe' }]}>
-                <Ionicons name="create-outline" size={18} color={darkMode ? '#93c5fd' : '#2563eb'} />
-              </View>
-              <Text style={styles.actionText}>Editar información</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton} activeOpacity={0.7}>
-            <View style={styles.actionLeft}>
-              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#065f46' : '#d1fae5' }]}>
-                <Ionicons name="camera-outline" size={18} color={darkMode ? '#6ee7b7' : '#059669'} />
-              </View>
-              <Text style={styles.actionText}>Cambiar foto</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.actionButton} activeOpacity={0.7}>
-            <View style={styles.actionLeft}>
-              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#78350f' : '#fef3c7' }]}>
-                <Ionicons name="lock-closed-outline" size={18} color={darkMode ? '#fde047' : '#d97706'} />
-              </View>
-              <Text style={styles.actionText}>Cambiar contraseña</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </View>
   );
@@ -419,8 +381,8 @@ const personalInfoStyles = StyleSheet.create({
   infoLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexShrink: 0, 
-    marginRight: 12, 
+    flexShrink: 0,
+    marginRight: 12,
   },
   iconCircle: {
     width: 36,
@@ -440,12 +402,12 @@ const personalInfoStyles = StyleSheet.create({
     fontWeight: '600',
     color: '#1f2937',
     textAlign: 'right',
-    flex: 1, 
+    flex: 1,
   },
   departmentsContainer: {
-    flex: 1, 
+    flex: 1,
     flexDirection: 'column',
-    alignItems: 'flex-end', 
+    alignItems: 'flex-end',
     gap: 4,
   },
   departmentBadge: {
@@ -457,7 +419,7 @@ const personalInfoStyles = StyleSheet.create({
     borderRadius: 12,
     gap: 4,
     marginBottom: 4,
-    maxWidth: '100%', 
+    maxWidth: '100%',
   },
   departmentText: {
     color: '#6366f1',
@@ -465,7 +427,7 @@ const personalInfoStyles = StyleSheet.create({
     fontWeight: '600',
   },
   seeMoreText: {
-    fontSize: 11, 
+    fontSize: 11,
     fontWeight: '600',
     color: '#9333ea',
   },

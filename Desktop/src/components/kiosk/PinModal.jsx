@@ -55,15 +55,16 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
     try {
       console.log("🔐 Verificando credenciales...");
 
-      // 1. Verificar credenciales con el endpoint de login
-      const loginResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/login`, {
+      // 1. Verificar credenciales con el endpoint de login por PIN
+      // Usamos el endpoint de credenciales que valida contra la tabla credenciales
+      const loginResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CREDENCIALES}/pin/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           usuario: usuarioOCorreo.trim(),
-          contraseña: pin.trim(),
+          pin: pin.trim(),
         }),
       });
 
@@ -81,7 +82,8 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
       console.log("✅ Credenciales verificadas");
 
       const responseData = loginData.data || loginData;
-      const usuarioData = responseData.usuario || responseData;
+      // La estructura esperada del nuevo endpoint es { data: { usuario: {...}, empleado: {...}, token: ... } }
+      const usuarioData = responseData.usuario;
       const token = responseData.token;
 
       // Guardar token temporalmente para las peticiones
@@ -98,42 +100,32 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
       }
 
       // 2. Obtener datos del empleado
-      let empleadoId = usuarioData.empleado_id;
-      let empleadoData = null;
+      // En el nuevo endpoint, el empleado ya viene en la respuesta, pero validamos
+      let empleadoId = usuarioData?.empleado_id || responseData.empleado?.id;
+      let empleadoData = responseData.empleado;
 
       // Verificar si el usuario es empleado
-      if (!usuarioData.es_empleado && !empleadoId) {
-        // Usuario autenticado pero no es empleado
+      if (!empleadoId) {
+        // Usuario autenticado pero no es empleado (o no se encontró ID)
         agregarEvento({
-          user: usuarioData.nombre || usuarioData.username || usuarioOCorreo,
-          action: "Intento de registro - Usuario no es empleado",
+          user: usuarioData?.nombre || usuarioData?.username || usuarioOCorreo,
+          action: "Intento de registro - Usuario no asociado a empleado",
           type: "warning",
         });
 
         setResult({
           success: false,
           noEsEmpleado: true,
-          message: "Tu cuenta no está asociada a un empleado",
+          message: "Tu cuenta no está asociada a un empleado o no tiene credenciales",
           usuario: usuarioData,
           token: token,
         });
         return;
       }
 
-      if (!empleadoId && usuarioData.es_empleado) {
-        // Buscar el empleado por usuario_id
-        const empleadosResponse = await fetchApi(API_CONFIG.ENDPOINTS.EMPLEADOS);
-        const empleados = empleadosResponse.data || empleadosResponse;
-        empleadoData = empleados.find(emp => emp.usuario_id === usuarioData.id);
-        empleadoId = empleadoData?.id;
-      }
-
-      if (!empleadoId) {
-        throw new Error("No se encontró información del empleado");
-      }
-
-      // Obtener datos completos del empleado si no los tenemos
-      if (!empleadoData) {
+      // Obtener datos completos del empleado si no los tenemos completos
+      // (aunque el nuevo endpoint debería devolverlos, hacemos fallback por seguridad)
+      if (!empleadoData || !empleadoData.nombre) {
         const empResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.EMPLEADOS}/${empleadoId}`);
         empleadoData = empResponse.data || empResponse;
       }

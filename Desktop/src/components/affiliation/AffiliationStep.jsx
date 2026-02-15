@@ -21,7 +21,7 @@ export default function AffiliationStep({
       {/* Botón de información */}
       <button
         onClick={onShowWelcome}
-        className="fixed top-20 right-6 w-12 h-12 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full shadow-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-all hover:scale-110 flex items-center justify-center z-10"
+        className="fixed top-20 right-6 w-12 h-12 bg-[#2563eb] text-[#e0f2fe] rounded-full shadow-lg shadow-[#2563eb]/20 hover:bg-[#3b82f6] transition-all hover:scale-110 flex items-center justify-center z-10"
         title="Ver información de bienvenida"
       >
         <Info className="w-6 h-6" />
@@ -41,8 +41,8 @@ export default function AffiliationStep({
 
           <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-6 hover:shadow-sm transition-shadow duration-300">
             <div className="flex items-start gap-4">
-              <div className="w-11 h-11 bg-gray-900 dark:bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
-                <Building2 className="w-5 h-5 text-white dark:text-gray-900" />
+              <div className="w-11 h-11 bg-[#2563eb] rounded-xl flex items-center justify-center flex-shrink-0 shadow-md shadow-[#2563eb]/20">
+                <Building2 className="w-5 h-5 text-[#e0f2fe]" />
               </div>
               <div className="flex-1">
                 <h3 className="font-bold text-text-primary mb-2">
@@ -57,7 +57,7 @@ export default function AffiliationStep({
                   value={companyId}
                   onChange={(e) => setCompanyId(e.target.value)}
                   placeholder="EMA-XXXXX"
-                  className="w-full px-4 py-3 bg-bg-primary border border-border-subtle rounded-xl focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent text-center font-mono text-lg tracking-widest transition-all duration-200"
+                  className="w-full px-4 py-3 bg-bg-primary border border-border-subtle rounded-xl focus:ring-2 focus:ring-[#6366f1]/50 focus:border-transparent text-center font-mono text-lg tracking-widest transition-all duration-200"
                 />
               </div>
             </div>
@@ -88,7 +88,7 @@ export default function AffiliationStep({
           </button>
           <button
             onClick={onSubmit}
-            className="group px-6 py-2.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 font-medium transition-all duration-200 shadow-sm hover:shadow-lg hover:-translate-y-0.5 flex items-center gap-2"
+            className="group px-6 py-2.5 bg-[#2563eb] text-[#e0f2fe] rounded-xl hover:bg-[#3b82f6] font-medium transition-all duration-200 shadow-sm shadow-[#2563eb]/20 hover:shadow-lg hover:shadow-[#2563eb]/30 hover:-translate-y-0.5 flex items-center gap-2"
           >
             Solicitar Afiliación
             <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-200" />
@@ -127,7 +127,7 @@ export default function AffiliationStep({
             <div className="p-5">
               <ul className="space-y-3">
                 <li className="flex items-start gap-3 p-3 bg-bg-secondary rounded-xl border border-border-subtle">
-                  <span className="flex-shrink-0 w-6 h-6 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full flex items-center justify-center text-sm font-bold">
+                  <span className="flex-shrink-0 w-6 h-6 bg-[#2563eb] text-[#e0f2fe] rounded-full flex items-center justify-center text-sm font-bold">
                     1
                   </span>
                   <p className="text-text-primary text-sm">
@@ -135,7 +135,7 @@ export default function AffiliationStep({
                   </p>
                 </li>
                 <li className="flex items-start gap-3 p-3 bg-bg-secondary rounded-xl border border-border-subtle">
-                  <span className="flex-shrink-0 w-6 h-6 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full flex items-center justify-center text-sm font-bold">
+                  <span className="flex-shrink-0 w-6 h-6 bg-[#2563eb] text-[#e0f2fe] rounded-full flex items-center justify-center text-sm font-bold">
                     2
                   </span>
                   <p className="text-text-primary text-sm">
@@ -144,7 +144,7 @@ export default function AffiliationStep({
                   </p>
                 </li>
                 <li className="flex items-start gap-3 p-3 bg-bg-secondary rounded-xl border border-border-subtle">
-                  <span className="flex-shrink-0 w-6 h-6 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full flex items-center justify-center text-sm font-bold">
+                  <span className="flex-shrink-0 w-6 h-6 bg-[#2563eb] text-[#e0f2fe] rounded-full flex items-center justify-center text-sm font-bold">
                     3
                   </span>
                   <p className="text-text-primary text-sm">

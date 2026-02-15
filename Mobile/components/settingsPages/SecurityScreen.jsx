@@ -45,6 +45,9 @@ import {
 import { FacialCaptureScreen } from '../../services/FacialCaptureScreen';
 import { PinInputModal } from './PinModal';
 
+// Offline Services
+import sqliteManager from '../../services/offline/sqliteManager';
+
 // ─── Constantes de color por estado ─────────────────────────────────────────
 const ESTADO_COLORES = {
   activo: {
@@ -94,6 +97,9 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
   const [showPinModal, setShowPinModal] = useState(false);
   const [isChangingPin, setIsChangingPin] = useState(false);
 
+  // ─── Modo offline (solo lectura) ────────────────────────────────────
+  const [isOffline, setIsOffline] = useState(false);
+
   const styles = darkMode ? securityStylesDark : securityStyles;
 
   useEffect(() => {
@@ -115,22 +121,39 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       }
 
       const token = await AsyncStorage.getItem('userToken');
-      if (!token) {
-        setIsLoadingCredentials(false);
-        return;
+
+      // Intentar cargar del servidor primero
+      let cargoOnline = false;
+      if (token) {
+        try {
+          const credenciales = await getCredencialesByEmpleado(empleadoId, token);
+          if (credenciales.success && credenciales.data) {
+            setHasFingerprint(credenciales.data.tiene_dactilar || false);
+            setHasFacial(credenciales.data.tiene_facial || false);
+            setHasPin(credenciales.data.tiene_pin || false);
+            cargoOnline = true;
+          }
+        } catch (e) {
+          console.log('Error cargando credenciales online:', e.message);
+        }
       }
 
-      const credenciales = await getCredencialesByEmpleado(empleadoId, token);
+      // Fallback: cargar desde SQLite (modo solo lectura)
+      if (!cargoOnline) {
+        try {
+          const creds = await sqliteManager.getAllCredenciales();
+          const misCreds = creds.filter(c => c.empleado_id === empleadoId);
 
-      if (credenciales.success && credenciales.data) {
-        setHasFingerprint(credenciales.data.tiene_dactilar || false);
-        setHasFacial(credenciales.data.tiene_facial || false);
-        setHasPin(credenciales.data.tiene_pin || false);
+          setHasFingerprint(misCreds.some(c => c.dactilar_template));
+          setHasFacial(misCreds.some(c => c.facial_descriptor));
+          setHasPin(misCreds.some(c => c.pin_hash));
+          setIsOffline(true);
+        } catch (dbErr) {
+          console.log('Error cargando credenciales offline:', dbErr.message);
+        }
       }
     } catch (error) {
-      if (error.message !== 'Credenciales no encontradas') {
-        Alert.alert('Error', 'No se pudo cargar la configuración de seguridad');
-      }
+      console.error('Error en initializeSecurity:', error);
     } finally {
       setIsLoadingCredentials(false);
     }
@@ -173,7 +196,7 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       Alert.alert(
         'No disponible',
         biometricSupport?.message ||
-          'Tu dispositivo no tiene sensor de huellas dactilares compatible.'
+        'Tu dispositivo no tiene sensor de huellas dactilares compatible.'
       );
       return;
     }
@@ -306,7 +329,7 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
         Alert.alert(
           'Permisos necesarios',
           permission.message ||
-            'Se necesita acceso a la cámara para usar reconocimiento facial'
+          'Se necesita acceso a la cámara para usar reconocimiento facial'
         );
         return;
       }
@@ -673,7 +696,9 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
           </TouchableOpacity>
           <View style={styles.headerTextContainer}>
             <Text style={styles.headerTitle}>Seguridad</Text>
-            <Text style={styles.headerSubtitle}>Métodos de acceso</Text>
+            <Text style={styles.headerSubtitle}>
+              {isOffline ? 'Solo lectura (sin conexión)' : 'Métodos de acceso'}
+            </Text>
           </View>
           <View style={styles.headerPlaceholder} />
         </View>
@@ -686,13 +711,18 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
         {/* Info Card */}
         <View style={styles.infoCard}>
           <Ionicons
-            name="shield-checkmark"
+            name={isOffline ? 'cloud-offline' : 'shield-checkmark'}
             size={32}
-            color={darkMode ? '#93c5fd' : '#2563eb'}
+            color={isOffline ? '#f59e0b' : (darkMode ? '#93c5fd' : '#2563eb')}
           />
-          <Text style={styles.infoTitle}>Protege tu cuenta</Text>
+          <Text style={styles.infoTitle}>
+            {isOffline ? 'Modo sin conexión' : 'Protege tu cuenta'}
+          </Text>
           <Text style={styles.infoText}>
-            Elige los métodos de autenticación que prefieras para acceder a tu cuenta
+            {isOffline
+              ? 'Solo puedes ver el estado de tus credenciales. Conéctate al servidor para modificarlas.'
+              : 'Elige los métodos de autenticación que prefieras para acceder a tu cuenta'
+            }
           </Text>
         </View>
 
@@ -701,6 +731,37 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
           {metodos.map((metodo) => {
             const colores = ESTADO_COLORES[metodo.estado];
             const estaPresionado = presionado === metodo.id;
+
+            // Offline: solo mostrar, no interactivo
+            if (isOffline) {
+              return (
+                <View
+                  key={metodo.id}
+                  style={[
+                    styles.botonMetodo,
+                    { backgroundColor: colores.bg, opacity: 0.85 },
+                  ]}
+                >
+                  <View style={styles.botonIconContainer}>
+                    <Ionicons
+                      name={metodo.icono}
+                      size={30}
+                      color={colores.icono}
+                    />
+                  </View>
+                  <Text style={[styles.botonNombre, { color: colores.texto }]}>
+                    {metodo.nombre}
+                  </Text>
+                  <View style={styles.botonIndicador}>
+                    {metodo.estado === 'activo' ? (
+                      <Ionicons name="checkmark-circle" size={26} color="#fff" />
+                    ) : (
+                      <Ionicons name="close-circle" size={26} color="rgba(255,255,255,0.5)" />
+                    )}
+                  </View>
+                </View>
+              );
+            }
 
             return (
               <TouchableOpacity

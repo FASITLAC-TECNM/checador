@@ -68,12 +68,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
   useEffect(() => {
     cargarCredencialesYOrden();
-    syncManager.initAutoSync(); // Iniciar monitor de red
+    syncManager.initAutoSync();
   }, []);
 
   const cargarCredencialesYOrden = async () => {
     try {
-      // Intentar online
       const credsResponse = await getCredencialesByEmpleado(
         userData.empleado_id,
         userData.token
@@ -95,12 +94,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
     } catch (error) {
       console.log('Using offline credentials');
-      // Fallback offline
       try {
         const creds = await sqliteManager.getAllCredenciales();
-        // Filtrar credenciales del usuario actual
-        // Nota: getAllCredenciales devuelve una lista plana, necesitamos saber si ESTE usuario tiene credenciales
-        // Pero getAllCredenciales devuelve cache_credenciales join cache_empleados.
         const misCreds = creds.filter(c => c.empleado_id === userData.empleado_id);
 
         const tienePin = misCreds.some(c => c.pin_hash);
@@ -110,12 +105,13 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         const offlineCreds = {
           tiene_pin: tienePin,
           tiene_dactilar: tieneDactilar,
-          tiene_facial: tieneFacial
+          tiene_facial: tieneFacial,
+          _offlineMode: true
         };
 
         setCredencialesUsuario(offlineCreds);
-        // Orden default offline
-        construirMetodosDisponibles(offlineCreds, ['pin', 'dactilar', 'facial']);
+        // Offline: solo PIN y huella, facial no funciona sin servidor
+        construirMetodosDisponibles(offlineCreds, ['pin', 'dactilar']);
 
       } catch (offlineError) {
         setCredencialesUsuario({
@@ -165,9 +161,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
     setMetodosDisponibles(metodosOrdenados);
   };
-
-  // 🎯 NOTA: La verificación automática de falta de salida fue eliminada
-  // El nuevo backend maneja automáticamente toda la lógica de estados y faltas
 
   useEffect(() => {
     const intervalo = setInterval(() => {
@@ -294,17 +287,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         }
       }
 
-      // Offline Fallback
       const registrosOffline = await sqliteManager.getRegistrosHoy(empleadoId);
-      // Incluir registros pendientes de sync y registros historicos si tuvieramos tabla de historial
-      // Por ahora solo offline_asistencias tiene lo que se ha hecho HOY en offline.
-      // Y si hicimos pull, tal vez podriamos tener historial, pero el pull es de datos maestros.
-      // Asumimos que si estamos offline, solo vemos lo que acabamos de hacer (offline_asistencias).
 
       if (registrosOffline && registrosOffline.length > 0) {
-        // Ordenar descendente para obtener el ultimo
-        // getRegistrosHoy ya retorna ordenado ASC por fecha
-        const ultimo = registrosOffline[registrosOffline.length - 1]; // Ultimo del array (mas reciente)
+        const ultimo = registrosOffline[registrosOffline.length - 1];
 
         return {
           tipo: ultimo.tipo,
@@ -350,7 +336,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         } catch (e) { console.log('Online horario failed'); }
       }
 
-      // Offline Fallback
       if (!horario) {
         const hLocal = await sqliteManager.getHorario(empleadoId);
         if (hLocal) {
@@ -454,7 +439,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         } catch (e) { console.log('Online tolerancia failed'); }
       }
 
-      // Offline Fallback
       if (!tolerancia) {
         tolerancia = await sqliteManager.getTolerancia(userData.empleado_id);
       }
@@ -481,7 +465,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       const promesas = departamentosAsignados.map(async (depto) => {
         try {
-          // Check online
           const online = await syncManager.isOnline();
           if (online) {
             const response = await fetch(
@@ -507,22 +490,18 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       let resultados = await Promise.all(promesas);
       resultados = resultados.filter(d => d !== null);
 
-      // Offline Fallback
       if (resultados.length === 0) {
         const cached = await sqliteManager.getDepartamentos(userData.empleado_id);
         if (cached && cached.length > 0) {
-          // Map to expected format
           resultados = cached.map(c => ({
             id: c.departamento_id,
             nombre: c.nombre,
-            ubicacion: null, // Offline usually has no location
+            ubicacion: c.ubicacion || null,
             es_activo: c.es_activo
           }));
         }
       }
 
-      // Filter by location ONLY if we have online results or care about geofence strictness
-      // But for offline mode, we return what we have.
       return resultados;
     } catch (err) {
       return [];
@@ -554,7 +533,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const minEntrada = hE * 60 + mE;
       const minSalida = hS * 60 + mS;
 
-      // 🎯 USAR TOLERANCIA DEL SISTEMA
       const ventanaInicio = minEntrada - (tolerancia.minutos_anticipado_max || 60);
       const ventanaRetardo = minEntrada + (tolerancia.minutos_retardo || 10);
       const ventanaFalta = minEntrada + (tolerancia.minutos_falta || 30);
@@ -619,29 +597,67 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       };
     }
 
-    // 🎯 VALIDACIÓN: Tiempo mínimo desde la última entrada (basado en TOLERANCIA)
+    // 🎯 IDENTIFICAR EL TURNO ACTUAL BASADO EN LA HORA
+    const totalRegistros = ultimoRegistro?.totalRegistrosHoy || 1;
+    const gruposCompletados = Math.floor(totalRegistros / 2);
+
+    // Encontrar en qué turno estamos AHORA (basado en la hora actual)
+    let turnoActual = null;
+    let indiceTurnoActual = -1;
+
+    for (let i = 0; i < horario.gruposTurnos.length; i++) {
+      const grupo = horario.gruposTurnos[i];
+      const { entrada: horaEntrada, salida: horaSalida } = getEntradaSalidaGrupo(grupo);
+
+      const [hE, mE] = horaEntrada.split(':').map(Number);
+      const [hS, mS] = horaSalida.split(':').map(Number);
+      const minEntrada = hE * 60 + mE;
+      const minSalida = hS * 60 + mS;
+
+      // Agregar tolerancia para entrada anticipada
+      const toleranciaEntrada = tolerancia?.minutos_anticipado_max || 60;
+      const ventanaInicio = minEntrada - toleranciaEntrada;
+      const ventanaFin = minSalida + 5;
+
+      if (minutosActuales >= ventanaInicio && minutosActuales <= ventanaFin) {
+        turnoActual = grupo;
+        indiceTurnoActual = i;
+        break;
+      }
+    }
+
+    // Si no encontramos turno actual, no puede salir
+    if (!turnoActual) {
+      return {
+        puedeRegistrar: false,
+        tipoRegistro: 'salida',
+        estadoHorario: 'fuera_horario',
+        jornadaCompleta: false,
+        mensaje: 'Aún no es hora de salida'
+      };
+    }
+
+    // 🎯 VALIDACIÓN: Tiempo mínimo trabajado SOLO SI LA ÚLTIMA ENTRADA FUE EN ESTE MISMO TURNO
     if (ultimoRegistro && ultimoRegistro.tipo === 'entrada' && ultimoRegistro.fecha_registro && tolerancia) {
       const ahora = new Date();
       const horaUltimoRegistro = new Date(ultimoRegistro.fecha_registro);
-      const diferenciaMinutos = (ahora - horaUltimoRegistro) / 1000 / 60;
+      const minutosUltimaEntrada = horaUltimoRegistro.getHours() * 60 + horaUltimoRegistro.getMinutes();
 
-      const totalRegistros = ultimoRegistro.totalRegistrosHoy || 1;
-      const gruposCompletados = Math.floor(totalRegistros / 2);
+      // Verificar si la última entrada fue en el turno actual
+      const { entrada: horaEntrada, salida: horaSalida } = getEntradaSalidaGrupo(turnoActual);
+      const [hE, mE] = horaEntrada.split(':').map(Number);
+      const [hS, mS] = horaSalida.split(':').map(Number);
+      const minEntrada = hE * 60 + mE;
+      const minSalida = hS * 60 + mS;
 
-      if (gruposCompletados < horario.gruposTurnos.length) {
-        const grupoActual = horario.gruposTurnos[gruposCompletados];
-        const { entrada: horaEntrada, salida: horaSalida } = getEntradaSalidaGrupo(grupoActual);
+      const toleranciaEntrada = tolerancia?.minutos_anticipado_max || 60;
+      const ventanaInicioTurno = minEntrada - toleranciaEntrada;
 
-        const [hE, mE] = horaEntrada.split(':').map(Number);
-        const [hS, mS] = horaSalida.split(':').map(Number);
-        const minEntrada = hE * 60 + mE;
-        const minSalida = hS * 60 + mS;
+      // Solo validar tiempo mínimo si la entrada fue en este turno
+      if (minutosUltimaEntrada >= ventanaInicioTurno && minutosUltimaEntrada <= minSalida) {
+        const diferenciaMinutos = (ahora - horaUltimoRegistro) / 1000 / 60;
         const duracionTurno = minSalida - minEntrada;
 
-        // 🎯 USAR TOLERANCIA DEL SISTEMA:
-        // - Si existe `minutos_anticipado_salida` en tolerancia, usarlo
-        // - Si no, usar `minutos_retardo` como fallback
-        // - Si aplica_tolerancia_salida es false, permitir salida solo en hora exacta (tolerancia 0)
         const toleranciaSalidaAnticipada = tolerancia.aplica_tolerancia_salida === false
           ? 0
           : (tolerancia.minutos_anticipado_salida || tolerancia.minutos_retardo || 10);
@@ -663,33 +679,27 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       }
     }
 
-    // 🎯 Validación normal de ventana de salida (también basada en TOLERANCIA)
+    // 🎯 Validación normal de ventana de salida del turno actual
+    const { salida: horaSalida } = getEntradaSalidaGrupo(turnoActual);
+    const [hS, mS] = horaSalida.split(':').map(Number);
+    const minSalida = hS * 60 + mS;
+
     const toleranciaSalida = tolerancia?.aplica_tolerancia_salida === false
       ? 0
       : (tolerancia?.minutos_anticipado_salida || tolerancia?.minutos_retardo || 10);
 
-    const toleranciaSalidaTarde = 5; // Pequeña ventana después de la hora de salida
+    const toleranciaSalidaTarde = 5;
+    const ventanaSalidaInicio = minSalida - toleranciaSalida;
+    const ventanaSalidaFin = minSalida + toleranciaSalidaTarde;
 
-    for (const grupo of horario.gruposTurnos) {
-      const { salida: horaSalida } = getEntradaSalidaGrupo(grupo);
-
-      if (!horaSalida) continue;
-
-      const [hS, mS] = horaSalida.split(':').map(Number);
-      const minSalida = hS * 60 + mS;
-
-      const ventanaSalidaInicio = minSalida - toleranciaSalida;
-      const ventanaSalidaFin = minSalida + toleranciaSalidaTarde;
-
-      if (minutosActuales >= ventanaSalidaInicio && minutosActuales <= ventanaSalidaFin) {
-        return {
-          puedeRegistrar: true,
-          tipoRegistro: 'salida',
-          estadoHorario: 'puntual',
-          jornadaCompleta: false,
-          mensaje: 'Puedes registrar tu salida'
-        };
-      }
+    if (minutosActuales >= ventanaSalidaInicio && minutosActuales <= ventanaSalidaFin) {
+      return {
+        puedeRegistrar: true,
+        tipoRegistro: 'salida',
+        estadoHorario: 'puntual',
+        jornadaCompleta: false,
+        mensaje: 'Puedes registrar tu salida'
+      };
     }
 
     return {
@@ -838,20 +848,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
   useEffect(() => {
     const validarArea = async () => {
-      // Bypass for Offline Mode
-      const online = await syncManager.isOnline();
-      if (!online) {
-        // Offline: we allow registration if we have departments (even without location)
-        if (departamentos && departamentos.length > 0) {
-          setDepartamentosDisponibles(departamentos);
-          setDentroDelArea(true);
-          if (!departamentoSeleccionado) {
-            setDepartamentoSeleccionado(departamentos[0]);
-          }
-          return;
-        }
-      }
-
       if (!ubicacionActual || !departamentos.length) {
         setDentroDelArea(false);
         setDepartamentosDisponibles([]);
@@ -863,7 +859,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       for (const depto of departamentos) {
         try {
-          if (!depto.ubicacion) continue; // Skip if no location (e.g. offline cached without location data)
+          if (!depto.ubicacion) continue;
 
           const coordenadas = extraerCoordenadas(depto.ubicacion);
           if (!coordenadas || coordenadas.length < 3) continue;
@@ -916,12 +912,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           }
         } catch (e) {
           if (e.message === 'PIN incorrecto') throw e;
-          // If network error, fall through to offline
           console.log('Online PIN check failed, trying offline');
         }
       }
 
-      // Offline Fallback
       const identified = await offlineAuthService.identificarPorPinOffline(pin);
       if (identified && identified.empleado_id === userData.empleado_id) {
         setMostrarPinAuth(false);
@@ -988,12 +982,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     try {
       console.log('📸 Captura facial completada para autenticación de registro');
 
-      // Verificar que viene con detección facial
       if (!captureData.faceDetectionUsed || !captureData.validated) {
         throw new Error('No se detectó un rostro válido en la captura');
       }
 
-      // Procesar y validar los datos faciales
       const faceFeatures = processFaceData(captureData.faceData);
       const validation = validateFaceQuality(faceFeatures);
 
@@ -1013,7 +1005,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       console.log('✅ Validación facial exitosa, verificando identidad...');
 
-      // Verificar contra el rostro guardado del empleado
       const empleadoId = userData?.empleado?.id || userData?.empleado_id || userData?.id;
       const verification = await verifyFace(empleadoId, captureData.faceData);
 
@@ -1033,7 +1024,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       console.log(`✅ Identidad verificada (${verification.similarity.toFixed(1)}% similitud), procediendo con el registro`);
 
-      // Si la verificación es exitosa, proceder con el registro
       await procederConRegistro();
     } catch (error) {
       console.error('❌ Error en autenticación facial:', error);
@@ -1077,6 +1067,16 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         throw new Error('No se pudo obtener el departamento');
       }
 
+      if (departamento.ubicacion) {
+        const coordsDepto = extraerCoordenadas(departamento.ubicacion);
+        if (coordsDepto && coordsDepto.length >= 3) {
+          const dentroAhora = isPointInPolygon(ubicacionFinal, coordsDepto);
+          if (!dentroAhora) {
+            throw new Error('Te has movido fuera de la zona permitida. Regresa al área del departamento para registrar tu asistencia.');
+          }
+        }
+      }
+
       setRegistrando(true);
 
       const payload = {
@@ -1084,8 +1084,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         dispositivo_origen: 'movil',
         ubicacion: [ubicacionFinal.lat, ubicacionFinal.lng],
         departamento_id: departamento.id,
-        tipo: tipoSiguienteRegistro, // Asegurar que mandamos el tipo correcto
-        estado: 'puntual' // Default, el backend recalcula
+        tipo: tipoSiguienteRegistro,
+        estado: 'puntual'
       };
 
       const online = await syncManager.isOnline();
@@ -1124,20 +1124,18 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
         } catch (e) {
           if (e.message !== 'Server Error' && !e.message.includes('Network request failed')) {
-            throw e; // Re-throw valid logic errors
+            throw e;
           }
           console.log('Online registration failed, saving offline');
-          // Fallthrough to offline
         }
       }
 
       if (!success) {
-        // Guardar Offline
         console.log('Saving offline attendance...');
 
         await sqliteManager.saveOfflineAsistencia({
           ...payload,
-          metodo_registro: 'PIN', // TODO: Pasar el metodo real usado
+          metodo_registro: 'PIN',
           fecha_registro: new Date().toISOString()
         });
 
@@ -1155,7 +1153,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         );
       }
 
-      const nuevoUltimo = await obtenerUltimoRegistro(); // This now uses offline fallback too
+      const nuevoUltimo = await obtenerUltimoRegistro();
       setUltimoRegistroHoy(nuevoUltimo);
 
       if (horarioInfo && toleranciaInfo) {
@@ -1218,7 +1216,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       return;
     }
 
-    // Verificar que sea empleado (no usuario regular)
     if (!userData.es_empleado) {
       Alert.alert('Sin acceso', 'Solo empleados pueden registrar asistencia. Tu cuenta no está asociada a un empleado.', [{ text: 'Entendido' }]);
       return;
@@ -1315,7 +1312,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
   const puedePresionarBoton = puedeRegistrar && dentroDelArea && !jornadaCompletada && !registrando && departamentoSeleccionado;
 
-  // Si está en captura facial, renderizar solo esa pantalla
   if (mostrarCapturaFacial) {
     return (
       <FacialCaptureScreen
@@ -1442,7 +1438,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                 onPress={() => setMostrarMapa(true)}
                 activeOpacity={0.7}
               >
-                <Ionicons name="map-outline" size={14} color="#3b82f6" />
+                <Ionicons name="map-outline" size={16} color="#3b82f6" />
                 <Text style={styles.viewMapText}>Ver mapa</Text>
               </TouchableOpacity>
             </>
@@ -1512,7 +1508,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             </View>
 
             <View style={styles.authMethodsContainer}>
-              {metodosDisponibles.map((metodo) => (
+              {metodosDisponibles
+                .filter(metodo => metodo.id !== 'facial' || !credencialesUsuario?._offlineMode)
+                .map((metodo) => (
                 <TouchableOpacity
                   key={metodo.id}
                   style={styles.authMethodCard}
@@ -1659,7 +1657,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   );
 };
 
-// Estilos (sin cambios)
+// Estilos actualizados
 const registerStyles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
@@ -1866,57 +1864,56 @@ const registerStyles = StyleSheet.create({
     padding: 12,
     backgroundColor: '#eff6ff',
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
   },
   infoBoxText: {
     flex: 1,
     fontSize: 12,
-    color: '#1e40af',
+    color: '#3b82f6',
     lineHeight: 16,
   },
   viewMapButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 6,
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     backgroundColor: '#eff6ff',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#bfdbfe',
+    borderColor: '#dbeafe',
   },
   viewMapText: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#3b82f6',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   authModalContent: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingBottom: 32,
+    paddingTop: 32,
+    paddingBottom: 24,
+    paddingHorizontal: 24,
   },
   authHeader: {
     alignItems: 'center',
-    padding: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    marginBottom: 24,
   },
   authTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
     color: '#1f2937',
     marginTop: 12,
-    marginBottom: 4,
   },
   authSubtitle: {
     fontSize: 14,
     color: '#6b7280',
+    marginTop: 4,
   },
   authMethodsContainer: {
-    padding: 20,
     gap: 12,
+    marginBottom: 20,
   },
   authMethodCard: {
     flexDirection: 'row',
@@ -1924,17 +1921,17 @@ const registerStyles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#f9fafb',
     borderRadius: 12,
-    gap: 12,
-    borderWidth: 2,
-    borderColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
   },
   authMethodIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: '#eff6ff',
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 12,
   },
   authMethodName: {
     flex: 1,
@@ -1943,112 +1940,304 @@ const registerStyles = StyleSheet.create({
     color: '#1f2937',
   },
   authCancelButton: {
-    marginHorizontal: 20,
     paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#f3f4f6',
     alignItems: 'center',
   },
   authCancelText: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
     color: '#6b7280',
   },
 });
 
 const registerStylesDark = StyleSheet.create({
-  ...registerStyles,
   container: {
-    ...registerStyles.container,
     backgroundColor: '#1f2937',
+    marginHorizontal: 20,
+    marginTop: 12,
+    borderRadius: 16,
+    padding: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  statusContainer: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    gap: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  content: {
+    gap: 8,
+  },
+  timeContainer: {
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  timeLabel: {
+    fontSize: 11,
+    color: '#9ca3af',
+    marginBottom: 2,
   },
   timeValue: {
-    ...registerStyles.timeValue,
-    color: '#fff',
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#f9fafb',
+    letterSpacing: -1,
+  },
+  statusIndicators: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    paddingVertical: 4,
+  },
+  indicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  indicatorText: {
+    fontSize: 11,
+    fontWeight: '500',
   },
   locationInfo: {
-    ...registerStyles.locationInfo,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 6,
     backgroundColor: '#374151',
+    borderRadius: 8,
+  },
+  locationText: {
+    fontSize: 12,
+    color: '#9ca3af',
+    fontWeight: '500',
+  },
+  registerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 6,
+    marginTop: 2,
+  },
+  registerButtonDisabled: {
+    opacity: 0.5,
+  },
+  registerButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
   lastRegisterContainer: {
-    ...registerStyles.lastRegisterContainer,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingTop: 6,
+    borderTopWidth: 1,
     borderTopColor: '#374151',
+    marginTop: 2,
   },
   lastRegisterIcon: {
-    ...registerStyles.lastRegisterIcon,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: '#374151',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lastRegisterText: {
+    fontSize: 11,
+    color: '#9ca3af',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    ...registerStyles.modalContent,
     backgroundColor: '#1f2937',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
   },
   modalHeader: {
-    ...registerStyles.modalHeader,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
     borderBottomColor: '#374151',
   },
   modalTitle: {
-    ...registerStyles.modalTitle,
-    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#f9fafb',
   },
   modalCloseButton: {
-    ...registerStyles.modalCloseButton,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#374151',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  departamentosList: {
+    padding: 16,
   },
   departamentoItem: {
-    ...registerStyles.departamentoItem,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 14,
     backgroundColor: '#374151',
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
   },
   departamentoItemActivo: {
-    ...registerStyles.departamentoItemActivo,
-    backgroundColor: '#1e3a2f',
+    backgroundColor: '#065f46',
+    borderColor: '#10b981',
+  },
+  departamentoInfo: {
+    flex: 1,
+    gap: 6,
+  },
+  departamentoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   departamentoNombre: {
-    ...registerStyles.departamentoNombre,
-    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#f9fafb',
+    flex: 1,
+  },
+  departamentoNombreActivo: {
+    color: '#10b981',
+  },
+  departamentoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingLeft: 28,
+  },
+  departamentoBadgeText: {
+    fontSize: 12,
+    color: '#10b981',
+    fontWeight: '500',
   },
   modalFooter: {
-    ...registerStyles.modalFooter,
+    padding: 16,
+    borderTopWidth: 1,
     borderTopColor: '#374151',
   },
   infoBox: {
-    ...registerStyles.infoBox,
-    backgroundColor: '#1e3a5f',
-    borderColor: '#3b82f6',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    backgroundColor: '#1e3a8a',
+    borderRadius: 8,
   },
   infoBoxText: {
-    ...registerStyles.infoBoxText,
+    flex: 1,
+    fontSize: 12,
     color: '#93c5fd',
+    lineHeight: 16,
+  },
+  viewMapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#1e3a8a',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#1e40af',
+  },
+  viewMapText: {
+    fontSize: 13,
+    color: '#93c5fd',
+    fontWeight: '600',
   },
   authModalContent: {
-    ...registerStyles.authModalContent,
     backgroundColor: '#1f2937',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 32,
+    paddingBottom: 24,
+    paddingHorizontal: 24,
   },
   authHeader: {
-    ...registerStyles.authHeader,
-    borderBottomColor: '#374151',
+    alignItems: 'center',
+    marginBottom: 24,
   },
   authTitle: {
-    ...registerStyles.authTitle,
-    color: '#fff',
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#f9fafb',
+    marginTop: 12,
   },
   authSubtitle: {
-    ...registerStyles.authSubtitle,
+    fontSize: 14,
     color: '#9ca3af',
+    marginTop: 4,
+  },
+  authMethodsContainer: {
+    gap: 12,
+    marginBottom: 20,
   },
   authMethodCard: {
-    ...registerStyles.authMethodCard,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
     backgroundColor: '#374151',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#4b5563',
+  },
+  authMethodIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#1e3a8a',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
   authMethodName: {
-    ...registerStyles.authMethodName,
-    color: '#fff',
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#f9fafb',
   },
   authCancelButton: {
-    ...registerStyles.authCancelButton,
-    backgroundColor: '#374151',
+    paddingVertical: 14,
+    alignItems: 'center',
   },
   authCancelText: {
-    ...registerStyles.authCancelText,
+    fontSize: 16,
+    fontWeight: '600',
     color: '#9ca3af',
   },
 });

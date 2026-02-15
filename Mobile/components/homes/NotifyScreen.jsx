@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAvisosGlobales, getAvisosDeEmpleado } from '../../services/avisosService';
+import sqliteManager from '../../services/offline/sqliteManager';
 
 const PINNED_STORAGE_KEY = '@avisos_pinned';
 
@@ -49,25 +50,53 @@ export const NotifyScreen = ({
       }
       setError(null);
 
-      const globalRes = await getAvisosGlobales(token, isRefresh);
-      if (globalRes.success && globalRes.data) {
-        setAvisosGlobales(globalRes.data);
-      } else {
-        setAvisosGlobales([]);
+      let cargoOnline = false;
+
+      // Intentar online primero
+      try {
+        const globalRes = await getAvisosGlobales(token, isRefresh);
+        if (globalRes.success && globalRes.data) {
+          setAvisosGlobales(globalRes.data);
+          cargoOnline = true;
+          // Cachear en SQLite
+          await sqliteManager.upsertAvisosGlobales(globalRes.data).catch(e =>
+            console.warn('⚠️ No se pudo cachear avisos globales:', e.message)
+          );
+        }
+
+        if (esEmpleado) {
+          const empRes = await getAvisosDeEmpleado(token, empleadoId);
+          if (empRes.success && empRes.data) {
+            setAvisosEmpleado(empRes.data);
+            // Cachear en SQLite
+            await sqliteManager.upsertAvisosEmpleado(empleadoId, empRes.data).catch(e =>
+              console.warn('⚠️ No se pudo cachear avisos empleado:', e.message)
+            );
+          }
+        }
+      } catch (onlineErr) {
+        console.warn('⚠️ No se pudieron cargar avisos online:', onlineErr.message);
       }
 
-      if (esEmpleado) {
-        const empRes = await getAvisosDeEmpleado(token, empleadoId);
-        if (empRes.success && empRes.data) {
-          setAvisosEmpleado(empRes.data);
-        } else {
-          setAvisosEmpleado([]);
+      // Fallback: cargar desde SQLite si no cargo online
+      if (!cargoOnline) {
+        try {
+          const globalesLocal = await sqliteManager.getAvisosGlobalesLocal();
+          setAvisosGlobales(globalesLocal || []);
+
+          if (esEmpleado) {
+            const personalLocal = await sqliteManager.getAvisosEmpleadoLocal(empleadoId);
+            setAvisosEmpleado(personalLocal || []);
+          }
+
+          if ((globalesLocal && globalesLocal.length > 0)) {
+            console.log('📦 [Offline] Avisos cargados desde caché local');
+          }
+        } catch (localErr) {
+          console.warn('⚠️ Error cargando avisos desde SQLite:', localErr.message);
+          setError('No se pudieron cargar los avisos');
         }
       }
-    } catch (err) {
-      setError('No se pudieron cargar los avisos');
-      setAvisosGlobales([]);
-      setAvisosEmpleado([]);
     } finally {
       setLoading(false);
       setRefreshing(false);

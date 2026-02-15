@@ -60,7 +60,7 @@ export default function DevicesStep({
         <div className="max-w-5xl mx-auto px-6 py-4">
           <button
             onClick={onShowWelcome}
-            className="absolute top-20 right-6 w-12 h-12 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full shadow-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-all hover:scale-110 flex items-center justify-center z-10"
+            className="absolute top-20 right-6 w-12 h-12 bg-[#2563eb] text-[#e0f2fe] rounded-full shadow-lg shadow-[#2563eb]/20 hover:bg-[#3b82f6] transition-all hover:scale-110 flex items-center justify-center z-10"
             title="Ver información de bienvenida"
           >
             <Info className="w-6 h-6" />
@@ -78,8 +78,8 @@ export default function DevicesStep({
           <div className="flex-1">
             <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-5 hover:shadow-sm transition-shadow duration-300">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 bg-gray-900 dark:bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
-                  <Wifi className="w-4 h-4 text-white dark:text-gray-900" />
+                <div className="w-9 h-9 bg-[#2563eb] rounded-xl flex items-center justify-center flex-shrink-0 shadow-md shadow-[#2563eb]/20">
+                  <Wifi className="w-4 h-4 text-[#e0f2fe]" />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-semibold text-text-primary text-sm">
@@ -95,7 +95,7 @@ export default function DevicesStep({
                     <button
                       onClick={() => detectAllDevices(true)}
                       disabled={isDetecting}
-                      className="px-3 py-1.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 transition-all duration-200 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md"
+                      className="px-3 py-1.5 bg-[#2563eb] text-[#e0f2fe] rounded-xl hover:bg-[#3b82f6] transition-all duration-200 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md hover:shadow-[#2563eb]/20"
                     >
                       {isDetecting ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -169,7 +169,7 @@ export default function DevicesStep({
                             updateDevice(device.id, "name", e.target.value)
                           }
                           placeholder="ej. Cámara Principal"
-                          className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                          className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-[#6366f1]/50 focus:border-transparent transition-all duration-200"
                         />
                       </div>
                       <div>
@@ -181,7 +181,7 @@ export default function DevicesStep({
                           onChange={(e) =>
                             updateDevice(device.id, "type", e.target.value)
                           }
-                          className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                          className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-[#6366f1]/50 focus:border-transparent transition-all duration-200"
                         >
                           <option value="facial">Facial</option>
                           <option value="dactilar">Dactilar</option>
@@ -200,7 +200,7 @@ export default function DevicesStep({
                               e.target.value,
                             )
                           }
-                          className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                          className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-[#6366f1]/50 focus:border-transparent transition-all duration-200"
                         >
                           <option value="IP">IP</option>
                           <option value="USB">USB</option>
@@ -228,7 +228,7 @@ export default function DevicesStep({
                               updateDevice(device.id, "ip", e.target.value)
                             }
                             placeholder="192.168.1.100"
-                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#6366f1]/50 focus:border-transparent transition-all duration-200"
                           />
                         </div>
                         <div>
@@ -242,7 +242,7 @@ export default function DevicesStep({
                               updateDevice(device.id, "port", e.target.value)
                             }
                             placeholder="8080"
-                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-500 focus:border-transparent transition-all duration-200"
+                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#6366f1]/50 focus:border-transparent transition-all duration-200"
                           />
                         </div>
                       </div>
@@ -264,7 +264,7 @@ export default function DevicesStep({
                     <button
                       onClick={() => detectAllDevices(true)}
                       disabled={isDetecting}
-                      className="group px-8 py-3 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 transition-all duration-200 text-base font-medium flex items-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                      className="group px-8 py-3 bg-[#2563eb] text-[#e0f2fe] rounded-xl hover:bg-[#3b82f6] transition-all duration-200 text-base font-medium flex items-center gap-2 shadow-lg shadow-[#2563eb]/20 hover:shadow-xl hover:shadow-[#2563eb]/30 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                     >
                       {isDetecting ? (
                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -295,7 +295,7 @@ export default function DevicesStep({
           </button>
           <button
             onClick={onNext}
-            className="group px-5 py-2.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 font-medium transition-all duration-200 shadow-sm hover:shadow-lg hover:-translate-y-0.5 flex items-center gap-2 text-sm"
+            className="group px-5 py-2.5 bg-[#2563eb] text-[#e0f2fe] rounded-xl hover:bg-[#3b82f6] font-medium transition-all duration-200 shadow-sm shadow-[#2563eb]/20 hover:shadow-lg hover:shadow-[#2563eb]/30 hover:-translate-y-0.5 flex items-center gap-2 text-sm"
           >
             Siguiente
             <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-200" />

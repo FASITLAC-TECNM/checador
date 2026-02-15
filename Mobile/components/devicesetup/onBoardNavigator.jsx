@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Alert, ActivityIndicator, View, Text } from 'react-native';
+import { StyleSheet, Alert, ActivityIndicator, View, Text, StatusBar } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { WelcomeScreen } from './WelcomeScreen';
@@ -52,7 +52,7 @@ export const OnboardingNavigator = ({ onComplete, userData }) => {
       ]);
 
       if (solicitudId && tokenSolicitud) {
-        
+
         try {
           const response = await getSolicitudPorToken(tokenSolicitud);
           const estadoLower = response.estado?.toLowerCase();
@@ -60,7 +60,7 @@ export const OnboardingNavigator = ({ onComplete, userData }) => {
           if (estadoLower === 'aceptado') {
             // Ya fue aprobado, marcar como completado
             await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETED, 'true');
-            
+
             const savedData = {
               idDispositivo: response.dispositivo_id || solicitudId,
               idSolicitud: solicitudId,
@@ -101,7 +101,7 @@ export const OnboardingNavigator = ({ onComplete, userData }) => {
 
       // No hay solicitud anterior o fue eliminada, empezar desde el inicio
       setIsLoading(false);
-      
+
     } catch (error) {
       setIsLoading(false);
     }
@@ -176,14 +176,14 @@ export const OnboardingNavigator = ({ onComplete, userData }) => {
   const handleRetry = async () => {
     // Limpiar la solicitud rechazada y empezar de nuevo
     await clearDeviceData();
-    
+
     setOnboardingData(prev => ({
       ...prev,
       tokenSolicitud: '',
       idSolicitud: null,
       motivoRechazo: ''
     }));
-    
+
     setCurrentStep(0);
   };
 
@@ -206,6 +206,7 @@ export const OnboardingNavigator = ({ onComplete, userData }) => {
   if (isLoading) {
     return (
       <SafeAreaView style={[styles.container, styles.loadingContainer]}>
+        <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
         <ActivityIndicator size="large" color="#2563eb" />
         <Text style={styles.loadingText}>Verificando estado del dispositivo...</Text>
       </SafeAreaView>
@@ -214,15 +215,15 @@ export const OnboardingNavigator = ({ onComplete, userData }) => {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         {/* Paso 0: Bienvenida */}
         {currentStep === 0 && (
-          <WelcomeScreen 
+          <WelcomeScreen
             onNext={() => setCurrentStep(1)}
             userName={userData?.nombre}
           />
         )}
-        
+
         {/* Paso 1: Afiliación a Empresa */}
         {currentStep === 1 && (
           <CompanyAffiliationScreen
@@ -231,19 +232,19 @@ export const OnboardingNavigator = ({ onComplete, userData }) => {
             initialEmpresaId={onboardingData.empresaId}
           />
         )}
-        
+
         {/* Paso 2: Configuración de Dispositivo */}
-{currentStep === 2 && (
-  <DeviceConfigScreen
-    empresaId={onboardingData.empresaId}
-    empresaNombre={onboardingData.empresaNombre}
-    onNext={handleNext}
-    onPrevious={() => setCurrentStep(1)}
-    initialEmail={onboardingData.email}
-    userData={userData} // ← ✅ AGREGAR ESTA PROP
-  />
-)}
-        
+        {currentStep === 2 && (
+          <DeviceConfigScreen
+            empresaId={onboardingData.empresaId}
+            empresaNombre={onboardingData.empresaNombre}
+            onNext={handleNext}
+            onPrevious={() => setCurrentStep(1)}
+            initialEmail={onboardingData.email}
+            userData={userData}
+          />
+        )}
+
         {/* Paso 3: Esperando Aprobación */}
         {currentStep === 3 && (
           <PendingApprovalScreen
@@ -253,7 +254,7 @@ export const OnboardingNavigator = ({ onComplete, userData }) => {
             onRejected={handleRejected}
           />
         )}
-        
+
         {/* Paso 4: Aprobado */}
         {currentStep === 4 && (
           <ApprovedScreen
@@ -281,7 +282,7 @@ export const OnboardingNavigator = ({ onComplete, userData }) => {
             }}
           />
         )}
-      </SafeAreaView>
+      </View>
     </SafeAreaProvider>
   );
 };

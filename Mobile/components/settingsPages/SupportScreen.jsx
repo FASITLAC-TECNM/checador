@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getEmpresaById } from '../../services/empresaService';
+import sqliteManager from '../../services/offline/sqliteManager';
 
 export const SupportScreen = ({ darkMode, onBack, userData }) => {
   const [expandedFaq, setExpandedFaq] = useState(null);
@@ -29,37 +30,52 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
   const cargarDatosEmpresa = async () => {
     try {
       setIsLoading(true);
-      
-      const empresaId = userData?.empresa_id || 
-                        userData?.empresa?.id || 
+
+      const empresaId = userData?.empresa_id ||
+                        userData?.empresa?.id ||
                         userData?.empleado?.empresa_id ||
                         null;
-      
+
       if (!empresaId) {
         setIsLoading(false);
         return;
       }
 
       const token = await AsyncStorage.getItem('userToken');
-      
-      if (!token) {
-        setIsLoading(false);
-        return;
+
+      // Intentar online primero
+      let cargoOnline = false;
+      if (token) {
+        try {
+          const response = await getEmpresaById(empresaId, token);
+          if (response.success && response.data) {
+            setEmpresaData(response.data);
+            cargoOnline = true;
+            // Guardar en caché local
+            await sqliteManager.upsertEmpresa(response.data).catch(e =>
+              console.warn('⚠️ No se pudo cachear empresa:', e.message)
+            );
+          }
+        } catch (e) {
+          console.warn('⚠️ No se pudo cargar empresa online:', e.message);
+        }
       }
 
-      const response = await getEmpresaById(empresaId, token);
-
-      if (response.success && response.data) {
-        setEmpresaData(response.data);
+      // Fallback: cargar desde SQLite
+      if (!cargoOnline) {
+        try {
+          const empresaLocal = await sqliteManager.getEmpresaLocal(empresaId);
+          if (empresaLocal) {
+            setEmpresaData(empresaLocal);
+            console.log('📦 [Offline] Empresa cargada desde caché local');
+          }
+        } catch (e) {
+          console.warn('⚠️ Error cargando empresa desde SQLite:', e.message);
+        }
       }
 
     } catch (error) {
-      if (error.message !== 'Empresa no encontrada') {
-        Alert.alert(
-          'Error',
-          'No se pudo cargar la información de contacto. Por favor, intenta de nuevo más tarde.'
-        );
-      }
+      console.error('Error en cargarDatosEmpresa:', error);
     } finally {
       setIsLoading(false);
     }

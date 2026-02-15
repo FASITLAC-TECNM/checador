@@ -214,19 +214,76 @@ export const LoginScreen = ({ onLoginSuccess }) => {
         // Cachear credenciales para uso offline futuro
         await cacheCredentials(usuario, password, datosCompletos);
 
+        // ------------------------------------------------------------------
+        // 🛡️ VERIFICACIÓN ESTRICTA DISPOSITIVO <-> USUARIO
+        // ------------------------------------------------------------------
+        try {
+          // 1. Obtener token de solicitud (device token)
+          const tokenSolicitud = await AsyncStorage.getItem('token_solicitud'); // Usar string directo por si STORAGE_KEYS no está importado aquí
+
+          if (tokenSolicitud) {
+            // 2. Consultar info de la solicitud en backend
+            const { getSolicitudPorToken } = require('../../services/solicitudMovilService');
+            const solicitud = await getSolicitudPorToken(tokenSolicitud);
+
+            // 3. Normalizar correos para comparar
+            const emailUsuario = datosCompletos.usuario.correo.trim().toLowerCase();
+            const emailDispositivo = solicitud.correo.trim().toLowerCase();
+
+            // 4. Comparar
+            if (emailUsuario !== emailDispositivo) {
+              console.warn('⚠️ [Login] Mismatch dispositivo/usuario:', { emailUsuario, emailDispositivo });
+
+              // Cerrar sesión inmediatamente
+              const { logout } = require('../../services/authService');
+              await logout(token);
+
+              // Limpiar datos
+              await AsyncStorage.removeItem('userToken');
+              await AsyncStorage.removeItem('@user_data');
+
+              alert(`ACCESO DENEGADO\n\nEste dispositivo está registrado para:\n${emailDispositivo}\n\nNo puedes iniciar sesión con:\n${emailUsuario}`);
+
+              setIsLoading(false);
+              return; // ⛔ DETENER LOGIN
+            } else {
+              console.log('✅ [Login] Verificación dispositivo aprobada (Emails coinciden)');
+            }
+          } else {
+            console.log('⚠️ [Login] No hay token de solicitud almacenado. Saltando verificación de dispositivo.');
+          }
+        } catch (verifyError) {
+          console.error('❌ [Login] Error verificando dispositivo:', verifyError);
+          // Opcional: ¿Bloquear si falla la verificación por red?
+        }
+        // ------------------------------------------------------------------
+
         // Registrar evento de sesión online
         try {
-          await sqliteManager.saveOfflineSession({
+          const sessionData = {
             usuario_id: datosCompletos.id?.toString(),
             empleado_id: datosCompletos.empleado_id?.toString(),
             tipo: 'login',
             modo: 'online'
-          });
-          // Intentar enviar inmediatamente la sesión al servidor
-          syncManager.pushSessions().catch(err => console.log('Sync session error (online flow):', err));
-        } catch (e) { console.log('Error guardando sesión online:', e); }
+          };
+          console.log('🔐 [Login] Guardando sesión en SQLite:', JSON.stringify(sessionData));
+          await sqliteManager.saveOfflineSession(sessionData);
+          console.log('🔐 [Login] ✅ Sesión guardada en SQLite correctamente');
 
-        onLoginSuccess(datosCompletos);
+          // Configurar token en syncManager ANTES de pushSessions
+          if (token) {
+            syncManager.setAuthToken(token, datosCompletos.empleado_id?.toString());
+          }
+
+          // Intentar enviar inmediatamente la sesión al servidor
+          console.log('🔐 [Login] Enviando sesión al servidor...');
+          const pushResult = await syncManager.pushSessions();
+          console.log('🔐 [Login] 📡 Resultado pushSessions:', JSON.stringify(pushResult));
+        } catch (e) {
+          console.error('🔐 [Login] ❌ Error guardando/enviando sesión online:', e.message || e);
+        }
+
+        onLoginSuccess(datosCompletos, true);
       }
     } catch (error) {
       console.log('Login online falló:', error.message);
@@ -240,19 +297,31 @@ export const LoginScreen = ({ onLoginSuccess }) => {
         const offlineResult = await validateOffline(usuario, password);
 
         if (offlineResult.success) {
-          // Registrar evento de sesión offline (se sincronizará cuando haya red)
           try {
-            await sqliteManager.saveOfflineSession({
+            const sessionData = {
               usuario_id: offlineResult.data.id?.toString(),
               empleado_id: offlineResult.data.empleado_id?.toString(),
               tipo: 'login',
               modo: 'offline'
-            });
-            // Intentar enviar inmediatamente (si por milagro volvió la red o era intermitente)
-            syncManager.pushSessions().catch(err => console.log('Sync session error (offline flow):', err));
-          } catch (e) { console.log('Error guardando sesión offline:', e); }
+            };
+            console.log('🔐 [Login] Guardando sesión OFFLINE en SQLite:', JSON.stringify(sessionData));
+            await sqliteManager.saveOfflineSession(sessionData);
+            console.log('🔐 [Login] ✅ Sesión offline guardada en SQLite');
 
-          onLoginSuccess(offlineResult.data);
+            // Configurar token cacheado en syncManager antes de push
+            if (offlineResult.data.token) {
+              syncManager.setAuthToken(offlineResult.data.token, offlineResult.data.empleado_id?.toString());
+            }
+
+            // Intentar enviar inmediatamente
+            console.log('🔐 [Login] Intentando push de sesión offline...');
+            const pushResult = await syncManager.pushSessions();
+            console.log('🔐 [Login] 📡 Resultado pushSessions (offline):', JSON.stringify(pushResult));
+          } catch (e) {
+            console.error('🔐 [Login] ❌ Error guardando/enviando sesión offline:', e.message || e);
+          }
+
+          onLoginSuccess(offlineResult.data, false);
           return;
         } else {
           setGeneralError(offlineResult.error);

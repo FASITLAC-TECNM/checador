@@ -21,6 +21,10 @@ import {
   updateIncidencia
 } from '../../services/incidenciasService';
 
+// Offline Services
+import sqliteManager from '../../services/offline/sqliteManager';
+import syncManager from '../../services/offline/syncManager';
+
 export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
   const [incidencias, setIncidencias] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -87,11 +91,63 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
         throw new Error('No se pudo obtener información del empleado');
       }
 
-      const response = await getIncidenciasEmpleado(empleadoId, token);
-      const incidenciasOrdenadas = (response.data || []).sort((a, b) => 
+      let datos = [];
+      let cargoOnline = false;
+
+      // Siempre intentar cargar del servidor primero
+      try {
+        const response = await getIncidenciasEmpleado(empleadoId, token);
+        datos = response.data || [];
+        cargoOnline = true;
+
+        // Guardar en caché local para uso offline
+        if (datos.length > 0) {
+          await sqliteManager.upsertIncidencias(empleadoId, datos).catch(e =>
+            console.log('Error guardando caché incidencias:', e.message)
+          );
+        }
+      } catch (e) {
+        console.log('Error cargando incidencias online, usando caché local:', e.message);
+        // Fallback: cargar desde SQLite
+        try {
+          datos = await sqliteManager.getIncidenciasLocal(empleadoId);
+        } catch (dbErr) {
+          console.log('Error leyendo caché local:', dbErr.message);
+          datos = [];
+        }
+      }
+
+      // Agregar incidencias offline pendientes (no sincronizadas)
+      try {
+        const pendientes = await sqliteManager.getPendingIncidencias();
+        const offlineItems = pendientes
+          .filter(p => p.empleado_id === empleadoId)
+          .map(p => ({
+            id: `offline_${p.local_id}`,
+            empleado_id: p.empleado_id,
+            tipo: p.tipo,
+            motivo: p.motivo,
+            fecha_inicio: p.fecha_inicio,
+            fecha_fin: p.fecha_fin,
+            estado: 'pendiente_sync',
+            is_offline: true,
+            local_id: p.local_id
+          }));
+
+        datos = [...offlineItems, ...datos];
+      } catch (e) {
+        console.log('Error leyendo incidencias offline:', e.message);
+      }
+
+      const incidenciasOrdenadas = datos.sort((a, b) =>
         new Date(b.fecha_inicio) - new Date(a.fecha_inicio)
       );
       setIncidencias(incidenciasOrdenadas);
+
+      // Si no cargo online y no hay datos, avisar
+      if (!cargoOnline && datos.length === 0) {
+        Alert.alert('Sin conexión', 'No se pudieron cargar las incidencias. Revisa tu conexión.');
+      }
     } catch (error) {
       console.error('Error cargando incidencias:', error);
       Alert.alert('Error', 'No se pudieron cargar las incidencias');
@@ -138,13 +194,34 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
         fecha_fin: fechaFin.toISOString()
       };
 
-      await createIncidencia(incidenciaData, userData.token);
+      const online = await syncManager.isOnline();
+      let creadaOnline = false;
 
-      Alert.alert(
-        '¡Éxito!',
-        'Incidencia creada correctamente. Está pendiente de aprobación.',
-        [{ text: 'OK' }]
-      );
+      if (online && userData.token) {
+        try {
+          await createIncidencia(incidenciaData, userData.token);
+          creadaOnline = true;
+        } catch (e) {
+          console.log('Error creando incidencia online, guardando offline:', e.message);
+        }
+      }
+
+      if (!creadaOnline) {
+        // Guardar offline para sincronizar después
+        await sqliteManager.saveOfflineIncidencia(incidenciaData);
+
+        Alert.alert(
+          'Modo Offline',
+          'No hay conexión con el servidor. Tu incidencia se ha guardado localmente y se enviará cuando recuperes la conexión.',
+          [{ text: 'Entendido' }]
+        );
+      } else {
+        Alert.alert(
+          '¡Éxito!',
+          'Incidencia creada correctamente. Está pendiente de aprobación.',
+          [{ text: 'OK' }]
+        );
+      }
 
       // Limpiar formulario
       setTipoSeleccionado('');
@@ -192,6 +269,7 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
       case 'aprobado': return '#10b981';
       case 'rechazado': return '#ef4444';
       case 'cancelado': return '#6b7280';
+      case 'pendiente_sync': return '#6366f1';
       default: return '#6b7280';
     }
   };
@@ -202,6 +280,7 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
       case 'aprobado': return 'checkmark-circle';
       case 'rechazado': return 'close-circle';
       case 'cancelado': return 'ban';
+      case 'pendiente_sync': return 'cloud-offline';
       default: return 'help-circle';
     }
   };
@@ -429,6 +508,13 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
           </View>
         </View>
 
+        {incidencia.is_offline && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, backgroundColor: '#eef2ff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, alignSelf: 'flex-start', gap: 4 }}>
+            <Ionicons name="cloud-offline" size={14} color="#6366f1" />
+            <Text style={{ fontSize: 12, fontWeight: '600', color: '#6366f1' }}>Pendiente de enviar</Text>
+          </View>
+        )}
+
         <Text style={styles.motivoText} numberOfLines={isExpanded ? undefined : 2}>
           {incidencia.motivo}
         </Text>
@@ -479,7 +565,7 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
               </View>
             )}
 
-            {incidencia.estado === 'pendiente' && (
+            {incidencia.estado === 'pendiente' && !incidencia.is_offline && (
               <TouchableOpacity
                 style={styles.cancelButton}
                 onPress={() => handleCancelarIncidencia(incidencia.id)}

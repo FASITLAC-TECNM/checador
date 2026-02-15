@@ -10,15 +10,19 @@ import { getApiEndpoint } from '../../config/api';
 // Estado interno
 let isPushing = false;
 let isPulling = false;
+let isPushingSessions = false;
+let isPushingIncidencias = false;
 let authToken = null;
+let storedEmpleadoId = null;
 
 const API_URL = getApiEndpoint('/api');
 
 /**
  * Configura el token de autenticación
  */
-export function setAuthToken(token) {
+export function setAuthToken(token, empleadoId = null) {
     authToken = token;
+    if (empleadoId) storedEmpleadoId = empleadoId;
 }
 
 /**
@@ -44,7 +48,8 @@ export async function pullData(empleadoId = null) {
     if (!online) return { success: false, error: 'Sin conexión' };
 
     isPulling = true;
-    console.log(`🔄 [Sync] Pull de datos para empleado ${empleadoId}...`);
+    console.log(`🔄 [Sync] Pull de datos para empleado: "${empleadoId}" (tipo: ${typeof empleadoId})`);
+    console.log(`🔑 [Sync] Token disponible: ${authToken ? 'Sí (' + authToken.substring(0, 20) + '...)' : 'NO'}`);
 
     try {
         const url = `${API_URL}/movil/sync/mis-datos?empleado_id=${empleadoId}`;
@@ -57,11 +62,12 @@ export async function pullData(empleadoId = null) {
             }
         });
 
-        console.log(`📡 [Sync] Response: ${response.status}`);
+        console.log(`📡 [Sync] Response status: ${response.status}`);
 
         if (!response.ok) {
             const txt = await response.text();
-            console.error(`❌ [Sync] Error: ${txt}`);
+            console.error(`❌ [Sync] Error completo del servidor: ${txt}`);
+            console.error(`❌ [Sync] empleado_id enviado: "${empleadoId}"`);
             throw new Error(`HTTP ${response.status}`);
         }
 
@@ -105,14 +111,77 @@ export async function pullData(empleadoId = null) {
                 departamento_id: d.departamento_id,
                 es_activo: d.es_activo,
                 nombre: d.nombre,
-                // Mapear campos extra si vienen del nuevo backend
-                ubicacion: d.ubicacion,
+                // ⭐ Persistir ubicacion (polígono de zona) para geofencing offline
+                ubicacion: d.ubicacion
+                    ? (typeof d.ubicacion === 'string' ? d.ubicacion : JSON.stringify(d.ubicacion))
+                    : null,
                 latitud: d.latitud,
                 longitud: d.longitud,
                 radio: d.radio
             }));
             await sqliteManager.upsertDepartamentos(empleadoId, deptos);
             console.log(`   ✅ Departamentos: ${deptos.length}`);
+        }
+
+        // 🔥 FIX: Horario — el endpoint /mis-datos NO lo incluye, se obtiene por ruta
+        // separada y se persiste en SQLite para uso offline
+        try {
+            const horarioUrl = `${API_URL}/empleados/${empleadoId}/horario`;
+            console.log(`   🔄 [Sync] Cacheando horario desde ${horarioUrl}`);
+
+            const horarioRes = await fetch(horarioUrl, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (horarioRes.ok) {
+                const horarioData = await horarioRes.json();
+                const horario = horarioData.data || horarioData.horario || horarioData;
+
+                if (horario && horario.configuracion) {
+                    await sqliteManager.upsertHorario(empleadoId, horario);
+                    console.log(`   ✅ Horario cacheado en SQLite (id: ${horario.id || horario.horario_id})`);
+                } else {
+                    console.log(`   ⚠️ [Sync] Horario sin configuración válida, no se cachea`);
+                }
+            } else if (horarioRes.status === 404) {
+                console.log(`   ℹ️ [Sync] Empleado sin horario asignado (404)`);
+            } else {
+                console.log(`   ⚠️ [Sync] No se pudo obtener horario (HTTP ${horarioRes.status})`);
+            }
+        } catch (horarioError) {
+            // No es fatal — el resto del pull ya fue exitoso
+            console.log(`   ⚠️ [Sync] Error cacheando horario: ${horarioError.message}`);
+        }
+
+        // Incidencias del empleado
+        try {
+            const incUrl = `${API_URL}/incidencias?empleado_id=${empleadoId}`;
+            console.log(`   🔄 [Sync] Cacheando incidencias desde ${incUrl}`);
+
+            const incRes = await fetch(incUrl, {
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (incRes.ok) {
+                const incData = await incRes.json();
+                const incidencias = incData.data || [];
+                if (incidencias.length > 0) {
+                    await sqliteManager.upsertIncidencias(empleadoId, incidencias);
+                    console.log(`   ✅ ${incidencias.length} incidencias cacheadas`);
+                } else {
+                    console.log(`   ℹ️ [Sync] Sin incidencias para este empleado`);
+                }
+            } else {
+                console.log(`   ⚠️ [Sync] No se pudieron obtener incidencias (HTTP ${incRes.status})`);
+            }
+        } catch (incError) {
+            console.log(`   ⚠️ [Sync] Error cacheando incidencias: ${incError.message}`);
         }
 
         console.log('✅ [Sync] Pull completado.');
@@ -123,6 +192,35 @@ export async function pullData(empleadoId = null) {
         return { success: false, error: error.message };
     } finally {
         isPulling = false;
+    }
+}
+
+/**
+ * Helper para registrar eventos en el backend (POST /api/eventos)
+ * Se usa para generar bitácora de acciones "Inicio de sesión", "Registro", etc.
+ */
+async function postEvent(titulo, tipo, descripcion, empleadoId, prioridad = 'media') {
+    if (!authToken) return;
+    try {
+        console.log(`📝 [Sync] Creando evento: ${titulo} (${tipo}) para emp=${empleadoId}`);
+        await fetch(`${API_URL}/eventos`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                titulo,
+                tipo_evento: tipo,
+                descripcion,
+                empleado_id: empleadoId,
+                prioridad,
+                detalles: { origen: 'movil_sync_offline' }
+            })
+        });
+    } catch (e) {
+        console.log(`⚠️ [Sync] No se pudo crear evento ${titulo}: ${e.message}`);
+        // No lanzamos error para no detener el proceso de sync principal
     }
 }
 
@@ -178,7 +276,18 @@ export async function pushData() {
         if (result.sincronizados) {
             for (const s of result.sincronizados) {
                 const local = pending.find(p => p.idempotency_key === s.id_local);
-                if (local) await sqliteManager.markAsSynced(local.local_id, s.id_servidor);
+                if (local) {
+                    await sqliteManager.markAsSynced(local.local_id, s.id_servidor);
+
+                    // ⭐ CREAR EVENTO DE SISTEMA
+                    await postEvent(
+                        `Registro de Asistencia (${local.tipo})`,
+                        'ASISTENCIA',
+                        `Registro de ${local.tipo} sincronizado desde móvil. Método: ${local.metodo_registro}`,
+                        local.empleado_id,
+                        'alta'
+                    );
+                }
             }
         }
 
@@ -208,16 +317,35 @@ export async function pushData() {
  * Endpoint: POST /api/movil/sync/sesiones
  */
 export async function pushSessions() {
-    if (!authToken) return { success: false, error: 'No token' };
+    if (isPushingSessions) {
+        console.log('📤 [Sync] pushSessions ya en curso, saltando...');
+        return { success: false, busy: true };
+    }
+    isPushingSessions = true;
+    console.log('📤 [Sync] === PUSH SESSIONS INICIO ===');
+    // El endpoint /api/movil/sync/sesiones REQUIERE autenticación
+    if (!authToken) {
+        console.log('📤 [Sync] ⚠️ Sin token de autenticación, sesiones se enviarán cuando haya token.');
+        isPushingSessions = false;
+        return { success: false, error: 'No hay token' };
+    }
 
     const online = await isOnline();
-    if (!online) return { success: false, error: 'Offline' };
+    console.log(`📤 [Sync] Online: ${online}`);
+    if (!online) { isPushingSessions = false; return { success: false, error: 'Offline' }; }
 
     try {
         const pending = await sqliteManager.getPendingSessions(50);
-        if (pending.length === 0) return { success: true, count: 0 };
+        console.log(`📤 [Sync] Sesiones pendientes encontradas: ${pending.length}`);
 
-        console.log(`⬆️ [Sync] Subiendo ${pending.length} sesiones...`);
+        if (pending.length === 0) {
+            console.log('📤 [Sync] No hay sesiones pendientes. Nada que enviar.');
+            return { success: true, count: 0 };
+        }
+
+        pending.forEach((s, i) => {
+            console.log(`📤 [Sync] Sesión ${i + 1}: local_id=${s.local_id}, usuario=${s.usuario_id}, empleado=${s.empleado_id}, tipo=${s.tipo}, modo=${s.modo}, fecha=${s.fecha_evento}, is_synced=${s.is_synced}`);
+        });
 
         const sesiones = pending.map(s => ({
             local_id: s.local_id,
@@ -229,45 +357,146 @@ export async function pushSessions() {
             dispositivo: s.dispositivo || 'movil'
         }));
 
-        const response = await fetch(`${API_URL}/movil/sync/sesiones`, {
+        const url = `${API_URL}/movil/sync/sesiones`;
+        console.log(`📤 [Sync] POST ${url}`);
+
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        if (authToken) {
+            headers['Authorization'] = `Bearer ${authToken}`;
+        }
+
+        const response = await fetch(url, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${authToken}`,
-                'Content-Type': 'application/json'
-            },
+            headers,
             body: JSON.stringify({ sesiones })
         });
 
+        console.log(`📤 [Sync] Response status: ${response.status}`);
+
         if (!response.ok) {
+            const errorTxt = await response.text();
+            console.error(`📤 [Sync] ❌ Error del servidor: ${errorTxt}`);
             throw new Error(`HTTP ${response.status}`);
         }
 
         const result = await response.json();
+        console.log(`📤 [Sync] Response body: ${JSON.stringify(result)}`);
 
         if (result.sincronizados) {
             for (const s of result.sincronizados) {
+                console.log(`📤 [Sync] ✅ Marcando local_id=${s.local_id} como synced`);
                 await sqliteManager.markSessionSynced(s.local_id);
+
+                // ⭐ CREAR EVENTO DE SISTEMA
+                // Buscamos info original para el título
+                const original = pending.find(p => p.local_id === s.local_id);
+                if (original && original.empleado_id) {
+                    const titulo = original.tipo === 'login' ? 'Inicio de Sesión (Móvil)' : 'Cierre de Sesión (Móvil)';
+                    const desc = `Sesión ${original.tipo} sincronizada. Modo: ${original.modo}`;
+                    await postEvent(titulo, 'SISTEMA', desc, original.empleado_id, 'media');
+                }
             }
         }
 
-        if (result.errores) {
+        if (result.errores && result.errores.length > 0) {
             for (const e of result.errores) {
+                console.error(`📤 [Sync] ❌ Error para local_id=${e.local_id}: ${e.error}`);
                 await sqliteManager.markSessionSyncError(e.local_id, e.error);
             }
         }
 
-        console.log(`✅ [Sync] Sesiones: ${result.sincronizados?.length || 0} OK`);
+        console.log(`📤 [Sync] === PUSH SESSIONS FIN: ${result.sincronizados?.length || 0} OK, ${result.errores?.length || 0} errores ===`);
         return { success: true, count: result.sincronizados?.length };
 
     } catch (error) {
-        console.error('❌ [Sync] Error en pushSessions:', error);
+        console.error(`📤 [Sync] ❌ Error en pushSessions: ${error.message}`);
         return { success: false, error: error.message };
+    } finally {
+        isPushingSessions = false;
     }
 }
 
 /**
- * Inicializa el monitor de red para auto-push
+ * Push de incidencias offline pendientes
+ * Endpoint: POST /api/incidencias
  */
+export async function pushIncidencias() {
+    if (isPushingIncidencias) return { success: false, busy: true };
+    if (!authToken) return { success: false, error: 'No token' };
+
+    const online = await isOnline();
+    if (!online) return { success: false, error: 'Offline' };
+
+    isPushingIncidencias = true;
+    console.log('📤 [Sync] === PUSH INCIDENCIAS INICIO ===');
+
+    try {
+        const pending = await sqliteManager.getPendingIncidencias(50);
+        if (pending.length === 0) {
+            console.log('📤 [Sync] No hay incidencias pendientes.');
+            return { success: true, count: 0 };
+        }
+
+        console.log(`📤 [Sync] ${pending.length} incidencias pendientes de enviar`);
+        let sincronizadas = 0;
+
+        for (const inc of pending) {
+            try {
+                const response = await fetch(`${API_URL}/incidencias`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        empleado_id: inc.empleado_id,
+                        tipo: inc.tipo,
+                        motivo: inc.motivo,
+                        fecha_inicio: inc.fecha_inicio,
+                        fecha_fin: inc.fecha_fin
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const serverId = data.data?.id || null;
+                    await sqliteManager.markIncidenciaSynced(inc.local_id, serverId);
+                    sincronizadas++;
+                    console.log(`📤 [Sync] ✅ Incidencia local_id=${inc.local_id} sincronizada (server_id=${serverId})`);
+
+                    // ⭐ CREAR EVENTO DE SISTEMA
+                    await postEvent(
+                        `Nueva Incidencia (${inc.tipo})`,
+                        'INCIDENCIA',
+                        `Incidencia creada offline y sincronizada. Motivo: ${inc.motivo}`,
+                        inc.empleado_id,
+                        'media'
+                    );
+
+                } else {
+                    const errText = await response.text();
+                    await sqliteManager.markIncidenciaSyncError(inc.local_id, `HTTP ${response.status}: ${errText}`);
+                    console.log(`📤 [Sync] ❌ Error incidencia local_id=${inc.local_id}: HTTP ${response.status}`);
+                }
+            } catch (e) {
+                await sqliteManager.markIncidenciaSyncError(inc.local_id, e.message);
+                console.log(`📤 [Sync] ❌ Error red incidencia local_id=${inc.local_id}: ${e.message}`);
+            }
+        }
+
+        console.log(`📤 [Sync] === PUSH INCIDENCIAS FIN: ${sincronizadas}/${pending.length} OK ===`);
+        return { success: true, count: sincronizadas };
+
+    } catch (error) {
+        console.error(`📤 [Sync] ❌ Error en pushIncidencias: ${error.message}`);
+        return { success: false, error: error.message };
+    } finally {
+        isPushingIncidencias = false;
+    }
+}
+
 /**
  * Inicializa el monitor de red y sincronización automática
  */
@@ -275,22 +504,33 @@ export function initAutoSync() {
     console.log('🔄 [SyncManager] Iniciando servicio de autosincronización...');
 
     const syncAll = async () => {
-        if (isPushing || isPulling) return;
         console.log('🔄 [SyncManager] Ejecutando SyncFull...');
 
-        // 1. Enviar sesiones (Prioridad Alta - Login/Logout)
+        // 1. Enviar sesiones SIEMPRE primero
         await pushSessions().catch(e => console.log('Error pushSessions:', e.message));
 
-        // 2. Enviar asistencias pendientes
-        await pushData().catch(e => console.log('Error pushData:', e.message));
+        if (isPushing || isPulling) {
+            console.log('🔄 [SyncManager] Push/Pull ya en curso, saltando asistencias y pull');
+            return;
+        }
 
-        // 3. Traer datos nuevos (si hay token)
+        // 2. Enviar asistencias pendientes
         if (authToken) {
-            await pullData(authToken.empleado_id).catch(e => console.log('Error pullData:', e.message));
+            await pushData().catch(e => console.log('Error pushData:', e.message));
+        }
+
+        // 2.5 Enviar incidencias offline pendientes
+        if (authToken) {
+            await pushIncidencias().catch(e => console.log('Error pushIncidencias:', e.message));
+        }
+
+        // 3. Traer datos nuevos (incluye horario e incidencias)
+        if (authToken && storedEmpleadoId) {
+            await pullData(storedEmpleadoId).catch(e => console.log('Error pullData:', e.message));
         }
     };
 
-    // 1. Verificación inicial inmediata
+    // Verificación inicial inmediata
     NetInfo.fetch().then(state => {
         if (state.isConnected && state.isInternetReachable) {
             console.log('✅ [SyncManager] Red detectada al inicio. Sincronizando ahora...');
@@ -298,7 +538,7 @@ export function initAutoSync() {
         }
     });
 
-    // 2. Suscripción a cambios de red
+    // Suscripción a cambios de red
     const unsubscribe = NetInfo.addEventListener(state => {
         if (state.isConnected && state.isInternetReachable) {
             console.log('✅ [SyncManager] Conexión recuperada. Sincronizando...');
@@ -306,7 +546,7 @@ export function initAutoSync() {
         }
     });
 
-    // 3. Intervalo de seguridad (cada 2 min intenta si hay red)
+    // Intervalo de seguridad (cada 2 min)
     setInterval(async () => {
         const state = await NetInfo.fetch();
         if (state.isConnected && state.isInternetReachable) {
@@ -322,6 +562,7 @@ export default {
     pullData,
     pushData,
     pushSessions,
+    pushIncidencias,
     initAutoSync,
     isOnline
 };

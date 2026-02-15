@@ -5,8 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
-  Platform,
-  ScrollView
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,29 +15,23 @@ export const RejectedScreen = ({ motivoRechazo, onRetry, onCancel }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
 
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+      {/* Header Azul */}
+      <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? insets.top + 16 : insets.top + 8 }]}>
         <Text style={styles.headerTitle}>Solicitud Rechazada</Text>
         <Text style={styles.headerSubtitle}>Tu solicitud no fue aprobada</Text>
       </View>
 
-      {/* Content */}
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      {/* Content — Static, centered */}
+      <View style={styles.content}>
         {/* Icon de error */}
         <View style={styles.errorIcon}>
-          <Ionicons name="close-circle" size={80} color="#ef4444" />
+          <Ionicons name="close-circle" size={56} color="#ef4444" />
         </View>
 
-        {/* Mensaje principal */}
-        <Text style={styles.mainMessage}>
-          Lo sentimos
-        </Text>
-
+        {/* Mensaje */}
+        <Text style={styles.mainMessage}>Lo sentimos</Text>
         <Text style={styles.description}>
           Tu solicitud de registro de dispositivo ha sido rechazada por el administrador.
         </Text>
@@ -46,7 +39,7 @@ export const RejectedScreen = ({ motivoRechazo, onRetry, onCancel }) => {
         {/* Card con el motivo */}
         <View style={styles.reasonCard}>
           <View style={styles.reasonHeader}>
-            <Ionicons name="information-circle" size={22} color="#dc2626" />
+            <Ionicons name="information-circle" size={18} color="#dc2626" />
             <Text style={styles.reasonTitle}>Motivo del Rechazo</Text>
           </View>
           <Text style={styles.reasonText}>
@@ -54,42 +47,26 @@ export const RejectedScreen = ({ motivoRechazo, onRetry, onCancel }) => {
           </Text>
         </View>
 
-        {/* Info adicional */}
-        <View style={styles.infoCard}>
-          <Ionicons name="help-circle" size={20} color="#6b7280" />
-          <View style={styles.infoContent}>
-            <Text style={styles.infoTitle}>¿Qué puedes hacer?</Text>
-            <Text style={styles.infoText}>
-              • Verifica que ingresaste correctamente el código de empresa{'\n'}
-              • Contacta a tu administrador para más información{'\n'}
-              • Intenta registrarte nuevamente con los datos correctos
-            </Text>
+        {/* Quick tips */}
+        <View style={styles.tipsCard}>
+          <Text style={styles.tipsTitle}>Verifica lo siguiente:</Text>
+          <View style={styles.tipItem}>
+            <Ionicons name="checkmark-circle-outline" size={16} color="#6b7280" />
+            <Text style={styles.tipText}>Código de empresa correcto</Text>
+          </View>
+          <View style={styles.tipItem}>
+            <Ionicons name="checkmark-circle-outline" size={16} color="#6b7280" />
+            <Text style={styles.tipText}>Correo electrónico corporativo válido</Text>
+          </View>
+          <View style={styles.tipItem}>
+            <Ionicons name="checkmark-circle-outline" size={16} color="#6b7280" />
+            <Text style={styles.tipText}>Permisos de tu administrador</Text>
           </View>
         </View>
-
-        {/* Checklist de verificación */}
-        <View style={styles.checklistCard}>
-          <Text style={styles.checklistTitle}>Verifica lo siguiente:</Text>
-          
-          <View style={styles.checkItem}>
-            <Ionicons name="checkmark-circle-outline" size={20} color="#6b7280" />
-            <Text style={styles.checkText}>Código de empresa correcto</Text>
-          </View>
-          
-          <View style={styles.checkItem}>
-            <Ionicons name="checkmark-circle-outline" size={20} color="#6b7280" />
-            <Text style={styles.checkText}>Correo electrónico corporativo válido</Text>
-          </View>
-          
-          <View style={styles.checkItem}>
-            <Ionicons name="checkmark-circle-outline" size={20} color="#6b7280" />
-            <Text style={styles.checkText}>Permisos de tu administrador</Text>
-          </View>
-        </View>
-      </ScrollView>
+      </View>
 
       {/* Footer con botones */}
-      <View style={[styles.footer, { paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 8) : insets.bottom + 8 }]}>
+      <View style={[styles.footer, { paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 20) : insets.bottom + 12 }]}>
         <View style={styles.buttonRow}>
           <TouchableOpacity
             style={styles.cancelButton}
@@ -119,49 +96,50 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
   },
   header: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: '#ffffff',
     marginBottom: 2,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#dbeafe',
   },
-  scrollContent: {
+  content: {
+    flex: 1,
     padding: 20,
-    paddingBottom: 100,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   errorIcon: {
-    width: 120,
-    height: 120,
+    width: 80,
+    height: 80,
     backgroundColor: '#fee2e2',
-    borderRadius: 60,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#fecaca',
   },
   mainMessage: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#1f2937',
-    marginBottom: 12,
+    marginBottom: 8,
     textAlign: 'center',
   },
   description: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#6b7280',
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 24,
+    lineHeight: 19,
+    marginBottom: 20,
     paddingHorizontal: 10,
   },
   reasonCard: {
@@ -169,100 +147,75 @@ const styles = StyleSheet.create({
     backgroundColor: '#fef2f2',
     borderRadius: 14,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#fecaca',
   },
   reasonHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
     gap: 8,
   },
   reasonTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
     color: '#dc2626',
   },
   reasonText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#991b1b',
-    lineHeight: 20,
+    lineHeight: 19,
   },
-  infoCard: {
+  tipsCard: {
     width: '100%',
-    flexDirection: 'row',
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 14,
+    padding: 14,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: '#f0f0f4',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  infoContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  infoTitle: {
-    fontSize: 14,
+  tipsTitle: {
+    fontSize: 13,
     fontWeight: '600',
     color: '#1f2937',
-    marginBottom: 8,
+    marginBottom: 10,
   },
-  infoText: {
-    fontSize: 12,
-    color: '#6b7280',
-    lineHeight: 18,
-  },
-  checklistCard: {
-    width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  checklistTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 12,
-  },
-  checkItem: {
+  tipItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
-    gap: 10,
+    marginBottom: 8,
+    gap: 8,
   },
-  checkText: {
-    fontSize: 13,
+  tipText: {
+    fontSize: 12,
     color: '#4b5563',
   },
   footer: {
     backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingHorizontal: 20,
+    paddingTop: 14,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
   },
   buttonRow: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 8,
   },
   cancelButton: {
     flex: 1,
     backgroundColor: '#fff',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#e5e7eb',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   cancelButtonText: {
     color: '#6b7280',
@@ -272,12 +225,17 @@ const styles = StyleSheet.create({
   retryButton: {
     flex: 2,
     backgroundColor: '#2563eb',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
   },
   retryButtonText: {
     color: '#fff',

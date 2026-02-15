@@ -7,6 +7,8 @@ import KioskScreen from "./pages/KioskScreen";
 import SessionScreen from "./pages/SessionScreen";
 import storage from "./utils/storage";
 
+import { deviceMonitorService } from "./services/deviceMonitorService";
+
 function App() {
   // Estado de la página actual
   const [currentPage, setCurrentPage] = useState("loading");
@@ -18,6 +20,11 @@ function App() {
       try {
         const isConfigured = await storage.getItem("appConfigured");
         setCurrentPage(isConfigured ? "kiosk" : "affiliation");
+
+        // Iniciar monitoreo de dispositivos si ya está configurado
+        if (isConfigured) {
+          deviceMonitorService.startMonitoring(60000); // Chequear cada minuto
+        }
       } catch (error) {
         console.error("Error verificando configuración:", error);
         // En caso de error, asumir que no está configurado
@@ -28,6 +35,11 @@ function App() {
     };
 
     checkConfiguration();
+
+    // Limpieza al desmontar
+    return () => {
+      deviceMonitorService.stopMonitoring();
+    };
   }, []);
 
   // Cuando se complete la afiliación, marcar la app como configurada

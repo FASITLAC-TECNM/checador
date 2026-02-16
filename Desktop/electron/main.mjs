@@ -368,6 +368,9 @@ function createWindow() {
     backgroundColor: "#ffffff",
     show: false, // No mostrar hasta que esté listo
     autoHideMenuBar: true, // Ocultar el menú automáticamente
+    icon: app.isPackaged 
+      ? path.join(process.resourcesPath, "public", "logo.ico") 
+      : path.join(__dirname, "..", "public", "logo.ico")
   });
 
   // Cargar la aplicación

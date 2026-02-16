@@ -18,14 +18,16 @@ export const useDeviceDetection = (devices, setDevices) => {
 
       try {
         // 1. Detectar dispositivos en paralelo para mejor rendimiento
-        const [usbDevices, webcams] = await Promise.all([
+        const [usbDevices, webcams, biometricDevices] = await Promise.all([
           deviceDetectionService.detectUSBDevices(),
           deviceDetectionService.detectWebcams(),
+          deviceDetectionService.detectBiometricDevices(),
         ]);
 
         // 2. Combinar dispositivos evitando duplicados
+        // Priorizamos los biométricos detectados por middleware sobre los USB genéricos con el mismo nombre
         const detectedDevices = deviceDetectionService.mergeDetectedDevices(
-          usbDevices,
+          [...biometricDevices, ...usbDevices],
           webcams,
         );
 

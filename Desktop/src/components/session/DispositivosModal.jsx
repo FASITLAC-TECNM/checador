@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from "react";
-import { X, Smartphone, Plus, Trash2, Save, Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { X, Smartphone, Plus, Trash2, Save, Loader2, AlertCircle, RefreshCw, Search, CheckCircle2, Usb } from "lucide-react";
 import { getApiEndpoint } from "../../config/apiEndPoint";
+import { deviceDetectionService } from "../../services/deviceDetectionService";
+import { useDeviceStatus } from "../../hooks/useDeviceStatus";
 
 const API_URL = getApiEndpoint("/api");
 
@@ -9,6 +11,12 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [showSaveMessage, setShowSaveMessage] = useState(false);
+  const [showErrorMessage, setShowErrorMessage] = useState(false);
+
+  // Auto-detección de dispositivos
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [detectionStatus, setDetectionStatus] = useState(null);
 
   // Obtener token de autenticación
   const getAuthToken = () => {
@@ -62,9 +70,77 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
     }
   };
 
+  // Detectar dispositivos automáticamente
+  const detectDevices = useCallback(async () => {
+    setIsDetecting(true);
+    setDetectionStatus(null);
+
+    try {
+      const [usbDevices, webcams] = await Promise.all([
+        deviceDetectionService.detectUSBDevices(),
+        deviceDetectionService.detectWebcams(),
+      ]);
+
+      const detectedDevices = deviceDetectionService.mergeDetectedDevices(usbDevices, webcams);
+
+      // Mapear del formato del hook (name, type) al del modal (nombre, tipo)
+      const mappedDetected = detectedDevices.map(d => ({
+        nombre: d.name || "",
+        tipo: d.type || "facial",
+        puerto: d.port || "",
+        ip: d.ip || "",
+        estado: "desconectado",
+        es_activo: true,
+        isNew: true,
+        _key: (d.name || "").toLowerCase(),
+      }));
+
+      // Usar updater funcional para evitar dependencia en 'devices'
+      let addedCount = 0;
+      setDevices(prev => {
+        const newDevices = mappedDetected.filter(detected =>
+          !prev.some(existing =>
+            existing.nombre.toLowerCase() === detected._key
+          )
+        );
+        addedCount = newDevices.length;
+        if (newDevices.length === 0) return prev;
+
+        const withIds = newDevices.map((d, i) => {
+          const { _key, ...rest } = d;
+          return { ...rest, id: `NEW_${Date.now()}_${i}` };
+        });
+        return [...prev, ...withIds];
+      });
+
+      const hasElectronAPI = !!(window.electronAPI && window.electronAPI.detectUSBDevices);
+      const statusMessage = deviceDetectionService.getDetectionStatusMessage(
+        detectedDevices,
+        { length: addedCount },
+        hasElectronAPI,
+        webcams.length,
+      );
+      setDetectionStatus(statusMessage);
+    } catch (error) {
+      console.error("Error detectando dispositivos:", error);
+      setDetectionStatus({
+        type: "error",
+        message: "Error al detectar dispositivos: " + error.message,
+      });
+    } finally {
+      setIsDetecting(false);
+    }
+  }, []); // Sin dependencias — usa functional updater
+
   useEffect(() => {
     fetchDevices();
   }, [escritorioId]);
+
+  // Monitorear estado de conexión de los dispositivos en tiempo real
+  const { isChecking: isCheckingStatus } = useDeviceStatus(devices, setDevices, {
+    interval: 10000, // Verificar cada 10 segundos
+    enabled: !loading && devices.length > 0,
+  });
 
   const addDevice = () => {
     setDevices([
@@ -129,11 +205,15 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
         }
       }
 
-      alert("Dispositivos guardados exitosamente");
-      onClose();
+      setShowSaveMessage(true);
+      setTimeout(() => {
+        setShowSaveMessage(false);
+        onClose();
+      }, 1500);
     } catch (err) {
       console.error("Error al guardar:", err);
-      alert("Error al guardar los dispositivos");
+      setShowErrorMessage(true);
+      setTimeout(() => setShowErrorMessage(false), 3000);
     } finally {
       setSaving(false);
     }
@@ -154,7 +234,19 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      {showSaveMessage && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-pulse">
+          <Save className="w-5 h-5" />
+          <span className="font-semibold">Dispositivos guardados exitosamente</span>
+        </div>
+      )}
+      {showErrorMessage && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] bg-red-500 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-pulse">
+          <AlertCircle className="w-5 h-5" />
+          <span className="font-semibold">Error al guardar los dispositivos</span>
+        </div>
+      )}
+      <div className="relative bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="bg-bg-primary p-6 border-b border-border-subtle flex-shrink-0">
           <div className="flex items-start justify-between">
@@ -168,6 +260,18 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
                   Gestiona los dispositivos vinculados a este nodo
                 </p>
               </div>
+              <button
+                onClick={detectDevices}
+                disabled={isDetecting || loading}
+                className="px-3 py-1.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 transition-all duration-200 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md mr-2"
+              >
+                {isDetecting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Search className="w-4 h-4" />
+                )}
+                {isDetecting ? "Detectando..." : "Detectar"}
+              </button>
             </div>
             <button
               onClick={onClose}
@@ -179,7 +283,32 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
         </div>
 
         {/* Body - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 min-h-0">
+          {/* Mensaje de estado de detección */}
+          {detectionStatus && (
+            <div
+              className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${detectionStatus.type === "success"
+                ? "bg-green-100 text-green-800 border border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800"
+                : detectionStatus.type === "error"
+                  ? "bg-red-100 text-red-800 border border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800"
+                  : detectionStatus.type === "warning"
+                    ? "bg-yellow-100 text-yellow-800 border border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800"
+                    : "bg-blue-100 text-blue-800 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800"
+                }`}
+            >
+              {detectionStatus.type === "success" && <CheckCircle2 className="w-5 h-5" />}
+              {detectionStatus.type === "error" && <AlertCircle className="w-5 h-5" />}
+              {detectionStatus.type === "warning" && <AlertCircle className="w-5 h-5" />}
+              {detectionStatus.type === "info" && <Usb className="w-5 h-5" />}
+              <span className="text-sm">{detectionStatus.message}</span>
+              <button
+                onClick={() => setDetectionStatus(null)}
+                className="ml-auto text-current opacity-60 hover:opacity-100"
+              >
+                &times;
+              </button>
+            </div>
+          )}
           {loading ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="w-8 h-8 text-green-600 animate-spin mb-4" />
@@ -209,29 +338,47 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
                   devices.map((device) => (
                     <div
                       key={device.id}
-                      className="bg-bg-secondary border border-border-subtle rounded-xl p-4"
+                      className={`bg-bg-primary border-2 rounded-xl p-4 transition-all duration-200 ${device.isNew
+                        ? "border-emerald-300 bg-emerald-50/30 dark:border-emerald-700 dark:bg-emerald-900/10"
+                        : "border-border-subtle"
+                        }`}
                     >
-                      <div className="flex items-start justify-between mb-4">
+                      {device.isNew && (
+                        <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs mb-2">
+                          <Usb className="w-3 h-3" />
+                          <span>Detectado automáticamente</span>
+                        </div>
+                      )}
+
+                      {/* Fila 1: ID, Estado, Eliminar */}
+                      <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
-                          <h4 className="font-bold text-text-primary flex items-center gap-2">
-                            <Smartphone className="w-5 h-5 text-green-600 dark:text-green-400" />
+                          <h4 className="font-bold text-text-primary text-sm flex items-center gap-2">
+                            <Smartphone className="w-4 h-4 text-green-600 dark:text-green-400" />
                             {device.id}
                           </h4>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getEstadoColor(device.estado)}`}>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1.5 ${getEstadoColor(device.estado)}`}>
+                            {device.estado === "conectado" && (
+                              <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                              </span>
+                            )}
                             {device.estado}
                           </span>
                         </div>
                         <button
                           onClick={() => removeDevice(device.id)}
-                          className="text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 p-2 rounded-lg transition-colors"
+                          className="text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 p-1.5 rounded-lg transition-colors"
                         >
-                          <Trash2 className="w-5 h-5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
+                      {/* Fila 2: Nombre y Tipo */}
+                      <div className="grid grid-cols-2 gap-3 mb-3">
                         <div>
-                          <label className="block text-sm font-medium text-text-secondary mb-2">
+                          <label className="block text-xs font-medium text-text-secondary mb-1">
                             Nombre del Dispositivo
                           </label>
                           <input
@@ -240,13 +387,13 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
                             onChange={(e) =>
                               updateDevice(device.id, "nombre", e.target.value)
                             }
-                            className="w-full px-4 py-2 bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-text-primary placeholder:text-text-disabled"
+                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-[#6366f1]/50 focus:border-transparent transition-all duration-200 text-text-primary placeholder:text-text-disabled"
                             placeholder="Ej: Lector de Huella"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-text-secondary mb-2">
+                          <label className="block text-xs font-medium text-text-secondary mb-1">
                             Tipo
                           </label>
                           <select
@@ -254,15 +401,18 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
                             onChange={(e) =>
                               updateDevice(device.id, "tipo", e.target.value)
                             }
-                            className="w-full px-4 py-2 bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-text-primary"
+                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-[#6366f1]/50 focus:border-transparent transition-all duration-200 text-text-primary"
                           >
-                            <option value="facial" className="bg-bg-primary text-text-primary">Facial</option>
-                            <option value="dactilar" className="bg-bg-primary text-text-primary">Dactilar</option>
+                            <option value="facial">Facial</option>
+                            <option value="dactilar">Dactilar</option>
                           </select>
                         </div>
+                      </div>
 
+                      {/* Fila 3: Puerto e IP */}
+                      <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-sm font-medium text-text-secondary mb-2">
+                          <label className="block text-xs font-medium text-text-secondary mb-1">
                             Puerto
                           </label>
                           <input
@@ -271,13 +421,13 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
                             onChange={(e) =>
                               updateDevice(device.id, "puerto", e.target.value)
                             }
-                            className="w-full px-4 py-2 bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-text-primary placeholder:text-text-disabled"
+                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#6366f1]/50 focus:border-transparent transition-all duration-200 text-text-primary placeholder:text-text-disabled"
                             placeholder="Ej: USB-001"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-sm font-medium text-text-secondary mb-2">
+                          <label className="block text-xs font-medium text-text-secondary mb-1">
                             IP
                           </label>
                           <input
@@ -286,7 +436,7 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
                             onChange={(e) =>
                               updateDevice(device.id, "ip", e.target.value)
                             }
-                            className="w-full px-4 py-2 bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-text-primary placeholder:text-text-disabled"
+                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#6366f1]/50 focus:border-transparent transition-all duration-200 text-text-primary placeholder:text-text-disabled"
                             placeholder="Ej: 192.168.1.100"
                           />
                         </div>

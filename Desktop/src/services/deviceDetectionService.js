@@ -320,4 +320,60 @@ export const deviceDetectionService = {
       keysToDelete.forEach((key) => cache.delete(key));
     }
   },
+
+  /**
+   * MEJORA 12: Detectar lectores biométricos vía WebSocket (más ligero)
+   */
+  async detectBiometricDevices() {
+    return new Promise((resolve) => {
+      try {
+        const ws = new WebSocket("ws://localhost:8787/");
+        const timeout = setTimeout(() => {
+          if (ws.readyState !== WebSocket.CLOSED) ws.close();
+          resolve([]);
+        }, 2000); // 2 segundos timeout máximo
+
+        ws.onopen = () => {
+          // Solicitar estado inmediato
+          ws.send(JSON.stringify({ command: "getStatus" }));
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === "systemStatus" || data.type === "readerConnection") {
+              // Si hay lector conectado, devolverlo como dispositivo
+              if (data.readerConnected || data.connected) {
+                clearTimeout(timeout);
+                ws.close();
+                resolve([{
+                  id: "biometric-reader-1",
+                  name: "Lector de Huella (DigitalPersona)",
+                  type: "dactilar",
+                  connection: "USB", // Aunque es vía WS, físicamente es USB
+                  ip: "",
+                  port: "",
+                  detected: true,
+                  instanceId: "dp-4500-default" // ID estable para evitar duplicados
+                }]);
+              }
+            }
+          } catch (e) {
+            console.error("Error parsing WS message:", e);
+          }
+        };
+
+        ws.onerror = () => {
+          clearTimeout(timeout);
+          resolve([]); // Falló conexión, asumir no hay lector o servicio apagado
+        };
+
+      } catch (error) {
+        console.error("Error en detección biométrica:", error);
+        resolve([]);
+      }
+    });
+
+  }
 };
+

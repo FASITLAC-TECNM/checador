@@ -19,9 +19,9 @@ export default function StepIndicator({ currentStep }) {
                 className={`
                   w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all duration-500
                   ${currentStep > stepItem.number
-                    ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 shadow-md"
+                    ? "bg-[#2563eb] text-[#e0f2fe] shadow-md"
                     : currentStep === stepItem.number
-                      ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 ring-[3px] ring-gray-300 dark:ring-gray-600 ring-offset-2 ring-offset-bg-secondary shadow-lg scale-110"
+                      ? "bg-[#2563eb] text-[#e0f2fe] ring-[3px] ring-[#6366f1]/40 ring-offset-2 ring-offset-bg-secondary shadow-lg scale-110"
                       : "bg-bg-primary text-text-disabled border-2 border-border-subtle"
                   }
                 `}
@@ -52,7 +52,7 @@ export default function StepIndicator({ currentStep }) {
                   className={`
                     h-full rounded-full transition-all duration-500
                     ${currentStep > stepItem.number
-                      ? "bg-gray-900 dark:bg-gray-400"
+                      ? "bg-[#2563eb]"
                       : "bg-border-subtle"
                     }
                   `}

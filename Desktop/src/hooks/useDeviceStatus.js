@@ -1,0 +1,205 @@
+// hooks/useDeviceStatus.js
+// Hook optimizado que monitorea el estado de conexión de dispositivos biométricos
+// Usa refs para evitar re-renders innecesarios y loops de dependencias
+import { useState, useEffect, useRef, useCallback } from "react";
+import { deviceDetectionService } from "../services/deviceDetectionService";
+import { getApiEndpoint } from "../config/apiEndPoint";
+
+const API_URL = getApiEndpoint("/api");
+
+export const useDeviceStatus = (devices, setDevices, options = {}) => {
+  const { interval = 15000, enabled = true } = options;
+  const [isChecking, setIsChecking] = useState(false);
+  const [lastChecked, setLastChecked] = useState(null);
+
+  // Refs para evitar dependencias circulares en callbacks
+  const devicesRef = useRef(devices);
+  const isCheckingRef = useRef(false);
+  const isMountedRef = useRef(true);
+  const intervalRef = useRef(null);
+  const initialCheckDoneRef = useRef(false);
+
+  // Mantener ref sincronizado con devices
+  useEffect(() => {
+    devicesRef.current = devices;
+  }, [devices]);
+
+  const getAuthToken = useCallback(() => {
+    return localStorage.getItem("auth_token");
+  }, []);
+
+  /**
+   * PATCH /api/biometrico/:id/estado — fire and forget
+   */
+  const updateEstadoEnBD = useCallback(
+    (deviceId, nuevoEstado) => {
+      if (!deviceId || String(deviceId).startsWith("NEW_")) return;
+      const token = getAuthToken();
+      // No await — fire and forget para no bloquear
+      fetch(`${API_URL}/biometrico/${deviceId}/estado`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: JSON.stringify({ estado: nuevoEstado }),
+      }).catch(() => {}); // silencioso
+    },
+    [getAuthToken]
+  );
+
+  /**
+   * Normaliza nombre para comparación
+   */
+  const normalizeName = useCallback((name) => {
+    if (!name) return "";
+    return name
+      .toLowerCase()
+      .replace(/[®™©]/g, "")
+      .replace(/[-_]/g, " ")
+      .replace(/\s+/g, " ")
+      .replace(
+        /\b(hd|camera|webcam|usb|web|integrated|built-in|truevision|general)\b/gi,
+        ""
+      )
+      .trim();
+  }, []);
+
+  /**
+   * Verificación de estado — usa refs, sin dependencia en 'devices'
+   */
+  const checkDeviceStatuses = useCallback(async () => {
+    const currentDevices = devicesRef.current;
+    if (!currentDevices || currentDevices.length === 0 || isCheckingRef.current) return;
+
+    isCheckingRef.current = true;
+    setIsChecking(true);
+
+    try {
+      const [usbDevices, webcams] = await Promise.all([
+        deviceDetectionService.detectUSBDevices(),
+        deviceDetectionService.detectWebcams(),
+      ]);
+
+      const allDetected = deviceDetectionService.mergeDetectedDevices(
+        usbDevices,
+        webcams
+      );
+
+      if (!isMountedRef.current) return;
+
+      let hasChanges = false;
+      const changedDevices = [];
+
+      const updatedDevices = currentDevices.map((device) => {
+        const regName = normalizeName(device.nombre);
+        if (!regName) return device;
+
+        const connected = allDetected.some((detected) => {
+          const detName = normalizeName(detected.name);
+          if (!detName) return false;
+          return (
+            regName === detName ||
+            regName.includes(detName) ||
+            detName.includes(regName)
+          );
+        });
+
+        const newEstado = connected ? "conectado" : "desconectado";
+
+        if (device.estado !== newEstado) {
+          hasChanges = true;
+          changedDevices.push({ id: device.id, estado: newEstado });
+          return { ...device, estado: newEstado };
+        }
+        return device;
+      });
+
+      if (hasChanges && isMountedRef.current) {
+        setDevices(updatedDevices);
+        changedDevices.forEach((c) => updateEstadoEnBD(c.id, c.estado));
+      }
+
+      if (isMountedRef.current) {
+        setLastChecked(new Date());
+      }
+    } catch (error) {
+      console.error("[useDeviceStatus] Error verificando estado:", error);
+      if (isMountedRef.current) {
+        const currentDevices2 = devicesRef.current;
+        let hasChanges = false;
+        const changedDevices = [];
+
+        const errorDevices = currentDevices2.map((device) => {
+          if (device.estado !== "error") {
+            hasChanges = true;
+            changedDevices.push({ id: device.id, estado: "error" });
+            return { ...device, estado: "error" };
+          }
+          return device;
+        });
+
+        if (hasChanges) {
+          setDevices(errorDevices);
+          changedDevices.forEach((c) => updateEstadoEnBD(c.id, c.estado));
+        }
+      }
+    } finally {
+      isCheckingRef.current = false;
+      if (isMountedRef.current) {
+        setIsChecking(false);
+      }
+    }
+  }, [normalizeName, setDevices, updateEstadoEnBD]);
+  // ↑ NO depende de 'devices' — usa devicesRef.current
+
+  // Verificación inicial (una sola vez)
+  useEffect(() => {
+    if (enabled && devices.length > 0 && !initialCheckDoneRef.current) {
+      initialCheckDoneRef.current = true;
+      const timeout = setTimeout(checkDeviceStatuses, 2000);
+      return () => clearTimeout(timeout);
+    }
+  }, [enabled, devices.length, checkDeviceStatuses]);
+
+  // Polling periódico — intervalo ESTABLE, no se reinicia en cada render
+  useEffect(() => {
+    if (!enabled) {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      return;
+    }
+
+    // Solo crear intervalo si no existe
+    if (!intervalRef.current) {
+      intervalRef.current = setInterval(checkDeviceStatuses, interval);
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [enabled, interval, checkDeviceStatuses]);
+
+  // Cleanup
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, []);
+
+  return {
+    isChecking,
+    lastChecked,
+    checkNow: checkDeviceStatuses,
+  };
+};

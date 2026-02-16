@@ -133,7 +133,7 @@ export default function KioskScreen() {
     setIsLoggedIn(true);
 
     // Mensaje de bienvenida con el nombre del usuario
-    const welcomeMessage = `Bienvenido ${usuario.nombre || usuario.username}`;
+    const welcomeMessage = `Bienvenido, ${usuario.nombre || usuario.username}`;
     const utterance = new SpeechSynthesisUtterance(welcomeMessage);
     utterance.lang = "es-MX";
     utterance.rate = 0.9;
@@ -190,7 +190,8 @@ export default function KioskScreen() {
       type: "success",
     });
 
-    const successMessage = `Registro exitoso, ${data.nombre || "Empleado"}`;
+    const tipo = data.tipo_movimiento === 'SALIDA' ? 'salida' : 'entrada';
+    const successMessage = `Registro ${tipo} exitoso`;
     const utterance = new SpeechSynthesisUtterance(successMessage);
     utterance.lang = "es-MX";
     utterance.rate = 0.9;

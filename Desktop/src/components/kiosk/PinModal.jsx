@@ -1,430 +1,23 @@
 import { User, UserX, CalendarX, Lock, Eye, EyeOff, X, Clock, CheckCircle, XCircle, Loader2, Timer, AlertTriangle, LogIn } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
-import { API_CONFIG, fetchApi } from "../../config/apiEndPoint";
-import { agregarEvento } from "../../services/bitacoraService";
-import {
-  cargarDatosAsistencia,
-  obtenerDepartamentoEmpleado,
-  registrarAsistenciaEnServidor,
-  obtenerInfoClasificacion,
-  formatearTiempoRestante,
-  normalizarRespuestaRegistro
-} from "../../services/asistenciaLogicService";
-
+import { useAttendanceRegistration } from "../../hooks/useAttendanceRegistration";
+import { formatearTiempoRestante } from "../../services/asistenciaLogicService";
 
 export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
-  const [showPassword, setShowPassword] = useState(false);
-  const [usuarioOCorreo, setUsuarioOCorreo] = useState("");
-  const [pin, setPin] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-  const [countdown, setCountdown] = useState(6);
-  const [errorMessage, setErrorMessage] = useState("");
-
-  // Refs para el countdown
-  const countdownRef = useRef(null);
-  const onCloseRef = useRef(onClose);
-  // Ref para prevenir envíos duplicados
-  const isSubmittingRef = useRef(false);
-
-  // Mantener referencia actualizada de onClose
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  }, [onClose]);
-
-  // === VERIFICAR PIN Y REGISTRAR ASISTENCIA ===
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    // Prevenir envíos duplicados (doble clic)
-    if (isSubmittingRef.current) {
-      console.log("⚠️ Envío en proceso, ignorando click duplicado");
-      return;
-    }
-    isSubmittingRef.current = true;
-
-    if (!usuarioOCorreo.trim() || !pin.trim()) {
-      setErrorMessage("Por favor ingresa tu usuario/correo y PIN");
-      return;
-    }
-
-    setLoading(true);
-    setErrorMessage("");
-
-    try {
-      console.log("🔐 Verificando credenciales...");
-
-      // 1. Verificar credenciales con el endpoint de login
-      const loginResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          usuario: usuarioOCorreo.trim(),
-          contraseña: pin.trim(),
-        }),
-      });
-
-      if (!loginResponse.ok) {
-        const errorData = await loginResponse.json().catch(() => ({}));
-        throw new Error(errorData.message || "Credenciales inválidas");
-      }
-
-      const loginData = await loginResponse.json();
-
-      if (!loginData.success) {
-        throw new Error(loginData.message || "Error en la autenticación");
-      }
-
-      console.log("✅ Credenciales verificadas");
-
-      const responseData = loginData.data || loginData;
-      const usuarioData = responseData.usuario || responseData;
-      const token = responseData.token;
-
-      // Guardar token temporalmente para las peticiones
-      if (token) {
-        localStorage.setItem('auth_token', token);
-        // Enviar token al SyncManager para que pueda hacer Pull autenticado
-        if (window.electronAPI && window.electronAPI.syncManager) {
-          try {
-            window.electronAPI.syncManager.updateToken(token);
-          } catch (e) {
-            // Silenciar errores de IPC
-          }
-        }
-      }
-
-      // 2. Obtener datos del empleado
-      let empleadoId = usuarioData.empleado_id;
-      let empleadoData = null;
-
-      // Verificar si el usuario es empleado
-      if (!usuarioData.es_empleado && !empleadoId) {
-        // Usuario autenticado pero no es empleado
-        agregarEvento({
-          user: usuarioData.nombre || usuarioData.username || usuarioOCorreo,
-          action: "Intento de registro - Usuario no es empleado",
-          type: "warning",
-        });
-
-        setResult({
-          success: false,
-          noEsEmpleado: true,
-          message: "Tu cuenta no está asociada a un empleado",
-          usuario: usuarioData,
-          token: token,
-        });
-        return;
-      }
-
-      if (!empleadoId && usuarioData.es_empleado) {
-        // Buscar el empleado por usuario_id
-        const empleadosResponse = await fetchApi(API_CONFIG.ENDPOINTS.EMPLEADOS);
-        const empleados = empleadosResponse.data || empleadosResponse;
-        empleadoData = empleados.find(emp => emp.usuario_id === usuarioData.id);
-        empleadoId = empleadoData?.id;
-      }
-
-      if (!empleadoId) {
-        throw new Error("No se encontró información del empleado");
-      }
-
-      // Obtener datos completos del empleado si no los tenemos
-      if (!empleadoData) {
-        const empResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.EMPLEADOS}/${empleadoId}`);
-        empleadoData = empResponse.data || empResponse;
-      }
-
-      console.log("👤 Empleado identificado:", empleadoData?.nombre || empleadoId);
-
-      // 3. Verificar horario usando el servicio compartido
-      console.log("📅 Verificando horario...");
-      const datosAsistencia = await cargarDatosAsistencia(empleadoId, usuarioData.id);
-      const estadoActual = datosAsistencia.estado;
-
-      // Verificar si el empleado tiene horario asignado
-      if (!datosAsistencia.horario) {
-        agregarEvento({
-          user: empleadoData?.nombre || usuarioOCorreo,
-          action: "Intento de registro - Empleado sin horario asignado",
-          type: "warning",
-        });
-
-        setResult({
-          success: false,
-          sinHorario: true,
-          message: "No tienes un horario asignado",
-          empleado: empleadoData,
-          usuario: usuarioData,
-          token: token,
-        });
-        return;
-      }
-
-      const now = new Date();
-      const horaActual = now.toLocaleTimeString("es-MX", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-
-      // Verificar si puede registrar
-      if (estadoActual && !estadoActual.puedeRegistrar) {
-        let mensaje = "No puedes registrar en este momento";
-        if (estadoActual.jornadaCompleta) {
-          mensaje = estadoActual.mensaje || "Ya completaste tu jornada de hoy";
-        } else if (estadoActual.estadoHorario === 'fuera_horario') {
-          mensaje = "Estás fuera del horario de registro";
-        } else if (estadoActual.estadoHorario === 'tiempo_insuficiente') {
-          const tiempoRestante = formatearTiempoRestante(estadoActual.minutosRestantes);
-          mensaje = estadoActual.mensajeEspera || `Faltan ${tiempoRestante} para habilitar tu salida`;
-        }
-
-        agregarEvento({
-          user: empleadoData?.nombre || usuarioOCorreo,
-          action: `Intento de registro - ${mensaje}`,
-          type: "warning",
-        });
-
-        setResult({
-          success: false,
-          message: mensaje,
-          empleado: empleadoData,
-          usuario: usuarioData,
-          token: token,
-          estadoHorario: estadoActual?.estadoHorario,
-          noPuedeRegistrar: true,
-          minutosRestantes: estadoActual?.minutosRestantes,
-        });
-
-        return;
-      }
-
-      // 4. Obtener departamento y registrar asistencia usando el servicio compartido
-      console.log("📝 Registrando asistencia...");
-      const departamentoId = await obtenerDepartamentoEmpleado(empleadoId);
-
-      // Registrar asistencia usando el servicio compartido
-      const data = await registrarAsistenciaEnServidor({
-        empleadoId,
-        departamentoId,
-        tipoRegistro: estadoActual?.tipoRegistro || 'entrada',
-        clasificacion: estadoActual?.clasificacion || 'entrada',
-        estadoHorario: estadoActual?.estadoHorario || 'puntual',
-        metodoRegistro: 'PIN',
-        token
-      });
-
-      // 5. Procesar resultado exitoso
-      const clasificacionFinal = data.data?.clasificacion || estadoActual?.clasificacion || 'entrada';
-      const tipoRegistro = data.data?.tipo || estadoActual?.tipoRegistro || 'entrada';
-      const tipoMovimiento = tipoRegistro === 'salida' ? 'SALIDA' : 'ENTRADA';
-
-      // Obtener texto y emoji según la clasificación usando el servicio compartido
-      const { estadoTexto, tipoEvento } = obtenerInfoClasificacion(clasificacionFinal, tipoRegistro);
-
-      agregarEvento({
-        user: empleadoData?.nombre || usuarioOCorreo,
-        action: `${tipoMovimiento === 'SALIDA' ? 'Salida' : 'Entrada'} registrada (${estadoTexto}) - PIN`,
-        type: tipoEvento,
-      });
-
-      // Mensaje de voz con información de la clasificación
-      let voiceMessage = `Registro exitoso, ${empleadoData?.nombre || 'empleado'}`;
-      if (clasificacionFinal === 'retardo') {
-        voiceMessage = `Registro con retardo, ${empleadoData?.nombre || 'empleado'}`;
-      } else if (clasificacionFinal === 'falta') {
-        voiceMessage = `Registro fuera de tolerancia, ${empleadoData?.nombre || 'empleado'}`;
-      } else if (clasificacionFinal === 'salida_temprana') {
-        voiceMessage = `Salida anticipada, ${empleadoData?.nombre || 'empleado'}`;
-      }
-
-      const utterance = new SpeechSynthesisUtterance(voiceMessage);
-      utterance.lang = "es-MX";
-      utterance.rate = 0.9;
-      window.speechSynthesis.speak(utterance);
-
-      setResult({
-        success: true,
-        message: "Asistencia registrada",
-        empleado: empleadoData,
-        usuario: usuarioData,
-        token: token,
-        tipoMovimiento: tipoMovimiento,
-        hora: data.data?.fecha_registro
-          ? new Date(data.data.fecha_registro).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
-          : horaActual,
-        estado: data.data?.estado || estadoActual?.estadoHorario || 'puntual',
-        estadoTexto: estadoTexto,
-        clasificacion: clasificacionFinal,
-      });
-
-      // Callback de éxito con clasificación
-      if (onSuccess) {
-        onSuccess({
-          empleado: empleadoData,
-          tipo_movimiento: tipoMovimiento,
-          hora: horaActual,
-          estado: data.data?.estado,
-          clasificacion: clasificacionFinal,
-          dispositivo_origen: 'escritorio',
-        });
-      }
-
-    } catch (error) {
-      console.error("❌ Error:", error);
-
-      // === FALLBACK OFFLINE ===
-      const isNetworkError = error.name === 'TypeError'
-        || error.message.includes('Failed to fetch')
-        || error.message.includes('NetworkError')
-        || error.message.includes('ERR_INTERNET_DISCONNECTED');
-
-      if (isNetworkError && window.electronAPI && window.electronAPI.offlineDB) {
-        console.log('📴 [PinModal] Sin conexión — intentando registro offline...');
-
-        try {
-          // 1. Buscar empleado en caché local por usuario, correo o nombre
-          const { cargarDatosOffline, guardarAsistenciaOffline } =
-            await import('../../services/offlineAuthService');
-
-          // Obtener todos los empleados cacheados (incluye usuario, correo, nombre)
-          const allEmpleados = await window.electronAPI.offlineDB.getAllEmpleados();
-
-          // Buscar por usuario, correo o nombre (case-insensitive)
-          const userInput = usuarioOCorreo.trim().toLowerCase();
-          let matchedEmpleado = allEmpleados.find(emp => {
-            const usuario = (emp.usuario || '').toLowerCase();
-            const correo = (emp.correo || '').toLowerCase();
-            const nombre = (emp.nombre || '').toLowerCase();
-            return usuario === userInput
-              || correo === userInput
-              || nombre === userInput
-              || nombre.includes(userInput);
-          });
-
-          if (!matchedEmpleado) {
-            throw new Error('Empleado no encontrado en caché offline. Necesitas conexión a internet para el primer registro.');
-          }
-
-          const empleadoId = matchedEmpleado.empleado_id;
-
-          console.log(`✅ [PinModal] Empleado encontrado offline: ${matchedEmpleado.nombre}`);
-
-          // 2. Cargar datos de horario y determinar tipo de registro
-          const datosOffline = await cargarDatosOffline(empleadoId);
-          const registrosHoy = datosOffline.registrosHoy || [];
-          const tipoRegistro = registrosHoy.length % 2 === 0 ? 'entrada' : 'salida';
-
-          // 3. Guardar en cola offline (sin estado — el servidor lo calculará al hacer Push)
-          await guardarAsistenciaOffline({
-            empleadoId,
-            tipo: tipoRegistro,
-            estado: tipoRegistro === 'entrada' ? 'puntual' : 'salida_puntual',
-            metodoRegistro: 'PIN',
-            departamentoId: null,
-          });
-
-          const now = new Date();
-          const horaActual = now.toLocaleTimeString("es-MX", {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-
-          const tipoMovimiento = tipoRegistro === 'salida' ? 'SALIDA' : 'ENTRADA';
-
-          // Mensaje de voz
-          const utterance = new SpeechSynthesisUtterance(
-            `Registro offline exitoso, ${matchedEmpleado.nombre}`
-          );
-          utterance.lang = "es-MX";
-          utterance.rate = 0.9;
-          window.speechSynthesis.speak(utterance);
-
-          setResult({
-            success: true,
-            offline: true,
-            message: "Asistencia registrada (modo offline)",
-            empleado: matchedEmpleado,
-            tipoMovimiento,
-            hora: horaActual,
-            estado: 'pendiente_sync',
-            estadoTexto: '📴 Modo Offline',
-            clasificacion: tipoRegistro === 'salida' ? 'salida_puntual' : 'entrada',
-          });
-          return;
-        } catch (offlineError) {
-          console.error('❌ [PinModal] Offline fallback también falló:', offlineError);
-          // Mostrar error original si el offline también falla
-          setErrorMessage(offlineError.message || error.message);
-          setResult({
-            success: false,
-            message: offlineError.message || 'Sin conexión a internet. No se pudo registrar.',
-          });
-          return;
-        }
-      }
-
-      agregarEvento({
-        user: usuarioOCorreo,
-        action: `Error en registro con PIN - ${error.message}`,
-        type: "error",
-      });
-
-      setErrorMessage(error.message || "Error al registrar asistencia");
-      setResult({
-        success: false,
-        message: error.message || "Error al registrar asistencia",
-      });
-    } finally {
-      setLoading(false);
-      isSubmittingRef.current = false;
-    }
-  };
-
-  // Countdown para cierre automático
-  useEffect(() => {
-    // Limpiar intervalo anterior si existe
-    if (countdownRef.current) {
-      clearInterval(countdownRef.current);
-      countdownRef.current = null;
-    }
-
-    if (result?.success || result?.noPuedeRegistrar || result?.noEsEmpleado || result?.sinHorario) {
-      let count = 6;
-      setCountdown(count);
-
-      countdownRef.current = setInterval(() => {
-        count -= 1;
-        setCountdown(count);
-
-        if (count <= 0) {
-          clearInterval(countdownRef.current);
-          countdownRef.current = null;
-          // Usar la referencia actualizada
-          if (onCloseRef.current) {
-            onCloseRef.current();
-          }
-        }
-      }, 1000);
-    }
-
-    return () => {
-      if (countdownRef.current) {
-        clearInterval(countdownRef.current);
-        countdownRef.current = null;
-      }
-    };
-  }, [result?.success, result?.noPuedeRegistrar]);
-
-  // Reintentar después de error
-  const handleRetry = () => {
-    setResult(null);
-    setErrorMessage("");
-    setPin("");
-  };
+  const {
+    showPassword,
+    usuarioOCorreo,
+    setUsuarioOCorreo,
+    pin,
+    setPin,
+    loading,
+    result,
+    errorMessage,
+    countdown,
+    handleSubmit,
+    handleRetry,
+    togglePasswordVisibility,
+    handleLoginRequest
+  } = useAttendanceRegistration(onClose, onSuccess, onLoginRequest);
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -501,7 +94,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={togglePasswordVisibility}
                     className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-disabled hover:text-text-secondary"
                   >
                     {showPassword ? (
@@ -604,30 +197,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   {/* Botón para iniciar sesión */}
                   {onLoginRequest && (
                     <button
-                      onClick={() => {
-                        if (countdownRef.current) {
-                          clearInterval(countdownRef.current);
-                          countdownRef.current = null;
-                        }
-                        // Construir objeto usuario con la estructura que espera SessionScreen
-                        const usuarioParaSesion = {
-                          // Datos del usuario autenticado
-                          ...result.usuario,
-                          // Datos del empleado
-                          ...result.empleado,
-                          // Asegurar que es_empleado esté definido
-                          es_empleado: true,
-                          // Asegurar empleado_id
-                          empleado_id: result.empleado?.empleado_id || result.empleado?.id || result.usuario?.empleado_id,
-                          // Nombre para mostrar
-                          nombre: result.empleado?.nombre || result.usuario?.nombre || result.usuario?.username,
-                          // Token de autenticación
-                          token: result.token
-                        };
-                        console.log("📤 Datos para sesión:", usuarioParaSesion);
-                        onLoginRequest(usuarioParaSesion);
-                        onClose();
-                      }}
+                      onClick={() => handleLoginRequest()}
                       className="mt-4 w-full py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
                     >
                       <LogIn className="w-4 h-4" />
@@ -674,30 +244,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   {/* Botón para iniciar sesión */}
                   {onLoginRequest && (
                     <button
-                      onClick={() => {
-                        if (countdownRef.current) {
-                          clearInterval(countdownRef.current);
-                          countdownRef.current = null;
-                        }
-                        // Construir objeto usuario con la estructura que espera SessionScreen
-                        const usuarioParaSesion = {
-                          // Datos del usuario autenticado
-                          ...result.usuario,
-                          // Datos del empleado
-                          ...result.empleado,
-                          // Asegurar que es_empleado esté definido
-                          es_empleado: true,
-                          // Asegurar empleado_id
-                          empleado_id: result.empleado?.empleado_id || result.empleado?.id || result.usuario?.empleado_id,
-                          // Nombre para mostrar
-                          nombre: result.empleado?.nombre || result.usuario?.nombre || result.usuario?.username,
-                          // Token de autenticación
-                          token: result.token
-                        };
-                        console.log("📤 Datos para sesión:", usuarioParaSesion);
-                        onLoginRequest(usuarioParaSesion);
-                        onClose();
-                      }}
+                      onClick={() => handleLoginRequest()}
                       className="mt-4 w-full py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
                     >
                       <LogIn className="w-4 h-4" />
@@ -731,15 +278,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   {/* Botón para iniciar sesión si tiene permisos */}
                   {onLoginRequest && (
                     <button
-                      onClick={() => {
-                        const usuarioParaSesion = {
-                          ...result.usuario,
-                          es_empleado: false,
-                          token: result.token
-                        };
-                        onLoginRequest(usuarioParaSesion);
-                        onClose();
-                      }}
+                      onClick={() => handleLoginRequest()}
                       className="mt-4 w-full py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
                     >
                       <LogIn className="w-4 h-4" />
@@ -773,17 +312,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   {/* Botón para iniciar sesión si tiene permisos */}
                   {onLoginRequest && (
                     <button
-                      onClick={() => {
-                        const usuarioParaSesion = {
-                          ...result.usuario,
-                          ...result.empleado,
-                          es_empleado: true,
-                          empleado_id: result.empleado?.empleado_id || result.empleado?.id,
-                          token: result.token
-                        };
-                        onLoginRequest(usuarioParaSesion);
-                        onClose();
-                      }}
+                      onClick={() => handleLoginRequest()}
                       className="mt-4 w-full py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
                     >
                       <LogIn className="w-4 h-4" />
@@ -792,17 +321,30 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   )}
                 </>
               ) : (
+                /* Fallback para errores genéricos */
                 <>
-                  <XCircle className="w-16 h-16 mx-auto mb-3 text-red-600 dark:text-red-400" />
+                  <X className="w-16 h-16 mx-auto mb-3 text-red-600 dark:text-red-400" />
                   <p className="text-red-800 dark:text-red-300 font-bold text-lg mb-1">
-                    Error en el Registro
+                    Error
                   </p>
-                  <p className="text-gray-700 dark:text-gray-300 text-sm mb-4">
+                  <p className="text-gray-700 dark:text-gray-300 text-sm">
                     {result.message}
                   </p>
+
+                  {/* Botón para iniciar sesión si hay datos de usuario (aunque hubo error) */}
+                  {onLoginRequest && result.usuario && (
+                    <button
+                      onClick={() => handleLoginRequest()}
+                      className="mt-4 w-full py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
+                    >
+                      <LogIn className="w-4 h-4" />
+                      Iniciar Sesión
+                    </button>
+                  )}
+
                   <button
                     onClick={handleRetry}
-                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-sm font-medium transition-colors"
+                    className="mt-4 text-purple-600 hover:text-purple-800 font-medium text-sm"
                   >
                     Intentar de nuevo
                   </button>

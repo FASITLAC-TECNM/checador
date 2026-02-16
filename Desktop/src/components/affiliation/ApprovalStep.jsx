@@ -21,7 +21,7 @@ export default function ApprovalStep({
         {/* Botón de información */}
         <button
           onClick={onShowWelcome}
-          className="fixed top-20 right-6 w-12 h-12 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full shadow-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-all hover:scale-110 flex items-center justify-center z-10"
+          className="fixed top-20 right-6 w-12 h-12 bg-[#2563eb] text-[#e0f2fe] rounded-full shadow-lg shadow-[#2563eb]/20 hover:bg-[#3b82f6] transition-all hover:scale-110 flex items-center justify-center z-10"
           title="Ver información de bienvenida"
         >
           <Info className="w-6 h-6" />
@@ -62,7 +62,7 @@ export default function ApprovalStep({
           <div className="max-w-2xl mx-auto flex justify-end">
             <button
               onClick={onGoToLogin}
-              className="group px-6 py-2.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 font-medium transition-all duration-200 shadow-sm hover:shadow-lg hover:-translate-y-0.5 flex items-center gap-2"
+              className="group px-6 py-2.5 bg-[#2563eb] text-[#e0f2fe] rounded-xl hover:bg-[#3b82f6] font-medium transition-all duration-200 shadow-sm shadow-[#2563eb]/20 hover:shadow-lg hover:shadow-[#2563eb]/30 hover:-translate-y-0.5 flex items-center gap-2"
             >
               Ir al Inicio de Sesión
               <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-200" />
@@ -84,7 +84,7 @@ export default function ApprovalStep({
         {/* Botón de información */}
         <button
           onClick={onShowWelcome}
-          className="fixed top-20 right-6 w-12 h-12 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-full shadow-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-all hover:scale-110 flex items-center justify-center z-10"
+          className="fixed top-20 right-6 w-12 h-12 bg-[#2563eb] text-[#e0f2fe] rounded-full shadow-lg shadow-[#2563eb]/20 hover:bg-[#3b82f6] transition-all hover:scale-110 flex items-center justify-center z-10"
           title="Ver información de bienvenida"
         >
           <Info className="w-6 h-6" />
@@ -134,7 +134,7 @@ export default function ApprovalStep({
           <div className="max-w-2xl mx-auto flex justify-center">
             <button
               onClick={onRetry}
-              className="px-6 py-2.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 font-medium transition-all duration-200 shadow-sm hover:shadow-lg hover:-translate-y-0.5"
+              className="px-6 py-2.5 bg-[#2563eb] text-[#e0f2fe] rounded-xl hover:bg-[#3b82f6] font-medium transition-all duration-200 shadow-sm shadow-[#2563eb]/20 hover:shadow-lg hover:shadow-[#2563eb]/30 hover:-translate-y-0.5"
             >
               Intentar Nuevamente
             </button>
@@ -154,7 +154,7 @@ export default function ApprovalStep({
       {/* Botón de información */}
       <button
         onClick={onShowWelcome}
-        className="fixed top-20 right-6 w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-110 flex items-center justify-center z-10"
+        className="fixed top-20 right-6 w-12 h-12 bg-[#2563eb] text-[#e0f2fe] rounded-full shadow-lg shadow-[#2563eb]/20 hover:bg-[#3b82f6] transition-all hover:scale-110 flex items-center justify-center z-10"
         title="Ver información de bienvenida"
       >
         <Info className="w-6 h-6" />

@@ -15,7 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getEmpresaById } from '../../services/empresaService';
-import sqliteManager from '../../services/offline/sqliteManager';
+import sqliteManager from '../../services/offline/sqliteManager.mjs';
 
 export const SupportScreen = ({ darkMode, onBack, userData }) => {
   const [expandedFaq, setExpandedFaq] = useState(null);
@@ -32,9 +32,9 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
       setIsLoading(true);
 
       const empresaId = userData?.empresa_id ||
-                        userData?.empresa?.id ||
-                        userData?.empleado?.empresa_id ||
-                        null;
+        userData?.empresa?.id ||
+        userData?.empleado?.empresa_id ||
+        null;
 
       if (!empresaId) {
         setIsLoading(false);
@@ -119,7 +119,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
 
     if (empresaData?.telefono) {
       const phoneClean = empresaData.telefono.replace(/[\s()-]/g, '');
-      
+
       options.push({
         id: 1,
         title: "WhatsApp",
@@ -132,14 +132,14 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
           const url = Platform.OS === 'ios'
             ? `https://api.whatsapp.com/send?phone=${phoneClean}&text=${encodeURIComponent(message)}`
             : `whatsapp://send?phone=${phoneClean}&text=${encodeURIComponent(message)}`;
-          
+
           Linking.canOpenURL(url)
             .then((supported) => {
               if (supported) {
                 return Linking.openURL(url);
               } else {
                 Alert.alert(
-                  "WhatsApp no disponible", 
+                  "WhatsApp no disponible",
                   "WhatsApp no está instalado en tu dispositivo"
                 );
               }
@@ -162,7 +162,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
           const subject = `Solicitud de Soporte - ${empresaData.nombre || 'App Asistencia'}`;
           const body = `Hola,\n\nSoy ${userData?.nombre || 'Usuario'} (${userData?.correo || 'correo@ejemplo.com'}).\n\nNecesito ayuda con:\n\n`;
           const url = `mailto:${empresaData.correo}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-          
+
           Linking.openURL(url).catch(() => {
             Alert.alert("Error", "No se pudo abrir el cliente de correo");
           });
@@ -172,7 +172,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
 
     if (empresaData?.telefono) {
       const phoneClean = empresaData.telefono.replace(/[\s()-]/g, '');
-      
+
       options.push({
         id: 3,
         title: "Teléfono",
@@ -185,8 +185,8 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
             `¿Deseas llamar a ${empresaData.telefono}?`,
             [
               { text: "Cancelar", style: "cancel" },
-              { 
-                text: "Llamar", 
+              {
+                text: "Llamar",
                 onPress: () => {
                   Linking.openURL(`tel:${phoneClean}`).catch(() => {
                     Alert.alert("Error", "No se pudo realizar la llamada");
@@ -211,11 +211,11 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <StatusBar 
-          barStyle="light-content" 
-          backgroundColor={darkMode ? "#1e40af" : "#2563eb"} 
+        <StatusBar
+          barStyle="light-content"
+          backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
         />
-        
+
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={onBack} style={styles.backButton}>
@@ -239,11 +239,11 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar 
-        barStyle="light-content" 
-        backgroundColor={darkMode ? "#1e40af" : "#2563eb"} 
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
       />
-      
+
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
@@ -259,7 +259,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
         </View>
       </View>
 
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
@@ -267,16 +267,16 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
           <View style={styles.quickHelpGradient}>
             <View style={styles.quickHelpIconContainer}>
               {empresaData?.logo ? (
-                <Image 
+                <Image
                   source={{ uri: empresaData.logo }}
                   style={styles.empresaLogo}
                   resizeMode="contain"
                 />
               ) : (
-                <Ionicons 
-                  name="help-circle" 
-                  size={48} 
-                  color={darkMode ? '#93c5fd' : '#2563eb'} 
+                <Ionicons
+                  name="help-circle"
+                  size={48}
+                  color={darkMode ? '#93c5fd' : '#2563eb'}
                 />
               )}
             </View>
@@ -292,10 +292,10 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
         {contactOptions.length > 0 ? (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons 
-                name="chatbubbles" 
-                size={18} 
-                color={darkMode ? '#3794fd' : '#6366f1'} 
+              <Ionicons
+                name="chatbubbles"
+                size={18}
+                color={darkMode ? '#3794fd' : '#6366f1'}
               />
               <Text style={styles.sectionTitle}>Contáctanos</Text>
             </View>
@@ -335,10 +335,10 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons 
-              name="help-buoy" 
-              size={18} 
-              color={darkMode ? '#3794fd' : '#6366f1'} 
+            <Ionicons
+              name="help-buoy"
+              size={18}
+              color={darkMode ? '#3794fd' : '#6366f1'}
             />
             <Text style={styles.sectionTitle}>Preguntas Frecuentes</Text>
           </View>
@@ -355,10 +355,10 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
             >
               <View style={styles.faqHeader}>
                 <View style={styles.faqIconCircle}>
-                  <Ionicons 
-                    name={faq.icon} 
-                    size={20} 
-                    color={darkMode ? '#818cf8' : '#6366f1'} 
+                  <Ionicons
+                    name={faq.icon}
+                    size={20}
+                    color={darkMode ? '#818cf8' : '#6366f1'}
                   />
                 </View>
                 <Text style={styles.faqQuestion}>{faq.pregunta}</Text>
@@ -368,7 +368,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
                   color="#9ca3af"
                 />
               </View>
-              
+
               {expandedFaq === faq.id && (
                 <View style={styles.faqAnswerContainer}>
                   <View style={styles.faqDivider} />

@@ -46,7 +46,7 @@ import { FacialCaptureScreen } from '../../services/FacialCaptureScreen';
 import { PinInputModal } from './PinModal';
 
 // Offline Services
-import sqliteManager from '../../services/offline/sqliteManager';
+import sqliteManager from '../../services/offline/sqliteManager.mjs';
 
 // ─── Constantes de color por estado ─────────────────────────────────────────
 const ESTADO_COLORES = {

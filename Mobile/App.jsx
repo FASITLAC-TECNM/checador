@@ -14,8 +14,9 @@ import { OnboardingNavigator } from './components/devicesetup/onBoardNavigator';
 import { getSolicitudPorToken, verificarDispositivoPorEmpleado } from './services/solicitudMovilService';
 import { getUsuarioCompleto } from './services/empleadoServices';
 import { useNavigationBarColor } from './services/useNavigationBarColor';
-import sqliteManager from './services/offline/sqliteManager';
-import syncManager from './services/offline/syncManager';
+import sqliteManager from './services/offline/sqliteManager.mjs';
+import syncManager from './services/offline/syncManager.mjs';
+import { initNotifications } from './services/localNotificationService';
 
 const STORAGE_KEYS = {
   DARK_MODE: '@dark_mode',
@@ -58,6 +59,7 @@ export default function App() {
         await sqliteManager.initDatabase();
         console.log('✅ Offline DB Initialized');
         syncManager.initAutoSync();
+        await initNotifications();
       } catch (e) {
         console.error('❌ Failed to init offline DB', e);
       }

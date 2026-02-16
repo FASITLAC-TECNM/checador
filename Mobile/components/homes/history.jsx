@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getAsistenciasEmpleado } from '../../services/asistenciasService';
-import sqliteManager from '../../services/offline/sqliteManager';
+import sqliteManager from '../../services/offline/sqliteManager.mjs';
 
 export const HistoryScreen = ({ darkMode, userData }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -109,7 +109,7 @@ export const HistoryScreen = ({ darkMode, userData }) => {
   // Calcular estadísticas
   const calcularEstadisticas = (data) => {
     const stats = { puntuales: 0, retardos: 0, faltas: 0 };
-    
+
     data.forEach(registro => {
       if (registro.tipo === 'entrada') {
         if (registro.estado === 'puntual') stats.puntuales++;
@@ -147,12 +147,12 @@ export const HistoryScreen = ({ darkMode, userData }) => {
     const primerDiaSemana = primerDia.getDay();
 
     const dias = [];
-    
+
     // Días vacíos al inicio
     for (let i = 0; i < primerDiaSemana; i++) {
       dias.push(null);
     }
-    
+
     // Días del mes
     for (let dia = 1; dia <= diasEnMes; dia++) {
       dias.push(dia);
@@ -181,12 +181,12 @@ export const HistoryScreen = ({ darkMode, userData }) => {
     });
 
     if (registrosDia.length === 0) return null;
-    
+
     // Prioridad: falta > retardo > puntual
     if (registrosDia.some(r => r.estado === 'falta')) return 'falta';
     if (registrosDia.some(r => r.estado === 'retardo')) return 'retardo';
     if (registrosDia.some(r => r.estado === 'puntual')) return 'puntual';
-    
+
     return null;
   };
 
@@ -200,7 +200,7 @@ export const HistoryScreen = ({ darkMode, userData }) => {
   // Filtrar registros por día seleccionado
   const getRegistrosDia = () => {
     if (!selectedDate) return asistencias;
-    
+
     return asistencias.filter(registro => {
       const registroFecha = new Date(registro.fecha_registro);
       return registroFecha.toDateString() === selectedDate.toDateString();
@@ -252,197 +252,197 @@ export const HistoryScreen = ({ darkMode, userData }) => {
           <ActivityIndicator size="large" color="#2563eb" />
         </View>
       ) : (
-      <ScrollView 
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#2563eb"
-            colors={['#2563eb']}
-          />
-        }
-      >
-        {/* Navegación de mes */}
-        <View style={styles.monthSelector}>
-          <TouchableOpacity 
-            style={styles.monthButton}
-            onPress={() => cambiarMes(-1)}
-          >
-            <Ionicons name="chevron-back" size={24} color={styles.monthButtonText.color} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.monthLabel}
-            onPress={() => setShowCalendar(!showCalendar)}
-          >
-            <Text style={styles.monthText}>
-              {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-            </Text>
-            <Ionicons 
-              name={showCalendar ? "chevron-up" : "chevron-down"} 
-              size={20} 
-              color={styles.monthText.color} 
-              style={{ marginLeft: 8 }}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#2563eb"
+              colors={['#2563eb']}
             />
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.monthButton}
-            onPress={() => cambiarMes(1)}
-            disabled={currentMonth >= new Date()}
-          >
-            <Ionicons 
-              name="chevron-forward" 
-              size={24} 
-              color={currentMonth >= new Date() ? '#9ca3af' : styles.monthButtonText.color} 
-            />
-          </TouchableOpacity>
-        </View>
+          }
+        >
+          {/* Navegación de mes */}
+          <View style={styles.monthSelector}>
+            <TouchableOpacity
+              style={styles.monthButton}
+              onPress={() => cambiarMes(-1)}
+            >
+              <Ionicons name="chevron-back" size={24} color={styles.monthButtonText.color} />
+            </TouchableOpacity>
 
-        {/* Calendario */}
-        {showCalendar && (
-          <View style={styles.calendarContainer}>
-            {/* Nombres de días */}
-            <View style={styles.weekDays}>
-              {dayNames.map((day, index) => (
-                <View key={index} style={styles.weekDay}>
-                  <Text style={styles.weekDayText}>{day}</Text>
+            <TouchableOpacity
+              style={styles.monthLabel}
+              onPress={() => setShowCalendar(!showCalendar)}
+            >
+              <Text style={styles.monthText}>
+                {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+              </Text>
+              <Ionicons
+                name={showCalendar ? "chevron-up" : "chevron-down"}
+                size={20}
+                color={styles.monthText.color}
+                style={{ marginLeft: 8 }}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.monthButton}
+              onPress={() => cambiarMes(1)}
+              disabled={currentMonth >= new Date()}
+            >
+              <Ionicons
+                name="chevron-forward"
+                size={24}
+                color={currentMonth >= new Date() ? '#9ca3af' : styles.monthButtonText.color}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Calendario */}
+          {showCalendar && (
+            <View style={styles.calendarContainer}>
+              {/* Nombres de días */}
+              <View style={styles.weekDays}>
+                {dayNames.map((day, index) => (
+                  <View key={index} style={styles.weekDay}>
+                    <Text style={styles.weekDayText}>{day}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {/* Días del mes */}
+              <View style={styles.daysGrid}>
+                {generarDiasCalendario().map((dia, index) => {
+                  const estado = getEstadoDia(dia);
+                  const isSelected = selectedDate && dia === selectedDate.getDate();
+                  const isToday = dia &&
+                    new Date().toDateString() === new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia).toDateString();
+
+                  return (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.dayCell}
+                      onPress={() => seleccionarDia(dia)}
+                      disabled={!dia}
+                    >
+                      {dia && (
+                        <View style={[
+                          styles.dayContent,
+                          isSelected && styles.dayContentSelected,
+                          isToday && !isSelected && styles.dayContentToday
+                        ]}>
+                          <Text style={[
+                            styles.dayText,
+                            isSelected && styles.dayTextSelected,
+                            isToday && !isSelected && styles.dayTextToday
+                          ]}>
+                            {dia}
+                          </Text>
+                          {estado && !isSelected && (
+                            <View style={[
+                              styles.dayIndicator,
+                              { backgroundColor: obtenerColorEstado(estado) }
+                            ]} />
+                          )}
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* Estadísticas compactas */}
+          <View style={styles.statsRow}>
+            <View style={styles.statBadge}>
+              <View style={[styles.statDot, { backgroundColor: '#10b981' }]} />
+              <Text style={styles.statText}>{estadisticas.puntuales} Puntual</Text>
+            </View>
+            <View style={styles.statBadge}>
+              <View style={[styles.statDot, { backgroundColor: '#f59e0b' }]} />
+              <Text style={styles.statText}>{estadisticas.retardos} Retardo</Text>
+            </View>
+            <View style={styles.statBadge}>
+              <View style={[styles.statDot, { backgroundColor: '#ef4444' }]} />
+              <Text style={styles.statText}>{estadisticas.faltas} Falta</Text>
+            </View>
+          </View>
+
+          {/* Encabezado de registros */}
+          <View style={styles.recordsHeader}>
+            <Text style={styles.recordsTitle}>
+              {selectedDate
+                ? `${selectedDate.getDate()} de ${monthNames[selectedDate.getMonth()]}`
+                : 'Todos los registros'
+              }
+            </Text>
+            <Text style={styles.recordsCount}>
+              {registrosFiltrados.length} {registrosFiltrados.length === 1 ? 'registro' : 'registros'}
+            </Text>
+          </View>
+
+          {/* Lista de registros */}
+          {registrosFiltrados.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="calendar-outline" size={48} color="#cbd5e1" />
+              <Text style={styles.emptyText}>Sin registros</Text>
+              <Text style={styles.emptySubtext}>
+                {selectedDate ? 'No hay registros para este día' : 'No hay registros este mes'}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.recordsList}>
+              {registrosFiltrados.map((registro, index) => (
+                <View key={registro.id || index} style={styles.recordItem}>
+                  <View style={[
+                    styles.recordIconContainer,
+                    { backgroundColor: registro.tipo === 'entrada' ? '#ecfdf5' : '#eff6ff' }
+                  ]}>
+                    <Ionicons
+                      name={registro.tipo === 'entrada' ? 'arrow-down' : 'arrow-up'}
+                      size={18}
+                      color={registro.tipo === 'entrada' ? '#10b981' : '#2563eb'}
+                    />
+                  </View>
+
+                  <View style={styles.recordContent}>
+                    <Text style={styles.recordType}>
+                      {registro.tipo === 'entrada' ? 'Entrada' : 'Salida'}
+                    </Text>
+                    <View style={styles.recordMeta}>
+                      <Text style={styles.recordTime}>
+                        {formatearHora(registro.fecha_registro)}
+                      </Text>
+                      <Text style={styles.recordSeparator}>•</Text>
+                      <Text style={styles.recordDate}>
+                        {formatearFecha(registro.fecha_registro)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {registro.tipo === 'entrada' && registro.estado && (
+                    <View style={[
+                      styles.recordBadge,
+                      { backgroundColor: obtenerColorEstado(registro.estado) + '20' }
+                    ]}>
+                      <Text style={[
+                        styles.recordBadgeText,
+                        { color: obtenerColorEstado(registro.estado) }
+                      ]}>
+                        {registro.estado === 'puntual' ? '✓' : registro.estado === 'retardo' ? '⏱' : '✕'}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               ))}
             </View>
+          )}
 
-            {/* Días del mes */}
-            <View style={styles.daysGrid}>
-              {generarDiasCalendario().map((dia, index) => {
-                const estado = getEstadoDia(dia);
-                const isSelected = selectedDate && dia === selectedDate.getDate();
-                const isToday = dia && 
-                  new Date().toDateString() === new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia).toDateString();
-
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.dayCell}
-                    onPress={() => seleccionarDia(dia)}
-                    disabled={!dia}
-                  >
-                    {dia && (
-                      <View style={[
-                        styles.dayContent,
-                        isSelected && styles.dayContentSelected,
-                        isToday && !isSelected && styles.dayContentToday
-                      ]}>
-                        <Text style={[
-                          styles.dayText,
-                          isSelected && styles.dayTextSelected,
-                          isToday && !isSelected && styles.dayTextToday
-                        ]}>
-                          {dia}
-                        </Text>
-                        {estado && !isSelected && (
-                          <View style={[
-                            styles.dayIndicator,
-                            { backgroundColor: obtenerColorEstado(estado) }
-                          ]} />
-                        )}
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-        {/* Estadísticas compactas */}
-        <View style={styles.statsRow}>
-          <View style={styles.statBadge}>
-            <View style={[styles.statDot, { backgroundColor: '#10b981' }]} />
-            <Text style={styles.statText}>{estadisticas.puntuales} Puntual</Text>
-          </View>
-          <View style={styles.statBadge}>
-            <View style={[styles.statDot, { backgroundColor: '#f59e0b' }]} />
-            <Text style={styles.statText}>{estadisticas.retardos} Retardo</Text>
-          </View>
-          <View style={styles.statBadge}>
-            <View style={[styles.statDot, { backgroundColor: '#ef4444' }]} />
-            <Text style={styles.statText}>{estadisticas.faltas} Falta</Text>
-          </View>
-        </View>
-
-        {/* Encabezado de registros */}
-        <View style={styles.recordsHeader}>
-          <Text style={styles.recordsTitle}>
-            {selectedDate 
-              ? `${selectedDate.getDate()} de ${monthNames[selectedDate.getMonth()]}`
-              : 'Todos los registros'
-            }
-          </Text>
-          <Text style={styles.recordsCount}>
-            {registrosFiltrados.length} {registrosFiltrados.length === 1 ? 'registro' : 'registros'}
-          </Text>
-        </View>
-
-        {/* Lista de registros */}
-        {registrosFiltrados.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="calendar-outline" size={48} color="#cbd5e1" />
-            <Text style={styles.emptyText}>Sin registros</Text>
-            <Text style={styles.emptySubtext}>
-              {selectedDate ? 'No hay registros para este día' : 'No hay registros este mes'}
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.recordsList}>
-            {registrosFiltrados.map((registro, index) => (
-              <View key={registro.id || index} style={styles.recordItem}>
-                <View style={[
-                  styles.recordIconContainer,
-                  { backgroundColor: registro.tipo === 'entrada' ? '#ecfdf5' : '#eff6ff' }
-                ]}>
-                  <Ionicons 
-                    name={registro.tipo === 'entrada' ? 'arrow-down' : 'arrow-up'} 
-                    size={18} 
-                    color={registro.tipo === 'entrada' ? '#10b981' : '#2563eb'}
-                  />
-                </View>
-                
-                <View style={styles.recordContent}>
-                  <Text style={styles.recordType}>
-                    {registro.tipo === 'entrada' ? 'Entrada' : 'Salida'}
-                  </Text>
-                  <View style={styles.recordMeta}>
-                    <Text style={styles.recordTime}>
-                      {formatearHora(registro.fecha_registro)}
-                    </Text>
-                    <Text style={styles.recordSeparator}>•</Text>
-                    <Text style={styles.recordDate}>
-                      {formatearFecha(registro.fecha_registro)}
-                    </Text>
-                  </View>
-                </View>
-
-                {registro.tipo === 'entrada' && registro.estado && (
-                  <View style={[
-                    styles.recordBadge,
-                    { backgroundColor: obtenerColorEstado(registro.estado) + '20' }
-                  ]}>
-                    <Text style={[
-                      styles.recordBadgeText,
-                      { color: obtenerColorEstado(registro.estado) }
-                    ]}>
-                      {registro.estado === 'puntual' ? '✓' : registro.estado === 'retardo' ? '⏱' : '✕'}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            ))}
-          </View>
-        )}
-
-        <View style={{ height: 100 }} />
-      </ScrollView>
+          <View style={{ height: 100 }} />
+        </ScrollView>
       )}
     </View>
   );

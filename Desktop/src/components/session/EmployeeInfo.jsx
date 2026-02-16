@@ -336,11 +336,6 @@ export default function EmployeeInfo({ time, empleado, horario: horarioProp, loa
               </div>
             )}
 
-            {/* Ubicación */}
-            <div className="flex items-center gap-2 text-text-secondary">
-              <MapPin className="w-4 h-4 text-indigo-500" />
-              <span className="text-sm">Edificio A - Entrada Principal</span>
-            </div>
           </>
         ) : !errorHorario && horarioParsed && infoHoy.trabaja && turnoRelevante?.estado === 'finalizado' ? (
           /* Jornada Finalizada */
@@ -403,29 +398,7 @@ export default function EmployeeInfo({ time, empleado, horario: horarioProp, loa
         </div>
       </div>
 
-      {/* Estadísticas del Mes */}
-      <div className="bg-bg-primary rounded-2xl shadow-lg p-3 flex-shrink-0">
-        <div className="flex items-center gap-2 mb-2">
-          <Briefcase className="w-4 h-4 text-text-secondary" />
-          <h3 className="text-sm font-bold text-text-primary">
-            Estadísticas del Mes
-          </h3>
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-2 text-center">
-            <p className="text-xl font-bold text-green-500">8</p>
-            <p className="text-[10px] text-green-600 dark:text-green-400 font-medium">Asistencias</p>
-          </div>
-          <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-2 text-center">
-            <p className="text-xl font-bold text-red-500">2</p>
-            <p className="text-[10px] text-red-600 dark:text-red-400 font-medium">Faltas</p>
-          </div>
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-2 text-center">
-            <p className="text-xl font-bold text-blue-500">90%</p>
-            <p className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">Asistencia</p>
-          </div>
-        </div>
-      </div>
+
     </>
   );
 }

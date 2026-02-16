@@ -21,8 +21,8 @@ import {
   getInfoDiaActual
 } from '../../services/horariosService';
 import { IncidenciasScreen } from '../settingsPages/IncidentScreen';
-import sqliteManager from '../../services/offline/sqliteManager';
-import syncManager from '../../services/offline/syncManager';
+import sqliteManager from '../../services/offline/sqliteManager.mjs';
+import syncManager from '../../services/offline/syncManager.mjs';
 
 export const ScheduleScreen = ({ darkMode, userData }) => {
   const [scheduleData, setScheduleData] = useState([]);

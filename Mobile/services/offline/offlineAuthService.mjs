@@ -1,10 +1,12 @@
 /**
  * OfflineAuthService — Servicio de autenticación contra la caché local SQLite (Mobile)
  * Valida PIN, huella y facial cuando no hay conexión al servidor.
+ * Archivo .mjs — ES Module
+ *
  * Adaptado de Desktop.
  */
 
-import sqliteManager from './sqliteManager';
+import sqliteManager from './sqliteManager.mjs';
 
 // ============================================================
 // HELPERS
@@ -36,8 +38,6 @@ function bufferToFloat32Array(data) {
         if (data instanceof Float32Array) return data;
         if (Array.isArray(data)) return new Float32Array(data);
 
-        // En Expo SQLite, los BLOBs suelen venir como strings base64 o uint8array dependiendo de la versión
-        // Asumiremos string base64 si es string
         if (typeof data === 'string') {
             try {
                 // Intentar parsear como JSON (array de números)
@@ -45,8 +45,7 @@ function bufferToFloat32Array(data) {
                 if (Array.isArray(parsed)) return new Float32Array(parsed);
             } catch (e) {
                 // Si no es JSON, es Base64
-                // Decode base64 to binary string
-                const binaryString = atob(data); // React Native (Hermes/JSC) soporta atob
+                const binaryString = atob(data);
                 const bytes = new Uint8Array(binaryString.length);
                 for (let i = 0; i < binaryString.length; i++) {
                     bytes[i] = binaryString.charCodeAt(i);
@@ -78,8 +77,6 @@ export async function identificarPorPinOffline(pinIngresado) {
         for (const cred of credenciales) {
             if (!cred.pin_hash) continue;
 
-            // Comparación simple de PIN (o hash si coincide)
-            // Nota: Igual que en Desktop, no podemos verificar Argon2 offline nativamente fácil
             if (cred.pin_hash === pinIngresado) {
                 const empleado = await sqliteManager.getEmpleado(cred.empleado_id);
                 if (empleado && empleado.estado_cuenta === 'activo') {

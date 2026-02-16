@@ -22,8 +22,9 @@ import {
 } from '../../services/incidenciasService';
 
 // Offline Services
-import sqliteManager from '../../services/offline/sqliteManager';
-import syncManager from '../../services/offline/syncManager';
+import sqliteManager from '../../services/offline/sqliteManager.mjs';
+import syncManager from '../../services/offline/syncManager.mjs';
+import { detectarCambiosIncidencias } from '../../services/localNotificationService';
 
 export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
   const [incidencias, setIncidencias] = useState([]);
@@ -143,6 +144,11 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
         new Date(b.fecha_inicio) - new Date(a.fecha_inicio)
       );
       setIncidencias(incidenciasOrdenadas);
+
+      // Detectar cambios de estado y notificar (aprobado/rechazado)
+      if (cargoOnline) {
+        detectarCambiosIncidencias(incidenciasOrdenadas);
+      }
 
       // Si no cargo online y no hay datos, avisar
       if (!cargoOnline && datos.length === 0) {
@@ -324,7 +330,7 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
 
   const getIncidenciasFiltradas = () => {
     let filtradas = incidencias;
-    
+
     // Filtro de estado (solo en vista lista)
     if (filtroEstado !== 'todos' && vistaActual === 'lista') {
       filtradas = filtradas.filter(i => i.estado?.toLowerCase() === filtroEstado);
@@ -363,11 +369,11 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
     const primerDiaSemana = primerDia.getDay();
 
     const dias = [];
-    
+
     for (let i = 0; i < primerDiaSemana; i++) {
       dias.push(null);
     }
-    
+
     for (let dia = 1; dia <= diasEnMes; dia++) {
       dias.push(dia);
     }
@@ -378,12 +384,12 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
   const getIncidenciasDia = (dia) => {
     if (!dia) return [];
     const fecha = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia);
-    
+
     return incidencias.filter(i => {
       const inicioDate = new Date(i.fecha_inicio);
       const finDate = i.fecha_fin ? new Date(i.fecha_fin) : inicioDate;
-      return fecha >= new Date(inicioDate.setHours(0,0,0,0)) && 
-             fecha <= new Date(finDate.setHours(23,59,59,999));
+      return fecha >= new Date(inicioDate.setHours(0, 0, 0, 0)) &&
+        fecha <= new Date(finDate.setHours(23, 59, 59, 999));
     });
   };
 
@@ -397,11 +403,11 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
           <TouchableOpacity onPress={() => cambiarMes(-1)} style={styles.monthButton}>
             <Ionicons name="chevron-back" size={24} color={styles.monthButtonText.color} />
           </TouchableOpacity>
-          
+
           <Text style={styles.monthText}>
             {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
           </Text>
-          
+
           <TouchableOpacity onPress={() => cambiarMes(1)} style={styles.monthButton}>
             <Ionicons name="chevron-forward" size={24} color={styles.monthButtonText.color} />
           </TouchableOpacity>
@@ -422,7 +428,7 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
               const incidenciasDia = getIncidenciasDia(dia);
               const isSelected = selectedDate && dia === selectedDate.getDate() &&
                 selectedDate.getMonth() === currentMonth.getMonth();
-              const isToday = dia && 
+              const isToday = dia &&
                 new Date().toDateString() === new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia).toDateString();
 
               return (
@@ -529,7 +535,7 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
         {isExpanded && (
           <View style={styles.expandedContent}>
             <View style={styles.divider} />
-            
+
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Estado:</Text>
               <Text style={[styles.detailValue, { color: getEstadoColor(incidencia.estado) }]}>
@@ -594,7 +600,7 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
             <View style={styles.headerPlaceholder} />
           </View>
         </View>
-        
+
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#3b82f6" />
         </View>
@@ -672,22 +678,22 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
         {vistaActual === 'lista' && (
           <View style={styles.filtrosContainer}>
             {/* Filtro de Estado */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.filtroChip}
               onPress={() => setModalFiltroVisible(true)}
             >
-              <Ionicons 
-                name={filtrosEstado.find(f => f.value === filtroEstado)?.icon || 'list'} 
-                size={16} 
-                color="#2563eb" 
+              <Ionicons
+                name={filtrosEstado.find(f => f.value === filtroEstado)?.icon || 'list'}
+                size={16}
+                color="#2563eb"
               />
               <Text style={styles.filtroChipText}>
                 {filtrosEstado.find(f => f.value === filtroEstado)?.label || 'Todos'}
               </Text>
               <View style={styles.filtroChipBadge}>
                 <Text style={styles.filtroChipBadgeText}>
-                  {filtroEstado === 'todos' 
-                    ? incidencias.length 
+                  {filtroEstado === 'todos'
+                    ? incidencias.length
                     : incidencias.filter(i => i.estado === filtroEstado).length
                   }
                 </Text>
@@ -695,22 +701,22 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
             </TouchableOpacity>
 
             {/* NUEVO: Filtro de Tipo */}
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.filtroChip, { flex: 1 }]}
               onPress={() => setModalFiltroTipoVisible(true)}
             >
-              <Ionicons 
-                name={filtrosTipo.find(f => f.value === filtroTipo)?.icon || 'apps'} 
-                size={16} 
-                color={getTipoColor(filtroTipo)} 
+              <Ionicons
+                name={filtrosTipo.find(f => f.value === filtroTipo)?.icon || 'apps'}
+                size={16}
+                color={getTipoColor(filtroTipo)}
               />
               <Text style={styles.filtroChipText}>
                 {filtroTipo === 'todos' ? 'Tipo' : filtrosTipo.find(f => f.value === filtroTipo)?.label}
               </Text>
               <View style={[styles.filtroChipBadge, { backgroundColor: `${getTipoColor(filtroTipo)}20` }]}>
                 <Text style={[styles.filtroChipBadgeText, { color: getTipoColor(filtroTipo) }]}>
-                  {filtroTipo === 'todos' 
-                    ? incidencias.length 
+                  {filtroTipo === 'todos'
+                    ? incidencias.length
                     : incidencias.filter(i => i.tipo === filtroTipo).length
                   }
                 </Text>
@@ -725,9 +731,9 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
         {/* Título de sección */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>
-            {selectedDate 
+            {selectedDate
               ? `${selectedDate.getDate()} de ${monthNames[selectedDate.getMonth()]}`
-              : vistaActual === 'calendario' 
+              : vistaActual === 'calendario'
                 ? 'Todas las incidencias'
                 : 'Incidencias'
             }
@@ -766,24 +772,24 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
         onRequestClose={() => setModalFiltroTipoVisible(false)}
       >
         <View style={styles.modalOverlayBottomSheet}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.modalBackdrop}
             activeOpacity={1}
             onPress={() => setModalFiltroTipoVisible(false)}
           >
             <View style={{ flex: 1 }} />
           </TouchableOpacity>
-          
+
           <View style={styles.modalSheetContent}>
             <View style={styles.modalSheetHandle} />
-            
+
             <View style={styles.modalListHeader}>
               <Text style={styles.modalListTitle}>Filtrar por Tipo</Text>
               <TouchableOpacity onPress={() => setModalFiltroTipoVisible(false)}>
                 <Ionicons name="close" size={24} color="#6b7280" />
               </TouchableOpacity>
             </View>
-            
+
             {filtrosTipo.map((filtro, index) => (
               <TouchableOpacity
                 key={filtro.value}
@@ -803,10 +809,10 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
                     styles.tipoIconSmall,
                     { backgroundColor: `${filtro.color}20` }
                   ]}>
-                    <Ionicons 
-                      name={filtro.icon} 
-                      size={20} 
-                      color={filtro.color} 
+                    <Ionicons
+                      name={filtro.icon}
+                      size={20}
+                      color={filtro.color}
                     />
                   </View>
                   <Text style={[
@@ -818,8 +824,8 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
                 </View>
                 <View style={styles.modalListItemBadge}>
                   <Text style={styles.modalListItemBadgeText}>
-                    {filtro.value === 'todos' 
-                      ? incidencias.length 
+                    {filtro.value === 'todos'
+                      ? incidencias.length
                       : incidencias.filter(i => i.tipo === filtro.value).length
                     }
                   </Text>
@@ -838,24 +844,24 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
         onRequestClose={() => setModalFiltroVisible(false)}
       >
         <View style={styles.modalOverlayBottomSheet}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.modalBackdrop}
             activeOpacity={1}
             onPress={() => setModalFiltroVisible(false)}
           >
             <View style={{ flex: 1 }} />
           </TouchableOpacity>
-          
+
           <View style={styles.modalSheetContent}>
             <View style={styles.modalSheetHandle} />
-            
+
             <View style={styles.modalListHeader}>
               <Text style={styles.modalListTitle}>Filtrar por Estado</Text>
               <TouchableOpacity onPress={() => setModalFiltroVisible(false)}>
                 <Ionicons name="close" size={24} color="#6b7280" />
               </TouchableOpacity>
             </View>
-            
+
             {filtrosEstado.map((filtro, index) => (
               <TouchableOpacity
                 key={filtro.value}
@@ -871,10 +877,10 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
                 activeOpacity={0.7}
               >
                 <View style={styles.modalListItemLeft}>
-                  <Ionicons 
-                    name={filtro.icon} 
-                    size={22} 
-                    color={filtroEstado === filtro.value ? '#2563eb' : '#6b7280'} 
+                  <Ionicons
+                    name={filtro.icon}
+                    size={22}
+                    color={filtroEstado === filtro.value ? '#2563eb' : '#6b7280'}
                   />
                   <Text style={[
                     styles.modalListItemText,
@@ -885,8 +891,8 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
                 </View>
                 <View style={styles.modalListItemBadge}>
                   <Text style={styles.modalListItemBadgeText}>
-                    {filtro.value === 'todos' 
-                      ? incidencias.length 
+                    {filtro.value === 'todos'
+                      ? incidencias.length
                       : incidencias.filter(i => i.estado === filtro.value).length
                     }
                   </Text>
@@ -905,24 +911,24 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
         onRequestClose={() => setModalTipoVisible(false)}
       >
         <View style={styles.modalOverlayBottomSheet}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.modalBackdrop}
             activeOpacity={1}
             onPress={() => setModalTipoVisible(false)}
           >
             <View style={{ flex: 1 }} />
           </TouchableOpacity>
-          
+
           <View style={styles.modalSheetContent}>
             <View style={styles.modalSheetHandle} />
-            
+
             <View style={styles.modalListHeader}>
               <Text style={styles.modalListTitle}>Tipo de Incidencia</Text>
               <TouchableOpacity onPress={() => setModalTipoVisible(false)}>
                 <Ionicons name="close" size={24} color="#6b7280" />
               </TouchableOpacity>
             </View>
-            
+
             {tiposIncidencia.map((tipo, index) => (
               <TouchableOpacity
                 key={tipo.value}
@@ -942,10 +948,10 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
                     styles.tipoIconSmall,
                     { backgroundColor: `${tipo.color}20` }
                   ]}>
-                    <Ionicons 
-                      name={tipo.icon} 
-                      size={20} 
-                      color={tipo.color} 
+                    <Ionicons
+                      name={tipo.icon}
+                      size={20}
+                      color={tipo.color}
                     />
                   </View>
                   <Text style={[
@@ -972,19 +978,19 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlayCreate}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.modalBackdropCreate}
             activeOpacity={1}
             onPress={() => setModalVisible(false)}
           />
-          
+
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={styles.modalCreateContainer}
           >
             <View style={styles.modalCreateContent}>
               <View style={styles.modalSheetHandle} />
-              
+
               <View style={styles.modalHeader}>
                 <TouchableOpacity
                   onPress={() => setModalVisible(false)}
@@ -996,8 +1002,8 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
                 <View style={styles.headerPlaceholder} />
               </View>
 
-              <ScrollView 
-                style={styles.modalBody} 
+              <ScrollView
+                style={styles.modalBody}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={{ paddingBottom: 100 }}

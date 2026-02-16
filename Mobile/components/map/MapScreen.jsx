@@ -201,52 +201,10 @@ const MapaZonasPermitidas = ({
       70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
       100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
     }
-    /* Canvas fallback styles */
-    #canvas-map {
-      display: none;
-      width: 100%;
-      height: 100%;
-      background: #e8edf2;
-    }
-    #offline-badge {
-      display: none;
-      position: absolute;
-      top: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(245, 158, 11, 0.95);
-      color: #fff;
-      padding: 6px 16px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 600;
-      z-index: 999;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    }
-    #canvas-legend {
-      display: none;
-      position: absolute;
-      bottom: 12px;
-      left: 12px;
-      right: 12px;
-      background: rgba(255,255,255,0.95);
-      border-radius: 10px;
-      padding: 10px 14px;
-      font-size: 12px;
-      color: #374151;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      z-index: 999;
-    }
-    .legend-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-    .legend-row:last-child { margin-bottom: 0; }
-    .legend-dot { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
   </style>
 </head>
 <body>
   <div id="map"></div>
-  <canvas id="canvas-map"></canvas>
-  <div id="offline-badge">📡 Modo offline — solo zonas</div>
-  <div id="canvas-legend"></div>
 
   <script>
     // ========== DATA ==========
@@ -255,15 +213,10 @@ const MapaZonasPermitidas = ({
     var selectedDepartamentoId = ${selectedId};
 
     // ========== TRY LEAFLET (ONLINE) ==========
-    var leafletLoaded = false;
     var leafletScript = document.createElement('script');
     leafletScript.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
     leafletScript.onload = function() {
-      leafletLoaded = true;
       initLeafletMap();
-    };
-    leafletScript.onerror = function() {
-      initCanvasFallback();
     };
 
     var leafletCSS = document.createElement('link');
@@ -271,17 +224,11 @@ const MapaZonasPermitidas = ({
     leafletCSS.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
     document.head.appendChild(leafletCSS);
 
-    // Timeout: if Leaflet doesn't load in 4s, use canvas fallback
-    var fallbackTimeout = setTimeout(function() {
-      if (!leafletLoaded) initCanvasFallback();
-    }, 4000);
-
     document.head.appendChild(leafletCSS);
     document.body.appendChild(leafletScript);
 
     // ========== LEAFLET MAP (ONLINE) ==========
     function initLeafletMap() {
-      clearTimeout(fallbackTimeout);
       var map = L.map('map', {
         zoomControl: true,
         attributionControl: false
@@ -382,155 +329,7 @@ const MapaZonasPermitidas = ({
       document.addEventListener('message', handleMessage);
     }
 
-    // ========== CANVAS FALLBACK (OFFLINE) ==========
-    function initCanvasFallback() {
-      clearTimeout(fallbackTimeout);
-      document.getElementById('map').style.display = 'none';
-      var canvas = document.getElementById('canvas-map');
-      canvas.style.display = 'block';
-      document.getElementById('offline-badge').style.display = 'block';
 
-      var ctx = canvas.getContext('2d');
-      var W = canvas.width = window.innerWidth;
-      var H = canvas.height = window.innerHeight;
-
-      // Calculate bounds of all zone coordinates
-      var allLats = [], allLngs = [];
-      zonas.forEach(function(z) {
-        z.coordenadas.forEach(function(c) { allLats.push(c[0]); allLngs.push(c[1]); });
-      });
-      if (userLocation) { allLats.push(userLocation[0]); allLngs.push(userLocation[1]); }
-
-      var minLat = Math.min.apply(null, allLats), maxLat = Math.max.apply(null, allLats);
-      var minLng = Math.min.apply(null, allLngs), maxLng = Math.max.apply(null, allLngs);
-
-      // Add padding
-      var padLat = (maxLat - minLat) * 0.15 || 0.001;
-      var padLng = (maxLng - minLng) * 0.15 || 0.001;
-      minLat -= padLat; maxLat += padLat;
-      minLng -= padLng; maxLng += padLng;
-
-      function toX(lng) { return ((lng - minLng) / (maxLng - minLng)) * W; }
-      function toY(lat) { return H - ((lat - minLat) / (maxLat - minLat)) * H; }
-
-      function drawAll() {
-        ctx.clearRect(0, 0, W, H);
-        // Background grid
-        ctx.strokeStyle = '#d1d5db';
-        ctx.lineWidth = 0.5;
-        for (var x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-        for (var y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-
-        // Draw polygons
-        zonas.forEach(function(zona) {
-          var isSelected = zona.id === selectedDepartamentoId;
-          var color = isSelected ? '#10b981' : '#3b82f6';
-
-          ctx.beginPath();
-          zona.coordenadas.forEach(function(c, i) {
-            var px = toX(c[1]), py = toY(c[0]);
-            if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-          });
-          ctx.closePath();
-
-          // Fill
-          ctx.globalAlpha = 0.25;
-          ctx.fillStyle = color;
-          ctx.fill();
-
-          // Stroke
-          ctx.globalAlpha = 0.8;
-          ctx.strokeStyle = color;
-          ctx.lineWidth = isSelected ? 3 : 2;
-          ctx.stroke();
-          ctx.globalAlpha = 1;
-
-          // Label
-          var cx = 0, cy = 0;
-          zona.coordenadas.forEach(function(c) { cx += toX(c[1]); cy += toY(c[0]); });
-          cx /= zona.coordenadas.length;
-          cy /= zona.coordenadas.length;
-
-          ctx.font = (isSelected ? 'bold ' : '') + '13px sans-serif';
-          ctx.fillStyle = '#1f2937';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          // Background for text
-          var tw = ctx.measureText(zona.nombre).width;
-          ctx.fillStyle = 'rgba(255,255,255,0.85)';
-          ctx.fillRect(cx - tw/2 - 4, cy - 9, tw + 8, 18);
-          ctx.fillStyle = '#1f2937';
-          ctx.fillText(zona.nombre, cx, cy);
-        });
-
-        // Draw user location
-        if (userLocation) {
-          var ux = toX(userLocation[1]), uy = toY(userLocation[0]);
-          // Glow
-          ctx.beginPath();
-          ctx.arc(ux, uy, 18, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
-          ctx.fill();
-          // Dot
-          ctx.beginPath();
-          ctx.arc(ux, uy, 8, 0, Math.PI * 2);
-          ctx.fillStyle = '#ef4444';
-          ctx.fill();
-          ctx.strokeStyle = '#fff';
-          ctx.lineWidth = 3;
-          ctx.stroke();
-        }
-      }
-
-      drawAll();
-
-      // Build legend
-      var legendHTML = '';
-      zonas.forEach(function(z) {
-        var isS = z.id === selectedDepartamentoId;
-        var c = isS ? '#10b981' : '#3b82f6';
-        legendHTML += '<div class="legend-row"><div class="legend-dot" style="background:' + c + '"></div>' + z.nombre + (isS ? ' (seleccionado)' : '') + '</div>';
-      });
-      if (userLocation) {
-        legendHTML += '<div class="legend-row"><div class="legend-dot" style="background:#ef4444;border-radius:50%"></div>Tu ubicación</div>';
-      }
-      var legendEl = document.getElementById('canvas-legend');
-      legendEl.innerHTML = legendHTML;
-      legendEl.style.display = 'block';
-
-      // Handle resize
-      window.addEventListener('resize', function() {
-        W = canvas.width = window.innerWidth;
-        H = canvas.height = window.innerHeight;
-        drawAll();
-      });
-
-      // Handle messages from React Native
-      function handleCanvasMessage(event) {
-        try {
-          var data = JSON.parse(event.data);
-          if (data.action === 'focusDepartamento') {
-            selectedDepartamentoId = data.departamentoId;
-            drawAll();
-            // Rebuild legend
-            var lHTML = '';
-            zonas.forEach(function(z) {
-              var isS = z.id === selectedDepartamentoId;
-              var c = isS ? '#10b981' : '#3b82f6';
-              lHTML += '<div class="legend-row"><div class="legend-dot" style="background:' + c + '"></div>' + z.nombre + (isS ? ' (seleccionado)' : '') + '</div>';
-            });
-            if (userLocation) lHTML += '<div class="legend-row"><div class="legend-dot" style="background:#ef4444;border-radius:50%"></div>Tu ubicación</div>';
-            document.getElementById('canvas-legend').innerHTML = lHTML;
-          } else if (data.action === 'updateUserLocation') {
-            // ⭐ Actualización en tiempo real del punto GPS en canvas
-            userLocation = data.location;
-            drawAll();
-          }
-        } catch (e) {}
-      }
-      window.addEventListener('message', handleCanvasMessage);
-      document.addEventListener('message', handleCanvasMessage);
-    }
   </script>
 </body>
 </html>

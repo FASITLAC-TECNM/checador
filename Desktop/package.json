@@ -78,7 +78,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Sistema de Asistencia",
-      "deleteAppDataOnUninstall": true
+      "deleteAppDataOnUninstall": true,
+      "license": "public/license.txt"
     },
     "linux": {
       "target": [

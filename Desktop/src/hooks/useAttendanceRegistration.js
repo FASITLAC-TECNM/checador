@@ -247,15 +247,9 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
                 type: tipoEvento,
             });
 
-            // Mensaje de voz
-            let voiceMessage = `Registro exitoso, ${empleadoData?.nombre || 'empleado'}`;
-            if (clasificacionFinal === 'retardo') {
-                voiceMessage = `Registro con retardo, ${empleadoData?.nombre || 'empleado'}`;
-            } else if (clasificacionFinal === 'falta') {
-                voiceMessage = `Registro fuera de tolerancia, ${empleadoData?.nombre || 'empleado'}`;
-            } else if (clasificacionFinal === 'salida_temprana') {
-                voiceMessage = `Salida anticipada, ${empleadoData?.nombre || 'empleado'}`;
-            }
+            // Mensaje de voz estandarizado
+            const tipoVoz = tipoMovimiento === 'SALIDA' ? 'salida' : 'entrada';
+            const voiceMessage = `Registro ${tipoVoz} exitoso`;
 
             const utterance = new SpeechSynthesisUtterance(voiceMessage);
             utterance.lang = "es-MX";
@@ -362,8 +356,10 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
 
                     const tipoMovimiento = (estadoActual?.tipoRegistro || 'entrada') === 'salida' ? 'SALIDA' : 'ENTRADA';
 
+                    // Mensaje de voz offline estandarizado
+                    const tipoVozOffline = tipoMovimiento === 'SALIDA' ? 'salida' : 'entrada';
                     const utterance = new SpeechSynthesisUtterance(
-                        `Registro offline exitoso, ${empleadoIdentificado.nombre}`
+                        `Registro ${tipoVozOffline} exitoso`
                     );
                     utterance.lang = "es-MX";
                     utterance.rate = 0.9;

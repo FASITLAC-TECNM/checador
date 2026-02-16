@@ -568,9 +568,10 @@ export default function AsistenciaHuella({
           // Obtener tipo movimiento basado en lo que se guardó o calculó
           const tipoMovimiento = (estadoActual?.tipoRegistro || 'entrada') === 'salida' ? 'SALIDA' : 'ENTRADA';
 
-          // Mensaje de voz
+          // Mensaje de voz estandarizado
+          const tipoVoz = (estadoActual?.tipoRegistro || 'entrada') === 'salida' ? 'salida' : 'entrada';
           const utterance = new SpeechSynthesisUtterance(
-            `Registro offline exitoso, ${empleadoFull.nombre}`
+            `Registro ${tipoVoz} exitoso`
           );
           utterance.lang = "es-MX";
           utterance.rate = 0.9;

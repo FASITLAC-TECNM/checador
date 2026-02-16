@@ -20,8 +20,8 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { login } from '../../services/authService';
 import { getEmpleadoById } from '../../services/empleadoServices';
-import syncManager from '../../services/offline/syncManager';
-import sqliteManager from '../../services/offline/sqliteManager';
+import syncManager from '../../services/offline/syncManager.mjs';
+import sqliteManager from '../../services/offline/sqliteManager.mjs';
 
 // Claves para SecureStore (credenciales cifradas en hardware del dispositivo)
 const SECURE_KEYS = {
@@ -289,10 +289,11 @@ export const LoginScreen = ({ onLoginSuccess }) => {
       console.log('Login online falló:', error.message);
       const msg = error.message || '';
       const isNetworkError = msg.includes('Network') || msg.includes('Failed to fetch') || msg.includes('connection') || msg.includes('timeout');
+      const isServerError = msg.includes('500') || msg.includes('502') || msg.includes('503') || msg.includes('504') || msg.includes('Error del servidor');
 
-      if (isNetworkError) {
-        // ====== INTENTO 2: Login Offline ======
-        console.log('🔄 [Login] Intentando login offline...');
+      if (isNetworkError || isServerError) {
+        // ====== INTENTO 2: Login Offline (red caída o servidor/BD caída) ======
+        console.log(`🔄 [Login] Intentando login offline... (${isNetworkError ? 'red' : 'servidor'} no disponible)`);
         setIsOfflineLogin(true);
         const offlineResult = await validateOffline(usuario, password);
 
@@ -324,7 +325,12 @@ export const LoginScreen = ({ onLoginSuccess }) => {
           onLoginSuccess(offlineResult.data, false);
           return;
         } else {
-          setGeneralError(offlineResult.error);
+          // No hay datos offline: mostrar mensaje claro según la causa
+          if (isServerError) {
+            setGeneralError('El servidor no está disponible y no tienes datos guardados para modo offline. Necesitas iniciar sesión con el servidor activo al menos una vez.');
+          } else {
+            setGeneralError(offlineResult.error);
+          }
         }
       } else if (msg.includes('401') || msg.includes('credentials') || msg.includes('Credenciales')) {
         setGeneralError('Usuario o contraseña incorrectos');

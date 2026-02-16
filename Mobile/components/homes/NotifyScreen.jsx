@@ -13,14 +13,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAvisosGlobales, getAvisosDeEmpleado } from '../../services/avisosService';
-import sqliteManager from '../../services/offline/sqliteManager';
+import sqliteManager from '../../services/offline/sqliteManager.mjs';
+import { detectarAvisosNuevos } from '../../services/localNotificationService';
 
 const PINNED_STORAGE_KEY = '@avisos_pinned';
 
 export const NotifyScreen = ({
   userData = null,
   darkMode = false,
-  onGoBack = () => {},
+  onGoBack = () => { },
 }) => {
   const [filtroActivo, setFiltroActivo] = useState('todos');
   const [avisoSeleccionado, setAvisoSeleccionado] = useState(null);
@@ -53,13 +54,16 @@ export const NotifyScreen = ({
       let cargoOnline = false;
 
       // Intentar online primero
+      let datosGlobales = [];
+      let datosEmpleado = [];
       try {
         const globalRes = await getAvisosGlobales(token, isRefresh);
         if (globalRes.success && globalRes.data) {
-          setAvisosGlobales(globalRes.data);
+          datosGlobales = globalRes.data;
+          setAvisosGlobales(datosGlobales);
           cargoOnline = true;
           // Cachear en SQLite
-          await sqliteManager.upsertAvisosGlobales(globalRes.data).catch(e =>
+          await sqliteManager.upsertAvisosGlobales(datosGlobales).catch(e =>
             console.warn('⚠️ No se pudo cachear avisos globales:', e.message)
           );
         }
@@ -67,15 +71,21 @@ export const NotifyScreen = ({
         if (esEmpleado) {
           const empRes = await getAvisosDeEmpleado(token, empleadoId);
           if (empRes.success && empRes.data) {
-            setAvisosEmpleado(empRes.data);
+            datosEmpleado = empRes.data;
+            setAvisosEmpleado(datosEmpleado);
             // Cachear en SQLite
-            await sqliteManager.upsertAvisosEmpleado(empleadoId, empRes.data).catch(e =>
+            await sqliteManager.upsertAvisosEmpleado(empleadoId, datosEmpleado).catch(e =>
               console.warn('⚠️ No se pudo cachear avisos empleado:', e.message)
             );
           }
         }
       } catch (onlineErr) {
         console.warn('⚠️ No se pudieron cargar avisos online:', onlineErr.message);
+      }
+
+      // Detectar avisos nuevos y notificar
+      if (cargoOnline) {
+        detectarAvisosNuevos([...datosGlobales, ...datosEmpleado]);
       }
 
       // Fallback: cargar desde SQLite si no cargo online
@@ -114,7 +124,7 @@ export const NotifyScreen = ({
         if (stored) {
           setPinnedIds(new Set(JSON.parse(stored)));
         }
-      } catch (_) {}
+      } catch (_) { }
     };
     cargarPins();
   }, []);

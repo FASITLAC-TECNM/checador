@@ -1,7 +1,9 @@
 /**
  * SQLiteManager — Módulo de persistencia local Offline-First (Mobile)
  * Gestiona la base de datos SQLite para cola de asistencias y caché de datos maestros.
- * Adaptado de Electron/Desktop para Expo/React Native.
+ * Adaptado de Desktop (better-sqlite3) para Expo/React Native (expo-sqlite async).
+ * 
+ * Archivo .mjs — ES Module
  */
 
 import * as SQLite from 'expo-sqlite';
@@ -39,13 +41,12 @@ export async function initDatabase() {
                 await database.execAsync('SELECT 1');
             } catch (e) {
                 console.warn('⚠️ [SQLite] Verificación fallida, reintentando apertura...', e);
-                // Intentar cerrar si es posible (aunque openDatabaseAsync retorna objeto manejado)
-                // En Expo SQLite moderno, simplemente reintentamos obtener la referencia
                 throw new Error('Database verification failed');
             }
 
-            // Habilitar WAL para mejor concurrencia
+            // Optimizaciones para rendimiento (patrón Desktop)
             await database.execAsync('PRAGMA journal_mode = WAL');
+            await database.execAsync('PRAGMA synchronous = NORMAL');
             await database.execAsync('PRAGMA foreign_keys = ON');
 
             db = database; // Asignar instancia global
@@ -131,7 +132,7 @@ async function runMigrations() {
       minutos_falta INTEGER DEFAULT 30,
       permite_anticipado INTEGER DEFAULT 1,
       minutos_anticipado_max INTEGER DEFAULT 60,
-      aplica_tolerancia_entrada INTEGER DEFAULT 2, -- 1=SI, 0=NO, 2=DEFAULT
+      aplica_tolerancia_entrada INTEGER DEFAULT 2,
       aplica_tolerancia_salida INTEGER DEFAULT 0,
       max_retardos INTEGER DEFAULT 0,
       dias_aplica TEXT,
@@ -241,6 +242,20 @@ async function runMigrations() {
       created_at TEXT DEFAULT (datetime('now', 'localtime'))
     );
 
+    -- Cola de eventos offline
+    CREATE TABLE IF NOT EXISTS offline_events (
+      local_id INTEGER PRIMARY KEY AUTOINCREMENT,
+      titulo TEXT NOT NULL,
+      tipo_evento TEXT NOT NULL,
+      descripcion TEXT,
+      empleado_id TEXT,
+      prioridad TEXT DEFAULT 'media',
+      detalles TEXT,
+      is_synced INTEGER DEFAULT 0,
+      sync_error TEXT,
+      created_at TEXT DEFAULT (datetime('now', 'localtime'))
+    );
+
     -- Índices para rendimiento
     CREATE INDEX IF NOT EXISTS idx_offline_asistencias_synced ON offline_asistencias(is_synced);
     CREATE INDEX IF NOT EXISTS idx_offline_asistencias_empleado ON offline_asistencias(empleado_id, fecha_registro);
@@ -251,6 +266,7 @@ async function runMigrations() {
     CREATE INDEX IF NOT EXISTS idx_offline_incidencias_synced ON offline_incidencias(is_synced);
     CREATE INDEX IF NOT EXISTS idx_cache_asistencias_empleado ON cache_asistencias(empleado_id, mes_key);
     CREATE INDEX IF NOT EXISTS idx_cache_avisos_tipo ON cache_avisos(tipo, empleado_id);
+    CREATE INDEX IF NOT EXISTS idx_offline_events_synced ON offline_events(is_synced);
   `);
 
     // Migración segura: agregar columna ubicacion si no existe (para DBs existentes)
@@ -370,6 +386,51 @@ export async function getRegistrosHoy(empleadoId) {
     );
 }
 
+/**
+ * Obtiene registros offline pendientes de hoy para un empleado
+ * (solo los no sincronizados aún)
+ */
+export async function getPendingOfflineRegistrosHoy(empleadoId) {
+    if (!db) await initDatabase();
+    const hoy = new Date().toISOString().split('T')[0];
+    return await db.getAllAsync(
+        `SELECT * FROM offline_asistencias WHERE empleado_id = ? AND fecha_registro LIKE ? || '%' AND is_synced = 0 ORDER BY fecha_registro ASC`,
+        [empleadoId, hoy]
+    );
+}
+
+/**
+ * Obtiene registros de asistencia offline de un empleado en un rango de fechas
+ * (Adaptado de Desktop)
+ * @param {string} empleadoId
+ * @param {string} fechaInicio - formato YYYY-MM-DD
+ * @param {string} fechaFin - formato YYYY-MM-DD
+ * @returns {Promise<Array>}
+ */
+export async function getRegistrosByRange(empleadoId, fechaInicio, fechaFin) {
+    if (!db) await initDatabase();
+    return await db.getAllAsync(
+        `SELECT * FROM offline_asistencias
+     WHERE empleado_id = ?
+       AND fecha_registro >= ?
+       AND fecha_registro < date(?, '+1 day')
+     ORDER BY fecha_registro DESC`,
+        [empleadoId, fechaInicio, fechaFin]
+    );
+}
+
+/**
+ * Obtiene registros con error definitivo para revisión
+ * (Adaptado de Desktop)
+ * @returns {Promise<Array>}
+ */
+export async function getErrorRecords() {
+    if (!db) await initDatabase();
+    return await db.getAllAsync(
+        `SELECT * FROM offline_asistencias WHERE is_synced = -1 ORDER BY fecha_registro ASC`
+    );
+}
+
 // ============================================================
 // CRUD — CACHÉ DE DATOS MAESTROS
 // ============================================================
@@ -403,12 +464,13 @@ export async function upsertEmpleados(empleados) {
                     emp.usuario || null,
                     emp.correo || null,
                     estadoCuenta,
-                    emp.es_empleado !== false ? 1 : 0, // Default true
+                    emp.es_empleado !== false ? 1 : 0,
                     emp.foto || null
                 ]
             );
         }
     });
+    await updateMetaCount('cache_empleados');
     console.log(`✅ [SQLite] ${empleados.length} empleados cacheados`);
 }
 
@@ -436,6 +498,7 @@ export async function upsertCredenciales(credenciales) {
             );
         }
     });
+    await updateMetaCount('cache_credenciales');
     console.log(`✅ [SQLite] ${credenciales.length} credenciales cacheadas`);
 }
 
@@ -466,9 +529,6 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
         ? (typeof tolerancia.dias_aplica === 'string' ? tolerancia.dias_aplica : JSON.stringify(tolerancia.dias_aplica || tolerancia.dias_aplicables))
         : null;
 
-    // Asegurarnos de que la columna max_retardos exista (en desarrollo es util validarlo, en prod la migracion corre al inicio)
-    // Para simplificar, asumimos que initDatabase() ya corrió las migraciones.
-
     try {
         await db.runAsync(
             `INSERT INTO cache_tolerancias
@@ -488,21 +548,19 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
             [
                 empleadoId,
                 tolerancia.nombre || null,
-                tolerancia.minutos_retardo ?? 10,  // Fallback seguro
-                tolerancia.minutos_falta ?? 30,    // Fallback seguro
-                tolerancia.permite_registro_anticipado !== false ? 1 : 0, // Default true si undefined
+                tolerancia.minutos_retardo ?? 10,
+                tolerancia.minutos_falta ?? 30,
+                tolerancia.permite_registro_anticipado !== false ? 1 : 0,
                 tolerancia.minutos_anticipado_max ?? 60,
                 tolerancia.aplica_tolerancia_entrada !== false ? 1 : 0,
                 tolerancia.aplica_tolerancia_salida ? 1 : 0,
-                tolerancia.max_retardos ?? 0, // Nuevo campo
+                tolerancia.max_retardos ?? 0,
                 diasAplica
             ]
         );
     } catch (ignore) {
-        // Si falla por columna faltante en dev caliente, intentamos añadirla al vuelo (opcional, pero robusto)
         try {
             await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN max_retardos INTEGER DEFAULT 0');
-            // Reintentar insert
             await upsertTolerancia(empleadoId, tolerancia);
         } catch (e) {
             console.error('Error actualizando tolerancia (posiblemente migración pendiente):', e);
@@ -518,7 +576,6 @@ export async function upsertDepartamentos(empleadoId, departamentos) {
         await db.runAsync('DELETE FROM cache_departamentos WHERE empleado_id = ?', [empleadoId]);
 
         for (const dep of departamentos) {
-            // Serializar ubicacion si viene como objeto
             const ubicacionStr = dep.ubicacion
                 ? (typeof dep.ubicacion === 'string' ? dep.ubicacion : JSON.stringify(dep.ubicacion))
                 : null;
@@ -538,14 +595,46 @@ export async function upsertDepartamentos(empleadoId, departamentos) {
     console.log(`✅ [SQLite] Departamentos actualizados para empleado ${empleadoId}`);
 }
 
+/**
+ * Elimina empleados del caché que ya no existen en el servidor
+ * (Adaptado de Desktop)
+ * @param {Array} serverIds - IDs de empleados que existen en el servidor
+ * @returns {Promise<number>} cantidad de empleados marcados como eliminados
+ */
+export async function markDeletedEmpleados(serverIds) {
+    if (!db) await initDatabase();
+    if (!serverIds || serverIds.length === 0) return 0;
+
+    const placeholders = serverIds.map(() => '?').join(',');
+    const result = await db.runAsync(
+        `UPDATE cache_empleados
+     SET estado_cuenta = 'eliminado', updated_at = datetime('now', 'localtime')
+     WHERE empleado_id NOT IN (${placeholders}) AND estado_cuenta != 'eliminado'`,
+        serverIds
+    );
+    if (result.changes > 0) {
+        console.log(`⚠️ [SQLite] ${result.changes} empleados marcados como eliminados`);
+    }
+    return result.changes || 0;
+}
 
 // ============================================================
-// LECTURAS
+// LECTURAS — Para autenticación y lógica offline
 // ============================================================
 
 export async function getEmpleado(empleadoId) {
     if (!db) await initDatabase();
     return await db.getFirstAsync('SELECT * FROM cache_empleados WHERE empleado_id = ? AND estado_cuenta = ?', [empleadoId, 'activo']);
+}
+
+/**
+ * Obtiene TODOS los empleados activos desde la caché
+ * (Adaptado de Desktop)
+ * @returns {Promise<Array>}
+ */
+export async function getAllEmpleados() {
+    if (!db) await initDatabase();
+    return await db.getAllAsync("SELECT * FROM cache_empleados WHERE estado_cuenta = 'activo'");
 }
 
 export async function getAllCredenciales() {
@@ -556,6 +645,17 @@ export async function getAllCredenciales() {
     INNER JOIN cache_empleados ce ON ce.empleado_id = cc.empleado_id
     WHERE ce.estado_cuenta = 'activo'
   `);
+}
+
+/**
+ * Obtiene las credenciales de un empleado específico
+ * (Adaptado de Desktop)
+ * @param {string} empleadoId
+ * @returns {Promise<Object|null>}
+ */
+export async function getCredenciales(empleadoId) {
+    if (!db) await initDatabase();
+    return await db.getFirstAsync('SELECT * FROM cache_credenciales WHERE empleado_id = ?', [empleadoId]);
 }
 
 export async function getHorario(empleadoId) {
@@ -588,27 +688,32 @@ export async function getTolerancia(empleadoId) {
     };
 }
 
-
+/**
+ * Obtiene todos los departamentos activos de un empleado
+ */
 export async function getDepartamentos(empleadoId) {
     if (!db) await initDatabase();
     return await db.getAllAsync('SELECT * FROM cache_departamentos WHERE empleado_id = ? AND es_activo = 1', [empleadoId]);
+}
+
+/**
+ * Obtiene el departamento activo de un empleado (singular, adaptado de Desktop)
+ * @param {string} empleadoId
+ * @returns {Promise<Object|null>}
+ */
+export async function getDepartamento(empleadoId) {
+    if (!db) await initDatabase();
+    return await db.getFirstAsync('SELECT * FROM cache_departamentos WHERE empleado_id = ? AND es_activo = 1 LIMIT 1', [empleadoId]);
 }
 
 // ============================================================
 // CRUD — ASISTENCIAS (CACHÉ HISTORIAL)
 // ============================================================
 
-/**
- * Guarda asistencias de un mes en caché local
- * @param {string} empleadoId - ID del empleado
- * @param {string} mesKey - Clave del mes (YYYY-MM)
- * @param {Array} asistencias - Array de registros de asistencia
- */
 export async function upsertAsistenciasMes(empleadoId, mesKey, asistencias) {
     if (!db) await initDatabase();
 
     await db.withTransactionAsync(async () => {
-        // Limpiar caché anterior de este empleado para este mes
         await db.runAsync('DELETE FROM cache_asistencias WHERE empleado_id = ? AND mes_key = ?', [empleadoId, mesKey]);
 
         for (const reg of asistencias) {
@@ -632,9 +737,6 @@ export async function upsertAsistenciasMes(empleadoId, mesKey, asistencias) {
     console.log(`✅ [SQLite] ${asistencias.length} asistencias cacheadas para ${empleadoId} (${mesKey})`);
 }
 
-/**
- * Obtiene asistencias de un mes desde caché local
- */
 export async function getAsistenciasMesLocal(empleadoId, mesKey) {
     if (!db) await initDatabase();
     return await db.getAllAsync(
@@ -647,14 +749,10 @@ export async function getAsistenciasMesLocal(empleadoId, mesKey) {
 // CRUD — INCIDENCIAS OFFLINE
 // ============================================================
 
-/**
- * Guarda/actualiza incidencias descargadas del servidor en caché local
- */
 export async function upsertIncidencias(empleadoId, incidencias) {
     if (!db) await initDatabase();
 
     await db.withTransactionAsync(async () => {
-        // Limpiar caché anterior de este empleado
         await db.runAsync('DELETE FROM cache_incidencias WHERE empleado_id = ?', [empleadoId]);
 
         for (const inc of incidencias) {
@@ -678,9 +776,6 @@ export async function upsertIncidencias(empleadoId, incidencias) {
     console.log(`✅ [SQLite] ${incidencias.length} incidencias cacheadas para empleado ${empleadoId}`);
 }
 
-/**
- * Obtiene incidencias cacheadas de un empleado
- */
 export async function getIncidenciasLocal(empleadoId) {
     if (!db) await initDatabase();
     return await db.getAllAsync(
@@ -689,9 +784,6 @@ export async function getIncidenciasLocal(empleadoId) {
     );
 }
 
-/**
- * Guarda una incidencia creada offline en la cola de sync
- */
 export async function saveOfflineIncidencia(data) {
     if (!db) await initDatabase();
 
@@ -723,9 +815,6 @@ export async function saveOfflineIncidencia(data) {
     };
 }
 
-/**
- * Obtiene incidencias offline pendientes de sincronizar
- */
 export async function getPendingIncidencias(limit = 50) {
     if (!db) await initDatabase();
     return await db.getAllAsync(
@@ -734,9 +823,6 @@ export async function getPendingIncidencias(limit = 50) {
     );
 }
 
-/**
- * Marca una incidencia offline como sincronizada
- */
 export async function markIncidenciaSynced(localId, serverId) {
     if (!db) await initDatabase();
     await db.runAsync(
@@ -745,9 +831,6 @@ export async function markIncidenciaSynced(localId, serverId) {
     );
 }
 
-/**
- * Marca error en sincronización de incidencia
- */
 export async function markIncidenciaSyncError(localId, error) {
     if (!db) await initDatabase();
     await db.runAsync(
@@ -760,9 +843,6 @@ export async function markIncidenciaSyncError(localId, error) {
 // CRUD — EMPRESA (CACHÉ)
 // ============================================================
 
-/**
- * Guarda/actualiza datos de empresa en caché local
- */
 export async function upsertEmpresa(empresa) {
     if (!db) await initDatabase();
 
@@ -781,9 +861,6 @@ export async function upsertEmpresa(empresa) {
     console.log(`✅ [SQLite] Empresa cacheada: ${empresa.nombre}`);
 }
 
-/**
- * Obtiene datos de empresa desde caché local
- */
 export async function getEmpresaLocal(empresaId) {
     if (!db) await initDatabase();
     return await db.getFirstAsync('SELECT * FROM cache_empresa WHERE id = ?', [empresaId]);
@@ -793,14 +870,10 @@ export async function getEmpresaLocal(empresaId) {
 // CRUD — AVISOS (CACHÉ)
 // ============================================================
 
-/**
- * Guarda avisos globales en caché local
- */
 export async function upsertAvisosGlobales(avisos) {
     if (!db) await initDatabase();
 
     await db.withTransactionAsync(async () => {
-        // Limpiar avisos globales anteriores
         await db.runAsync("DELETE FROM cache_avisos WHERE tipo = 'global'");
 
         for (const aviso of avisos) {
@@ -820,14 +893,10 @@ export async function upsertAvisosGlobales(avisos) {
     console.log(`✅ [SQLite] ${avisos.length} avisos globales cacheados`);
 }
 
-/**
- * Guarda avisos personales de un empleado en caché local
- */
 export async function upsertAvisosEmpleado(empleadoId, avisos) {
     if (!db) await initDatabase();
 
     await db.withTransactionAsync(async () => {
-        // Limpiar avisos personales anteriores de este empleado
         await db.runAsync("DELETE FROM cache_avisos WHERE tipo = 'personal' AND empleado_id = ?", [empleadoId]);
 
         for (const aviso of avisos) {
@@ -849,9 +918,6 @@ export async function upsertAvisosEmpleado(empleadoId, avisos) {
     console.log(`✅ [SQLite] ${avisos.length} avisos personales cacheados para empleado ${empleadoId}`);
 }
 
-/**
- * Obtiene avisos globales desde caché local
- */
 export async function getAvisosGlobalesLocal() {
     if (!db) await initDatabase();
     return await db.getAllAsync(
@@ -859,9 +925,6 @@ export async function getAvisosGlobalesLocal() {
     );
 }
 
-/**
- * Obtiene avisos personales de un empleado desde caché local
- */
 export async function getAvisosEmpleadoLocal(empleadoId) {
     if (!db) await initDatabase();
     return await db.getAllAsync(
@@ -874,9 +937,6 @@ export async function getAvisosEmpleadoLocal(empleadoId) {
 // CRUD — SESIONES OFFLINE
 // ============================================================
 
-/**
- * Guarda un evento de sesión (login/logout) para sincronizar después
- */
 async function saveOfflineSession({ usuario_id, empleado_id, tipo, modo = 'offline' }) {
     if (!db) await initDatabase();
     const fecha = new Date().toISOString();
@@ -888,9 +948,6 @@ async function saveOfflineSession({ usuario_id, empleado_id, tipo, modo = 'offli
     console.log(`📝 [SQLite] Sesión ${tipo} (${modo}) guardada para usuario ${usuario_id}`);
 }
 
-/**
- * Obtiene sesiones pendientes de sincronizar
- */
 async function getPendingSessions(limit = 50) {
     if (!db) await initDatabase();
     return await db.getAllAsync(
@@ -899,9 +956,6 @@ async function getPendingSessions(limit = 50) {
     );
 }
 
-/**
- * Marca una sesión como sincronizada
- */
 async function markSessionSynced(localId) {
     if (!db) await initDatabase();
     await db.runAsync(
@@ -910,9 +964,6 @@ async function markSessionSynced(localId) {
     );
 }
 
-/**
- * Marca error en sincronización de sesión
- */
 async function markSessionSyncError(localId, error) {
     if (!db) await initDatabase();
     await db.runAsync(
@@ -921,24 +972,182 @@ async function markSessionSyncError(localId, error) {
     );
 }
 
+// ============================================================
+// CRUD — EVENTOS OFFLINE
+// ============================================================
+
+/**
+ * Guarda un evento offline para sincronizar después
+ */
+export async function saveOfflineEvent(data) {
+    if (!db) await initDatabase();
+    await db.runAsync(
+        `INSERT INTO offline_events (titulo, tipo_evento, descripcion, empleado_id, prioridad, detalles)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+            data.titulo,
+            data.tipo_evento,
+            data.descripcion || null,
+            data.empleado_id || null,
+            data.prioridad || 'media',
+            data.detalles ? JSON.stringify(data.detalles) : null
+        ]
+    );
+    console.log(`📝 [SQLite] Evento offline guardado: ${data.titulo}`);
+}
+
+/**
+ * Obtiene eventos pendientes de sincronizar
+ */
+export async function getPendingEvents(limit = 100) {
+    if (!db) await initDatabase();
+    return await db.getAllAsync(
+        'SELECT * FROM offline_events WHERE is_synced = 0 ORDER BY created_at ASC LIMIT ?',
+        [limit]
+    );
+}
+
+/**
+ * Marca un evento como sincronizado
+ */
+export async function markEventSynced(localId) {
+    if (!db) await initDatabase();
+    await db.runAsync(
+        'UPDATE offline_events SET is_synced = 1 WHERE local_id = ?',
+        [localId]
+    );
+}
+
+/**
+ * Marca error en sincronización de evento
+ */
+export async function markEventSyncError(localId, error) {
+    if (!db) await initDatabase();
+    await db.runAsync(
+        'UPDATE offline_events SET sync_error = ? WHERE local_id = ?',
+        [error, localId]
+    );
+}
+
+// ============================================================
+// METADATA DE SINCRONIZACIÓN (Adaptado de Desktop)
+// ============================================================
+
+/**
+ * Actualiza el conteo de registros de una tabla (interno)
+ * @param {string} tabla
+ */
+async function updateMetaCount(tabla) {
+    try {
+        const row = await db.getFirstAsync(`SELECT COUNT(*) as count FROM ${tabla}`);
+        await db.runAsync('UPDATE sync_metadata SET total_records = ? WHERE tabla = ?', [row.count, tabla]);
+    } catch (e) {
+        // tabla puede no existir en metadata
+    }
+}
+
+/**
+ * Registra el timestamp de un full sync
+ * @param {string} tabla
+ */
+export async function setLastFullSync(tabla) {
+    if (!db) await initDatabase();
+    await db.runAsync(
+        `UPDATE sync_metadata SET last_full_sync = datetime('now', 'localtime') WHERE tabla = ?`,
+        [tabla]
+    );
+}
+
+/**
+ * Registra el timestamp de un sync incremental
+ * @param {string} tabla
+ */
+export async function setLastIncrementalSync(tabla) {
+    if (!db) await initDatabase();
+    await db.runAsync(
+        `UPDATE sync_metadata SET last_incremental_sync = datetime('now', 'localtime') WHERE tabla = ?`,
+        [tabla]
+    );
+}
+
+/**
+ * Obtiene metadata de sync de una tabla
+ * @param {string} tabla
+ * @returns {Promise<Object|null>}
+ */
+export async function getSyncMetadata(tabla) {
+    if (!db) await initDatabase();
+    return await db.getFirstAsync('SELECT * FROM sync_metadata WHERE tabla = ?', [tabla]);
+}
+
+/**
+ * Obtiene toda la metadata de sincronización
+ * @returns {Promise<Array>}
+ */
+export async function getAllSyncMetadata() {
+    if (!db) await initDatabase();
+    return await db.getAllAsync('SELECT * FROM sync_metadata');
+}
+
+// ============================================================
+// UTILIDADES (Adaptadas de Desktop)
+// ============================================================
+
+/**
+ * Cierra la conexión a la base de datos
+ */
+export async function closeDatabase() {
+    if (db) {
+        try {
+            await db.closeAsync();
+        } catch (e) {
+            // Algunos drivers no soportan closeAsync
+            console.warn('⚠️ [SQLite] Error cerrando DB:', e.message);
+        }
+        db = null;
+        initializationPromise = null;
+        console.log('🔒 [SQLite] Base de datos cerrada');
+    }
+}
+
+/**
+ * Obtiene la instancia de la base de datos
+ * @returns {Object|null}
+ */
+export function getDatabase() {
+    return db;
+}
+
 export default {
     initDatabase,
+    closeDatabase,
+    getDatabase,
+    // Asistencias offline (cola)
     saveOfflineAsistencia,
     getPendingAsistencias,
     markAsSynced,
     markSyncError,
     getPendingCount,
     getRegistrosHoy,
+    getPendingOfflineRegistrosHoy,
+    getRegistrosByRange,
+    getErrorRecords,
+    // Caché de datos maestros
     upsertEmpleados,
     upsertCredenciales,
     upsertHorario,
     upsertTolerancia,
     upsertDepartamentos,
+    markDeletedEmpleados,
+    // Lecturas
     getEmpleado,
+    getAllEmpleados,
     getAllCredenciales,
+    getCredenciales,
     getHorario,
     getTolerancia,
     getDepartamentos,
+    getDepartamento,
     // Asistencias (historial)
     upsertAsistenciasMes,
     getAsistenciasMesLocal,
@@ -961,5 +1170,15 @@ export default {
     saveOfflineSession,
     getPendingSessions,
     markSessionSynced,
-    markSessionSyncError
+    markSessionSyncError,
+    // Eventos offline
+    saveOfflineEvent,
+    getPendingEvents,
+    markEventSynced,
+    markEventSyncError,
+    // Sync metadata
+    setLastFullSync,
+    setLastIncrementalSync,
+    getSyncMetadata,
+    getAllSyncMetadata,
 };

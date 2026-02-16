@@ -14,7 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TouchableOpacity } from 'react-native';
 import { RegisterButton } from '../map/RegisterButton';
 import NetInfo from '@react-native-community/netinfo';
-import sqliteManager from '../../services/offline/sqliteManager';
+import sqliteManager from '../../services/offline/sqliteManager.mjs';
 import { parsearHorario } from '../../services/horariosService';
 
 const obtenerUrlFotoPerfil = (foto) => {

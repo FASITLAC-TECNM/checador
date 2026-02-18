@@ -22,7 +22,7 @@ export function configure(baseUrl, token) {
     if (token !== undefined) {
         authToken = token || '';
     }
-    console.log('🔧 [Pull] Configurado: URL=', apiBaseUrl ? apiBaseUrl.substring(0, 40) + '...' : '(vacío!)');
+    // console.log('🔧 [Pull] Configurado: URL=', apiBaseUrl ? apiBaseUrl.substring(0, 40) + '...' : '(vacío!)');
 }
 
 /**
@@ -127,7 +127,7 @@ export async function fullPull(empleadoId) {
 
                 await sqliteManager.setLastFullSync('cache_empleados');
                 results.empleado = { success: true, count: 1 };
-                console.log(`   ✅ Empleado: ${data.empleado.nombre}`);
+                // console.log(`   ✅ Empleado: ${data.empleado.nombre}`);
             }
         } catch (empError) {
             console.error('❌ [Pull] Error procesando empleado:', empError.message);
@@ -147,7 +147,7 @@ export async function fullPull(empleadoId) {
                 await sqliteManager.upsertCredenciales([cred]);
                 await sqliteManager.setLastFullSync('cache_credenciales');
                 results.credenciales = { success: true, count: 1 };
-                console.log(`   ✅ Credenciales cargadas`);
+                // console.log(`   ✅ Credenciales cargadas`);
             }
         } catch (credError) {
             console.error('❌ [Pull] Error procesando credenciales:', credError.message);
@@ -160,7 +160,7 @@ export async function fullPull(empleadoId) {
                 await sqliteManager.upsertTolerancia(empleadoId, data.tolerancia);
                 await sqliteManager.setLastFullSync('cache_tolerancias');
                 results.tolerancia = { success: true, count: 1 };
-                console.log(`   ✅ Tolerancia: ${data.tolerancia.nombre}`);
+                // console.log(`   ✅ Tolerancia: ${data.tolerancia.nombre}`);
             }
         } catch (tolError) {
             console.error('❌ [Pull] Error procesando tolerancia:', tolError.message);
@@ -185,7 +185,7 @@ export async function fullPull(empleadoId) {
                 await sqliteManager.upsertDepartamentos(empleadoId, deptos);
                 await sqliteManager.setLastFullSync('cache_departamentos');
                 results.departamentos = { success: true, count: deptos.length };
-                console.log(`   ✅ Departamentos: ${deptos.length}`);
+                // console.log(`   ✅ Departamentos: ${deptos.length}`);
             }
         } catch (deptError) {
             console.error('❌ [Pull] Error procesando departamentos:', deptError.message);
@@ -206,7 +206,7 @@ export async function fullPull(empleadoId) {
                     await sqliteManager.upsertHorario(empleadoId, horario);
                     await sqliteManager.setLastFullSync('cache_horarios');
                     results.horario = { success: true, count: 1 };
-                    console.log(`   ✅ Horario cacheado en SQLite (id: ${horario.id || horario.horario_id})`);
+                    // console.log(`   ✅ Horario cacheado en SQLite (id: ${horario.id || horario.horario_id})`);
                 } else {
                     console.log(`   ⚠️ [Pull] Horario sin configuración válida, no se cachea`);
                     results.horario = { success: true, count: 0 };
@@ -232,7 +232,7 @@ export async function fullPull(empleadoId) {
                 if (incidencias.length > 0) {
                     await sqliteManager.upsertIncidencias(empleadoId, incidencias);
                     results.incidencias = { success: true, count: incidencias.length };
-                    console.log(`   ✅ ${incidencias.length} incidencias cacheadas`);
+                    // console.log(`   ✅ ${incidencias.length} incidencias cacheadas`);
                 } else {
                     console.log(`   ℹ️ [Pull] Sin incidencias para este empleado`);
                     results.incidencias = { success: true, count: 0 };

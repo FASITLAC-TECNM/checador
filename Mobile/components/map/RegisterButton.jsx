@@ -27,6 +27,7 @@ import { notificarRegistro, notificarEstadoAsistencia } from '../../services/loc
 import sqliteManager from '../../services/offline/sqliteManager.mjs';
 import offlineAuthService from '../../services/offline/offlineAuthService.mjs';
 import syncManager from '../../services/offline/syncManager.mjs';
+import pushService from '../../services/offline/pushService.mjs';
 
 const API_URL = getApiEndpoint('/api');
 const MINUTOS_SEPARACION_TURNOS = 15;
@@ -1209,6 +1210,19 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           metodo_registro: 'PIN',
           fecha_registro: new Date().toISOString()
         });
+
+        // 📝 Registrar evento en bitácora offline (para que se sincronice al volver online)
+        try {
+          await pushService.postEvent(
+            `Registro de ${tipoSiguienteRegistro} - ${estadoCalculado}`,
+            'asistencia',
+            `${userData.nombre || 'Empleado'} registró ${tipoSiguienteRegistro}`,
+            userData.empleado_id,
+            'baja'
+          );
+        } catch (evtErr) {
+          console.log('⚠️ Error guardando evento offline:', evtErr.message);
+        }
 
         data = {
           data: {

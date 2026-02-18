@@ -3,7 +3,7 @@
  * Este archivo maneja la ventana de la aplicación y la comunicación con el sistema
  */
 
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, globalShortcut } from "electron";
 import path from "path";
 import os from "os";
 import fs from "fs";
@@ -17,6 +17,15 @@ import sqliteManager from "./offline/sqliteManager.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// ==========================================
+// CONFIGURACIÓN DE MODO KIOSCO Y DEBUG
+// ==========================================
+// Cambiar a false para depurar sin pantalla completa o true para producción
+const FORCE_KIOSK = process.env.NODE_ENV !== "development";
+// Cambiar a true para permitir DevTools en producción si es necesario
+const ALLOW_DEV_TOOLS = process.env.NODE_ENV === "development";
+// ==========================================
 
 let mainWindow;
 
@@ -353,7 +362,12 @@ function createWindow() {
     height: 800,
     minWidth: 1024,
     minHeight: 768,
+    kiosk: FORCE_KIOSK,              // ACTIVA MODO KIOSCO (si es true)
+    alwaysOnTop: false,       // Opcional: true si quieres que nada se ponga encima
+    fullscreen: FORCE_KIOSK,  // Asegura pantalla completa (si es true)
+    frame: !FORCE_KIOSK,      // Elimina barras de título si es Kiosk, las muestra si no
     webPreferences: {
+      devTools: ALLOW_DEV_TOOLS,      // Habilita o deshabilita DevTools según la bandera
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, "preload.cjs"),
@@ -364,14 +378,18 @@ function createWindow() {
       // Deshabilitar seguridad web para permitir CORS en desarrollo
       webSecurity: process.env.NODE_ENV !== "development" ? true : false,
     },
-    frame: true,
     backgroundColor: "#ffffff",
     show: false, // No mostrar hasta que esté listo
-    autoHideMenuBar: true, // Ocultar el menú automáticamente
-    icon: app.isPackaged 
-      ? path.join(process.resourcesPath, "public", "logo.ico") 
+    autoHideMenuBar: FORCE_KIOSK, // Ocultar el menú automáticamente si es Kiosco
+    icon: app.isPackaged
+      ? path.join(process.resourcesPath, "public", "logo.ico")
       : path.join(__dirname, "..", "public", "logo.ico")
   });
+
+  // Eliminar el menú de la aplicación por completo si es Kiosk
+  if (FORCE_KIOSK) {
+    mainWindow.setMenu(null);
+  }
 
   // Cargar la aplicación
   if (process.env.NODE_ENV === "development") {
@@ -410,6 +428,34 @@ function createWindow() {
 
 // Este método se llamará cuando Electron haya terminado la inicialización
 app.whenReady().then(() => {
+
+  // Registrar atajos SOLO si NO se permiten herramientas de desarrollo
+  if (!ALLOW_DEV_TOOLS) {
+    // 1. Bloquear F12 y Ctrl+Shift+I (DevTools)
+    globalShortcut.register('F12', () => {
+      console.log('F12 bloqueado por política de seguridad');
+    });
+
+    globalShortcut.register('CommandOrControl+Shift+I', () => {
+      console.log('DevTools bloqueado por política de seguridad');
+    });
+
+    // 2. Bloquear recarga forzada (opcional, evita Ctrl+R)
+    globalShortcut.register('CommandOrControl+R', () => {
+      console.log('Recarga bloqueada');
+    });
+  }
+
+  // Comando secreto para cerrar la APP: Ctrl + Shift + Q
+  globalShortcut.register('CommandOrControl+Shift+Q', () => {
+    app.quit();
+  });
+
+  // Comando secreto para minimizar (útil para mantenimiento): Ctrl + Shift + M
+  globalShortcut.register('CommandOrControl+Shift+M', () => {
+    if (mainWindow) mainWindow.minimize();
+  });
+
   // Iniciar el BiometricMiddleware
   startBiometricMiddleware();
 
@@ -449,6 +495,7 @@ app.on("window-all-closed", function () {
 
 // Detener el BiometricMiddleware y limpiar recursos offline cuando la app se cierre
 app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
   stopBiometricMiddleware();
   syncManager.destroy();
 });

@@ -283,7 +283,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
           console.error('🔐 [Login] ❌ Error guardando/enviando sesión online:', e.message || e);
         }
 
-        onLoginSuccess(datosCompletos, true);
+        onLoginSuccess(datosCompletos, false);
       }
     } catch (error) {
       console.log('Login online falló:', error.message);
@@ -319,18 +319,19 @@ export const LoginScreen = ({ onLoginSuccess }) => {
             const pushResult = await syncManager.pushSessions();
             console.log('🔐 [Login] 📡 Resultado pushSessions (offline):', JSON.stringify(pushResult));
           } catch (e) {
-            console.error('🔐 [Login] ❌ Error guardando/enviando sesión offline:', e.message || e);
+            console.error('🔐 [Login] ❌ Error guardando sesión offline:', e);
           }
-
-          onLoginSuccess(offlineResult.data, false);
-          return;
+          // Login offline OK -> isOffline = true
+          onLoginSuccess(offlineResult.data, true);
         } else {
-          // No hay datos offline: mostrar mensaje claro según la causa
-          if (isServerError) {
-            setGeneralError('El servidor no está disponible y no tienes datos guardados para modo offline. Necesitas iniciar sesión con el servidor activo al menos una vez.');
-          } else {
-            setGeneralError(offlineResult.error);
-          }
+          // Falló offline también
+          setGeneralError(offlineResult.error || 'Credenciales inválidas (offline)');
+          setIsLoading(false);
+          // Vibración error
+          Animated.sequence([
+            Animated.timing(pulseAnim, { toValue: 1.2, duration: 100, useNativeDriver: true }),
+            Animated.timing(pulseAnim, { toValue: 1, duration: 100, useNativeDriver: true }),
+          ]).start();
         }
       } else if (msg.includes('401') || msg.includes('credentials') || msg.includes('Credenciales')) {
         setGeneralError('Usuario o contraseña incorrectos');

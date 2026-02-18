@@ -38,7 +38,11 @@ export function updateToken(token) {
  * Helper para registrar eventos en el backend (POST /api/eventos)
  * Si no hay conexión, guarda el evento en la cola offline de SQLite.
  */
-async function postEvent(titulo, tipo, descripcion, empleadoId, prioridad = 'media') {
+/**
+ * Helper para registrar eventos en el backend (POST /api/eventos)
+ * Si no hay conexión, guarda el evento en la cola offline de SQLite.
+ */
+export async function postEvent(titulo, tipo, descripcion, empleadoId, prioridad = 'media') {
     try {
         // Si no hay token, guardar en cola offline
         if (!authToken) {
@@ -175,7 +179,7 @@ export async function pushPendingRecords() {
     }
 
     isPushing = true;
-    console.log('⬆️ [Push] Iniciando push de registros pendientes...');
+    console.log('⬆️ [Push] Iniciando push de registros pendientes... (Fixed)');
 
     try {
         const pending = await sqliteManager.getPendingAsistencias(50);
@@ -212,7 +216,7 @@ export async function pushPendingRecords() {
                 await sqliteManager.markAsSynced(record.local_id, sync.id_servidor);
                 console.log(`  ✅ local_id=${record.local_id} → server_id=${sync.id_servidor}`);
 
-                // Crear evento de sistema
+                // Crear evento de sistema (Restaurado para asegurar bitácora)
                 await postEvent(
                     `Registro de Asistencia (${record.tipo})`,
                     'ASISTENCIA',
@@ -250,8 +254,23 @@ export async function pushPendingRecords() {
 /**
  * Push de eventos offline pendientes al servidor
  */
+
+// Guard para eventos
+let isPushingEvents = false;
+
+/**
+ * Configure
+ */
+// ... (omitted)
+
+/**
+ * Push de eventos offline pendientes al servidor
+ */
 export async function pushEvents() {
+    if (isPushingEvents) return { success: false, busy: true };
     if (!authToken) return { success: false, error: 'No token' };
+
+    isPushingEvents = true; // Lock inmediato
 
     try {
         const pending = await sqliteManager.getPendingEvents(100);
@@ -259,8 +278,12 @@ export async function pushEvents() {
 
         console.log(`📤 [Push] ${pending.length} eventos offline pendientes`);
         let sincronizados = 0;
+        const processedIds = new Set();
 
         for (const evt of pending) {
+            if (processedIds.has(evt.local_id)) continue;
+            processedIds.add(evt.local_id);
+
             try {
                 const response = await fetch(`${apiBaseUrl}/eventos`, {
                     method: 'POST',
@@ -295,6 +318,8 @@ export async function pushEvents() {
     } catch (error) {
         console.error('❌ [Push] Error en pushEvents:', error.message);
         return { success: false, error: error.message };
+    } finally {
+        isPushingEvents = false;
     }
 }
 
@@ -303,4 +328,5 @@ export default {
     updateToken,
     pushPendingRecords,
     pushEvents,
+    postEvent,
 };

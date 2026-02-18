@@ -27,6 +27,7 @@ import { notificarRegistro, notificarEstadoAsistencia } from '../../services/loc
 import sqliteManager from '../../services/offline/sqliteManager.mjs';
 import offlineAuthService from '../../services/offline/offlineAuthService.mjs';
 import syncManager from '../../services/offline/syncManager.mjs';
+import pushService from '../../services/offline/pushService.mjs';
 
 const API_URL = getApiEndpoint('/api');
 const MINUTOS_SEPARACION_TURNOS = 15;
@@ -683,9 +684,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     const [hS, mS] = horaSalida.split(':').map(Number);
     const minSalida = hS * 60 + mS;
 
-    // ====== ONLINE ONLY: "Wait N minutes" time-insufficient check ======
-    if (esOnline && ultimoRegistro && ultimoRegistro.tipo === 'entrada' && ultimoRegistro.fecha_registro && tolerancia) {
+    // ====== TIME-INSUFFICIENT CHECK (Online & Offline) ======
+    // Modified: Removed `esOnline` check to enforce duration rules in offline mode too.
+    if (ultimoRegistro && ultimoRegistro.tipo === 'entrada' && ultimoRegistro.fecha_registro && tolerancia) {
       const ahora = new Date();
+      // Handle fecha_registro properly (it might be a string or Date object)
       const horaUltimoRegistro = new Date(ultimoRegistro.fecha_registro);
       const minutosUltimaEntrada = horaUltimoRegistro.getHours() * 60 + horaUltimoRegistro.getMinutes();
 
@@ -695,11 +698,17 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const ventanaInicioTurno = minEntrada - toleranciaEntrada;
 
       if (minutosUltimaEntrada >= ventanaInicioTurno && minutosUltimaEntrada <= minSalida) {
+        // Calculate difference in minutes
+        // Note: For offline, `ahora` is current device time.
         const diferenciaMinutos = (ahora - horaUltimoRegistro) / 1000 / 60;
+
         const duracionTurno = minSalida - minEntrada;
         const toleranciaSalidaAnticipada = tolerancia.aplica_tolerancia_salida === false
           ? 0
           : (tolerancia.minutos_anticipado_salida || tolerancia.minutos_retardo || 10);
+
+        // Ensure at least 5 minutes to prevent accidental double-taps, 
+        // or the full duration minus tolerance
         const tiempoMinimoRequerido = Math.max(5, duracionTurno - toleranciaSalidaAnticipada);
 
         if (diferenciaMinutos < tiempoMinimoRequerido) {
@@ -789,10 +798,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         if (!resultadoEntrada.hayTurnoFuturo) {
           return {
             puedeRegistrar: false,
+            // MODIFIED: Return 'fuera_horario' instead of 'completado' to show Red button
+            // and standard "Fuera de horario" text, as requested by user.
             tipoRegistro: 'entrada',
-            estadoHorario: 'completado',
-            jornadaCompleta: true,
-            mensaje: 'Jornada completada por hoy'
+            estadoHorario: 'fuera_horario',
+            jornadaCompleta: false, // Changed to false to avoid Gray button
+            mensaje: 'Fuera de horario'
           };
         }
 
@@ -1199,6 +1210,19 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           metodo_registro: 'PIN',
           fecha_registro: new Date().toISOString()
         });
+
+        // 📝 Registrar evento en bitácora offline (para que se sincronice al volver online)
+        try {
+          await pushService.postEvent(
+            `Registro de ${tipoSiguienteRegistro} - ${estadoCalculado}`,
+            'asistencia',
+            `${userData.nombre || 'Empleado'} registró ${tipoSiguienteRegistro}`,
+            userData.empleado_id,
+            'baja'
+          );
+        } catch (evtErr) {
+          console.log('⚠️ Error guardando evento offline:', evtErr.message);
+        }
 
         data = {
           data: {

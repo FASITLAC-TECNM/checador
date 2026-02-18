@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, ActivityIndicator, View, Alert, AppState, StatusBar } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SystemUI from 'expo-system-ui';
 import { LoginScreen } from './components/logins/login';
@@ -33,10 +34,11 @@ const DEVICE_VERIFICATION_INTERVAL = 120000;
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentScreen, setCurrentScreen] = useState('home');
-  const [darkMode, setDarkMode] = useState(false);
   const [userData, setUserData] = useState(null);
-  const [deviceRegistered, setDeviceRegistered] = useState(null);
+  const [deviceRegistered, setDeviceRegistered] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
+  const [isOfflineSession, setIsOfflineSession] = useState(false);
 
   const appState = useRef(AppState.currentState);
   const verificationInterval = useRef(null);
@@ -237,6 +239,7 @@ export default function App() {
       setDeviceRegistered(deviceCompleted === 'true');
       setDarkMode(savedDarkMode === 'true');
       setIsLoggedIn(false);
+      setCurrentScreen('home'); // 🔥 Resetear a Home al inicio
       console.log('🔒 [App] Login screen enforced on startup');
     } catch (error) {
       console.error('CheckAppState error:', error);
@@ -254,8 +257,10 @@ export default function App() {
   };
 
   // 🔥 FUNCIÓN CORREGIDA: Verifica dispositivo en BD primero
-  const handleLoginSuccess = async (data, isOnlineLogin = false) => {
+  const handleLoginSuccess = async (data, isOffline = false) => {
     try {
+      setIsOfflineSession(isOffline); // Guardar estado de sesión
+
       if (data.token) {
         await AsyncStorage.setItem(STORAGE_KEYS.USER_TOKEN, data.token);
       }
@@ -359,6 +364,7 @@ export default function App() {
         setDeviceRegistered(false);
       }
 
+      setCurrentScreen('home'); // 🔥 SIEMPRE iniciar en Home
       setIsLoggedIn(true);
     } catch (error) {
       console.error('[App] Error en handleLoginSuccess:', error);
@@ -366,6 +372,22 @@ export default function App() {
       setDeviceRegistered(false);
     }
   };
+
+  /**
+   * SEGURIDAD: Auto-Logout si se pierde la conexión a internet.
+   * El usuario deberá volver a loguearse (puede ser offline) para continuar.
+   * EXCEPCIÓN: Si la sesión es OFFLINE desde el inicio, no sacamos al usuario.
+   */
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      // Si está logueado, NO es sesión offline, y se pierde internet -> Logout
+      if (isLoggedIn && !isOfflineSession && state.isConnected === false) {
+        console.log('⚠️ [App] Conexión perdida en sesión ONLINE. Cerrando sesión por seguridad...');
+        handleLogout();
+      }
+    });
+    return () => unsubscribe();
+  }, [isLoggedIn, isOfflineSession]);
 
   const handleOnboardingComplete = async () => {
     await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETED, 'true');
@@ -377,18 +399,9 @@ export default function App() {
     stopUserDataRefresh();
 
     if (userData) {
-      try {
-        const isOnline = await syncManager.isOnline();
-        await sqliteManager.saveOfflineSession({
-          usuario_id: userData.id?.toString(),
-          empleado_id: userData.empleado_id?.toString(),
-          tipo: 'logout',
-          modo: isOnline ? 'online' : 'offline'
-        });
-        await syncManager.pushSessions().catch(() => { });
-      } catch (e) {
-        console.log('Error guardando sesión logout:', e);
-      }
+      // Ya no guardamos sesión de logout en SQLite ni intentamos sync.
+      // El usuario solo quiere limpiar estado local.
+      console.log('🚪 [App] Cerrando sesión (sin registrar evento logout)');
     }
 
     await Promise.all([

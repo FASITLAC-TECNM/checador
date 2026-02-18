@@ -438,7 +438,9 @@ export async function getErrorRecords() {
 export async function upsertEmpleados(empleados) {
     if (!db) await initDatabase();
 
-    await db.withTransactionAsync(async () => {
+    // Eliminar transacción manual si causa problemas con execAsync
+    // await db.execAsync('BEGIN TRANSACTION');
+    try {
         for (const emp of empleados) {
             // Adaptar es_activo (boolean) a estado_cuenta (string) si viene del nuevo endpoint
             let estadoCuenta = emp.estado_cuenta || 'activo';
@@ -469,15 +471,19 @@ export async function upsertEmpleados(empleados) {
                 ]
             );
         }
-    });
+        // await db.execAsync('COMMIT');
+    } catch (error) {
+        // await db.execAsync('ROLLBACK');
+        console.error('❌ [SQLite] Error upsertEmpleados:', error);
+        throw error;
+    }
     await updateMetaCount('cache_empleados');
-    console.log(`✅ [SQLite] ${empleados.length} empleados cacheados`);
 }
 
 export async function upsertCredenciales(credenciales) {
     if (!db) await initDatabase();
 
-    await db.withTransactionAsync(async () => {
+    try {
         for (const cred of credenciales) {
             await db.runAsync(
                 `INSERT INTO cache_credenciales (id, empleado_id, pin_hash, dactilar_template, facial_descriptor, updated_at)
@@ -497,9 +503,11 @@ export async function upsertCredenciales(credenciales) {
                 ]
             );
         }
-    });
+    } catch (error) {
+        console.error('❌ [SQLite] Error upsertCredenciales:', error);
+        throw error;
+    }
     await updateMetaCount('cache_credenciales');
-    console.log(`✅ [SQLite] ${credenciales.length} credenciales cacheadas`);
 }
 
 export async function upsertHorario(empleadoId, horario) {
@@ -571,17 +579,14 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
 export async function upsertDepartamentos(empleadoId, departamentos) {
     if (!db) await initDatabase();
 
-    await db.withTransactionAsync(async () => {
-        // Borramos anteriores para este empleado para evitar duplicados/obsoletos
-        await db.runAsync('DELETE FROM cache_departamentos WHERE empleado_id = ?', [empleadoId]);
-
+    try {
         for (const dep of departamentos) {
             const ubicacionStr = dep.ubicacion
                 ? (typeof dep.ubicacion === 'string' ? dep.ubicacion : JSON.stringify(dep.ubicacion))
                 : null;
 
             await db.runAsync(`
-                INSERT INTO cache_departamentos (empleado_id, departamento_id, nombre, ubicacion, es_activo, updated_at)
+                INSERT OR REPLACE INTO cache_departamentos (empleado_id, departamento_id, nombre, ubicacion, es_activo, updated_at)
                 VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))
              `, [
                 empleadoId,
@@ -591,8 +596,10 @@ export async function upsertDepartamentos(empleadoId, departamentos) {
                 dep.es_activo ? 1 : 0
             ]);
         }
-    });
-    console.log(`✅ [SQLite] Departamentos actualizados para empleado ${empleadoId}`);
+    } catch (error) {
+        console.error('❌ [SQLite] Error upsertDepartamentos:', error);
+        throw error;
+    }
 }
 
 /**
@@ -714,11 +721,11 @@ export async function upsertAsistenciasMes(empleadoId, mesKey, asistencias) {
     if (!db) await initDatabase();
 
     await db.withTransactionAsync(async () => {
-        await db.runAsync('DELETE FROM cache_asistencias WHERE empleado_id = ? AND mes_key = ?', [empleadoId, mesKey]);
+        // Using INSERT OR REPLACE to avoid UNIQUE failures on 'id'
 
         for (const reg of asistencias) {
             await db.runAsync(
-                `INSERT INTO cache_asistencias (id, empleado_id, tipo, estado, fecha_registro, dispositivo_origen, departamento_id, departamento_nombre, mes_key, updated_at)
+                `INSERT OR REPLACE INTO cache_asistencias (id, empleado_id, tipo, estado, fecha_registro, dispositivo_origen, departamento_id, departamento_nombre, mes_key, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))`,
                 [
                     reg.id,
@@ -753,11 +760,12 @@ export async function upsertIncidencias(empleadoId, incidencias) {
     if (!db) await initDatabase();
 
     await db.withTransactionAsync(async () => {
-        await db.runAsync('DELETE FROM cache_incidencias WHERE empleado_id = ?', [empleadoId]);
+        // Removed DELETE to avoid "UNIQUE constraint failed" if server sends duplicates
+        // Use INSERT OR REPLACE instead for atomic updates per row
 
         for (const inc of incidencias) {
             await db.runAsync(
-                `INSERT INTO cache_incidencias (id, empleado_id, tipo, motivo, observaciones, fecha_inicio, fecha_fin, estado, empleado_nombre, updated_at)
+                `INSERT OR REPLACE INTO cache_incidencias (id, empleado_id, tipo, motivo, observaciones, fecha_inicio, fecha_fin, estado, empleado_nombre, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))`,
                 [
                     inc.id,

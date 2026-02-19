@@ -67,8 +67,23 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   });
   const notificadoEstadoRef = useRef(null);
 
+  // ─── FIX: refs para que procederConRegistro siempre lea valores frescos ───
+  const horarioInfoRef = useRef(null);
+  const toleranciaInfoRef = useRef(null);
+  const ultimoRegistroHoyRef = useRef(null);
+  const tipoSiguienteRegistroRef = useRef('entrada');
+  const isOnlineRef = useRef(false);
+  // ──────────────────────────────────────────────────────────────────────────
+
   const styles = darkMode ? registerStylesDark : registerStyles;
   const [horaActual, setHoraActual] = useState(new Date());
+
+  // Mantener refs sincronizados con el estado
+  useEffect(() => { horarioInfoRef.current = horarioInfo; }, [horarioInfo]);
+  useEffect(() => { toleranciaInfoRef.current = toleranciaInfo; }, [toleranciaInfo]);
+  useEffect(() => { ultimoRegistroHoyRef.current = ultimoRegistroHoy; }, [ultimoRegistroHoy]);
+  useEffect(() => { tipoSiguienteRegistroRef.current = tipoSiguienteRegistro; }, [tipoSiguienteRegistro]);
+  useEffect(() => { isOnlineRef.current = isOnline; }, [isOnline]);
 
   useEffect(() => {
     cargarCredencialesYOrden();
@@ -82,19 +97,26 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         userData.token
       );
 
-      setCredencialesUsuario(credsResponse.data || {
+      const creds = credsResponse.data || {
         tiene_dactilar: false,
         tiene_facial: false,
         tiene_pin: false
-      });
+      };
+      setCredencialesUsuario(creds);
 
+      // ─── FIX: la función retorna `ordenCredenciales`, no `orden` ───
       const ordenResponse = await getOrdenCredenciales(userData.token);
-      setOrdenCredenciales(ordenResponse.orden || ['pin', 'dactilar', 'facial']);
+      const orden = ordenResponse.ordenCredenciales || ['pin', 'dactilar', 'facial'];
+      // Normalizar a array si viene como objeto { pin: { prioridad: 1 }, ... }
+      const ordenArray = Array.isArray(orden)
+        ? orden
+        : Object.entries(orden)
+          .sort((a, b) => (a[1]?.prioridad ?? 99) - (b[1]?.prioridad ?? 99))
+          .map(([key]) => key);
+      // ──────────────────────────────────────────────────────────────
 
-      construirMetodosDisponibles(
-        credsResponse.data,
-        ordenResponse.orden || ['pin', 'dactilar', 'facial']
-      );
+      setOrdenCredenciales(ordenArray);
+      construirMetodosDisponibles(creds, ordenArray);
 
     } catch (error) {
       console.log('Using offline credentials');
@@ -127,13 +149,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }
   };
 
-  const handleAutenticacionPin = useCallback(() => {
-    setMostrarAutenticacion(false);
-    setTimeout(() => {
-      setMostrarPinAuth(true);
-    }, 150);
-  }, []);
-
+  // ─── FIX: los handlers de autenticación NO se pasan como referencia estática
+  //     en metodosDisponibles. En su lugar, metodosDisponibles solo guarda
+  //     metadatos (id, nombre, icono) y el handler se resuelve en el render. ───
   const construirMetodosDisponibles = (credenciales, orden) => {
     const metodosBase = {
       'pin': {
@@ -141,21 +159,18 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         nombre: 'PIN',
         icono: 'keypad',
         disponible: credenciales?.tiene_pin || false,
-        handler: handleAutenticacionPin
       },
       'dactilar': {
         id: 'dactilar',
         nombre: 'Huella',
         icono: 'finger-print',
         disponible: credenciales?.tiene_dactilar || false,
-        handler: handleAutenticacionHuella
       },
       'facial': {
         id: 'facial',
         nombre: 'Facial',
         icono: 'scan',
         disponible: credenciales?.tiene_facial || false,
-        handler: handleAutenticacionFacial
       }
     };
 
@@ -166,22 +181,44 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     setMetodosDisponibles(metodosOrdenados);
   };
 
+  // Resolver el handler actual para cada método en tiempo de render
+  const getHandlerForMetodo = (metodoId) => {
+    switch (metodoId) {
+      case 'pin': return handleAutenticacionPin;
+      case 'dactilar': return handleAutenticacionHuella;
+      case 'facial': return handleAutenticacionFacial;
+      default: return () => { };
+    }
+  };
+  // ──────────────────────────────────────────────────────────────────────────
+
+  const handleAutenticacionPin = useCallback(() => {
+    setMostrarAutenticacion(false);
+    setTimeout(() => {
+      setMostrarPinAuth(true);
+    }, 150);
+  }, []);
+
   useEffect(() => {
     const intervalo = setInterval(async () => {
       setHoraActual(new Date());
 
-      if (horarioInfo && toleranciaInfo) {
+      if (horarioInfoRef.current && toleranciaInfoRef.current) {
         let onlineNow = false;
         try { onlineNow = await syncManager.isOnline(); } catch (e) { /* offline */ }
         setIsOnline(onlineNow);
-        const estado = calcularEstadoRegistro(ultimoRegistroHoy, horarioInfo, toleranciaInfo, onlineNow);
+        const estado = calcularEstadoRegistro(
+          ultimoRegistroHoyRef.current,
+          horarioInfoRef.current,
+          toleranciaInfoRef.current,
+          onlineNow
+        );
         setPuedeRegistrar(estado.puedeRegistrar);
         setTipoSiguienteRegistro(estado.tipoRegistro);
         setEstadoHorario(estado.estadoHorario);
         setJornadaCompletada(estado.jornadaCompleta);
         setMensajeEspera(estado.mensajeEspera || '');
 
-        // Notificar una sola vez cuando el estado cambie a "puede registrar"
         const claveEstado = `${estado.puedeRegistrar}-${estado.tipoRegistro}`;
         if (estado.puedeRegistrar && claveEstado !== notificadoEstadoRef.current) {
           notificadoEstadoRef.current = claveEstado;
@@ -193,7 +230,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }, 1000);
 
     return () => clearInterval(intervalo);
-  }, [horarioInfo, toleranciaInfo, ultimoRegistroHoy, calcularEstadoRegistro]);
+  }, [calcularEstadoRegistro]);
 
   const getDiaSemana = () => {
     const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
@@ -526,7 +563,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
   // ============================================================
   // VALIDACIÓN DE ENTRADA — Mirrors backend calcularEstadoEntrada
-  // Uses the group number (totalRegistrosHoy / 2) to find the current group
   // ============================================================
   const validarEntrada = (horario, tolerancia, minutosActuales, totalRegistrosHoy = 0) => {
     if (!horario?.gruposTurnos || !Array.isArray(horario.gruposTurnos) || horario.gruposTurnos.length === 0) {
@@ -540,12 +576,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       };
     }
 
-    // Determine group number same as backend: Math.floor(totalRegistrosHoy / 2)
     const numeroGrupo = Math.floor(totalRegistrosHoy / 2);
 
-    // All groups completed → check if there's a future group
     if (numeroGrupo >= horario.gruposTurnos.length) {
-      // Check if any group starts later (for non-sequential edge cases)
       let hayTurnoFuturo = false;
       for (const grupo of horario.gruposTurnos) {
         const { entrada: horaEntrada } = getEntradaSalidaGrupo(grupo);
@@ -566,7 +599,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       };
     }
 
-    // Target group to register entry for
     const grupoActual = horario.gruposTurnos[numeroGrupo];
     const { entrada: horaEntrada, salida: horaSalida } = getEntradaSalidaGrupo(grupoActual);
 
@@ -590,7 +622,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     const ventanaRetardo = minEntrada + (tolerancia.minutos_retardo || 10);
     const ventanaFalta = minEntrada + (tolerancia.minutos_falta || 30);
 
-    // Before the anticipation window
     if (minutosActuales < ventanaInicio) {
       return {
         puedeRegistrar: false,
@@ -602,7 +633,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       };
     }
 
-    // Puntual: [ventanaInicio, ventanaRetardo]
     if (minutosActuales >= ventanaInicio && minutosActuales <= ventanaRetardo) {
       return {
         puedeRegistrar: true,
@@ -614,7 +644,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       };
     }
 
-    // Retardo: (ventanaRetardo, ventanaFalta]
     if (minutosActuales > ventanaRetardo && minutosActuales <= ventanaFalta) {
       return {
         puedeRegistrar: true,
@@ -626,7 +655,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       };
     }
 
-    // Falta: (ventanaFalta, minSalida]
     if (minutosActuales > ventanaFalta && minutosActuales <= minSalida) {
       return {
         puedeRegistrar: true,
@@ -638,7 +666,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       };
     }
 
-    // After shift end
     return {
       puedeRegistrar: false,
       tipoRegistro: 'entrada',
@@ -650,9 +677,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   };
 
   // ============================================================
-  // VALIDACIÓN DE SALIDA — Mirrors backend calcularEstadoSalida
-  // OFFLINE: Always allows exit after entry (estado changes, not availability)
-  // ONLINE: Keeps the "wait N minutes" behavior
+  // VALIDACIÓN DE SALIDA
   // ============================================================
   const validarSalida = (horario, minutosActuales, ultimoRegistro, tolerancia, esOnline = false) => {
     if (!horario?.gruposTurnos || !Array.isArray(horario.gruposTurnos) || horario.gruposTurnos.length === 0) {
@@ -665,9 +690,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       };
     }
 
-    // Find the current group based on totalRegistrosHoy (same as backend)
     const totalRegistros = ultimoRegistro?.totalRegistrosHoy || 1;
-    const numeroGrupo = Math.floor((totalRegistros - 1) / 2); // -1 because we've done the entry already
+    const numeroGrupo = Math.floor((totalRegistros - 1) / 2);
 
     if (numeroGrupo < 0 || numeroGrupo >= horario.gruposTurnos.length) {
       return {
@@ -684,11 +708,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     const [hS, mS] = horaSalida.split(':').map(Number);
     const minSalida = hS * 60 + mS;
 
-    // ====== TIME-INSUFFICIENT CHECK (Online & Offline) ======
-    // Modified: Removed `esOnline` check to enforce duration rules in offline mode too.
     if (ultimoRegistro && ultimoRegistro.tipo === 'entrada' && ultimoRegistro.fecha_registro && tolerancia) {
       const ahora = new Date();
-      // Handle fecha_registro properly (it might be a string or Date object)
       const horaUltimoRegistro = new Date(ultimoRegistro.fecha_registro);
       const minutosUltimaEntrada = horaUltimoRegistro.getHours() * 60 + horaUltimoRegistro.getMinutes();
 
@@ -698,8 +719,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const ventanaInicioTurno = minEntrada - toleranciaEntrada;
 
       if (minutosUltimaEntrada >= ventanaInicioTurno && minutosUltimaEntrada <= minSalida) {
-        // Calculate difference in minutes
-        // Note: For offline, `ahora` is current device time.
         const diferenciaMinutos = (ahora - horaUltimoRegistro) / 1000 / 60;
 
         const duracionTurno = minSalida - minEntrada;
@@ -707,8 +726,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           ? 0
           : (tolerancia.minutos_anticipado_salida || tolerancia.minutos_retardo || 10);
 
-        // Ensure at least 5 minutes to prevent accidental double-taps, 
-        // or the full duration minus tolerance
         const tiempoMinimoRequerido = Math.max(5, duracionTurno - toleranciaSalidaAnticipada);
 
         if (diferenciaMinutos < tiempoMinimoRequerido) {
@@ -726,14 +743,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       }
     }
 
-    // ====== Calculate exit estado (mirrors backend calcularEstadoSalida) ======
     const toleranciaMinutos = tolerancia?.aplica_tolerancia_salida
       ? (tolerancia.minutos_retardo || 10)
       : 10;
     const inicioVentanaSalida = minSalida - toleranciaMinutos;
 
-    // OFFLINE: Always allow exit after entry — just calculate the estado
-    // ONLINE: Also allow, estado calculation is the same
     let estadoSalida = 'salida_puntual';
     if (minutosActuales < inicioVentanaSalida) {
       estadoSalida = 'salida_temprano';
@@ -750,9 +764,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   };
 
   // ============================================================
-  // CALCULAR ESTADO DE REGISTRO — Online/Offline aware
-  // isOnlineNow: true → keeps "wait N minutes" for exit
-  //              false → removes it, button enabled by tolerance only
+  // CALCULAR ESTADO DE REGISTRO
   // ============================================================
   const calcularEstadoRegistro = useCallback((ultimo, horario, tolerancia, isOnlineNow = false) => {
     if (!horario?.trabaja) {
@@ -780,17 +792,14 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     const totalGrupos = horario.gruposTurnos.length;
     const gruposCompletados = Math.floor(totalRegistrosHoy / 2);
 
-    // No records yet → validate entry
     if (!ultimo) {
       return validarEntrada(horario, tolerancia, ahora, 0);
     }
 
-    // Last record was entry → validate exit
     if (ultimo.tipo === 'entrada') {
       return validarSalida(horario, ahora, ultimo, tolerancia, isOnlineNow);
     }
 
-    // Last record was exit → check if all groups completed
     if (ultimo.tipo === 'salida') {
       if (gruposCompletados >= totalGrupos) {
         const resultadoEntrada = validarEntrada(horario, tolerancia, ahora, totalRegistrosHoy);
@@ -798,11 +807,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         if (!resultadoEntrada.hayTurnoFuturo) {
           return {
             puedeRegistrar: false,
-            // MODIFIED: Return 'fuera_horario' instead of 'completado' to show Red button
-            // and standard "Fuera de horario" text, as requested by user.
             tipoRegistro: 'entrada',
             estadoHorario: 'fuera_horario',
-            jornadaCompleta: false, // Changed to false to avoid Gray button
+            jornadaCompleta: false,
             mensaje: 'Fuera de horario'
           };
         }
@@ -943,30 +950,50 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
   const handleVerificarPin = async (pin) => {
     try {
-      const online = await syncManager.isOnline();
+      // ─── FIX: siempre intentar verificación online primero.
+      // No usar syncManager.isOnline() como gate porque en Android
+      // isInternetReachable puede ser null → falso negativo de red.
+      let verificadoOnline = false;
 
-      if (online) {
-        try {
-          const resultado = await verificarPin(
-            userData.empleado_id,
-            pin,
-            userData.token
-          );
+      try {
+        const resultado = await verificarPin(
+          userData.empleado_id,
+          pin,
+          userData.token
+        );
 
-          if (resultado.success && resultado.data?.valido) {
-            setMostrarPinAuth(false);
-            setMostrarAutenticacion(false);
-            await procederConRegistro();
-            return;
-          } else {
-            throw new Error('PIN incorrecto');
-          }
-        } catch (e) {
-          if (e.message === 'PIN incorrecto') throw e;
-          console.log('Online PIN check failed, trying offline');
+        if (resultado.success && resultado.data?.valido) {
+          verificadoOnline = true;
+          setMostrarPinAuth(false);
+          setMostrarAutenticacion(false);
+          await procederConRegistro();
+          return;
+        } else {
+          // El servidor respondió pero el PIN es incorrecto → error definitivo
+          throw new Error('PIN incorrecto');
         }
+      } catch (e) {
+        // Si el error es "PIN incorrecto" lo propagamos directo
+        if (e.message === 'PIN incorrecto') throw e;
+
+        // Si es un error de red → intentar validación offline
+        const esErrorDeRed = (
+          e.message.includes('Network request failed') ||
+          e.message.includes('Failed to fetch') ||
+          e.message.includes('Timeout') ||
+          e.message.includes('network') ||
+          e.name === 'AbortError'
+        );
+
+        if (!esErrorDeRed) {
+          // Error de aplicación del servidor (401, 403, etc.) → propagar
+          throw e;
+        }
+
+        console.log('PIN online falló por red, intentando offline...');
       }
 
+      // Fallback offline solo si hubo error de red
       const identified = await offlineAuthService.identificarPorPinOffline(pin);
       if (identified && identified.empleado_id === userData.empleado_id) {
         setMostrarPinAuth(false);
@@ -1092,10 +1119,22 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     setRegistrando(false);
   };
 
+  // ============================================================
+  // procederConRegistro — usa REFS para leer siempre valores frescos.
+  // El estado (puntual/retardo/falta) lo calcula el BACKEND con datos
+  // frescos de la DB. El frontend solo envía tipo (entrada/salida).
+  // ============================================================
   const procederConRegistro = async () => {
     try {
       const departamento = datosRegistroRef.current.departamento;
       let ubicacionFinal = datosRegistroRef.current.ubicacion;
+
+      // Leer valores frescos desde refs
+      const horarioActual = horarioInfoRef.current;
+      const toleranciaActual = toleranciaInfoRef.current;
+      const ultimoActual = ultimoRegistroHoyRef.current;
+      const tipoActual = tipoSiguienteRegistroRef.current;
+      const onlineActual = isOnlineRef.current;
 
       try {
         const location = await Location.getCurrentPositionAsync({
@@ -1130,83 +1169,96 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       setRegistrando(true);
 
-      // Calculate the correct estado based on tolerance (mirrors backend calcularEstadoAsistencia)
-      let estadoCalculado = tipoSiguienteRegistro === 'entrada' ? 'puntual' : 'salida_puntual';
-      if (horarioInfo && toleranciaInfo) {
-        const minutosAhora = new Date().getHours() * 60 + new Date().getMinutes();
-        const totalRegs = ultimoRegistroHoy?.totalRegistrosHoy || 0;
-
-        if (tipoSiguienteRegistro === 'entrada') {
-          const resultadoEntrada = validarEntrada(horarioInfo, toleranciaInfo, minutosAhora, totalRegs);
-          if (resultadoEntrada.estadoHorario === 'puntual') estadoCalculado = 'puntual';
-          else if (resultadoEntrada.estadoHorario === 'retardo') estadoCalculado = 'retardo';
-          else if (resultadoEntrada.estadoHorario === 'falta') estadoCalculado = 'falta';
-        } else {
-          const resultadoSalida = validarSalida(horarioInfo, minutosAhora, ultimoRegistroHoy, toleranciaInfo, isOnline);
-          if (resultadoSalida.estadoAsistencia) {
-            estadoCalculado = resultadoSalida.estadoAsistencia;
-          } else {
-            estadoCalculado = resultadoSalida.estadoHorario === 'salida_temprano' ? 'salida_temprano' : 'salida_puntual';
-          }
-        }
-      }
-
+      // ─── FIX: No enviamos `estado` desde el frontend.
+      //     El backend lo calcula con datos frescos de la DB usando
+      //     calcularEstadoAsistencia → retardo/falta/puntual correcto.
+      //     Solo enviamos `tipo` (entrada/salida).
       const payload = {
         empleado_id: userData.empleado_id,
         dispositivo_origen: 'movil',
         ubicacion: [ubicacionFinal.lat, ubicacionFinal.lng],
         departamento_id: departamento.id,
-        tipo: tipoSiguienteRegistro,
-        estado: estadoCalculado
+        tipo: tipoActual,
+        // estado: omitido → backend lo calcula fresco
       };
+      // ──────────────────────────────────────────────────────────
 
-      const online = await syncManager.isOnline();
+      // ─── FIX: siempre intentar el API primero.
+      // syncManager.isOnline() usa isInternetReachable que en Android puede
+      // ser `null` (indeterminado) aunque haya conexión real → false positivo
+      // de "offline". Quitamos el gate y dejamos que el fetch falle solo si
+      // no hay red. Solo guardamos offline ante errores de red genuinos.
       let success = false;
       let data = null;
 
-      if (online) {
-        try {
-          const response = await fetch(`${API_URL}/asistencias/registrar`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${userData.token}`,
-            },
-            body: JSON.stringify(payload)
-          });
+      try {
+        const response = await fetch(`${API_URL}/asistencias/registrar`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${userData.token}`,
+          },
+          body: JSON.stringify(payload)
+        });
 
-          const responseText = await response.text();
+        const responseText = await response.text();
 
-          if (response.status === 502 || response.status === 500) {
-            throw new Error('Server Error');
-          }
-
-          try {
-            data = responseText ? JSON.parse(responseText) : {};
-          } catch (parseError) {
-            throw new Error('Error del servidor: respuesta inválida');
-          }
-
-          if (!response.ok) {
-            const errorMsg = data.message || data.error || `Error del servidor (${response.status})`;
-            throw new Error(errorMsg);
-          }
-
-          success = true;
-
-        } catch (e) {
-          if (e.message !== 'Server Error' && !e.message.includes('Network request failed')) {
-            throw e;
-          }
-          console.log('Online registration failed, saving offline');
+        if (response.status === 502 || response.status === 500) {
+          throw new Error('Server Error');
         }
+
+        try {
+          data = responseText ? JSON.parse(responseText) : {};
+        } catch (parseError) {
+          throw new Error('Error del servidor: respuesta inválida');
+        }
+
+        if (!response.ok) {
+          const errorMsg = data.message || data.error || `Error del servidor (${response.status})`;
+          throw new Error(errorMsg);
+        }
+
+        success = true;
+
+      } catch (e) {
+        // Solo caer a offline en errores genuinos de red/servidor caído
+        const esErrorDeRed = (
+          e.message === 'Server Error' ||
+          e.message.includes('Network request failed') ||
+          e.message.includes('Failed to fetch') ||
+          e.message.includes('Timeout') ||
+          e.message.includes('network') ||
+          e.name === 'AbortError'
+        );
+
+        if (!esErrorDeRed) {
+          // Error de aplicación (401, 403, 400, regla de negocio, etc.) → mostrar al usuario
+          throw e;
+        }
+        console.log('Error de red, guardando offline:', e.message);
       }
 
       if (!success) {
         console.log('Saving offline attendance...');
 
+        // Para offline calculamos el estado localmente (mejor que nada)
+        let estadoOffline = 'puntual';
+        if (horarioActual && toleranciaActual) {
+          const minutosAhora = new Date().getHours() * 60 + new Date().getMinutes();
+          const totalRegs = ultimoActual?.totalRegistrosHoy || 0;
+          if (tipoActual === 'entrada') {
+            const r = validarEntrada(horarioActual, toleranciaActual, minutosAhora, totalRegs);
+            if (r.estadoHorario === 'retardo') estadoOffline = 'retardo';
+            else if (r.estadoHorario === 'falta') estadoOffline = 'falta';
+          } else {
+            const r = validarSalida(horarioActual, minutosAhora, ultimoActual, toleranciaActual, onlineActual);
+            estadoOffline = r.estadoAsistencia || 'salida_puntual';
+          }
+        }
+
         await sqliteManager.saveOfflineAsistencia({
           ...payload,
+          estado: estadoOffline,
           metodo_registro: 'PIN',
           fecha_registro: new Date().toISOString()
         });
@@ -1214,9 +1266,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         // 📝 Registrar evento en bitácora offline (para que se sincronice al volver online)
         try {
           await pushService.postEvent(
-            `Registro de ${tipoSiguienteRegistro} - ${estadoCalculado}`,
+            `Registro de ${tipoActual} - ${estadoOffline}`,
             'asistencia',
-            `${userData.nombre || 'Empleado'} registró ${tipoSiguienteRegistro}`,
+            `${userData.nombre || 'Empleado'} registró ${tipoActual}`,
             userData.empleado_id,
             'baja'
           );
@@ -1226,7 +1278,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
         data = {
           data: {
-            tipo: tipoSiguienteRegistro,
+            tipo: tipoActual,
             estado: 'pendiente_sync'
           }
         };
@@ -1241,8 +1293,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const nuevoUltimo = await obtenerUltimoRegistro();
       setUltimoRegistroHoy(nuevoUltimo);
 
-      if (horarioInfo && toleranciaInfo) {
-        const nuevoEstado = calcularEstadoRegistro(nuevoUltimo, horarioInfo, toleranciaInfo);
+      if (horarioActual && toleranciaActual) {
+        const nuevoEstado = calcularEstadoRegistro(nuevoUltimo, horarioActual, toleranciaActual);
         setPuedeRegistrar(nuevoEstado.puedeRegistrar);
         setTipoSiguienteRegistro(nuevoEstado.tipoRegistro);
         setEstadoHorario(nuevoEstado.estadoHorario);
@@ -1250,7 +1302,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         setMensajeEspera(nuevoEstado.mensajeEspera || '');
       }
 
-      const tipoRegistrado = data.data?.tipo || tipoSiguienteRegistro;
+      const tipoRegistrado = data.data?.tipo || tipoActual;
       const estadoRegistrado = data.data?.estado || 'registrado';
 
       let estadoTexto = estadoRegistrado;
@@ -1271,7 +1323,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           emoji = '✅';
         } else if (estadoRegistrado === 'pendiente_sync') {
           estadoTexto = 'guardado offline';
-          emoji = 'cloud-offline';
+          emoji = '☁️';
         }
       }
 
@@ -1603,13 +1655,14 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             </View>
 
             <View style={styles.authMethodsContainer}>
+              {/* ─── FIX: handler se resuelve en render, no desde estado estático ─── */}
               {metodosDisponibles
                 .filter(metodo => metodo.id !== 'facial' || !credencialesUsuario?._offlineMode)
                 .map((metodo) => (
                   <TouchableOpacity
                     key={metodo.id}
                     style={styles.authMethodCard}
-                    onPress={metodo.handler}
+                    onPress={getHandlerForMetodo(metodo.id)}
                     activeOpacity={0.7}
                   >
                     <View style={styles.authMethodIcon}>

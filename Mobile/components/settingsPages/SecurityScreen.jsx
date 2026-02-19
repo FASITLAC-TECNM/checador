@@ -47,6 +47,7 @@ import { PinInputModal } from './PinModal';
 
 // Offline Services
 import sqliteManager from '../../services/offline/sqliteManager.mjs';
+import syncManager from '../../services/offline/syncManager.mjs'; // ← FIX: importar syncManager
 
 // ─── Constantes de color por estado ─────────────────────────────────────────
 const ESTADO_COLORES = {
@@ -122,9 +123,19 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
 
       const token = await AsyncStorage.getItem('userToken');
 
-      // Intentar cargar del servidor primero
+      // ─── FIX: verificar conectividad REAL antes de intentar el servidor ───
+      let onlineNow = false;
+      try {
+        onlineNow = await syncManager.isOnline();
+      } catch (netErr) {
+        console.log('[Security] No se pudo verificar red:', netErr.message);
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
       let cargoOnline = false;
-      if (token) {
+
+      // Solo intentar el servidor si hay red Y hay token
+      if (onlineNow && token) {
         try {
           const credenciales = await getCredencialesByEmpleado(empleadoId, token);
           if (credenciales.success && credenciales.data) {
@@ -132,13 +143,18 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
             setHasFacial(credenciales.data.tiene_facial || false);
             setHasPin(credenciales.data.tiene_pin || false);
             cargoOnline = true;
+          } else {
+            // El servidor respondió pero sin datos válidos — no es error de red
+            console.log('[Security] Servidor respondió sin datos de credenciales');
           }
         } catch (e) {
-          console.log('Error cargando credenciales online:', e.message);
+          // Error de red o auth — caerá al fallback offline abajo
+          console.log('[Security] Error cargando credenciales online:', e.message);
         }
       }
 
-      // Fallback: cargar desde SQLite (modo solo lectura)
+      // Fallback: cargar desde SQLite
+      // isOffline = true SOLO si realmente no hay red (no si el API falló por otro motivo)
       if (!cargoOnline) {
         try {
           const creds = await sqliteManager.getAllCredenciales();
@@ -147,22 +163,30 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
           setHasFingerprint(misCreds.some(c => c.dactilar_template));
           setHasFacial(misCreds.some(c => c.facial_descriptor));
           setHasPin(misCreds.some(c => c.pin_hash));
-          setIsOffline(true);
+
+          // ─── FIX: solo marcar como offline si realmente no hay conexión ───
+          // Si hay red pero el API falló (auth expirado, etc.) no ponemos modo offline
+          // porque el usuario sí puede registrar credenciales una vez que refresque token
+          if (!onlineNow) {
+            setIsOffline(true);
+          }
+          // ──────────────────────────────────────────────────────────────────
         } catch (dbErr) {
-          console.log('Error cargando credenciales offline:', dbErr.message);
+          console.log('[Security] Error cargando credenciales offline:', dbErr.message);
+          // Si todo falló y no hay red → offline
+          if (!onlineNow) {
+            setIsOffline(true);
+          }
         }
       }
     } catch (error) {
-      console.error('Error en initializeSecurity:', error);
+      console.error('[Security] Error en initializeSecurity:', error);
     } finally {
       setIsLoadingCredentials(false);
     }
   };
 
   // ─── Determinar estado visual ───────────────────────────────────────────
-  // activo      → tiene la credencial registrada
-  // inactivo    → puede registrarla (hardware OK o no necesita hardware)
-  // noDisponible → el hardware no lo soporta
   const getEstado = (tipo) => {
     switch (tipo) {
       case 'dactilar':
@@ -172,7 +196,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
 
       case 'facial':
         if (hasFacial) return 'activo';
-        // Facial siempre disponible porque tiene el fallback de cámara manual
         return 'inactivo';
 
       case 'pin':
@@ -201,13 +224,11 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       return;
     }
 
-    // Si ya la tiene → ofrecer eliminar
     if (estado === 'activo') {
       await removeFingerprint();
       return;
     }
 
-    // Si no la tiene → enrollar
     await enrollFingerprint();
   };
 
@@ -298,13 +319,11 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
   const handleFacialPress = async () => {
     const estado = getEstado('facial');
 
-    // Si ya lo tiene → ofrecer eliminar
     if (estado === 'activo') {
       await removeFaceId();
       return;
     }
 
-    // Si no lo tiene → ofrecer métodos de registro
     const options = [{ text: 'Cancelar', style: 'cancel' }];
 
     options.push({
@@ -349,7 +368,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
 
       console.log('📸 Captura completada, procesando datos faciales...');
 
-      // Verificar si ya viene con detección facial
       if (captureData.faceDetectionUsed) {
         console.log('✅ Usando datos de detección facial real de Vision Camera');
       }
@@ -373,10 +391,8 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
 
       console.log('✅ Validación de calidad exitosa, extrayendo características...');
 
-      // Extraer características faciales para comparación local
       const features = extractFaceFeatures(faceFeatures);
 
-      // Guardar características localmente (PRINCIPAL)
       const saveResult = await saveFaceFeatures(
         empleadoId,
         features,
@@ -387,20 +403,16 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
         setHasFacial(true);
         console.log('✅ Reconocimiento facial registrado exitosamente (local)');
 
-        // También intentar guardar en el backend si hay token (OPCIONAL)
         try {
           const token = await AsyncStorage.getItem('userToken');
           if (token) {
-            // Convertir features a base64 para enviar al backend
             const featuresString = JSON.stringify(features);
             const featuresBase64 = btoa(unescape(encodeURIComponent(featuresString)));
-
             await guardarFacial(empleadoId, featuresBase64, token);
             console.log('✅ También guardado en backend');
           }
         } catch (backendError) {
           console.warn('⚠️ No se pudo guardar en backend:', backendError.message);
-          // No importa si falla el backend, ya está guardado localmente
         }
 
         Alert.alert(
@@ -465,11 +477,9 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
             try {
               const empleadoId = getEmpleadoId();
 
-              // Eliminar datos locales (PRINCIPAL)
               await deleteFaceFeatures(empleadoId);
               await clearLocalFacialData(empleadoId);
 
-              // Intentar eliminar del backend (OPCIONAL)
               try {
                 const token = await AsyncStorage.getItem('userToken');
                 if (token) {
@@ -503,7 +513,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
   const handlePinPress = () => {
     const estado = getEstado('pin');
 
-    // Si ya lo tiene → ofrecer cambiar o eliminar
     if (estado === 'activo') {
       Alert.alert('PIN de Seguridad', '¿Qué deseas hacer?', [
         { text: 'Cancelar', style: 'cancel' },
@@ -523,7 +532,6 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       return;
     }
 
-    // Si no lo tiene → configurar nuevo
     setIsChangingPin(false);
     setShowPinModal(true);
   };
@@ -795,9 +803,7 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
                 </View>
 
                 {/* Nombre */}
-                <Text
-                  style={[styles.botonNombre, { color: colores.texto }]}
-                >
+                <Text style={[styles.botonNombre, { color: colores.texto }]}>
                   {metodo.nombre}
                 </Text>
 
@@ -842,8 +848,6 @@ const securityStyles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8fafc',
   },
-
-  // Header
   header: {
     backgroundColor: '#2563eb',
     paddingTop: Platform.OS === 'android' ? 16 : 50,
@@ -880,8 +884,6 @@ const securityStyles = StyleSheet.create({
   headerPlaceholder: {
     width: 40,
   },
-
-  // Loading
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -892,15 +894,11 @@ const securityStyles = StyleSheet.create({
     fontSize: 14,
     color: '#6b7280',
   },
-
-  // Scroll
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: Platform.OS === 'ios' ? 100 : 60,
   },
-
-  // Info card superior
   infoCard: {
     backgroundColor: '#dbeafe',
     borderRadius: 18,
@@ -921,14 +919,10 @@ const securityStyles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-
-  // Contenedor de botones
   metodosContainer: {
     gap: 12,
     marginBottom: 24,
   },
-
-  // Botón de método
   botonMetodo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -955,11 +949,7 @@ const securityStyles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
   },
-  botonIndicador: {
-    // espacio para ícono de estado
-  },
-
-  // Leyenda
+  botonIndicador: {},
   leyendaContainer: {
     gap: 6,
     marginBottom: 24,
@@ -979,8 +969,6 @@ const securityStyles = StyleSheet.create({
     fontSize: 12,
     color: '#6b7280',
   },
-
-  // Tips
   tipsCard: {
     backgroundColor: '#fffbeb',
     borderRadius: 16,

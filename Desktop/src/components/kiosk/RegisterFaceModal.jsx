@@ -272,11 +272,11 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 to-purple-500 px-6 py-4">
+        <div className="bg-gradient-to-r from-[#1976D2] to-[#001A70] px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-bold text-white">Registro Facial - Pruebas</h3>
-              <p className="text-xs text-purple-100 mt-0.5">Agregar descriptor a la base de datos</p>
+              <p className="text-xs text-blue-100 mt-0.5">Agregar descriptor a la base de datos</p>
             </div>
             <button
               onClick={handleClose}
@@ -302,7 +302,7 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
                   onChange={(e) => setEmpleadoId(e.target.value.slice(0, 8))}
                   placeholder="Ejemplo: EMP00001"
                   maxLength={8}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 uppercase"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1976D2] uppercase"
                   autoFocus
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
@@ -320,21 +320,21 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
 
               <button
                 onClick={handleStartCapture}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-[#1976D2] hover:bg-[#1565C0] text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
               >
                 <UserPlus className="w-5 h-5" />
                 Capturar Rostro
               </button>
 
-              <div className="flex items-center gap-2 p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
+              <div className="flex items-center gap-2 p-3 bg-[#E3F2FD] dark:bg-[#1565C0]/20 border border-[#BBDEFB] dark:border-[#1565C0]/40 rounded-lg">
                 <input
                   type="checkbox"
                   id="skipLiveness"
                   checked={skipLiveness}
                   onChange={(e) => setSkipLiveness(e.target.checked)}
-                  className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                  className="w-4 h-4 text-[#1976D2] border-gray-300 rounded focus:ring-[#1976D2]"
                 />
-                <label htmlFor="skipLiveness" className="text-sm text-purple-700 dark:text-purple-400 cursor-pointer">
+                <label htmlFor="skipLiveness" className="text-sm text-[#0D47A1] dark:text-[#90CAF9] cursor-pointer">
                   <strong>⚡ Modo Rápido</strong> - Capturar sin verificación de parpadeo (solo para pruebas)
                 </label>
               </div>
@@ -367,29 +367,29 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
                     <div
                       className="absolute top-0 left-0 w-10 h-10 border-l-[3px] border-t-[3px] transition-all duration-300"
                       style={{
-                        borderColor: faceDetected ? '#a855f7' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(168,85,247,0.8))' : 'none'
+                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
+                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
                       }}
                     />
                     <div
                       className="absolute top-0 right-0 w-10 h-10 border-r-[3px] border-t-[3px] transition-all duration-300"
                       style={{
-                        borderColor: faceDetected ? '#a855f7' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(168,85,247,0.8))' : 'none'
+                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
+                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
                       }}
                     />
                     <div
                       className="absolute bottom-0 left-0 w-10 h-10 border-l-[3px] border-b-[3px] transition-all duration-300"
                       style={{
-                        borderColor: faceDetected ? '#a855f7' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(168,85,247,0.8))' : 'none'
+                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
+                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
                       }}
                     />
                     <div
                       className="absolute bottom-0 right-0 w-10 h-10 border-r-[3px] border-b-[3px] transition-all duration-300"
                       style={{
-                        borderColor: faceDetected ? '#a855f7' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(168,85,247,0.8))' : 'none'
+                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
+                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
                       }}
                     />
                   </div>
@@ -408,11 +408,11 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
 
                 {modelsLoaded && (
                   <div className="flex items-center justify-center gap-4 text-sm">
-                    <div className={`flex items-center gap-1.5 ${faceDetected ? 'text-purple-600 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                      <div className={`w-2.5 h-2.5 rounded-full ${faceDetected ? 'bg-purple-500 animate-pulse' : 'bg-gray-400'}`} />
+                    <div className={`flex items-center gap-1.5 ${faceDetected ? 'text-[#1976D2] dark:text-[#42A5F5]' : 'text-gray-500 dark:text-gray-400'}`}>
+                      <div className={`w-2.5 h-2.5 rounded-full ${faceDetected ? 'bg-[#1976D2] animate-pulse' : 'bg-gray-400'}`} />
                       <span className="font-medium">Rostro detectado</span>
                     </div>
-                    <div className={`flex items-center gap-1.5 ${livenessDetected ? 'text-purple-600 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                    <div className={`flex items-center gap-1.5 ${livenessDetected ? 'text-[#1976D2] dark:text-[#42A5F5]' : 'text-gray-500 dark:text-gray-400'}`}>
                       <Eye className={`w-4 h-4 ${livenessDetected ? 'animate-pulse' : ''}`} />
                       <span className="font-medium">Liveness</span>
                     </div>
@@ -422,7 +422,7 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
                 {modelsLoaded && detectionProgress > 0 && (
                   <div className="w-full bg-gray-300 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
                     <div
-                      className="bg-purple-500 h-full transition-all duration-300 rounded-full"
+                      className="bg-[#1976D2] h-full transition-all duration-300 rounded-full"
                       style={{ width: `${detectionProgress}%` }}
                     />
                   </div>
@@ -430,7 +430,7 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
 
                 {!modelsLoaded && (
                   <div className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-purple-500 border-t-transparent"></div>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#1976D2] border-t-transparent"></div>
                     <span className="text-gray-600 dark:text-gray-400 text-xs">Cargando modelos...</span>
                   </div>
                 )}
@@ -469,7 +469,7 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
                   setErrorMessage("");
                   releaseCamera();
                 }}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
+                className="bg-[#1976D2] hover:bg-[#1565C0] text-white font-semibold py-2 px-6 rounded-lg transition-colors"
               >
                 Intentar de Nuevo
               </button>

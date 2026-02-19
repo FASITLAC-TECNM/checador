@@ -175,7 +175,7 @@ function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales,
             >
                 <div className="bg-bg-primary rounded-2xl w-full max-w-sm mx-4 overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto">
                     {/* Header */}
-                    <div className="bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-800 dark:to-blue-900 px-6 py-5 text-center relative">
+                    <div className="bg-gradient-to-r from-[#1976D2] to-[#001A70] dark:from-[#1565C0] dark:to-[#001A70] px-6 py-5 text-center relative">
                         <button
                             onClick={onClose}
                             className="absolute top-3 right-3 text-white/70 hover:text-white transition-colors"
@@ -247,7 +247,7 @@ function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales,
                                                 name="usuario"
                                                 value={formData.usuario}
                                                 onChange={handleChange}
-                                                className="w-full bg-bg-secondary border border-border-subtle rounded-lg py-2 pl-9 pr-3 text-sm text-text-primary placeholder-text-disabled focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors"
+                                                className="w-full bg-bg-secondary border border-border-subtle rounded-lg py-2 pl-9 pr-3 text-sm text-text-primary placeholder-text-disabled focus:outline-none focus:border-[#1976D2] focus:ring-1 focus:ring-[#1976D2] transition-colors"
                                                 placeholder="tu.usuario o correo@ejemplo.com"
                                                 autoComplete="username"
                                                 autoFocus
@@ -273,7 +273,7 @@ function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales,
                                                 name="contrasena"
                                                 value={formData.contrasena}
                                                 onChange={handleChange}
-                                                className="w-full bg-bg-secondary border border-border-subtle rounded-lg py-2 pl-9 pr-10 text-sm text-text-primary placeholder-text-disabled focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors"
+                                                className="w-full bg-bg-secondary border border-border-subtle rounded-lg py-2 pl-9 pr-10 text-sm text-text-primary placeholder-text-disabled focus:outline-none focus:border-[#1976D2] focus:ring-1 focus:ring-[#1976D2] transition-colors"
                                                 placeholder="••••••••"
                                                 autoComplete="current-password"
                                                 disabled={isSubmitting}
@@ -302,7 +302,7 @@ function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales,
                                     <button
                                         type="submit"
                                         disabled={isSubmitting || loading}
-                                        className="w-full bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-700 dark:to-blue-800 text-white py-2.5 rounded-lg font-semibold text-sm hover:from-purple-700 hover:to-blue-700 dark:hover:from-purple-600 dark:hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-bg-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                                        className="w-full bg-[#1976D2] hover:bg-[#1565C0] text-white py-2.5 rounded-lg font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-[#1976D2] focus:ring-offset-2 focus:ring-offset-bg-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                                     >
                                         {isSubmitting || loading ? (
                                             <span className="flex items-center justify-center gap-2">
@@ -339,8 +339,8 @@ function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales,
                                         disabled={isSubmitting || loading || !isFingerprintEnabled || !isReaderConnected}
                                         title={!isFingerprintEnabled ? "Método de huella digital no habilitado" : !isReaderConnected ? "Lector de huella desconectado" : ""}
                                         className={`w-full py-2.5 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${!isReaderConnected && isFingerprintEnabled
-                                                ? "bg-gradient-to-r from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700 text-gray-200"
-                                                : "bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-700 dark:to-purple-800 hover:from-indigo-700 hover:to-purple-700 dark:hover:from-indigo-600 dark:hover:to-purple-700 text-white"
+                                            ? "bg-gradient-to-r from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700 text-gray-200"
+                                            : "bg-[#1976D2] hover:bg-[#1565C0] text-white"
                                             }`}
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -87,8 +87,13 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   <input
                     type={showPassword ? "text" : "password"}
                     value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    placeholder="••••••••"
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      setPin(value);
+                    }}
+                    placeholder="••••••"
+                    maxLength={6}
+                    inputMode="numeric"
                     disabled={loading}
                     className="w-full pl-10 pr-10 py-2.5 border border-border-subtle rounded-lg bg-bg-secondary text-text-primary placeholder-text-disabled focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
                   />

@@ -116,8 +116,11 @@ export const useDeviceStatus = (devices, setDevices, options = {}) => {
       });
 
       if (hasChanges && isMountedRef.current) {
-        setDevices(updatedDevices);
-        changedDevices.forEach((c) => updateEstadoEnBD(c.id, c.estado));
+        // Double check against current state to be absolutely sure
+        if (JSON.stringify(updatedDevices) !== JSON.stringify(devicesRef.current)) {
+           setDevices(updatedDevices);
+           changedDevices.forEach((c) => updateEstadoEnBD(c.id, c.estado));
+        }
       }
 
       if (isMountedRef.current) {

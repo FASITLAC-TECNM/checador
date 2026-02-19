@@ -9,7 +9,10 @@ import os from "os";
 import fs from "fs";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
-import { spawn, execSync } from "child_process";
+import { spawn, execSync, exec as execCallback } from "child_process";
+import util from "util";
+
+const exec = util.promisify(execCallback);
 
 // Offline-First: SyncManager y SQLiteManager
 import syncManager from "./offline/syncManager.mjs";
@@ -1041,7 +1044,7 @@ ipcMain.handle(
 // ===== Detección de Dispositivos USB =====
 
 /**
- * Detectar dispositivos USB conectados al sistema
+ * Detectar dispositivos USB conectados al sistema (ASÍNCRONO)
  * En Windows usa WMIC, en Linux/Mac usa lsusb o system_profiler
  */
 ipcMain.handle("detect-usb-devices", async () => {
@@ -1058,7 +1061,8 @@ ipcMain.handle("detect-usb-devices", async () => {
           "base64",
         );
 
-        const result = execSync(
+        // USAR EXEC ASÍNCRONO EN LUGAR DE EXECSYNC
+        const { stdout } = await exec(
           `powershell -NoProfile -EncodedCommand ${encodedCommand}`,
           {
             encoding: "utf8",
@@ -1067,8 +1071,8 @@ ipcMain.handle("detect-usb-devices", async () => {
           },
         );
 
-        if (result && result.trim()) {
-          const parsed = JSON.parse(result);
+        if (stdout && stdout.trim()) {
+          const parsed = JSON.parse(stdout);
           const deviceList = Array.isArray(parsed) ? parsed : [parsed];
 
           for (const dev of deviceList) {
@@ -1077,7 +1081,7 @@ ipcMain.handle("detect-usb-devices", async () => {
             // Limpiar caracteres especiales del nombre (®, ™, etc.)
             const rawName = dev.FriendlyName;
             const name = rawName
-              .replace(/[®™©�´┐¢\uFFFD]/g, "") // Remover símbolos de marca y caracteres inválidos
+              .replace(/[®™©´┐¢\uFFFD]/g, "") // Remover símbolos de marca y caracteres inválidos
               .replace(/\s+/g, " ") // Normalizar espacios
               .trim();
             const nameLower = name.toLowerCase();
@@ -1240,13 +1244,13 @@ ipcMain.handle("detect-usb-devices", async () => {
         }
       } catch (psError) {
         console.error(
-          "[USB] Error con PowerShell, intentando WMIC:",
+          "[USB] Error con PowerShell (Async), intentando WMIC:",
           psError.message,
         );
 
-        // Fallback a WMIC
+        // Fallback a WMIC (Async)
         try {
-          const wmicResult = execSync(
+          const { stdout: wmicResult } = await exec(
             "wmic path Win32_PnPEntity where \"Status='OK'\" get Name,DeviceID,PNPClass /format:csv",
             {
               encoding: "utf8",
@@ -1309,13 +1313,13 @@ ipcMain.handle("detect-usb-devices", async () => {
             }
           }
         } catch (wmicError) {
-          console.error("[USB] Error con WMIC:", wmicError.message);
+          console.error("[USB] Error con WMIC (Async):", wmicError.message);
         }
       }
     } else if (process.platform === "darwin") {
-      // macOS: Usar system_profiler
+      // macOS: Usar system_profiler (Async)
       try {
-        const result = execSync("system_profiler SPUSBDataType -json", {
+        const { stdout: result } = await exec("system_profiler SPUSBDataType -json", {
           encoding: "utf8",
           timeout: 10000,
         });
@@ -1370,12 +1374,12 @@ ipcMain.handle("detect-usb-devices", async () => {
 
         processUSBItems(usbData);
       } catch (macError) {
-        console.error("[USB] Error en macOS:", macError.message);
+        console.error("[USB] Error en macOS (Async):", macError.message);
       }
     } else {
-      // Linux: Usar lsusb
+      // Linux: Usar lsusb (Async)
       try {
-        const result = execSync("lsusb -v 2>/dev/null || lsusb", {
+        const { stdout: result } = await exec("lsusb -v 2>/dev/null || lsusb", {
           encoding: "utf8",
           timeout: 10000,
         });
@@ -1422,7 +1426,7 @@ ipcMain.handle("detect-usb-devices", async () => {
           }
         }
       } catch (linuxError) {
-        console.error("[USB] Error en Linux:", linuxError.message);
+        console.error("[USB] Error en Linux (Async):", linuxError.message);
       }
     }
 

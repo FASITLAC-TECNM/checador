@@ -1,59 +1,46 @@
-TÉRMINOS Y CONDICIONES DE USO: SISTEMA DE CONTROL DE ASISTENCIA
-Última actualización: 16 de febrero de 2026
+Los presentes Terminos y Condiciones regulan el acceso y uso del software de control de asistencia (en adelante, "el Sistema"), desarrollado bajo una arquitectura de escritorio nativa con Electron. Al utilizar el Sistema, el Usuario y la Entidad contratante aceptan cumplir con las siguientes clausulas:
 
-Los presentes Términos y Condiciones regulan el acceso y uso del software de control de asistencia (en adelante, "el Sistema"), desarrollado para la gestión de jornada laboral y registro de personal. Al utilizar el Sistema, el Usuario y la Entidad contratante aceptan cumplir con las siguientes cláusulas:
+1. OBJETO Y ALCANCE DEL SISTEMA
+El Sistema es una herramienta integral diseñada para la gestion de jornada laboral. Utiliza una interfaz basada en un dashboard minimalista y logotipos oficiales para facilitar la interaccion del usuario. El software permite el registro de asistencia mediante metodos hibridos de biometria: reconocimiento facial y lectura de huella dactilar.
 
-1. OBJETO DEL SISTEMA
-El Sistema es una herramienta tecnológica diseñada para automatizar el registro de entradas, salidas y permanencia del personal mediante tecnologías de reconocimiento facial, captura de imagen y gestión de datos en bases de datos relacionales.
+2. REGISTRO Y VALIDACION POR HUELLA DIGITAL
+Para fortalecer la seguridad y ofrecer alternativas de registro, el Sistema incorpora la tecnologia de lectura de huella dactilar:
 
-2. RECONOCIMIENTO FACIAL Y USO DE IMAGEN
-Para garantizar la integridad del registro, el Sistema utiliza el procesamiento de imágenes mediante la biblioteca Face-api.js.
+Enrolamiento: El Usuario debera realizar un registro previo de su huella digital bajo la supervision del administrador. Este proceso vincula de forma unica el patron dactilar con el numero de empleado en la base de datos (PostgreSQL/MySQL).
 
-Finalidad: La imagen capturada (selfie con marca de tiempo) tiene el único propósito de validar la identidad del usuario en el momento del registro.
+Verificacion: Al momento de la toma de asistencia, el Sistema comparara la huella colocada en el lector periferico con el registro almacenado. El exito del registro dependera de la integridad del sensor y la correcta posicion del dedo.
 
-Procesamiento: El sistema genera un vector biométrico o utiliza la imagen para comparar rasgos faciales. El usuario otorga su consentimiento explícito para que su imagen sea procesada con fines de control de asistencia.
+Privacidad Dactilar: El Sistema no almacena una imagen real de la huella, sino un vector numerico o "template" cifrado que es irreversible y se utiliza exclusivamente para fines de autenticacion laboral.
 
-Almacenamiento: Las imágenes o datos derivados se almacenarán de forma segura en nuestros servidores de base de datos (PostgreSQL/MySQL), limitando el acceso solo a personal administrativo autorizado.
+3. RECONOCIMIENTO FACIAL Y SELFIE DE CONTROL
+Complementariamente al uso de huella, el Sistema mantiene su modulo de vision artificial:
 
-3. RECOPILACIÓN Y ACCESO A LA INFORMACIÓN
-El Sistema recopila y procesa la siguiente información del usuario:
+Face-api.js: Se utiliza para el procesamiento de imagenes en tiempo real.
 
-Datos Identificativos: Nombre completo, número de empleado, y "Nombre de Nodo" (parámetro general de la terminal de registro).
+Selfie con Marca de Tiempo: Independientemente del metodo biometrico usado (huella o rostro), el Sistema puede capturar una fotografia con timestamp para auditar la veracidad del registro y asegurar que el empleado se encuentra fisicamente en el lugar de trabajo.
 
-Registros de Tiempo: Fecha, hora exacta y ubicación (si aplica) del registro.
+4. CONFIGURACION JERARQUICA DE TERMINALES (NODOS)
+La administracion de los dispositivos se rige por la siguiente jerarquia de configuracion:
 
-Información Técnica: Datos del dispositivo desde el cual se realiza el acceso (PC con Electron o navegador).
+Node Name (Nombre de Nodo): Este es el parametro general y prioritario de la terminal. Debe configurarse en la parte superior del formulario, situandose fuera y antes de las secciones especificas de configuracion de camara o huella dactilar.
 
-4. PRIVACIDAD Y SEGURIDAD DE DATOS
-Nos comprometemos a proteger la información conforme a las mejores prácticas de seguridad informática:
+Independencia de Dispositivos: El "Node Name" identifica la localizacion logica del punto de control, permitiendo que un mismo nodo gestione tanto el sensor de huellas como la camara de manera centralizada.
 
-La base de datos cuenta con controles de acceso restringidos.
+5. RESPONSABILIDADES DEL USUARIO Y LA ENTIDAD
+Mantenimiento: La Entidad es responsable de mantener los lectores de huella limpios y calibrados para evitar errores de lectura.
 
-Los datos no serán compartidos, vendidos ni cedidos a terceros ajenos a la relación laboral entre el Usuario y la Entidad, salvo por requerimiento legal.
+Uso Personal: El registro por huella es estrictamente personal. Cualquier intento de utilizar moldes o suplantar la identidad dactilar sera considerado una falta grave segun el reglamento interno.
 
-5. RESPONSABILIDADES DEL USUARIO
-El Usuario se compromete a:
+Actitud: Se exhorta a los usuarios a ser "Patient with people" (pacientes con las personas) durante el proceso de enrolamiento dactilar, el cual puede requerir varios intentos para una captura optima.
 
-Realizar el registro de manera personal e intransferible.
+6. PROPIEDAD INTELECTUAL Y TECNICA
+El ecosistema de software, incluyendo los scripts de Python para integracion de hardware y la interfaz en React, es propiedad exclusiva del desarrollador. No se permite la alteracion de los drivers del lector de huellas ni del codigo fuente del Sistema.
 
-No intentar vulnerar los sistemas de reconocimiento facial mediante el uso de fotografías, máscaras o cualquier método de suplantación de identidad.
+7. LIMITACION DE RESPONSABILIDAD
+El desarrollador no se hace responsable por registros fallidos debido a:
 
-Proporcionar información verídica al configurar su perfil.
+Desgaste fisico de las huellas dactilares del usuario que impida su lectura (cicatrices, suciedad o condiciones medicas).
 
-6. CONFIGURACIÓN DEL SISTEMA
-El administrador del sistema es responsable de la correcta configuración de los "Nodos" y terminales. El campo "Node Name" es un parámetro general que identifica la ubicación física o lógica del punto de control y debe ser configurado previo al uso de dispositivos de cámara o huella dactilar.
+Fallos de comunicacion entre el lector biometrico y la aplicacion de Electron.
 
-7. PROPIEDAD INTELECTUAL
-El código fuente, diseño de la interfaz (incluyendo el dashboard minimalista y logotipos), y los algoritmos de integración son propiedad exclusiva del desarrollador. Queda prohibida la reproducción total o parcial del software sin autorización previa.
-
-8. LIMITACIÓN DE RESPONSABILIDAD
-El desarrollador no se hace responsable por fallos en el registro derivados de:
-
-Mala conexión a internet del usuario.
-
-Condiciones de iluminación inadecuadas que impidan el funcionamiento de Face-api.js.
-
-Uso indebido de las credenciales de acceso.
-
-Aceptación
-Al marcar la casilla "Acepto los Términos y Condiciones" o al realizar su primer registro de asistencia, el usuario manifiesta haber leído, comprendido y aceptado la totalidad de este documento.
+Configuracion incorrecta del "Node Name" por parte del administrador.

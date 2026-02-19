@@ -251,7 +251,7 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
         <div className="bg-bg-primary p-6 border-b border-border-subtle flex-shrink-0">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <Smartphone className="w-8 h-8 text-text-primary" />
+              <Smartphone className="w-8 h-8 text-[#1976D2]" />
               <div>
                 <h3 className="text-2xl font-bold text-text-primary">
                   Dispositivos Biométricos
@@ -354,7 +354,7 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <h4 className="font-bold text-text-primary text-sm flex items-center gap-2">
-                            <Smartphone className="w-4 h-4 text-green-600 dark:text-green-400" />
+                            <Smartphone className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" />
                             {device.id}
                           </h4>
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1.5 ${getEstadoColor(device.estado)}`}>
@@ -387,7 +387,7 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
                             onChange={(e) =>
                               updateDevice(device.id, "nombre", e.target.value)
                             }
-                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-[#6366f1]/50 focus:border-transparent transition-all duration-200 text-text-primary placeholder:text-text-disabled"
+                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-[#1976D2] focus:border-transparent transition-all duration-200 text-text-primary placeholder:text-text-disabled"
                             placeholder="Ej: Lector de Huella"
                           />
                         </div>
@@ -401,7 +401,7 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
                             onChange={(e) =>
                               updateDevice(device.id, "tipo", e.target.value)
                             }
-                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-[#6366f1]/50 focus:border-transparent transition-all duration-200 text-text-primary"
+                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-[#1976D2] focus:border-transparent transition-all duration-200 text-text-primary"
                           >
                             <option value="facial">Facial</option>
                             <option value="dactilar">Dactilar</option>
@@ -421,7 +421,7 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
                             onChange={(e) =>
                               updateDevice(device.id, "puerto", e.target.value)
                             }
-                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#6366f1]/50 focus:border-transparent transition-all duration-200 text-text-primary placeholder:text-text-disabled"
+                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#1976D2] focus:border-transparent transition-all duration-200 text-text-primary placeholder:text-text-disabled"
                             placeholder="Ej: USB-001"
                           />
                         </div>
@@ -436,7 +436,7 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
                             onChange={(e) =>
                               updateDevice(device.id, "ip", e.target.value)
                             }
-                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#6366f1]/50 focus:border-transparent transition-all duration-200 text-text-primary placeholder:text-text-disabled"
+                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#1976D2] focus:border-transparent transition-all duration-200 text-text-primary placeholder:text-text-disabled"
                             placeholder="Ej: 192.168.1.100"
                           />
                         </div>
@@ -461,7 +461,7 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
             <button
               onClick={handleSave}
               disabled={saving || loading}
-              className="flex-1 px-6 py-3 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl font-bold hover:bg-gray-800 dark:hover:bg-gray-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="flex-1 px-6 py-3 bg-[#1976D2] text-white rounded-xl font-bold hover:bg-[#1565C0] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {saving ? (
                 <Loader2 className="w-5 h-5 animate-spin" />

@@ -172,7 +172,7 @@ export default function HistorialModal({ onClose, usuario }) {
         {/* Header */}
         <div className="bg-bg-primary px-5 py-4 flex items-center justify-between shrink-0 border-b border-border-subtle">
           <div className="flex items-center gap-3">
-            <CalendarDays className="w-8 h-8 text-text-primary" />
+            <CalendarDays className="w-8 h-8 text-[#1976D2]" />
             <div>
               <h3 className="text-2xl font-bold text-text-primary">Historial de Asistencia</h3>
               <p className="text-text-secondary text-sm mt-1">Registro de entradas y salidas</p>
@@ -196,7 +196,7 @@ export default function HistorialModal({ onClose, usuario }) {
 
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-800 py-20">
-            <div className="w-8 h-8 border-2 border-slate-900 dark:border-slate-200 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-8 h-8 border-2 border-[#1976D2] dark:border-slate-200 border-t-transparent rounded-full animate-spin"></div>
           </div>
         ) : (
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
@@ -232,8 +232,8 @@ export default function HistorialModal({ onClose, usuario }) {
                       disabled={!dia}
                       className={`relative aspect-square rounded-lg text-xs font-bold flex items-center justify-center transition-all
                         ${!dia ? 'bg-transparent' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}
-                        ${isSelected ? 'bg-slate-900 dark:bg-slate-200 text-white dark:text-slate-900 shadow-lg' : 'text-slate-500 dark:text-slate-400'}
-                        ${isToday && !isSelected ? 'border-2 border-slate-900 dark:border-slate-200' : ''}
+                        ${isSelected ? 'bg-[#1976D2] dark:bg-slate-200 text-white dark:text-slate-900 shadow-lg' : 'text-slate-500 dark:text-slate-400'}
+                        ${isToday && !isSelected ? 'border-2 border-[#1976D2] dark:border-slate-200' : ''}
                       `}
                     >
                       {dia}
@@ -285,7 +285,7 @@ export default function HistorialModal({ onClose, usuario }) {
                     const color = obtenerColorEstado(registro.estado);
                     return (
                       <div key={idx} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-lg flex items-center gap-4 hover:border-slate-300 dark:hover:border-slate-600 transition-colors shadow-sm">
-                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${registro.tipo === 'entrada' ? 'bg-slate-900 dark:bg-slate-200 text-white dark:text-slate-900' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}>
+                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${registro.tipo === 'entrada' ? 'bg-[#1976D2] dark:bg-slate-200 text-white dark:text-slate-900' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'}`}>
                           {registro.tipo === 'entrada' ? <ArrowDown className="w-4 h-4" /> : <ArrowUp className="w-4 h-4" />}
                         </div>
                         <div className="flex-1 min-w-0">

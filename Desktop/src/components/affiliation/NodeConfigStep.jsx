@@ -57,7 +57,7 @@ export default function NodeConfigStep({
         <div className="max-w-4xl mx-auto p-6">
           <button
             onClick={onShowWelcome}
-            className="absolute top-20 right-6 w-12 h-12 bg-[#2563eb] text-[#e0f2fe] rounded-full shadow-lg shadow-[#2563eb]/20 hover:bg-[#3b82f6] transition-all hover:scale-110 flex items-center justify-center z-10"
+            className="absolute top-20 right-6 w-12 h-12 bg-[#1976D2] text-white rounded-full shadow-lg shadow-[#1976D2]/20 hover:bg-[#1565C0] transition-all hover:scale-110 flex items-center justify-center z-10"
             title="Ver información de bienvenida"
           >
             <Info className="w-6 h-6" />
@@ -74,8 +74,8 @@ export default function NodeConfigStep({
           <div className="space-y-3">
             <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-5 hover:shadow-sm transition-shadow duration-300">
               <div className="flex items-start gap-3">
-                <div className="w-11 h-11 bg-[#2563eb] rounded-xl flex items-center justify-center flex-shrink-0 shadow-md shadow-[#2563eb]/20">
-                  <HardDrive className="w-5 h-5 text-[#e0f2fe]" />
+                <div className="w-11 h-11 bg-[#1976D2] rounded-xl flex items-center justify-center flex-shrink-0 shadow-md shadow-[#1976D2]/20">
+                  <HardDrive className="w-5 h-5 text-white" />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-bold text-text-primary mb-2">
@@ -96,7 +96,7 @@ export default function NodeConfigStep({
                           })
                         }
                         placeholder="ej. Edificio M"
-                        className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl focus:ring-2 focus:ring-[#6366f1]/50 focus:border-transparent transition-all duration-200"
+                        className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl focus:ring-2 focus:ring-[#42A5F5]/50 focus:border-transparent transition-all duration-200"
                       />
                     </div>
                     <div>
@@ -113,7 +113,7 @@ export default function NodeConfigStep({
                         }
                         placeholder="Describa la ubicación o función de este nodo"
                         rows="1"
-                        className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl focus:ring-2 focus:ring-[#6366f1]/50 focus:border-transparent resize-none text-sm transition-all duration-200"
+                        className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl focus:ring-2 focus:ring-[#42A5F5]/50 focus:border-transparent resize-none text-sm transition-all duration-200"
                       />
                     </div>
                     <div>
@@ -207,7 +207,7 @@ export default function NodeConfigStep({
             onClick={onNext}
             disabled={!isFormValid()}
             className={`group px-6 py-2.5 rounded-xl font-medium transition-all duration-200 shadow-sm flex items-center gap-2 ${isFormValid()
-              ? "bg-[#2563eb] text-[#e0f2fe] hover:bg-[#3b82f6] hover:shadow-lg hover:shadow-[#2563eb]/20 hover:-translate-y-0.5 cursor-pointer"
+              ? "bg-[#1976D2] text-white hover:bg-[#1565C0] hover:shadow-lg hover:shadow-[#1976D2]/20 hover:-translate-y-0.5 cursor-pointer"
               : "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
               }`}
           >

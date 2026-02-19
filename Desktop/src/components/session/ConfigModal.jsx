@@ -43,7 +43,7 @@ export default function ConfigModal({ onClose, onSelectOption }) {
         <div className="bg-bg-primary p-6 border-b border-border-subtle">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <Settings className="w-8 h-8 text-text-primary" />
+              <Settings className="w-8 h-8 text-[#1976D2]" />
               <div>
                 <h3 className="text-2xl font-bold text-text-primary">Configuración</h3>
                 <p className="text-text-secondary text-sm mt-1">
@@ -74,7 +74,7 @@ export default function ConfigModal({ onClose, onSelectOption }) {
                   <div
                     className={`w-14 h-14 ${option.iconBg} rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform`}
                   >
-                    <Icon className="w-7 h-7 text-text-primary" />
+                    <Icon className="w-7 h-7 text-[#1976D2]" />
                   </div>
                   <div className="flex-1 text-left">
                     <h4 className="font-bold text-text-primary text-lg mb-1">

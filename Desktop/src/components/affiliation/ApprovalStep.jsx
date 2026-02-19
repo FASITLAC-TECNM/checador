@@ -21,7 +21,7 @@ export default function ApprovalStep({
         {/* Botón de información */}
         <button
           onClick={onShowWelcome}
-          className="fixed top-20 right-6 w-12 h-12 bg-[#2563eb] text-[#e0f2fe] rounded-full shadow-lg shadow-[#2563eb]/20 hover:bg-[#3b82f6] transition-all hover:scale-110 flex items-center justify-center z-10"
+          className="fixed top-20 right-6 w-12 h-12 bg-[#1976D2] text-white rounded-full shadow-lg shadow-[#1976D2]/20 hover:bg-[#1565C0] transition-all hover:scale-110 flex items-center justify-center z-10"
           title="Ver información de bienvenida"
         >
           <Info className="w-6 h-6" />
@@ -43,7 +43,7 @@ export default function ApprovalStep({
               <div className="space-y-3">
                 <div className="text-center">
                   <div className="inline-flex items-center justify-center w-16 h-16 mb-2">
-                    <CheckCircle className="w-16 h-16 text-text-primary" />
+                    <CheckCircle className="w-16 h-16 text-[#22c55e]" />
                   </div>
                 </div>
 
@@ -62,7 +62,7 @@ export default function ApprovalStep({
           <div className="max-w-2xl mx-auto flex justify-end">
             <button
               onClick={onGoToLogin}
-              className="group px-6 py-2.5 bg-[#2563eb] text-[#e0f2fe] rounded-xl hover:bg-[#3b82f6] font-medium transition-all duration-200 shadow-sm shadow-[#2563eb]/20 hover:shadow-lg hover:shadow-[#2563eb]/30 hover:-translate-y-0.5 flex items-center gap-2"
+              className="group px-6 py-2.5 bg-[#1976D2] text-white rounded-xl hover:bg-[#1565C0] font-medium transition-all duration-200 shadow-sm shadow-[#1976D2]/20 hover:shadow-lg hover:shadow-[#1976D2]/30 hover:-translate-y-0.5 flex items-center gap-2"
             >
               Ir al Inicio de Sesión
               <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-200" />
@@ -84,7 +84,7 @@ export default function ApprovalStep({
         {/* Botón de información */}
         <button
           onClick={onShowWelcome}
-          className="fixed top-20 right-6 w-12 h-12 bg-[#2563eb] text-[#e0f2fe] rounded-full shadow-lg shadow-[#2563eb]/20 hover:bg-[#3b82f6] transition-all hover:scale-110 flex items-center justify-center z-10"
+          className="fixed top-20 right-6 w-12 h-12 bg-[#1976D2] text-white rounded-full shadow-lg shadow-[#1976D2]/20 hover:bg-[#1565C0] transition-all hover:scale-110 flex items-center justify-center z-10"
           title="Ver información de bienvenida"
         >
           <Info className="w-6 h-6" />
@@ -106,7 +106,7 @@ export default function ApprovalStep({
               <div className="space-y-3">
                 <div className="text-center">
                   <div className="inline-flex items-center justify-center w-16 h-16 mb-2">
-                    <XCircle className="w-16 h-16 text-text-primary" />
+                    <XCircle className="w-16 h-16 text-[#ef4444]" />
                   </div>
                 </div>
 
@@ -134,7 +134,7 @@ export default function ApprovalStep({
           <div className="max-w-2xl mx-auto flex justify-center">
             <button
               onClick={onRetry}
-              className="px-6 py-2.5 bg-[#2563eb] text-[#e0f2fe] rounded-xl hover:bg-[#3b82f6] font-medium transition-all duration-200 shadow-sm shadow-[#2563eb]/20 hover:shadow-lg hover:shadow-[#2563eb]/30 hover:-translate-y-0.5"
+              className="px-6 py-2.5 bg-[#1976D2] text-white rounded-xl hover:bg-[#1565C0] font-medium transition-all duration-200 shadow-sm shadow-[#1976D2]/20 hover:shadow-lg hover:shadow-[#1976D2]/30 hover:-translate-y-0.5"
             >
               Intentar Nuevamente
             </button>
@@ -154,7 +154,7 @@ export default function ApprovalStep({
       {/* Botón de información */}
       <button
         onClick={onShowWelcome}
-        className="fixed top-20 right-6 w-12 h-12 bg-[#2563eb] text-[#e0f2fe] rounded-full shadow-lg shadow-[#2563eb]/20 hover:bg-[#3b82f6] transition-all hover:scale-110 flex items-center justify-center z-10"
+        className="fixed top-20 right-6 w-12 h-12 bg-[#1976D2] text-white rounded-full shadow-lg shadow-[#1976D2]/20 hover:bg-[#1565C0] transition-all hover:scale-110 flex items-center justify-center z-10"
         title="Ver información de bienvenida"
       >
         <Info className="w-6 h-6" />
@@ -176,7 +176,7 @@ export default function ApprovalStep({
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-14 h-14 mb-2">
                 <div className="relative">
-                  <Clock className="w-14 h-14 text-text-secondary animate-pulse" />
+                  <Clock className="w-14 h-14 text-[#f59e0b] animate-pulse" />
                   <Lock className="w-5 h-5 text-text-primary absolute bottom-0 right-0" />
                 </div>
               </div>

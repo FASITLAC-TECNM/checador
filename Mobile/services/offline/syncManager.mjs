@@ -11,6 +11,7 @@ import NetInfo from '@react-native-community/netinfo';
 import sqliteManager from './sqliteManager.mjs';
 import pullService from './pullService.mjs';
 import pushService from './pushService.mjs';
+import { detectarCambiosIncidencias, detectarAvisosNuevos } from '../localNotificationService';
 import { getApiEndpoint } from '../../config/api.js';
 
 // Estado interno
@@ -341,7 +342,19 @@ export async function performSync(reason = 'manual') {
 
         // 5. Traer datos nuevos (pull)
         if (authToken && storedEmpleadoId) {
-            await pullData(storedEmpleadoId).catch(e => console.log('Error pullData:', e.message));
+            const pullRes = await pullData(storedEmpleadoId).catch(e => console.log('Error pullData:', e.message));
+
+            // Si hubo éxito en incidencias, verificar cambios para notificar
+            if (pullRes && pullRes.incidencias && pullRes.incidencias.success && pullRes.incidencias.data) {
+                console.log('🔔 [SyncManager] Verificando cambios en incidencias para notificación...');
+                detectarCambiosIncidencias(pullRes.incidencias.data);
+            }
+
+            // Si hubo éxito en avisos, verificar nuevos para notificar
+            if (pullRes && pullRes.avisos && pullRes.avisos.success && pullRes.avisos.data) {
+                console.log('🔔 [SyncManager] Verificando nuevos avisos para notificación...');
+                detectarAvisosNuevos(pullRes.avisos.data);
+            }
         }
 
         console.log(`✅ [SyncManager] Sync completo (${reason}) finalizado`);

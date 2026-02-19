@@ -229,7 +229,7 @@ export default function SessionScreen({ onLogout, usuario }) {
             <div className="flex items-center gap-5">
               {/* Foto del usuario con borde degradado */}
               <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-purple-500 to-cyan-500 rounded-full p-[3px]">
+                <div className="absolute inset-0 bg-[#1976D2] rounded-full p-[2px]">
                   <div className="w-full h-full bg-bg-primary rounded-full" />
                 </div>
                 {usuario?.foto ? (
@@ -238,12 +238,12 @@ export default function SessionScreen({ onLogout, usuario }) {
                     alt={userName}
                     className="relative w-20 h-20 rounded-full object-cover border-[3px] border-transparent"
                     style={{
-                      background: 'linear-gradient(white, white) padding-box, linear-gradient(135deg, #3b82f6, #8b5cf6, #06b6d4) border-box'
+                      background: 'none'
                     }}
                   />
                 ) : (
-                  <div className="relative w-20 h-20 bg-gradient-to-br from-blue-600 via-purple-500 to-cyan-500 rounded-full flex items-center justify-center shadow-lg">
-                    <User className="w-10 h-10 text-white" />
+                  <div className="relative w-20 h-20 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-full flex items-center justify-center shadow-lg border-2 border-[#1976D2]">
+                    <User className="w-10 h-10 text-[#1976D2] dark:text-[#42A5F5]" />
                   </div>
                 )}
                 {/* Indicador de estado online */}
@@ -262,7 +262,7 @@ export default function SessionScreen({ onLogout, usuario }) {
                       {datosCompletos?.estado || "CONECTADO"}
                     </span>
                     {isEmployee && (
-                      <span className="px-3 py-1 bg-gradient-to-r from-purple-500 to-violet-500 text-white text-xs font-bold rounded-full shadow-sm">
+                      <span className="px-3 py-1 bg-[#E3F2FD] dark:bg-[#1565C0]/20 text-[#1976D2] dark:text-[#42A5F5] text-xs font-bold rounded-full shadow-sm border border-[#1976D2]/30">
                         Empleado
                       </span>
                     )}
@@ -273,8 +273,8 @@ export default function SessionScreen({ onLogout, usuario }) {
                 <div className="flex flex-wrap gap-x-6 gap-y-2">
                   {/* Usuario */}
                   <div className="flex items-center gap-2 text-sm">
-                    <div className="flex items-center justify-center w-7 h-7 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                      <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <div className="flex items-center justify-center w-7 h-7 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-lg">
+                      <User className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" />
                     </div>
                     <div>
                       <span className="text-text-tertiary text-xs">Usuario</span>
@@ -284,8 +284,8 @@ export default function SessionScreen({ onLogout, usuario }) {
 
                   {/* Teléfono */}
                   <div className="flex items-center gap-2 text-sm">
-                    <div className="flex items-center justify-center w-7 h-7 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                      <svg className="w-4 h-4 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="flex items-center justify-center w-7 h-7 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-lg">
+                      <svg className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                       </svg>
                     </div>
@@ -297,8 +297,8 @@ export default function SessionScreen({ onLogout, usuario }) {
 
                   {/* Email */}
                   <div className="flex items-center gap-2 text-sm">
-                    <div className="flex items-center justify-center w-7 h-7 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
-                      <svg className="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <div className="flex items-center justify-center w-7 h-7 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-lg">
+                      <svg className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
                     </div>
@@ -311,8 +311,8 @@ export default function SessionScreen({ onLogout, usuario }) {
                   {/* Departamentos - Diseño compacto con popover */}
                   {(departamentos.length > 0 || userDepartamento) && (
                     <div className="flex items-center gap-2 text-sm relative">
-                      <div className="flex items-center justify-center w-7 h-7 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                        <Building2 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      <div className="flex items-center justify-center w-7 h-7 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-lg">
+                        <Building2 className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" />
                       </div>
                       <div>
                         <span className="text-text-tertiary text-xs">
@@ -326,8 +326,8 @@ export default function SessionScreen({ onLogout, usuario }) {
                                 key={depto.id || index}
                                 className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold max-w-[120px] truncate"
                                 style={{
-                                  backgroundColor: depto.color ? `${depto.color}20` : 'rgb(147, 51, 234, 0.1)',
-                                  color: depto.color || 'rgb(147, 51, 234)'
+                                  backgroundColor: depto.color ? `${depto.color}20` : '#E3F2FD',
+                                  color: depto.color || '#1976D2'
                                 }}
                                 title={depto.nombre}
                               >
@@ -383,7 +383,7 @@ export default function SessionScreen({ onLogout, usuario }) {
                             )}
                           </div>
                         ) : (
-                          <p className="text-purple-600 dark:text-purple-400 font-semibold -mt-0.5">{userDepartamento}</p>
+                          <p className="text-[#1976D2] dark:text-[#42A5F5] font-semibold -mt-0.5">{userDepartamento}</p>
                         )}
                       </div>
                     </div>
@@ -392,8 +392,8 @@ export default function SessionScreen({ onLogout, usuario }) {
                   {/* RFC - Solo empleados */}
                   {isEmployee && userRFC && (
                     <div className="flex items-center gap-2 text-sm">
-                      <div className="flex items-center justify-center w-7 h-7 bg-cyan-100 dark:bg-cyan-900/30 rounded-lg">
-                        <Briefcase className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                      <div className="flex items-center justify-center w-7 h-7 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-lg">
+                        <Briefcase className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" />
                       </div>
                       <div>
                         <span className="text-text-tertiary text-xs">RFC</span>
@@ -405,8 +405,8 @@ export default function SessionScreen({ onLogout, usuario }) {
                   {/* NSS - Solo empleados */}
                   {isEmployee && userNSS && (
                     <div className="flex items-center gap-2 text-sm">
-                      <div className="flex items-center justify-center w-7 h-7 bg-pink-100 dark:bg-pink-900/30 rounded-lg">
-                        <svg className="w-4 h-4 text-pink-600 dark:text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <div className="flex items-center justify-center w-7 h-7 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-lg">
+                        <svg className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                         </svg>
                       </div>
@@ -497,7 +497,7 @@ export default function SessionScreen({ onLogout, usuario }) {
               {/* Ver Horario */}
               <button
                 onClick={() => setShowHorarioModal(true)}
-                className="w-full bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 dark:from-blue-800 dark:to-blue-900 dark:hover:from-blue-700 dark:hover:to-blue-800 rounded-2xl shadow-lg p-5 text-white transition-all hover:shadow-xl flex-1"
+                className="w-full bg-[#1976D2] hover:bg-[#1565C0] rounded-2xl shadow-lg p-5 text-white transition-all hover:shadow-xl flex-1"
               >
                 <Calendar className="w-12 h-12 mx-auto mb-2" />
                 <h3 className="text-base font-bold mb-1">Ver Horario</h3>
@@ -507,13 +507,13 @@ export default function SessionScreen({ onLogout, usuario }) {
               {/* Historial de Registros */}
               <button
                 onClick={() => setShowHistorialModal(true)}
-                className="w-full bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 dark:from-green-800 dark:to-green-900 dark:hover:from-green-700 dark:hover:to-green-800 rounded-2xl shadow-lg p-5 text-white transition-all hover:shadow-xl flex-1"
+                className="w-full bg-white dark:bg-slate-800 border-2 border-[#1976D2] hover:bg-[#E3F2FD] dark:hover:bg-[#1565C0]/20 rounded-2xl shadow-lg p-5 text-[#1976D2] dark:text-[#42A5F5] transition-all hover:shadow-xl flex-1"
               >
                 <Calendar className="w-12 h-12 mx-auto mb-2" />
                 <h3 className="text-base font-bold mb-1">
                   Historial de Registros
                 </h3>
-                <p className="text-xs text-green-100">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   Consultar días anteriores
                 </p>
               </button>
@@ -525,14 +525,14 @@ export default function SessionScreen({ onLogout, usuario }) {
                   onClick={() => readerConnected && setShowBiometricReader(true)}
                   disabled={!readerConnected}
                   title={!readerConnected ? "Lector de huella desconectado" : ""}
-                  className={`w-full rounded-2xl shadow-lg p-5 text-white transition-all flex flex-col items-center justify-center ${readerConnected
-                    ? "bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 dark:from-orange-800 dark:to-orange-900 dark:hover:from-orange-700 dark:hover:to-orange-800 hover:shadow-xl cursor-pointer"
-                    : "bg-gradient-to-br from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700 opacity-60 cursor-not-allowed"
+                  className={`w-full rounded-2xl shadow-lg p-5 transition-all flex flex-col items-center justify-center ${readerConnected
+                    ? "bg-white dark:bg-slate-800 border-2 border-[#1976D2] hover:bg-[#E3F2FD] dark:hover:bg-[#1565C0]/20 cursor-pointer text-[#1976D2] dark:text-[#42A5F5]"
+                    : "bg-gray-100 dark:bg-slate-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
                     }`}
                 >
-                  <Fingerprint className={`w-12 h-12 mx-auto mb-2 ${!readerConnected ? "text-gray-300" : ""}`} />
+                  <Fingerprint className={`w-12 h-12 mx-auto mb-2`} />
                   <h3 className="text-base font-bold mb-1">Registrar Huella</h3>
-                  <p className={`text-xs ${readerConnected ? "text-orange-100" : "text-gray-300"}`}>
+                  <p className={`text-xs ${readerConnected ? "text-slate-500 dark:text-slate-400" : "text-gray-400 dark:text-gray-500"}`}>
                     {readerConnected ? "Vincular huella digital" : "Lector desconectado"}
                   </p>
                 </button>
@@ -542,14 +542,14 @@ export default function SessionScreen({ onLogout, usuario }) {
                   disabled={!isOnline}
                   onClick={() => isOnline && setShowRegisterFace(true)}
                   title={!isOnline ? "Sin conexión" : ""}
-                  className={`w-full rounded-2xl shadow-lg p-5 text-white transition-all flex flex-col items-center justify-center ${isOnline
-                    ? "bg-gradient-to-br from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 dark:from-cyan-800 dark:to-cyan-900 dark:hover:from-cyan-700 dark:hover:to-cyan-800 hover:shadow-xl cursor-pointer"
-                    : "bg-gradient-to-br from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700 opacity-60 cursor-not-allowed"
+                  className={`w-full rounded-2xl shadow-lg p-5 transition-all flex flex-col items-center justify-center ${isOnline
+                    ? "bg-white dark:bg-slate-800 border-2 border-[#1976D2] hover:bg-[#E3F2FD] dark:hover:bg-[#1565C0]/20 cursor-pointer text-[#1976D2] dark:text-[#42A5F5]"
+                    : "bg-gray-100 dark:bg-slate-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
                     }`}
                 >
-                  <Camera className={`w-12 h-12 mx-auto mb-2 ${!isOnline ? "text-gray-300" : ""}`} />
+                  <Camera className={`w-12 h-12 mx-auto mb-2`} />
                   <h3 className="text-base font-bold mb-1">Registrar Rostro</h3>
-                  <p className={`text-xs ${isOnline ? "text-cyan-100" : "text-gray-300"}`}>
+                  <p className={`text-xs ${isOnline ? "text-slate-500 dark:text-slate-400" : "text-gray-400 dark:text-gray-500"}`}>
                     {isOnline ? "Vincular reconocimiento facial" : "Sin conexión"}
                   </p>
                 </button>

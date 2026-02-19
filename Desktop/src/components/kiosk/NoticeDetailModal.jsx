@@ -9,7 +9,7 @@ export default function NoticeDetailModal({ notice, onClose }) {
         <div className="bg-bg-primary p-6 border-b border-border-subtle">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <Bell className="w-8 h-8 text-text-primary" />
+              <Bell className="w-8 h-8 text-[#1976D2]" />
               <div>
                 <h3 className="text-2xl font-bold text-text-primary">
                   Detalle del Aviso
@@ -28,7 +28,7 @@ export default function NoticeDetailModal({ notice, onClose }) {
 
         <div className="p-5 space-y-3">
           <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3">
-            <div className="flex items-center gap-2 text-text-primary mb-2">
+            <div className="flex items-center gap-2 text-[#1976D2] mb-2">
               <FileText className="w-4 h-4" />
               <h4 className="font-bold text-base">{notice.subject}</h4>
             </div>
@@ -37,7 +37,7 @@ export default function NoticeDetailModal({ notice, onClose }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-bg-secondary rounded-lg p-3">
-              <div className="flex items-center gap-2 text-text-secondary mb-1">
+              <div className="flex items-center gap-2 text-[#1976D2] mb-1">
                 <User className="w-4 h-4" />
                 <span className="text-xs font-semibold uppercase">Autor</span>
               </div>
@@ -47,7 +47,7 @@ export default function NoticeDetailModal({ notice, onClose }) {
             </div>
 
             <div className="bg-bg-secondary rounded-lg p-3">
-              <div className="flex items-center gap-2 text-text-secondary mb-1">
+              <div className="flex items-center gap-2 text-[#1976D2] mb-1">
                 <Calendar className="w-4 h-4" />
                 <span className="text-xs font-semibold uppercase">
                   Fecha y Hora

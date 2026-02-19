@@ -282,16 +282,16 @@ export default function KioskScreen() {
         icon: Camera,
         label: "Reconocimiento Facial",
         color:
-          "from-blue-500 to-blue-600 dark:from-slate-700 dark:to-slate-800",
+          "from-[#1976D2] to-[#001A70] dark:from-slate-700 dark:to-slate-800",
         hoverColor:
-          "hover:from-blue-600 hover:to-blue-700 dark:hover:from-slate-600 dark:hover:to-slate-700",
+          "hover:from-[#1565C0] hover:to-[#001A70] dark:hover:from-slate-600 dark:hover:to-slate-700",
         handler: handleFacialCheck,
       },
       dactilar: {
         icon: Fingerprint,
         label: "Huella Digital",
         color: isReaderConnected
-          ? "from-blue-500 to-blue-600 dark:from-slate-700 dark:to-slate-800"
+          ? "from-[#1976D2] to-[#001A70] dark:from-slate-700 dark:to-slate-800"
           : "from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700",
         hoverColor: "", // Sin hover porque es solo visual
         handler: null, // Solo visual, el lector está siempre activo en background
@@ -303,9 +303,9 @@ export default function KioskScreen() {
         icon: User,
         label: "Usuario/Correo",
         color:
-          "from-blue-500 to-blue-600 dark:from-slate-700 dark:to-slate-800",
+          "from-[#1976D2] to-[#001A70] dark:from-slate-700 dark:to-slate-800",
         hoverColor:
-          "hover:from-blue-600 hover:to-blue-700 dark:hover:from-slate-600 dark:hover:to-slate-700",
+          "hover:from-[#1565C0] hover:to-[#001A70] dark:hover:from-slate-600 dark:hover:to-slate-700",
         handler: handleUserLoginCheck,
       },
     };
@@ -326,7 +326,7 @@ export default function KioskScreen() {
           disabled={!isInternetConnected || !isDatabaseConnected}
           className={`flex flex-col items-center gap-1 p-2 rounded-lg transition-all w-16 ${!isInternetConnected || !isDatabaseConnected
             ? "text-gray-400 cursor-not-allowed opacity-50"
-            : "text-blue-600 hover:bg-bg-secondary"
+            : "text-[#1976D2] hover:bg-bg-secondary"
             }`}
         >
           <User className="w-5 h-5" />
@@ -335,7 +335,7 @@ export default function KioskScreen() {
 
         <button
           onClick={() => setShowBitacora(true)}
-          className="flex flex-col items-center gap-1 text-blue-600 hover:bg-bg-secondary p-2 rounded-lg transition-all w-16"
+          className="flex flex-col items-center gap-1 text-[#1976D2] hover:bg-bg-secondary p-2 rounded-lg transition-all w-16"
         >
           <ClipboardList className="w-5 h-5" />
           <span className="text-xs font-semibold">Bitácora</span>
@@ -356,7 +356,7 @@ export default function KioskScreen() {
         <div className="mb-4 flex-shrink-0" style={{ height: "68%" }}>
           {loadingCredenciales ? (
             <div className="bg-bg-primary rounded-3xl shadow-2xl h-full flex flex-col items-center justify-center p-8 border border-border-subtle">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#1976D2] mb-4"></div>
 
               <p className="text-text-secondary">Cargando configuración...</p>
             </div>
@@ -415,7 +415,7 @@ export default function KioskScreen() {
             })()
           ) : (
             /* Múltiples métodos - Botón grande con mini-botones dentro */
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 dark:from-slate-700 dark:to-slate-800 rounded-3xl shadow-2xl h-full text-white text-center flex flex-col items-center justify-center p-8">
+            <div className="bg-gradient-to-br from-[#1976D2] to-[#001A70] dark:from-slate-700 dark:to-slate-800 rounded-3xl shadow-2xl h-full text-white text-center flex flex-col items-center justify-center p-8">
               <h2 className="text-3xl font-bold mb-6">Registrar Asistencia</h2>
 
               {/* Mini-botones con fondo blur */}
@@ -550,18 +550,18 @@ export default function KioskScreen() {
                       key={index}
                       onClick={() => setSelectedNotice(notice)}
                       className={`flex-shrink-0 rounded-xl transition-all duration-500 ease-in-out p-3 cursor-pointer select-none ${isCenterCard
-                        ? "w-56 bg-gradient-to-br from-blue-100 to-blue-50 dark:from-blue-900/40 dark:to-blue-800/20 scale-105 shadow-xl z-10 ring-2 ring-blue-400/50"
+                        ? "w-56 bg-gradient-to-br from-[#E3F2FD] to-[#BBDEFB] dark:from-blue-900/40 dark:to-blue-800/20 scale-105 shadow-xl z-10 ring-2 ring-[#42A5F5]/50"
                         : "w-40 bg-bg-secondary border border-border-subtle hover:shadow-md hover:bg-bg-tertiary scale-90 opacity-60"
                         }`}
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <span className={`font-bold ${isCenterCard ? "text-blue-600 dark:text-blue-400 text-base" : "text-text-secondary text-xs"}`}>
+                        <span className={`font-bold ${isCenterCard ? "text-[#1976D2] dark:text-blue-400 text-base" : "text-text-secondary text-xs"}`}>
                           {notice.time}
                         </span>
-                        {isCenterCard && <Bell className="w-6 h-6 text-blue-500 dark:text-blue-400 animate-pulse" />}
+                        {isCenterCard && <Bell className="w-6 h-6 text-[#1976D2] dark:text-blue-400 animate-pulse" />}
                       </div>
                       <h4 className={`font-bold leading-tight ${isCenterCard
-                        ? "text-blue-800 dark:text-blue-200 text-base line-clamp-2"
+                        ? "text-[#001A70] dark:text-blue-200 text-base line-clamp-2"
                         : "text-text-primary text-sm line-clamp-2"
                         }`}>
                         {notice.subject || notice.message.substring(0, 50)}

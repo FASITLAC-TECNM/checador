@@ -28,8 +28,8 @@ export default function NoticeDetailModal({ notice, onClose }) {
 
         <div className="p-5 space-y-3">
           <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3">
-            <div className="flex items-center gap-2 text-[#1976D2] mb-2">
-              <FileText className="w-4 h-4" />
+            <div className="flex items-center gap-2 text-text-primary mb-2">
+              <FileText className="w-4 h-4 text-[#1976D2]" />
               <h4 className="font-bold text-base">{notice.subject}</h4>
             </div>
             <p className="text-text-secondary leading-relaxed text-sm">{notice.detail}</p>
@@ -37,8 +37,8 @@ export default function NoticeDetailModal({ notice, onClose }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-bg-secondary rounded-lg p-3">
-              <div className="flex items-center gap-2 text-[#1976D2] mb-1">
-                <User className="w-4 h-4" />
+              <div className="flex items-center gap-2 text-text-secondary mb-1">
+                <User className="w-4 h-4 text-[#1976D2]" />
                 <span className="text-xs font-semibold uppercase">Autor</span>
               </div>
               <p className="text-text-primary font-medium text-sm">
@@ -47,8 +47,8 @@ export default function NoticeDetailModal({ notice, onClose }) {
             </div>
 
             <div className="bg-bg-secondary rounded-lg p-3">
-              <div className="flex items-center gap-2 text-[#1976D2] mb-1">
-                <Calendar className="w-4 h-4" />
+              <div className="flex items-center gap-2 text-text-secondary mb-1">
+                <Calendar className="w-4 h-4 text-[#1976D2]" />
                 <span className="text-xs font-semibold uppercase">
                   Fecha y Hora
                 </span>

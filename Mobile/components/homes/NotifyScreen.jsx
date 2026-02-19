@@ -293,6 +293,15 @@ export const NotifyScreen = ({
               </Text>
             </View>
 
+            {aviso.remitente_nombre && (
+              <View style={styles.detalleFechaRow}>
+                <Ionicons name="person-circle-outline" size={16} color="#64748b" />
+                <Text style={styles.detalleFechaText}>
+                  Por: {aviso.remitente_nombre}
+                </Text>
+              </View>
+            )}
+
             {aviso.fecha_asignacion && (
               <View style={styles.detalleFechaRow}>
                 <Ionicons name="person-add-outline" size={15} color="#8b5cf6" />
@@ -351,6 +360,15 @@ export const NotifyScreen = ({
                 <Text style={styles.avisoFecha}>
                   {formatearFecha(aviso.fecha_registro)}
                 </Text>
+                {aviso.remitente_nombre && (
+                  <>
+                    <Text style={styles.avisoFechaSeparator}>•</Text>
+                    <Ionicons name="person-outline" size={14} color="#9ca3af" />
+                    <Text style={styles.avisoFecha} numberOfLines={1}>
+                      {aviso.remitente_nombre}
+                    </Text>
+                  </>
+                )}
               </View>
 
               <TouchableOpacity
@@ -692,6 +710,11 @@ const stylesLight = StyleSheet.create({
     fontSize: 12,
     color: '#9ca3af',
     fontWeight: '500',
+  },
+  avisoFechaSeparator: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginHorizontal: 6,
   },
   // ─── Vista de detalle ────────────────────────────────────────────────
   detalleScrollContent: {

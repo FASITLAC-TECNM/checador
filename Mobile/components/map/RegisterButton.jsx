@@ -7,7 +7,8 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
-  ScrollView
+  ScrollView,
+  Vibration
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -1289,12 +1290,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           emoji = '✅';
         }
       }
-
       const tipoMayuscula = tipoRegistrado === 'entrada' ? 'Entrada' : 'Salida';
       const horaStr = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+      Vibration.vibrate(500);
 
       Alert.alert(
-        esOffline ? '☁️ Guardado sin conexión' : '¡Éxito!',
+        esOffline ? 'Guardado sin conexión' : '¡Éxito!',
         [
           `${emoji} ${tipoMayuscula} registrada como ${estadoTexto}`,
           `Departamento: ${departamento.nombre}`,

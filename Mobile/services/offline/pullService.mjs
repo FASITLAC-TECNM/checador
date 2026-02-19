@@ -231,7 +231,7 @@ export async function fullPull(empleadoId) {
                 const incidencias = incData.data || [];
                 if (incidencias.length > 0) {
                     await sqliteManager.upsertIncidencias(empleadoId, incidencias);
-                    results.incidencias = { success: true, count: incidencias.length };
+                    results.incidencias = { success: true, count: incidencias.length, data: incidencias };
                     // console.log(`   ✅ ${incidencias.length} incidencias cacheadas`);
                 } else {
                     console.log(`   ℹ️ [Pull] Sin incidencias para este empleado`);
@@ -241,6 +241,43 @@ export async function fullPull(empleadoId) {
         } catch (incError) {
             console.log(`   ⚠️ [Pull] Error cacheando incidencias: ${incError.message}`);
             results.incidencias = { success: false, error: incError.message };
+        }
+
+        // ========== AVISOS ==========
+        try {
+            // Nota: getAvisosGlobales normalmente se usa en UI, aqui usamos fetch directo para background
+            console.log(`   🔄 [Pull] Cacheando avisos...`);
+
+            // 1. Avisos Globales
+            const globUrl = `/avisos/globales`;
+            const globData = await apiFetch(globUrl).catch(() => null);
+            let avisosTotal = [];
+
+            if (globData && globData.success && globData.data) {
+                const globales = globData.data;
+                await sqliteManager.upsertAvisosGlobales(globales);
+                avisosTotal = [...avisosTotal, ...globales];
+            }
+
+            // 2. Avisos Personales (si es empleado)
+            const empUrl = `/empleados/${empleadoId}/avisos`;
+            const empData = await apiFetch(empUrl).catch(() => null);
+
+            if (empData && empData.success && empData.data) {
+                const personales = empData.data;
+                await sqliteManager.upsertAvisosEmpleado(empleadoId, personales);
+                avisosTotal = [...avisosTotal, ...personales];
+            }
+
+            if (avisosTotal.length > 0) {
+                results.avisos = { success: true, count: avisosTotal.length, data: avisosTotal };
+            } else {
+                results.avisos = { success: true, count: 0, data: [] };
+            }
+
+        } catch (avisoError) {
+            console.log(`   ⚠️ [Pull] Error cacheando avisos: ${avisoError.message}`);
+            results.avisos = { success: false, error: avisoError.message };
         }
 
     } catch (error) {

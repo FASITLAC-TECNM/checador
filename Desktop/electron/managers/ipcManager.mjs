@@ -11,6 +11,7 @@ import * as windowManager from "./windowManager.mjs";
 import * as configHelper from "../utils/configHelper.mjs";
 import sqliteManager from "../offline/sqliteManager.mjs";
 import syncManager from "../offline/syncManager.mjs";
+import * as networkService from "../services/networkService.mjs";
 
 const exec = util.promisify(execCallback);
 
@@ -82,20 +83,7 @@ export function registerIpcHandlers() {
 
     ipcMain.handle("get-system-info", async () => {
         try {
-            const networkInterfaces = os.networkInterfaces();
-            let ipAddress = "No detectada";
-            let macAddress = "No detectada";
-
-            for (const name of Object.keys(networkInterfaces)) {
-                for (const net of networkInterfaces[name]) {
-                    if (net.family === "IPv4" && !net.internal) {
-                        ipAddress = net.address;
-                        macAddress = net.mac.toUpperCase();
-                        break;
-                    }
-                }
-                if (ipAddress !== "No detectada") break;
-            }
+            const { ipAddress, macAddress } = networkService.getNetworkDetails();
 
             let osName = os.type();
             const release = os.release();

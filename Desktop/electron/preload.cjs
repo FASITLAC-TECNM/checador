@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Información del sistema
   getSystemInfo: () => ipcRenderer.invoke('get-system-info'),
   getNetworkInfo: () => ipcRenderer.invoke('get-network-info'),
+  onNetworkStatusChange: (callback) => ipcRenderer.on('network-status-change', (event, details) => callback(details)),
+  removeNetworkStatusListener: () => ipcRenderer.removeAllListeners('network-status-change'),
 
   // Control de ventana
   minimizeWindow: () => ipcRenderer.send('minimize-window'),

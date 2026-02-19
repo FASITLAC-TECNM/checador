@@ -12,6 +12,7 @@ import syncManager from "./offline/syncManager.mjs";
 
 // Services & Managers
 import * as biometricService from "./services/biometricService.mjs";
+import * as networkService from "./services/networkService.mjs";
 import * as windowManager from "./managers/windowManager.mjs";
 import * as ipcManager from "./managers/ipcManager.mjs";
 import * as configHelper from "./utils/configHelper.mjs";
@@ -67,6 +68,9 @@ app.whenReady().then(() => {
   // Crear la ventana principal
   const mainWindow = windowManager.createWindow();
 
+  // Iniciar monitoreo de red
+  networkService.startMonitoring(mainWindow);
+
   // Inicializar sistema Offline-First
   try {
     const apiBaseUrl = configHelper.getBackendUrl();
@@ -102,5 +106,6 @@ app.on("window-all-closed", function () {
 app.on("will-quit", () => {
   globalShortcut.unregisterAll();
   biometricService.stopBiometricMiddleware();
+  networkService.stopMonitoring();
   syncManager.destroy();
 });

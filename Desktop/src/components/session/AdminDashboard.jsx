@@ -8,6 +8,7 @@ import {
     Phone,
     Mail,
     LogOut,
+    ShieldOff,
 } from "lucide-react";
 import GeneralNodoModal from "./GeneralNodoModal";
 import DispositivosModal from "./DispositivosModal";
@@ -21,6 +22,7 @@ export default function AdminDashboard({ escritorioId, datosCompletos, onLogout 
     const userPhone = datosCompletos?.telefono || "N/A";
     const userUsername = datosCompletos?.usuario || datosCompletos?.username || "admin";
     const estado = datosCompletos?.estado || "CONECTADO";
+    const isAdmin = datosCompletos?.usuario === "admin" || datosCompletos?.correo === "admin@gmail.com" || datosCompletos?.email === "admin@gmail.com";
 
     const menuItems = [
         {
@@ -112,32 +114,35 @@ export default function AdminDashboard({ escritorioId, datosCompletos, onLogout 
                     </div>
                 </div>
 
-                {/* Navigation Menu */}
-                <div className="flex-1 p-3 space-y-1 overflow-y-auto">
-                    <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider px-3 mb-2">
-                        Configuración del sistema
-                    </p>
-                    {menuItems.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = activeSection === item.id;
-                        return (
-                            <button
-                                key={item.id}
-                                onClick={() => setActiveSection(item.id)}
-                                className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-left ${isActive
+                {/* Navigation Menu - Solo admins */}
+                {isAdmin && (
+                    <div className="flex-1 p-3 space-y-1 overflow-y-auto">
+                        <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider px-3 mb-2">
+                            Configuración del sistema
+                        </p>
+                        {menuItems.map((item) => {
+                            const Icon = item.icon;
+                            const isActive = activeSection === item.id;
+                            return (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setActiveSection(item.id)}
+                                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-left ${isActive
                                         ? "bg-[#1976D2] text-white shadow-md"
                                         : "text-text-secondary hover:bg-bg-primary"
-                                    }`}
-                            >
-                                <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-white" : "text-[#1976D2]"}`} />
-                                <span className={`font-semibold text-sm ${isActive ? "text-white" : "text-text-primary"}`}>
-                                    {item.title}
-                                </span>
-                                {isActive && <ChevronRight className="w-4 h-4 ml-auto opacity-70" />}
-                            </button>
-                        );
-                    })}
-                </div>
+                                        }`}
+                                >
+                                    <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-white" : "text-[#1976D2]"}`} />
+                                    <span className={`font-semibold text-sm ${isActive ? "text-white" : "text-text-primary"}`}>
+                                        {item.title}
+                                    </span>
+                                    {isActive && <ChevronRight className="w-4 h-4 ml-auto opacity-70" />}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+                {!isAdmin && <div className="flex-1" />}
 
                 {/* Logout */}
                 <div className="p-3 border-t border-border-subtle">
@@ -153,14 +158,28 @@ export default function AdminDashboard({ escritorioId, datosCompletos, onLogout 
 
             {/* ===== CONTENT AREA ===== */}
             <main className="flex-1 bg-bg-primary overflow-y-auto">
-                {activeSection === "general" && (
-                    <GeneralNodoModal inline />
-                )}
-                {activeSection === "dispositivos" && (
-                    <DispositivosModal inline escritorioId={escritorioId} />
-                )}
-                {activeSection === "preferencias" && (
-                    <PreferenciasModal inline />
+                {isAdmin ? (
+                    <>
+                        {activeSection === "general" && (
+                            <GeneralNodoModal inline />
+                        )}
+                        {activeSection === "dispositivos" && (
+                            <DispositivosModal inline escritorioId={escritorioId} />
+                        )}
+                        {activeSection === "preferencias" && (
+                            <PreferenciasModal inline />
+                        )}
+                    </>
+                ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-center px-8">
+                        <div className="w-20 h-20 bg-bg-secondary rounded-2xl flex items-center justify-center mb-5">
+                            <ShieldOff className="w-10 h-10 text-text-tertiary" />
+                        </div>
+                        <h3 className="text-xl font-bold text-text-primary mb-2">Información no disponible</h3>
+                        <p className="text-text-secondary text-sm max-w-md">
+                            No tienes permisos de administrador para acceder a las configuraciones del sistema.
+                        </p>
+                    </div>
                 )}
             </main>
         </div>

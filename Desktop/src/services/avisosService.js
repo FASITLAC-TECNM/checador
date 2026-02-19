@@ -60,7 +60,7 @@ function mapearAviso(aviso) {
     message: aviso.contenido ? aviso.contenido.substring(0, 80) : "",
     time,
     date,
-    author: aviso.autor || "Sistema",
+    author: aviso.remitente_nombre || "Sistema",
     type: "info",
   };
 }

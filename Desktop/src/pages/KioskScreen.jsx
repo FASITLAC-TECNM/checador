@@ -357,6 +357,7 @@ export default function KioskScreen() {
           {loadingCredenciales ? (
             <div className="bg-bg-primary rounded-3xl shadow-2xl h-full flex flex-col items-center justify-center p-8 border border-border-subtle">
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+
               <p className="text-text-secondary">Cargando configuración...</p>
             </div>
           ) : activeMethods.length === 0 ? (

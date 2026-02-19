@@ -172,7 +172,7 @@ export default function PreferenciasModal({ onClose, onBack }) {
         <div className="bg-bg-primary p-6 border-b border-border-subtle flex-shrink-0">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <Sliders className="w-8 h-8 text-text-primary" />
+              <Sliders className="w-8 h-8 text-[#1976D2]" />
               <div>
                 <h3 className="text-2xl font-bold text-text-primary">Preferencias</h3>
                 <p className="text-text-secondary text-sm mt-1">
@@ -196,7 +196,7 @@ export default function PreferenciasModal({ onClose, onBack }) {
           <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Moon className="w-4 h-4 text-text-secondary" />
+                <Moon className="w-4 h-4 text-[#1976D2]" />
                 <div>
                   <h4 className="font-semibold text-text-primary text-sm">Modo Oscuro</h4>
                   <p className="text-xs text-text-secondary">
@@ -211,7 +211,7 @@ export default function PreferenciasModal({ onClose, onBack }) {
                   onChange={(e) => handleDarkModeToggle(e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-bg-tertiary peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 dark:peer-focus:ring-gray-600 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-bg-primary after:border-border-subtle after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900 dark:peer-checked:bg-gray-100"></div>
+                <div className="w-11 h-6 bg-bg-tertiary peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-bg-primary after:border-border-subtle after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1976D2]"></div>
               </label>
             </div>
           </div>
@@ -220,7 +220,7 @@ export default function PreferenciasModal({ onClose, onBack }) {
           <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Volume2 className="w-4 h-4 text-text-secondary" />
+                <Volume2 className="w-4 h-4 text-[#1976D2]" />
                 <div>
                   <h4 className="font-semibold text-text-primary text-sm">Sonidos del Sistema</h4>
                   <p className="text-xs text-text-secondary">
@@ -240,7 +240,7 @@ export default function PreferenciasModal({ onClose, onBack }) {
                   }
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-bg-tertiary peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 dark:peer-focus:ring-gray-600 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-bg-primary after:border-border-subtle after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900 dark:peer-checked:bg-gray-100"></div>
+                <div className="w-11 h-6 bg-bg-tertiary peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-bg-primary after:border-border-subtle after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1976D2]"></div>
               </label>
             </div>
           </div>
@@ -248,7 +248,7 @@ export default function PreferenciasModal({ onClose, onBack }) {
           {/* Métodos de Checado */}
           <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3">
             <h4 className="font-semibold text-text-primary mb-3 text-sm flex items-center gap-2">
-              <Sliders className="w-4 h-4 text-text-secondary" />
+              <Sliders className="w-4 h-4 text-[#1976D2]" />
               Métodos de Checado de Asistencia
             </h4>
             <p className="text-xs text-text-secondary mb-3">
@@ -311,7 +311,7 @@ export default function PreferenciasModal({ onClose, onBack }) {
                           onChange={() => handleCheckMethodToggle(metodo.id)}
                           className="sr-only peer"
                         />
-                        <div className="w-9 h-5 bg-bg-tertiary peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-gray-300 dark:peer-focus:ring-gray-600 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-bg-primary after:border-border-subtle after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-gray-900 dark:peer-checked:bg-gray-100"></div>
+                        <div className="w-9 h-5 bg-bg-tertiary peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-bg-primary after:border-border-subtle after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#1976D2]"></div>
                       </label>
                     </div>
                   );
@@ -334,7 +334,7 @@ export default function PreferenciasModal({ onClose, onBack }) {
             <button
               onClick={handleSave}
               disabled={savingCredenciales}
-              className="flex-1 px-4 py-2 text-sm bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl font-semibold hover:bg-gray-800 dark:hover:bg-gray-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="flex-1 px-4 py-2 text-sm bg-[#1976D2] text-white rounded-xl font-semibold hover:bg-[#1565C0] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {savingCredenciales ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

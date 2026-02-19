@@ -140,7 +140,7 @@ export default function GeneralNodoModal({ onClose, onBack }) {
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden p-8">
           <div className="flex flex-col items-center justify-center gap-4">
-            <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+            <Loader2 className="w-12 h-12 text-[#1976D2] animate-spin" />
             <p className="text-text-primary font-medium">Cargando datos del escritorio...</p>
           </div>
         </div>
@@ -164,7 +164,7 @@ export default function GeneralNodoModal({ onClose, onBack }) {
             <div className="flex gap-3">
               <button
                 onClick={cargarDatosEscritorio}
-                className="flex-1 px-4 py-2 text-sm bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2 text-sm bg-[#1976D2] text-white rounded-xl font-semibold hover:bg-[#1565C0] transition-colors flex items-center justify-center gap-2"
               >
                 <RefreshCw className="w-4 h-4" />
                 Reintentar
@@ -206,7 +206,7 @@ export default function GeneralNodoModal({ onClose, onBack }) {
         <div className="bg-bg-primary p-6 border-b border-border-subtle">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <HardDrive className="w-8 h-8 text-text-primary" />
+              <HardDrive className="w-8 h-8 text-[#1976D2]" />
               <div>
                 <h3 className="text-2xl font-bold text-text-primary">General del Nodo</h3>
                 <p className="text-text-secondary text-sm mt-1">
@@ -226,8 +226,8 @@ export default function GeneralNodoModal({ onClose, onBack }) {
         {/* Body */}
         <div className="p-3">
           {/* ID del Escritorio */}
-          <div className="mb-3 px-3 py-2 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl">
-            <p className="text-xs text-blue-700 dark:text-blue-300">
+          <div className="mb-3 px-3 py-2 bg-[#1976D2]/10 dark:bg-blue-900/30 border border-[#1976D2]/20 dark:border-blue-800 rounded-xl">
+            <p className="text-xs text-[#1976D2] dark:text-blue-300">
               <span className="font-semibold">ID del Escritorio:</span>{" "}
               <span className="font-mono">{escritorioId}</span>
               {nodeConfig.esActivo ? (
@@ -245,14 +245,14 @@ export default function GeneralNodoModal({ onClose, onBack }) {
           <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3">
             <div className="flex items-center justify-between mb-3">
               <h4 className="font-semibold text-text-primary flex items-center gap-2 text-sm">
-                <HardDrive className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <HardDrive className="w-4 h-4 text-[#1976D2] dark:text-blue-400" />
                 Información del Nodo
               </h4>
               <button
                 type="button"
                 onClick={detectSystemInfo}
                 disabled={isDetecting}
-                className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-[#1976D2]/10 dark:bg-blue-900/50 text-[#1976D2] dark:text-blue-300 rounded-lg hover:bg-[#1976D2]/20 dark:hover:bg-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isDetecting ? "animate-spin" : ""}`} />
                 {isDetecting ? "Detectando..." : "Autodetectar"}
@@ -269,7 +269,7 @@ export default function GeneralNodoModal({ onClose, onBack }) {
                   onChange={(e) =>
                     setNodeConfig({ ...nodeConfig, nodeName: e.target.value })
                   }
-                  className="w-full px-3 py-1.5 text-sm bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-text-primary placeholder:text-text-disabled"
+                  className="w-full px-3 py-1.5 text-sm bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-[#1976D2] focus:border-transparent text-text-primary placeholder:text-text-disabled"
                   placeholder="Ej: Entrada Principal"
                 />
               </div>
@@ -284,7 +284,7 @@ export default function GeneralNodoModal({ onClose, onBack }) {
                     setNodeConfig({ ...nodeConfig, nodeDescription: e.target.value })
                   }
                   rows={2}
-                  className="w-full px-3 py-1.5 text-sm bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-text-primary placeholder:text-text-disabled"
+                  className="w-full px-3 py-1.5 text-sm bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-[#1976D2] focus:border-transparent resize-none text-text-primary placeholder:text-text-disabled"
                   placeholder="Descripción del nodo de trabajo"
                 />
               </div>
@@ -367,7 +367,7 @@ export default function GeneralNodoModal({ onClose, onBack }) {
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="flex-1 px-4 py-2 text-sm bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded-xl font-semibold hover:bg-gray-800 dark:hover:bg-gray-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 px-4 py-2 text-sm bg-[#1976D2] text-white rounded-xl font-semibold hover:bg-[#1565C0] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving ? (
                 <>

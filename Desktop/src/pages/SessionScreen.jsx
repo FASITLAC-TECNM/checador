@@ -12,6 +12,7 @@ import {
   Building2,
   Fingerprint,
   Camera,
+  FileText,
 } from "lucide-react";
 import {
   formatTime,
@@ -646,7 +647,7 @@ export default function SessionScreen({ onLogout, usuario }) {
             <div className="bg-bg-primary p-6 border-b border-border-subtle">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <Bell className="w-8 h-8 text-text-primary" />
+                  <Bell className="w-8 h-8 text-[#1976D2]" />
                   <h3 className="text-2xl font-bold text-text-primary">
                     Detalle del Aviso
                   </h3>
@@ -661,24 +662,33 @@ export default function SessionScreen({ onLogout, usuario }) {
             </div>
             <div className="p-6 space-y-4">
               <div className="bg-bg-secondary border border-border-subtle rounded-xl p-4">
-                <h4 className="font-bold text-lg text-text-primary mb-2">
-                  {selectedNotice.subject}
-                </h4>
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="w-5 h-5 text-[#1976D2]" />
+                  <h4 className="font-bold text-lg text-text-primary">
+                    {selectedNotice.subject}
+                  </h4>
+                </div>
                 <p className="text-text-secondary">{selectedNotice.detail}</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-bg-secondary border border-border-subtle rounded-xl p-4">
-                  <p className="text-xs font-semibold text-text-secondary mb-1">
-                    AUTOR
-                  </p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <User className="w-4 h-4 text-[#1976D2]" />
+                    <p className="text-xs font-semibold text-text-secondary">
+                      AUTOR
+                    </p>
+                  </div>
                   <p className="text-sm font-medium text-text-primary">
                     {selectedNotice.author}
                   </p>
                 </div>
                 <div className="bg-bg-secondary border border-border-subtle rounded-xl p-4">
-                  <p className="text-xs font-semibold text-text-secondary mb-1">
-                    FECHA Y HORA
-                  </p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Calendar className="w-4 h-4 text-[#1976D2]" />
+                    <p className="text-xs font-semibold text-text-secondary">
+                      FECHA Y HORA
+                    </p>
+                  </div>
                   <p className="text-sm font-medium text-text-primary">
                     {selectedNotice.date} - {selectedNotice.time}
                   </p>

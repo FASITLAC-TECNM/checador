@@ -1276,18 +1276,15 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           console.log('⚠️ Error guardando evento offline:', evtErr.message);
         }
 
+        // ─── FIX: exponer el estado REAL calculado (no 'pendiente_sync')
+        //     para que el Alert y la notificación local reflejen retardo/falta/puntual
         data = {
           data: {
             tipo: tipoActual,
-            estado: 'pendiente_sync'
+            estado: estadoOffline,   // ← estado real calculado localmente
+            _offline: true           // flag para distinguir del online en el Alert
           }
         };
-
-        Alert.alert(
-          'Modo Offline',
-          'No hay conexión con el servidor. Tu asistencia se ha guardado localmente y se sincronizará cuando recuperes la conexión.',
-          [{ text: 'Entendido' }]
-        );
       }
 
       const nuevoUltimo = await obtenerUltimoRegistro();
@@ -1303,14 +1300,21 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       }
 
       const tipoRegistrado = data.data?.tipo || tipoActual;
-      const estadoRegistrado = data.data?.estado || 'registrado';
+      const estadoRegistrado = data.data?.estado || 'puntual';
+      const esOffline = data.data?._offline === true;
 
+      // Determinar texto y emoji según tipo + estado
       let estadoTexto = estadoRegistrado;
       let emoji = '✅';
 
       if (tipoRegistrado === 'salida') {
-        estadoTexto = 'salida registrada';
-        emoji = '✅';
+        if (estadoRegistrado === 'salida_temprano') {
+          estadoTexto = 'salida anticipada';
+          emoji = '⚠️';
+        } else {
+          estadoTexto = 'salida registrada';
+          emoji = '✅';
+        }
       } else {
         if (estadoRegistrado === 'retardo') {
           estadoTexto = 'retardo';
@@ -1318,26 +1322,29 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         } else if (estadoRegistrado === 'falta') {
           estadoTexto = 'falta';
           emoji = '❌';
-        } else if (estadoRegistrado === 'puntual') {
+        } else {
           estadoTexto = 'puntual';
           emoji = '✅';
-        } else if (estadoRegistrado === 'pendiente_sync') {
-          estadoTexto = 'guardado offline';
-          emoji = '☁️';
         }
       }
 
       const tipoMayuscula = tipoRegistrado === 'entrada' ? 'Entrada' : 'Salida';
+      const horaStr = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 
-      if (success) {
-        Alert.alert(
-          '¡Éxito!',
-          `${emoji} ${tipoMayuscula} registrada como ${estadoTexto}\nDepartamento: ${departamento.nombre}\nHora: ${new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}`,
-          [{ text: 'OK' }]
-        );
-      }
+      // ─── Alert unificado online/offline ───────────────────────────────
+      Alert.alert(
+        esOffline ? '☁️ Guardado sin conexión' : '¡Éxito!',
+        [
+          `${emoji} ${tipoMayuscula} registrada como ${estadoTexto}`,
+          `Departamento: ${departamento.nombre}`,
+          `Hora: ${horaStr}`,
+          esOffline ? '\nSe sincronizará automáticamente cuando haya conexión.' : ''
+        ].filter(Boolean).join('\n'),
+        [{ text: 'OK' }]
+      );
+      // ──────────────────────────────────────────────────────────────────
 
-      // Notificación local de Android
+      // Notificación local de Android — con el estado real
       notificarRegistro(tipoRegistrado, estadoRegistrado);
 
       if (onRegistroExitoso) {

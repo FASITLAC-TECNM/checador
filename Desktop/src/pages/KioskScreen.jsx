@@ -10,6 +10,7 @@ import SessionScreen from "./SessionScreen";
 import { agregarEvento } from "../services/bitacoraService";
 import { cerrarSesion } from "../services/biometricAuthService";
 import { useConnectivity } from "../hooks/useConnectivity";
+import { useSound } from "../context/SoundContext";
 import { ConnectionStatusPanel } from "../components/common/ConnectionStatus";
 import AsistenciaHuella from "../components/kiosk/AsistenciaHuella";
 import AsistenciaFacial from "../components/kiosk/AsistenciaFacial";
@@ -22,6 +23,7 @@ export default function KioskScreen() {
 
   // Hook de conectividad
   const { isInternetConnected, isDatabaseConnected } = useConnectivity();
+  const { playSound, speak } = useSound();
 
   const [time, setTime] = useState(new Date());
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -133,12 +135,8 @@ export default function KioskScreen() {
     setIsLoggedIn(true);
 
     // Mensaje de bienvenida con el nombre del usuario
-    const welcomeMessage = `Bienvenido, ${usuario.nombre || usuario.username}`;
-    const utterance = new SpeechSynthesisUtterance(welcomeMessage);
-    utterance.lang = "es-MX";
-    utterance.rate = 0.9;
-    utterance.volume = 1;
-    window.speechSynthesis.speak(utterance);
+    playSound('success');
+    speak(`Bienvenido, ${usuario.nombre || usuario.username}`);
   };
 
   // Manejar logout
@@ -191,11 +189,8 @@ export default function KioskScreen() {
     });
 
     const tipo = data.tipo_movimiento === 'SALIDA' ? 'salida' : 'entrada';
-    const successMessage = `Registro ${tipo} exitoso`;
-    const utterance = new SpeechSynthesisUtterance(successMessage);
-    utterance.lang = "es-MX";
-    utterance.rate = 0.9;
-    window.speechSynthesis.speak(utterance);
+    playSound('success');
+    speak(`Registro ${tipo} exitoso`);
   };
 
   // Manejar solicitud de login desde el modal de asistencia
@@ -214,11 +209,8 @@ export default function KioskScreen() {
     // Mensaje de bienvenida
     const nombreUsuario =
       usuarioCompleto?.nombre || usuarioCompleto?.username || "Usuario";
-    const welcomeMessage = `Bienvenido ${nombreUsuario}`;
-    const utterance = new SpeechSynthesisUtterance(welcomeMessage);
-    utterance.lang = "es-MX";
-    utterance.rate = 0.9;
-    window.speechSynthesis.speak(utterance);
+    playSound('success');
+    speak(`Bienvenido ${nombreUsuario}`);
 
     // Establecer usuario y abrir sesión (datos ya vienen completos del API)
     setUsuarioActual(usuarioCompleto);
@@ -258,11 +250,8 @@ export default function KioskScreen() {
     // Mensaje de bienvenida
     const nombreUsuario =
       usuarioCompleto?.nombre || usuarioCompleto?.username || "Usuario";
-    const welcomeMessage = `Bienvenido ${nombreUsuario}`;
-    const utterance = new SpeechSynthesisUtterance(welcomeMessage);
-    utterance.lang = "es-MX";
-    utterance.rate = 0.9;
-    window.speechSynthesis.speak(utterance);
+    playSound('success');
+    speak(`Bienvenido ${nombreUsuario}`);
 
     // Establecer usuario y abrir sesion
     setUsuarioActual(usuarioCompleto);

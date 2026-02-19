@@ -67,7 +67,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   });
   const notificadoEstadoRef = useRef(null);
 
-  // ─── FIX: refs para que procederConRegistro siempre lea valores frescos ───
+  // ─── refs para que procederConRegistro siempre lea valores frescos ───
   const horarioInfoRef = useRef(null);
   const toleranciaInfoRef = useRef(null);
   const ultimoRegistroHoyRef = useRef(null);
@@ -104,16 +104,13 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       };
       setCredencialesUsuario(creds);
 
-      // ─── FIX: la función retorna `ordenCredenciales`, no `orden` ───
       const ordenResponse = await getOrdenCredenciales(userData.token);
       const orden = ordenResponse.ordenCredenciales || ['pin', 'dactilar', 'facial'];
-      // Normalizar a array si viene como objeto { pin: { prioridad: 1 }, ... }
       const ordenArray = Array.isArray(orden)
         ? orden
         : Object.entries(orden)
           .sort((a, b) => (a[1]?.prioridad ?? 99) - (b[1]?.prioridad ?? 99))
           .map(([key]) => key);
-      // ──────────────────────────────────────────────────────────────
 
       setOrdenCredenciales(ordenArray);
       construirMetodosDisponibles(creds, ordenArray);
@@ -136,7 +133,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         };
 
         setCredencialesUsuario(offlineCreds);
-        // Offline: solo PIN y huella, facial no funciona sin servidor
         construirMetodosDisponibles(offlineCreds, ['pin', 'dactilar']);
 
       } catch (offlineError) {
@@ -149,9 +145,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }
   };
 
-  // ─── FIX: los handlers de autenticación NO se pasan como referencia estática
-  //     en metodosDisponibles. En su lugar, metodosDisponibles solo guarda
-  //     metadatos (id, nombre, icono) y el handler se resuelve en el render. ───
   const construirMetodosDisponibles = (credenciales, orden) => {
     const metodosBase = {
       'pin': {
@@ -181,7 +174,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     setMetodosDisponibles(metodosOrdenados);
   };
 
-  // Resolver el handler actual para cada método en tiempo de render
   const getHandlerForMetodo = (metodoId) => {
     switch (metodoId) {
       case 'pin': return handleAutenticacionPin;
@@ -190,7 +182,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       default: return () => { };
     }
   };
-  // ──────────────────────────────────────────────────────────────────────────
 
   const handleAutenticacionPin = useCallback(() => {
     setMostrarAutenticacion(false);
@@ -562,7 +553,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   }, [userData]);
 
   // ============================================================
-  // VALIDACIÓN DE ENTRADA — Mirrors backend calcularEstadoEntrada
+  // VALIDACIÓN DE ENTRADA
   // ============================================================
   const validarEntrada = (horario, tolerancia, minutosActuales, totalRegistrosHoy = 0) => {
     if (!horario?.gruposTurnos || !Array.isArray(horario.gruposTurnos) || horario.gruposTurnos.length === 0) {
@@ -949,62 +940,57 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   }, [ubicacionActual, departamentos]);
 
   const handleVerificarPin = async (pin) => {
+    // ─── FIX: Separar verificación de PIN del proceso de registro.
+    // Si mezclamos ambos en el mismo try/catch, un error de registro
+    // (GPS, red, etc.) sube al modal y aparece como "PIN incorrecto".
+    let pinVerificado = false;
+
     try {
-      // ─── FIX: siempre intentar verificación online primero.
-      // No usar syncManager.isOnline() como gate porque en Android
-      // isInternetReachable puede ser null → falso negativo de red.
-      let verificadoOnline = false;
+      const resultado = await verificarPin(
+        userData.empleado_id,
+        pin,
+        userData.token
+      );
 
-      try {
-        const resultado = await verificarPin(
-          userData.empleado_id,
-          pin,
-          userData.token
-        );
-
-        if (resultado.success && resultado.data?.valido) {
-          verificadoOnline = true;
-          setMostrarPinAuth(false);
-          setMostrarAutenticacion(false);
-          await procederConRegistro();
-          return;
-        } else {
-          // El servidor respondió pero el PIN es incorrecto → error definitivo
-          throw new Error('PIN incorrecto');
-        }
-      } catch (e) {
-        // Si el error es "PIN incorrecto" lo propagamos directo
-        if (e.message === 'PIN incorrecto') throw e;
-
-        // Si es un error de red → intentar validación offline
-        const esErrorDeRed = (
-          e.message.includes('Network request failed') ||
-          e.message.includes('Failed to fetch') ||
-          e.message.includes('Timeout') ||
-          e.message.includes('network') ||
-          e.name === 'AbortError'
-        );
-
-        if (!esErrorDeRed) {
-          // Error de aplicación del servidor (401, 403, etc.) → propagar
-          throw e;
-        }
-
-        console.log('PIN online falló por red, intentando offline...');
-      }
-
-      // Fallback offline solo si hubo error de red
-      const identified = await offlineAuthService.identificarPorPinOffline(pin);
-      if (identified && identified.empleado_id === userData.empleado_id) {
-        setMostrarPinAuth(false);
-        setMostrarAutenticacion(false);
-        await procederConRegistro();
+      if (resultado.success && resultado.data?.valido) {
+        pinVerificado = true;
       } else {
         throw new Error('PIN incorrecto');
       }
+    } catch (e) {
+      if (e.message === 'PIN incorrecto') throw e;
 
-    } catch (error) {
-      throw error;
+      const esErrorDeRed = (
+        e.message.includes('Network request failed') ||
+        e.message.includes('Failed to fetch') ||
+        e.message.includes('Timeout') ||
+        e.message.includes('network') ||
+        e.name === 'AbortError'
+      );
+
+      if (!esErrorDeRed) {
+        throw e;
+      }
+
+      console.log('PIN online falló por red, intentando offline...');
+
+      // FIX: String() en ambos lados — SQLite puede devolver pin_hash o
+      // empleado_id como número (INTEGER) y === fallaría silenciosamente.
+      const identified = await offlineAuthService.identificarPorPinOffline(pin);
+      if (identified && String(identified.empleado_id) === String(userData.empleado_id)) {
+        pinVerificado = true;
+      } else {
+        throw new Error('PIN incorrecto');
+      }
+    }
+
+    // PIN correcto: cerrar modal ANTES de proceder con el registro.
+    // Sin await en procederConRegistro — sus errores se manejan internamente
+    // con Alert, no deben subir al modal del PIN.
+    if (pinVerificado) {
+      setMostrarPinAuth(false);
+      setMostrarAutenticacion(false);
+      procederConRegistro();
     }
   };
 
@@ -1119,17 +1105,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     setRegistrando(false);
   };
 
-  // ============================================================
-  // procederConRegistro — usa REFS para leer siempre valores frescos.
-  // El estado (puntual/retardo/falta) lo calcula el BACKEND con datos
-  // frescos de la DB. El frontend solo envía tipo (entrada/salida).
-  // ============================================================
   const procederConRegistro = async () => {
     try {
       const departamento = datosRegistroRef.current.departamento;
       let ubicacionFinal = datosRegistroRef.current.ubicacion;
 
-      // Leer valores frescos desde refs
       const horarioActual = horarioInfoRef.current;
       const toleranciaActual = toleranciaInfoRef.current;
       const ultimoActual = ultimoRegistroHoyRef.current;
@@ -1169,25 +1149,14 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       setRegistrando(true);
 
-      // ─── FIX: No enviamos `estado` desde el frontend.
-      //     El backend lo calcula con datos frescos de la DB usando
-      //     calcularEstadoAsistencia → retardo/falta/puntual correcto.
-      //     Solo enviamos `tipo` (entrada/salida).
       const payload = {
         empleado_id: userData.empleado_id,
         dispositivo_origen: 'movil',
         ubicacion: [ubicacionFinal.lat, ubicacionFinal.lng],
         departamento_id: departamento.id,
         tipo: tipoActual,
-        // estado: omitido → backend lo calcula fresco
       };
-      // ──────────────────────────────────────────────────────────
 
-      // ─── FIX: siempre intentar el API primero.
-      // syncManager.isOnline() usa isInternetReachable que en Android puede
-      // ser `null` (indeterminado) aunque haya conexión real → false positivo
-      // de "offline". Quitamos el gate y dejamos que el fetch falle solo si
-      // no hay red. Solo guardamos offline ante errores de red genuinos.
       let success = false;
       let data = null;
 
@@ -1221,7 +1190,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         success = true;
 
       } catch (e) {
-        // Solo caer a offline en errores genuinos de red/servidor caído
         const esErrorDeRed = (
           e.message === 'Server Error' ||
           e.message.includes('Network request failed') ||
@@ -1232,7 +1200,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         );
 
         if (!esErrorDeRed) {
-          // Error de aplicación (401, 403, 400, regla de negocio, etc.) → mostrar al usuario
           throw e;
         }
         console.log('Error de red, guardando offline:', e.message);
@@ -1241,7 +1208,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       if (!success) {
         console.log('Saving offline attendance...');
 
-        // Para offline calculamos el estado localmente (mejor que nada)
         let estadoOffline = 'puntual';
         if (horarioActual && toleranciaActual) {
           const minutosAhora = new Date().getHours() * 60 + new Date().getMinutes();
@@ -1263,7 +1229,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           fecha_registro: new Date().toISOString()
         });
 
-        // 📝 Registrar evento en bitácora offline (para que se sincronice al volver online)
         try {
           await pushService.postEvent(
             `Registro de ${tipoActual} - ${estadoOffline}`,
@@ -1276,13 +1241,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           console.log('⚠️ Error guardando evento offline:', evtErr.message);
         }
 
-        // ─── FIX: exponer el estado REAL calculado (no 'pendiente_sync')
-        //     para que el Alert y la notificación local reflejen retardo/falta/puntual
         data = {
           data: {
             tipo: tipoActual,
-            estado: estadoOffline,   // ← estado real calculado localmente
-            _offline: true           // flag para distinguir del online en el Alert
+            estado: estadoOffline,
+            _offline: true
           }
         };
       }
@@ -1303,7 +1266,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const estadoRegistrado = data.data?.estado || 'puntual';
       const esOffline = data.data?._offline === true;
 
-      // Determinar texto y emoji según tipo + estado
       let estadoTexto = estadoRegistrado;
       let emoji = '✅';
 
@@ -1331,7 +1293,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const tipoMayuscula = tipoRegistrado === 'entrada' ? 'Entrada' : 'Salida';
       const horaStr = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
 
-      // ─── Alert unificado online/offline ───────────────────────────────
       Alert.alert(
         esOffline ? '☁️ Guardado sin conexión' : '¡Éxito!',
         [
@@ -1342,9 +1303,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         ].filter(Boolean).join('\n'),
         [{ text: 'OK' }]
       );
-      // ──────────────────────────────────────────────────────────────────
 
-      // Notificación local de Android — con el estado real
       notificarRegistro(tipoRegistrado, estadoRegistrado);
 
       if (onRegistroExitoso) {
@@ -1662,7 +1621,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             </View>
 
             <View style={styles.authMethodsContainer}>
-              {/* ─── FIX: handler se resuelve en render, no desde estado estático ─── */}
               {metodosDisponibles
                 .filter(metodo => metodo.id !== 'facial' || !credencialesUsuario?._offlineMode)
                 .map((metodo) => (
@@ -1812,7 +1770,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   );
 };
 
-// Estilos actualizados
 const registerStyles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',

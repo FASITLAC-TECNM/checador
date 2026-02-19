@@ -74,10 +74,14 @@ export async function identificarPorPinOffline(pinIngresado) {
             return null;
         }
 
-        for (const cred of credenciales) {
-            if (!cred.pin_hash) continue;
+        // FIX: SQLite puede devolver pin_hash como número (INTEGER) aunque fue
+        // guardado como string. String() en ambos lados evita que === falle.
+        const pinStr = String(pinIngresado).trim();
 
-            if (cred.pin_hash === pinIngresado) {
+        for (const cred of credenciales) {
+            if (!cred.pin_hash && cred.pin_hash !== 0) continue;
+
+            if (String(cred.pin_hash).trim() === pinStr) {
                 const empleado = await sqliteManager.getEmpleado(cred.empleado_id);
                 if (empleado && empleado.estado_cuenta === 'activo') {
                     console.log(`✅ [OfflineAuth] PIN match → empleado ${cred.empleado_id}`);

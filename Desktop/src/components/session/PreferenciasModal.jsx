@@ -11,7 +11,7 @@ const METODOS_AUTH_INFO = {
   pin: { icon: User, label: "Usuario/Correo", color: "text-purple-600 dark:text-purple-400" },
 };
 
-export default function PreferenciasModal({ onClose, onBack }) {
+export default function PreferenciasModal({ onClose, onBack, inline = false }) {
   const { isDarkMode, setDarkMode } = useTheme();
   const { soundEnabled, setSoundEnabled } = useSound();
   const [showSaveMessage, setShowSaveMessage] = useState(false);
@@ -156,7 +156,7 @@ export default function PreferenciasModal({ onClose, onBack }) {
   const totalMetodos = metodosOrdenados.length;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className={inline ? "w-full h-full flex flex-col" : "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"}>
       {showSaveMessage && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-pulse">
           <Save className="w-5 h-5" />
@@ -169,9 +169,9 @@ export default function PreferenciasModal({ onClose, onBack }) {
           <span className="font-semibold">Debe haber al menos un método de checado activo</span>
         </div>
       )}
-      <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className={inline ? "flex-1 flex flex-col overflow-y-auto" : "bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"}>
         {/* Header */}
-        <div className="bg-bg-primary p-6 border-b border-border-subtle flex-shrink-0">
+        <div className={`bg-bg-primary p-6 border-b border-border-subtle flex-shrink-0 ${inline ? 'sticky top-0 z-10' : ''}`}>
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <Sliders className="w-8 h-8 text-[#1976D2]" />
@@ -182,12 +182,24 @@ export default function PreferenciasModal({ onClose, onBack }) {
                 </p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
+            {!inline && (
+              <button
+                onClick={onClose}
+                className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            )}
+            {inline && (
+              <button
+                onClick={handleSave}
+                disabled={savingCredenciales}
+                className="px-5 py-2.5 text-sm bg-[#1976D2] text-white rounded-xl font-bold hover:bg-[#1565C0] transition-all flex items-center gap-2 disabled:opacity-50 shadow-md"
+              >
+                {savingCredenciales ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {savingCredenciales ? "Guardando..." : "Guardar Cambios"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -327,28 +339,30 @@ export default function PreferenciasModal({ onClose, onBack }) {
         </div>
 
         {/* Footer */}
-        <div className="bg-bg-primary p-3 border-t border-border-subtle flex-shrink-0">
-          <div className="flex gap-3">
-            <button
-              onClick={onBack || onClose}
-              className="flex-1 px-4 py-2 text-sm bg-bg-primary border border-border-subtle text-text-secondary rounded-xl font-semibold hover:bg-bg-secondary transition-colors"
-            >
-              {onBack ? "Volver" : "Cancelar"}
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={savingCredenciales}
-              className="flex-1 px-4 py-2 text-sm bg-[#1976D2] text-white rounded-xl font-semibold hover:bg-[#1565C0] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {savingCredenciales ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-              {savingCredenciales ? "Guardando..." : "Guardar Preferencias"}
-            </button>
+        {!inline && (
+          <div className="bg-bg-primary p-3 border-t border-border-subtle flex-shrink-0">
+            <div className="flex gap-3">
+              <button
+                onClick={onBack || onClose}
+                className="flex-1 px-4 py-2 text-sm bg-bg-primary border border-border-subtle text-text-secondary rounded-xl font-semibold hover:bg-bg-secondary transition-colors"
+              >
+                {onBack ? "Volver" : "Cancelar"}
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={savingCredenciales}
+                className="flex-1 px-4 py-2 text-sm bg-[#1976D2] text-white rounded-xl font-semibold hover:bg-[#1565C0] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {savingCredenciales ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {savingCredenciales ? "Guardando..." : "Guardar Preferencias"}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

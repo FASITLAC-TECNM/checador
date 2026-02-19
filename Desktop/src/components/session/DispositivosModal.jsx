@@ -6,7 +6,7 @@ import { useDeviceStatus } from "../../hooks/useDeviceStatus";
 
 const API_URL = getApiEndpoint("/api");
 
-export default function DispositivosModal({ onClose, onBack, escritorioId }) {
+export default function DispositivosModal({ onClose, onBack, escritorioId, inline = false }) {
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -233,7 +233,7 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className={inline ? "w-full h-full flex flex-col" : "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"}>
       {showSaveMessage && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-pulse">
           <Save className="w-5 h-5" />
@@ -246,9 +246,9 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
           <span className="font-semibold">Error al guardar los dispositivos</span>
         </div>
       )}
-      <div className="relative bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col">
+      <div className={inline ? "flex-1 flex flex-col overflow-hidden" : "relative bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col"}>
         {/* Header */}
-        <div className="bg-bg-primary p-6 border-b border-border-subtle flex-shrink-0">
+        <div className={`bg-bg-primary p-6 border-b border-border-subtle flex-shrink-0 ${inline ? 'sticky top-0 z-10' : ''}`}>
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <Smartphone className="w-8 h-8 text-[#1976D2]" />
@@ -273,12 +273,24 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
                 {isDetecting ? "Detectando..." : "Detectar"}
               </button>
             </div>
-            <button
-              onClick={onClose}
-              className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
+            {!inline && (
+              <button
+                onClick={onClose}
+                className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            )}
+            {inline && (
+              <button
+                onClick={handleSave}
+                disabled={saving || loading}
+                className="px-5 py-2.5 text-sm bg-[#1976D2] text-white rounded-xl font-bold hover:bg-[#1565C0] transition-all flex items-center gap-2 disabled:opacity-50 shadow-md"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {saving ? "Guardando..." : "Guardar Cambios"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -450,28 +462,30 @@ export default function DispositivosModal({ onClose, onBack, escritorioId }) {
         </div>
 
         {/* Footer */}
-        <div className="bg-bg-primary p-4 border-t border-border-subtle flex-shrink-0">
-          <div className="flex gap-4">
-            <button
-              onClick={onBack || onClose}
-              className="flex-1 px-6 py-3 bg-bg-primary border border-border-subtle text-text-secondary rounded-xl font-bold hover:bg-bg-secondary transition-colors"
-            >
-              {onBack ? "Volver" : "Cancelar"}
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving || loading}
-              className="flex-1 px-6 py-3 bg-[#1976D2] text-white rounded-xl font-bold hover:bg-[#1565C0] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {saving ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Save className="w-5 h-5" />
-              )}
-              {saving ? "Guardando..." : "Guardar Dispositivos"}
-            </button>
+        {!inline && (
+          <div className="bg-bg-primary p-4 border-t border-border-subtle flex-shrink-0">
+            <div className="flex gap-4">
+              <button
+                onClick={onBack || onClose}
+                className="flex-1 px-6 py-3 bg-bg-primary border border-border-subtle text-text-secondary rounded-xl font-bold hover:bg-bg-secondary transition-colors"
+              >
+                {onBack ? "Volver" : "Cancelar"}
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving || loading}
+                className="flex-1 px-6 py-3 bg-[#1976D2] text-white rounded-xl font-bold hover:bg-[#1565C0] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {saving ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Save className="w-5 h-5" />
+                )}
+                {saving ? "Guardando..." : "Guardar Dispositivos"}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

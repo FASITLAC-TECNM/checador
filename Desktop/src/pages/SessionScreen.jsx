@@ -31,6 +31,7 @@ import PreferenciasModal from "../components/session/PreferenciasModal";
 import HorarioModal from "../components/session/HorarioModal";
 import EmployeeInfo from "../components/session/EmployeeInfo";
 import NoEmployeeInfo from "../components/session/NoEmployeeInfo";
+import AdminDashboard from "../components/session/AdminDashboard";
 import BiometricEnroll from "../components/kiosk/BiometricEnroll";
 import RegisterFaceModal from "../components/kiosk/RegisterFaceModal";
 import { getEmpleadoConHorario, getDepartamentosPorEmpleadoId } from "../services/empleadoService";
@@ -223,225 +224,227 @@ export default function SessionScreen({ onLogout, usuario }) {
   return (
     <div className="h-screen bg-bg-secondary p-4 overflow-hidden">
       <div className="max-w-[1600px] mx-auto h-full flex flex-col">
-        {/* Header con información del usuario */}
-        <div className="bg-bg-primary rounded-2xl shadow-lg p-5 mb-4 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-5">
-              {/* Foto del usuario con borde degradado */}
-              <div className="relative">
-                <div className="absolute inset-0 bg-[#1976D2] rounded-full p-[2px]">
-                  <div className="w-full h-full bg-bg-primary rounded-full" />
-                </div>
-                {usuario?.foto ? (
-                  <img
-                    src={usuario.foto}
-                    alt={userName}
-                    className="relative w-20 h-20 rounded-full object-cover border-[3px] border-transparent"
-                    style={{
-                      background: 'none'
-                    }}
-                  />
-                ) : (
-                  <div className="relative w-20 h-20 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-full flex items-center justify-center shadow-lg border-2 border-[#1976D2]">
-                    <User className="w-10 h-10 text-[#1976D2] dark:text-[#42A5F5]" />
+        {/* Header con información del usuario - solo empleados */}
+        {isEmployee && (
+          <div className="bg-bg-primary rounded-2xl shadow-lg p-5 mb-4 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-5">
+                {/* Foto del usuario con borde degradado */}
+                <div className="relative">
+                  <div className="absolute inset-0 bg-[#1976D2] rounded-full p-[2px]">
+                    <div className="w-full h-full bg-bg-primary rounded-full" />
                   </div>
-                )}
-                {/* Indicador de estado online */}
-                <div className="absolute bottom-1 right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-bg-primary" />
-              </div>
-
-              {/* Información del usuario */}
-              <div className="flex flex-col">
-                {/* Nombre y badges */}
-                <div className="flex items-center gap-3 mb-2">
-                  <h1 className="text-2xl font-bold text-text-primary">
-                    {userName}
-                  </h1>
-                  <div className="flex items-center gap-2">
-                    <span className="px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold rounded-full shadow-sm">
-                      {datosCompletos?.estado || "CONECTADO"}
-                    </span>
-                    {isEmployee && (
-                      <span className="px-3 py-1 bg-[#E3F2FD] dark:bg-[#1565C0]/20 text-[#1976D2] dark:text-[#42A5F5] text-xs font-bold rounded-full shadow-sm border border-[#1976D2]/30">
-                        Empleado
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Grid de datos */}
-                <div className="flex flex-wrap gap-x-6 gap-y-2">
-                  {/* Usuario */}
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className="flex items-center justify-center w-7 h-7 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-lg">
-                      <User className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" />
-                    </div>
-                    <div>
-                      <span className="text-text-tertiary text-xs">Usuario</span>
-                      <p className="text-text-primary font-medium -mt-0.5">{userUsername}</p>
-                    </div>
-                  </div>
-
-                  {/* Teléfono */}
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className="flex items-center justify-center w-7 h-7 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-lg">
-                      <svg className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <span className="text-text-tertiary text-xs">Teléfono</span>
-                      <p className="text-text-primary font-medium -mt-0.5">{userPhone}</p>
-                    </div>
-                  </div>
-
-                  {/* Email */}
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className="flex items-center justify-center w-7 h-7 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-lg">
-                      <svg className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <span className="text-text-tertiary text-xs">Email</span>
-                      <p className="text-text-primary font-medium -mt-0.5">{userEmail}</p>
-                    </div>
-                  </div>
-
-                  {/* Departamentos - Diseño compacto con popover */}
-                  {(departamentos.length > 0 || userDepartamento) && (
-                    <div className="flex items-center gap-2 text-sm relative">
-                      <div className="flex items-center justify-center w-7 h-7 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-lg">
-                        <Building2 className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" />
-                      </div>
-                      <div>
-                        <span className="text-text-tertiary text-xs">
-                          {departamentos.length > 1 ? `Departamentos (${departamentos.length})` : "Departamento"}
-                        </span>
-                        {departamentos.length > 0 ? (
-                          <div className="flex items-center gap-1 -mt-0.5">
-                            {/* Mostrar máximo 2 departamentos */}
-                            {departamentos.slice(0, 2).map((depto, index) => (
-                              <span
-                                key={depto.id || index}
-                                className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold max-w-[120px] truncate"
-                                style={{
-                                  backgroundColor: depto.color ? `${depto.color}20` : '#E3F2FD',
-                                  color: depto.color || '#1976D2'
-                                }}
-                                title={depto.nombre}
-                              >
-                                {depto.nombre}
-                              </span>
-                            ))}
-                            {/* Mostrar badge +X si hay más de 2 */}
-                            {departamentos.length > 2 && (
-                              <div className="relative">
-                                <button
-                                  onClick={() => setShowAllDepartamentos(!showAllDepartamentos)}
-                                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-purple-600 text-white hover:bg-purple-700 transition-colors cursor-pointer"
-                                >
-                                  +{departamentos.length - 2}
-                                </button>
-                                {/* Popover con todos los departamentos */}
-                                {showAllDepartamentos && (
-                                  <>
-                                    <div
-                                      className="fixed inset-0 z-40"
-                                      onClick={() => setShowAllDepartamentos(false)}
-                                    />
-                                    <div className="absolute top-full left-0 mt-2 z-50 bg-bg-primary border border-border-subtle rounded-xl shadow-xl p-3 min-w-[280px] max-w-[400px]">
-                                      <div className="flex items-center justify-between mb-2 pb-2 border-b border-border-subtle">
-                                        <span className="text-sm font-bold text-text-primary">
-                                          Todos los departamentos ({departamentos.length})
-                                        </span>
-                                        <button
-                                          onClick={() => setShowAllDepartamentos(false)}
-                                          className="text-text-tertiary hover:text-text-primary"
-                                        >
-                                          <X className="w-4 h-4" />
-                                        </button>
-                                      </div>
-                                      <div className="flex flex-wrap gap-1.5 max-h-[200px] overflow-y-auto">
-                                        {departamentos.map((depto, index) => (
-                                          <span
-                                            key={depto.id || index}
-                                            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
-                                            style={{
-                                              backgroundColor: depto.color ? `${depto.color}20` : 'rgb(147, 51, 234, 0.1)',
-                                              color: depto.color || 'rgb(147, 51, 234)'
-                                            }}
-                                          >
-                                            {depto.nombre}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  </>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-[#1976D2] dark:text-[#42A5F5] font-semibold -mt-0.5">{userDepartamento}</p>
-                        )}
-                      </div>
+                  {usuario?.foto ? (
+                    <img
+                      src={usuario.foto}
+                      alt={userName}
+                      className="relative w-20 h-20 rounded-full object-cover border-[3px] border-transparent"
+                      style={{
+                        background: 'none'
+                      }}
+                    />
+                  ) : (
+                    <div className="relative w-20 h-20 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-full flex items-center justify-center shadow-lg border-2 border-[#1976D2]">
+                      <User className="w-10 h-10 text-[#1976D2] dark:text-[#42A5F5]" />
                     </div>
                   )}
+                  {/* Indicador de estado online */}
+                  <div className="absolute bottom-1 right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-bg-primary" />
+                </div>
 
-                  {/* RFC - Solo empleados */}
-                  {isEmployee && userRFC && (
+                {/* Información del usuario */}
+                <div className="flex flex-col">
+                  {/* Nombre y badges */}
+                  <div className="flex items-center gap-3 mb-2">
+                    <h1 className="text-2xl font-bold text-text-primary">
+                      {userName}
+                    </h1>
+                    <div className="flex items-center gap-2">
+                      <span className="px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold rounded-full shadow-sm">
+                        {datosCompletos?.estado || "CONECTADO"}
+                      </span>
+                      {isEmployee && (
+                        <span className="px-3 py-1 bg-[#E3F2FD] dark:bg-[#1565C0]/20 text-[#1976D2] dark:text-[#42A5F5] text-xs font-bold rounded-full shadow-sm border border-[#1976D2]/30">
+                          Empleado
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Grid de datos */}
+                  <div className="flex flex-wrap gap-x-6 gap-y-2">
+                    {/* Usuario */}
                     <div className="flex items-center gap-2 text-sm">
                       <div className="flex items-center justify-center w-7 h-7 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-lg">
-                        <Briefcase className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" />
+                        <User className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" />
                       </div>
                       <div>
-                        <span className="text-text-tertiary text-xs">RFC</span>
-                        <p className="text-text-primary font-medium -mt-0.5">{userRFC}</p>
+                        <span className="text-text-tertiary text-xs">Usuario</span>
+                        <p className="text-text-primary font-medium -mt-0.5">{userUsername}</p>
                       </div>
                     </div>
-                  )}
 
-                  {/* NSS - Solo empleados */}
-                  {isEmployee && userNSS && (
+                    {/* Teléfono */}
                     <div className="flex items-center gap-2 text-sm">
                       <div className="flex items-center justify-center w-7 h-7 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-lg">
                         <svg className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                         </svg>
                       </div>
                       <div>
-                        <span className="text-text-tertiary text-xs">NSS</span>
-                        <p className="text-text-primary font-medium -mt-0.5">{userNSS}</p>
+                        <span className="text-text-tertiary text-xs">Teléfono</span>
+                        <p className="text-text-primary font-medium -mt-0.5">{userPhone}</p>
                       </div>
                     </div>
-                  )}
 
+                    {/* Email */}
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className="flex items-center justify-center w-7 h-7 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-lg">
+                        <svg className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <span className="text-text-tertiary text-xs">Email</span>
+                        <p className="text-text-primary font-medium -mt-0.5">{userEmail}</p>
+                      </div>
+                    </div>
+
+                    {/* Departamentos - Diseño compacto con popover */}
+                    {(departamentos.length > 0 || userDepartamento) && (
+                      <div className="flex items-center gap-2 text-sm relative">
+                        <div className="flex items-center justify-center w-7 h-7 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-lg">
+                          <Building2 className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" />
+                        </div>
+                        <div>
+                          <span className="text-text-tertiary text-xs">
+                            {departamentos.length > 1 ? `Departamentos (${departamentos.length})` : "Departamento"}
+                          </span>
+                          {departamentos.length > 0 ? (
+                            <div className="flex items-center gap-1 -mt-0.5">
+                              {/* Mostrar máximo 2 departamentos */}
+                              {departamentos.slice(0, 2).map((depto, index) => (
+                                <span
+                                  key={depto.id || index}
+                                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold max-w-[120px] truncate"
+                                  style={{
+                                    backgroundColor: depto.color ? `${depto.color}20` : '#E3F2FD',
+                                    color: depto.color || '#1976D2'
+                                  }}
+                                  title={depto.nombre}
+                                >
+                                  {depto.nombre}
+                                </span>
+                              ))}
+                              {/* Mostrar badge +X si hay más de 2 */}
+                              {departamentos.length > 2 && (
+                                <div className="relative">
+                                  <button
+                                    onClick={() => setShowAllDepartamentos(!showAllDepartamentos)}
+                                    className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-purple-600 text-white hover:bg-purple-700 transition-colors cursor-pointer"
+                                  >
+                                    +{departamentos.length - 2}
+                                  </button>
+                                  {/* Popover con todos los departamentos */}
+                                  {showAllDepartamentos && (
+                                    <>
+                                      <div
+                                        className="fixed inset-0 z-40"
+                                        onClick={() => setShowAllDepartamentos(false)}
+                                      />
+                                      <div className="absolute top-full left-0 mt-2 z-50 bg-bg-primary border border-border-subtle rounded-xl shadow-xl p-3 min-w-[280px] max-w-[400px]">
+                                        <div className="flex items-center justify-between mb-2 pb-2 border-b border-border-subtle">
+                                          <span className="text-sm font-bold text-text-primary">
+                                            Todos los departamentos ({departamentos.length})
+                                          </span>
+                                          <button
+                                            onClick={() => setShowAllDepartamentos(false)}
+                                            className="text-text-tertiary hover:text-text-primary"
+                                          >
+                                            <X className="w-4 h-4" />
+                                          </button>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5 max-h-[200px] overflow-y-auto">
+                                          {departamentos.map((depto, index) => (
+                                            <span
+                                              key={depto.id || index}
+                                              className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
+                                              style={{
+                                                backgroundColor: depto.color ? `${depto.color}20` : 'rgb(147, 51, 234, 0.1)',
+                                                color: depto.color || 'rgb(147, 51, 234)'
+                                              }}
+                                            >
+                                              {depto.nombre}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-[#1976D2] dark:text-[#42A5F5] font-semibold -mt-0.5">{userDepartamento}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* RFC - Solo empleados */}
+                    {isEmployee && userRFC && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <div className="flex items-center justify-center w-7 h-7 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-lg">
+                          <Briefcase className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" />
+                        </div>
+                        <div>
+                          <span className="text-text-tertiary text-xs">RFC</span>
+                          <p className="text-text-primary font-medium -mt-0.5">{userRFC}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* NSS - Solo empleados */}
+                    {isEmployee && userNSS && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <div className="flex items-center justify-center w-7 h-7 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-lg">
+                          <svg className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <span className="text-text-tertiary text-xs">NSS</span>
+                          <p className="text-text-primary font-medium -mt-0.5">{userNSS}</p>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Botones de acción */}
-            <div className="flex items-center gap-3">
-              {!isEmployee && (
+              {/* Botones de acción */}
+              <div className="flex items-center gap-3">
+                {!isEmployee && (
+                  <button
+                    onClick={() => setShowConfigModal(true)}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-bg-secondary hover:bg-bg-tertiary text-text-primary rounded-xl font-semibold transition-all border border-border-subtle hover:border-blue-300 hover:shadow-md text-sm"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Configuración
+                  </button>
+                )}
                 <button
-                  onClick={() => setShowConfigModal(true)}
-                  className="flex items-center gap-2 px-5 py-2.5 bg-bg-secondary hover:bg-bg-tertiary text-text-primary rounded-xl font-semibold transition-all border border-border-subtle hover:border-blue-300 hover:shadow-md text-sm"
+                  onClick={onLogout}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white rounded-xl font-semibold transition-all shadow-md hover:shadow-lg text-sm"
                 >
-                  <Settings className="w-4 h-4" />
-                  Configuración
+                  <LogOut className="w-4 h-4" />
+                  Cerrar Sesión
                 </button>
-              )}
-              <button
-                onClick={onLogout}
-                className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white rounded-xl font-semibold transition-all shadow-md hover:shadow-lg text-sm"
-              >
-                <LogOut className="w-4 h-4" />
-                Cerrar Sesión
-              </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Main Content - 3 Columnas */}
         {isEmployee ? (
@@ -558,7 +561,11 @@ export default function SessionScreen({ onLogout, usuario }) {
           </div>
         ) : (
           <div className="flex-1 min-h-0">
-            <NoEmployeeInfo />
+            <AdminDashboard
+              escritorioId={localStorage.getItem("escritorio_id")}
+              datosCompletos={datosCompletos}
+              onLogout={onLogout}
+            />
           </div>
         )}
       </div>

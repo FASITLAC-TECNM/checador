@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X, Sliders, Save, Moon, Volume2, Camera, Fingerprint, User, ChevronUp, ChevronDown, Loader2 } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
+import { useSound } from "../../context/SoundContext";
 import { obtenerOrdenCredenciales, guardarOrdenCredenciales } from "../../services/configuracionService";
 
 // Mapeo de claves del backend a info visual del frontend
@@ -12,6 +13,7 @@ const METODOS_AUTH_INFO = {
 
 export default function PreferenciasModal({ onClose, onBack }) {
   const { isDarkMode, setDarkMode } = useTheme();
+  const { soundEnabled, setSoundEnabled } = useSound();
   const [showSaveMessage, setShowSaveMessage] = useState(false);
   const [showMinMethodWarning, setShowMinMethodWarning] = useState(false);
 
@@ -232,12 +234,14 @@ export default function PreferenciasModal({ onClose, onBack }) {
                 <input
                   type="checkbox"
                   checked={preferences.soundEnabled}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const enabled = e.target.checked;
                     setPreferences({
                       ...preferences,
-                      soundEnabled: e.target.checked,
-                    })
-                  }
+                      soundEnabled: enabled,
+                    });
+                    setSoundEnabled(enabled);
+                  }}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-bg-tertiary peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-bg-primary after:border-border-subtle after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1976D2]"></div>

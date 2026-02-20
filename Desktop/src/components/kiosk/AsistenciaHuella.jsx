@@ -1045,7 +1045,7 @@ export default function AsistenciaHuella({
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="bg-green-500 p-2 rounded-lg">
+              <div className="bg-[#1976D2] p-2 rounded-lg">
                 <Fingerprint className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -1097,11 +1097,11 @@ export default function AsistenciaHuella({
             {identificando ? (
               /* Pantalla de Identificando... */
               <div className="bg-gray-50 dark:bg-slate-700/50 rounded-xl p-6">
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-8 text-center">
+                <div className="bg-[#E3F2FD] dark:bg-[#1565C0]/20 border border-[#BBDEFB] dark:border-[#1565C0]/40 rounded-lg p-8 text-center">
                   <div className="relative">
-                    <Fingerprint className="w-24 h-24 mx-auto mb-4 text-blue-600 dark:text-blue-400 animate-pulse" />
+                    <Fingerprint className="w-24 h-24 mx-auto mb-4 text-[#1976D2] dark:text-[#42A5F5] animate-pulse" />
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-32 h-32 border-4 border-blue-300 dark:border-blue-600 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin"></div>
+                      <div className="w-32 h-32 border-4 border-[#BBDEFB] dark:border-[#1565C0]/40 border-t-[#1976D2] dark:border-t-[#42A5F5] rounded-full animate-spin"></div>
                     </div>
                   </div>
                   <p className="text-gray-900 dark:text-white font-bold text-xl mb-2 mt-4">
@@ -1114,9 +1114,9 @@ export default function AsistenciaHuella({
               </div>
             ) : !result ? (
               <div className="bg-gray-50 dark:bg-slate-700/50 rounded-xl p-6">
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 text-center mb-4">
+                <div className="bg-[#E3F2FD] dark:bg-[#1565C0]/20 border border-[#BBDEFB] dark:border-[#1565C0]/40 rounded-lg p-6 text-center mb-4">
                   <Fingerprint
-                    className={`w-20 h-20 mx-auto mb-3 text-blue-600 dark:text-blue-400 ${connected && readerConnected ? "animate-pulse" : ""
+                    className={`w-20 h-20 mx-auto mb-3 text-[#1976D2] dark:text-[#42A5F5] ${connected && readerConnected ? "animate-pulse" : ""
                       }`}
                   />
                   <p className="text-gray-900 dark:text-white font-medium mb-1">
@@ -1136,9 +1136,9 @@ export default function AsistenciaHuella({
                 </div>
 
                 {(processingAttendance || cargandoDatosHorario) && (
-                  <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3 mb-4">
+                  <div className="bg-[#E3F2FD] dark:bg-[#1565C0]/20 border border-[#BBDEFB] dark:border-[#1565C0]/40 rounded-lg p-3 mb-4">
                     <p className="text-gray-900 dark:text-white text-center text-sm flex items-center justify-center gap-2">
-                      <Clock className="w-4 h-4 animate-spin" />
+                      <Clock className="w-4 h-4 animate-spin text-[#1976D2]" />
                       {cargandoDatosHorario ? "Verificando horario..." : "Registrando asistencia..."}
                     </p>
                   </div>
@@ -1230,7 +1230,7 @@ export default function AsistenciaHuella({
                     <button
                       onClick={() => procesarLoginBiometrico(result.empleadoId)}
                       disabled={processingLogin || !loginHabilitado}
-                      className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mb-3"
+                      className="w-full px-4 py-3 bg-[#1976D2] hover:bg-[#1565C0] disabled:bg-[#90CAF9] disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mb-3"
                     >
                       {processingLogin ? (
                         <>
@@ -1302,7 +1302,7 @@ export default function AsistenciaHuella({
                     <button
                       onClick={() => procesarLoginBiometrico(result.empleadoId)}
                       disabled={processingLogin || !loginHabilitado}
-                      className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mb-3"
+                      className="w-full px-4 py-3 bg-[#1976D2] hover:bg-[#1565C0] disabled:bg-[#90CAF9] disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mb-3"
                     >
                       {processingLogin ? (
                         <>

@@ -23,7 +23,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
         {/* Header con gradiente */}
-        <div className="bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-500 p-6 relative">
+        <div className="bg-gradient-to-r from-[#1976D2] to-[#001A70] p-6 relative">
           <button
             onClick={onClose}
             className="absolute top-3 right-3 text-white/80 hover:text-white hover:bg-white/20 rounded-lg p-1.5 transition-colors"
@@ -71,7 +71,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                     onChange={(e) => setUsuarioOCorreo(e.target.value)}
                     placeholder="tu.usuario o correo@ejemplo.com"
                     disabled={loading}
-                    className="w-full pl-10 pr-4 py-2.5 border border-border-subtle rounded-lg bg-bg-secondary text-text-primary placeholder-text-disabled focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
+                    className="w-full pl-10 pr-4 py-2.5 border border-border-subtle rounded-lg bg-bg-secondary text-text-primary placeholder-text-disabled focus:ring-2 focus:ring-[#1976D2] focus:border-transparent disabled:opacity-50"
                   />
                 </div>
               </div>
@@ -87,10 +87,15 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   <input
                     type={showPassword ? "text" : "password"}
                     value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    placeholder="••••••••"
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                      setPin(value);
+                    }}
+                    placeholder="••••••"
+                    maxLength={6}
+                    inputMode="numeric"
                     disabled={loading}
-                    className="w-full pl-10 pr-10 py-2.5 border border-border-subtle rounded-lg bg-bg-secondary text-text-primary placeholder-text-disabled focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-50"
+                    className="w-full pl-10 pr-10 py-2.5 border border-border-subtle rounded-lg bg-bg-secondary text-text-primary placeholder-text-disabled focus:ring-2 focus:ring-[#1976D2] focus:border-transparent disabled:opacity-50"
                   />
                   <button
                     type="button"
@@ -109,7 +114,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-purple-400 disabled:to-blue-400 text-white rounded-lg font-semibold text-base shadow-lg transition-all mt-2 flex items-center justify-center gap-2"
+                className="w-full py-3 bg-[#1976D2] hover:bg-[#1565C0] disabled:bg-[#90CAF9] text-white rounded-lg font-semibold text-base shadow-lg transition-all mt-2 flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -131,7 +136,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   : result.noEsEmpleado
                     ? "bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800"
                     : result.sinHorario
-                      ? "bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800"
+                      ? "bg-[#E3F2FD] dark:bg-[#1565C0]/20 border border-[#BBDEFB] dark:border-[#1565C0]/40"
                       : "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
                 }`}
             >
@@ -198,7 +203,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   {onLoginRequest && (
                     <button
                       onClick={() => handleLoginRequest()}
-                      className="mt-4 w-full py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
+                      className="mt-4 w-full py-2.5 bg-[#1976D2] hover:bg-[#1565C0] text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
                     >
                       <LogIn className="w-4 h-4" />
                       Iniciar Sesión
@@ -245,7 +250,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   {onLoginRequest && (
                     <button
                       onClick={() => handleLoginRequest()}
-                      className="mt-4 w-full py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
+                      className="mt-4 w-full py-2.5 bg-[#1976D2] hover:bg-[#1565C0] text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
                     >
                       <LogIn className="w-4 h-4" />
                       Iniciar Sesión
@@ -279,7 +284,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   {onLoginRequest && (
                     <button
                       onClick={() => handleLoginRequest()}
-                      className="mt-4 w-full py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
+                      className="mt-4 w-full py-2.5 bg-[#1976D2] hover:bg-[#1565C0] text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
                     >
                       <LogIn className="w-4 h-4" />
                       Iniciar Sesión
@@ -288,8 +293,8 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                 </>
               ) : result.sinHorario ? (
                 <>
-                  <CalendarX className="w-16 h-16 mx-auto mb-3 text-purple-600 dark:text-purple-400" />
-                  <p className="text-purple-800 dark:text-purple-300 font-bold text-lg mb-1">
+                  <CalendarX className="w-16 h-16 mx-auto mb-3 text-[#1976D2] dark:text-[#42A5F5]" />
+                  <p className="text-[#0D47A1] dark:text-[#90CAF9] font-bold text-lg mb-1">
                     Sin Horario Asignado
                   </p>
                   <p className="text-gray-700 dark:text-gray-300 text-lg mb-2">
@@ -298,7 +303,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
                     No tienes un horario configurado en el sistema. Contacta a tu administrador.
                   </p>
-                  <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 dark:bg-purple-800/30 dark:text-purple-300">
+                  <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-[#E3F2FD] text-[#0D47A1] dark:bg-[#1565C0]/30 dark:text-[#90CAF9]">
                     Requiere asignación de horario
                   </span>
 
@@ -313,7 +318,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   {onLoginRequest && (
                     <button
                       onClick={() => handleLoginRequest()}
-                      className="mt-4 w-full py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
+                      className="mt-4 w-full py-2.5 bg-[#1976D2] hover:bg-[#1565C0] text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
                     >
                       <LogIn className="w-4 h-4" />
                       Iniciar Sesión

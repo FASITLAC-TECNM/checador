@@ -253,8 +253,8 @@ export default function EmployeeInfo({ time, empleado, horario: horarioProp, loa
             {/* Turno Relevante */}
             <div className="bg-bg-secondary rounded-xl p-4 mb-3 border border-border-subtle">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <div className="w-10 h-10 rounded-xl bg-[#E3F2FD] dark:bg-[#1565C0]/40 flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-[#1976D2] dark:text-[#42A5F5]" />
                 </div>
                 <div className="flex-1">
                   <p className="text-xs text-text-secondary font-medium mb-0.5">
@@ -273,11 +273,11 @@ export default function EmployeeInfo({ time, empleado, horario: horarioProp, loa
                 onClick={() => setShowAllTurnos(!showAllTurnos)}
                 className="w-full flex items-center justify-center gap-2 bg-bg-secondary hover:bg-bg-tertiary rounded-xl p-3 mb-3 border border-border-subtle transition-colors"
               >
-                <Layers className="w-4 h-4 text-indigo-500" />
-                <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">
+                <Layers className="w-4 h-4 text-[#1976D2]" />
+                <span className="text-sm font-semibold text-[#1976D2] dark:text-[#42A5F5]">
                   {infoHoy.turnos.length} turnos hoy - {showAllTurnos ? 'Ocultar' : 'Ver todos'}
                 </span>
-                <ChevronRight className={`w-4 h-4 text-indigo-500 transition-transform ${showAllTurnos ? 'rotate-90' : ''}`} />
+                <ChevronRight className={`w-4 h-4 text-[#1976D2] transition-transform ${showAllTurnos ? 'rotate-90' : ''}`} />
               </button>
             )}
 
@@ -340,8 +340,8 @@ export default function EmployeeInfo({ time, empleado, horario: horarioProp, loa
         ) : !errorHorario && horarioParsed && infoHoy.trabaja && turnoRelevante?.estado === 'finalizado' ? (
           /* Jornada Finalizada */
           <div className="bg-bg-secondary rounded-xl p-4 border border-border-subtle text-center">
-            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-green-500" />
+            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[#E3F2FD] dark:bg-[#1565C0]/30 flex items-center justify-center">
+              <CheckCircle className="w-6 h-6 text-[#1976D2]" />
             </div>
             <p className="text-text-primary font-semibold">Jornada Completada</p>
             <p className="text-xs text-text-secondary mt-1">
@@ -351,8 +351,8 @@ export default function EmployeeInfo({ time, empleado, horario: horarioProp, loa
         ) : !errorHorario && horarioParsed && !infoHoy.trabaja ? (
           /* Día de Descanso */
           <div className="bg-bg-secondary rounded-xl p-4 border border-border-subtle text-center">
-            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-              <Coffee className="w-6 h-6 text-purple-500" />
+            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[#E3F2FD] dark:bg-[#1565C0]/30 flex items-center justify-center">
+              <Coffee className="w-6 h-6 text-[#1976D2]" />
             </div>
             <p className="text-text-primary font-semibold">Día de Descanso</p>
             <p className="text-xs text-text-secondary mt-1">Disfruta tu día libre</p>
@@ -360,8 +360,8 @@ export default function EmployeeInfo({ time, empleado, horario: horarioProp, loa
         ) : !errorHorario && !horarioParsed ? (
           /* Sin horario asignado */
           <div className="bg-bg-secondary rounded-xl p-6 border border-border-subtle text-center">
-            <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-              <Calendar className="w-8 h-8 text-gray-400" />
+            <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-[#E3F2FD] dark:bg-[#1565C0]/20 flex items-center justify-center">
+              <Calendar className="w-8 h-8 text-[#1976D2]" />
             </div>
             <p className="text-lg font-bold text-text-primary mb-1">Sin Horario Asignado</p>
             <p className="text-sm text-text-secondary">Contacta a tu supervisor para asignar tu horario</p>
@@ -372,28 +372,29 @@ export default function EmployeeInfo({ time, empleado, horario: horarioProp, loa
       {/* Tarjetas de Resumen - Estilo Móvil */}
       <div className="grid grid-cols-2 gap-3 flex-shrink-0">
         {/* Horas Totales */}
-        <div className="bg-indigo-500 rounded-2xl p-4 shadow-lg shadow-indigo-500/20">
+        {/* Horas Totales */}
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-md border border-slate-100 dark:border-slate-700">
           <div className="flex flex-col items-center text-center">
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center mb-2">
-              <Clock className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-full bg-[#E3F2FD] dark:bg-[#1565C0]/20 flex items-center justify-center mb-2">
+              <Clock className="w-5 h-5 text-[#1976D2] dark:text-[#42A5F5]" />
             </div>
-            <p className="text-3xl font-bold text-white mb-1">
+            <p className="text-3xl font-bold text-slate-800 dark:text-white mb-1">
               {resumenSemanal.horasTotales}
             </p>
-            <p className="text-xs text-white/80 font-medium">Horas Totales</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Horas Totales</p>
           </div>
         </div>
 
         {/* Días Laborales */}
-        <div className="bg-emerald-500 rounded-2xl p-4 shadow-lg shadow-emerald-500/20">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-md border border-slate-100 dark:border-slate-700">
           <div className="flex flex-col items-center text-center">
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center mb-2">
-              <Calendar className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-full bg-[#E3F2FD] dark:bg-[#1565C0]/20 flex items-center justify-center mb-2">
+              <Calendar className="w-5 h-5 text-[#1976D2] dark:text-[#42A5F5]" />
             </div>
-            <p className="text-3xl font-bold text-white mb-1">
+            <p className="text-3xl font-bold text-slate-800 dark:text-white mb-1">
               {resumenSemanal.diasLaborales}
             </p>
-            <p className="text-xs text-white/80 font-medium">Días Laborales</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Días Laborales</p>
           </div>
         </div>
       </div>

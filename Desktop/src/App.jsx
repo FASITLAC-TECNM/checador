@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { ThemeProvider } from "./context/ThemeContext";
+import { SoundProvider } from "./context/SoundContext";
 import { AuthProvider } from "./context/AuthContext";
 import { CameraProvider } from "./context/CameraContext";
 import AffiliationRequest from "./pages/AffiliationRequest";
@@ -64,19 +65,21 @@ function App() {
 
   return (
     <ThemeProvider>
-      <AuthProvider>
-        <CameraProvider>
-          <div className="App">
-            {currentPage === "affiliation" && (
-              <AffiliationRequest onComplete={handleAffiliationComplete} />
-            )}
-            {currentPage === "kiosk" && <KioskScreen />}
-            {currentPage === "session" && (
-              <SessionScreen onLogout={() => setCurrentPage("kiosk")} />
-            )}
-          </div>
-        </CameraProvider>
-      </AuthProvider>
+      <SoundProvider>
+        <AuthProvider>
+          <CameraProvider>
+            <div className="App">
+              {currentPage === "affiliation" && (
+                <AffiliationRequest onComplete={handleAffiliationComplete} />
+              )}
+              {currentPage === "kiosk" && <KioskScreen />}
+              {currentPage === "session" && (
+                <SessionScreen onLogout={() => setCurrentPage("kiosk")} />
+              )}
+            </div>
+          </CameraProvider>
+        </AuthProvider>
+      </SoundProvider>
     </ThemeProvider>
   );
 }

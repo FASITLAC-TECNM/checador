@@ -14,6 +14,26 @@ export default function NodeConfigStep({
   // Detectar información del sistema al cargar el componente
   useEffect(() => {
     detectSystemInfo();
+
+    // Suscribirse a cambios de red
+    if (window.electronAPI && window.electronAPI.onNetworkStatusChange) {
+      const handleNetworkChange = (details) => {
+        console.log("Cambio de red detectado:", details);
+        setNodeConfig((prev) => ({
+          ...prev,
+          ipAddress: details.ipAddress,
+          macAddress: details.macAddress,
+        }));
+      };
+
+      window.electronAPI.onNetworkStatusChange(handleNetworkChange);
+
+      return () => {
+        if (window.electronAPI.removeNetworkStatusListener) {
+          window.electronAPI.removeNetworkStatusListener();
+        }
+      };
+    }
   }, []);
 
   const detectSystemInfo = async () => {
@@ -39,9 +59,9 @@ export default function NodeConfigStep({
     return (
       nodeConfig.nodeName.trim() !== "" &&
       nodeConfig.description.trim() !== "" &&
-      nodeConfig.ipAddress &&
-      nodeConfig.macAddress &&
-      nodeConfig.operatingSystem
+      nodeConfig.ipAddress && nodeConfig.ipAddress !== "No detectada" &&
+      nodeConfig.macAddress && nodeConfig.macAddress !== "No detectada" &&
+      nodeConfig.operatingSystem && nodeConfig.operatingSystem !== "Sistema no detectado"
     );
   };
 

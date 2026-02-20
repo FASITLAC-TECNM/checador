@@ -179,7 +179,7 @@ export default function BiometricEnroll({
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="bg-green-500 p-2 rounded-lg">
+              <div className="bg-[#1976D2] p-2 rounded-lg">
                 <Fingerprint className="w-6 h-6 text-white" />
               </div>
               <h1 className="text-xl font-bold text-gray-900 dark:text-white">
@@ -199,15 +199,15 @@ export default function BiometricEnroll({
             {/* Reader Status */}
             <div
               className={`flex items-center justify-between p-4 rounded-xl ${readerConnected
-                  ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
-                  : "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
+                ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+                : "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
                 }`}
             >
               <div className="flex items-center gap-3">
                 <Fingerprint
                   className={`w-6 h-6 ${readerConnected
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-yellow-600 dark:text-yellow-400"
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-yellow-600 dark:text-yellow-400"
                     }`}
                 />
                 <div>
@@ -226,8 +226,8 @@ export default function BiometricEnroll({
               </h2>
 
               <div className="space-y-4">
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 text-center">
-                  <Fingerprint className="w-16 h-16 mx-auto mb-3 text-blue-600 dark:text-blue-400" />
+                <div className="bg-[#E3F2FD] dark:bg-[#1565C0]/20 border border-[#BBDEFB] dark:border-[#1565C0]/40 rounded-lg p-6 text-center">
+                  <Fingerprint className="w-16 h-16 mx-auto mb-3 text-[#1976D2] dark:text-[#42A5F5]" />
                   <p className="text-gray-900 dark:text-white font-medium mb-1">
                     Coloca tu dedo en el lector
                   </p>
@@ -237,7 +237,7 @@ export default function BiometricEnroll({
                 </div>
 
                 {currentOperation === "Enrollment" && (
-                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <div className="bg-[#E3F2FD] dark:bg-[#1565C0]/20 border border-[#BBDEFB] dark:border-[#1565C0]/40 rounded-lg p-4">
                     <div className="mb-3">
                       <div className="flex justify-between text-gray-900 dark:text-white text-sm mb-2">
                         <span>
@@ -247,7 +247,7 @@ export default function BiometricEnroll({
                       </div>
                       <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
                         <div
-                          className="bg-blue-600 h-full transition-all duration-300 rounded-full"
+                          className="bg-[#1976D2] h-full transition-all duration-300 rounded-full"
                           style={{ width: `${enrollProgress.percentage}%` }}
                         />
                       </div>
@@ -259,7 +259,7 @@ export default function BiometricEnroll({
                 )}
 
                 {savingToDatabase && (
-                  <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3">
+                  <div className="bg-[#E3F2FD] dark:bg-[#1565C0]/20 border border-[#BBDEFB] dark:border-[#1565C0]/40 rounded-lg p-3">
                     <p className="text-gray-900 dark:text-white text-center text-sm flex items-center justify-center gap-2">
                       <Database className="w-4 h-4" />
                       Guardando en base de datos...

@@ -255,7 +255,7 @@ export default function FacialAuthModal({ onClose, onAuthSuccess }) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 to-blue-600 px-6 py-4">
+        <div className="bg-gradient-to-r from-[#1976D2] to-[#001A70] px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
@@ -296,29 +296,29 @@ export default function FacialAuthModal({ onClose, onAuthSuccess }) {
                     <div
                       className="absolute top-0 left-0 w-10 h-10 border-l-[3px] border-t-[3px] transition-all duration-300"
                       style={{
-                        borderColor: faceDetected ? '#a855f7' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(168,85,247,0.8))' : 'none'
+                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
+                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
                       }}
                     />
                     <div
                       className="absolute top-0 right-0 w-10 h-10 border-r-[3px] border-t-[3px] transition-all duration-300"
                       style={{
-                        borderColor: faceDetected ? '#a855f7' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(168,85,247,0.8))' : 'none'
+                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
+                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
                       }}
                     />
                     <div
                       className="absolute bottom-0 left-0 w-10 h-10 border-l-[3px] border-b-[3px] transition-all duration-300"
                       style={{
-                        borderColor: faceDetected ? '#a855f7' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(168,85,247,0.8))' : 'none'
+                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
+                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
                       }}
                     />
                     <div
                       className="absolute bottom-0 right-0 w-10 h-10 border-r-[3px] border-b-[3px] transition-all duration-300"
                       style={{
-                        borderColor: faceDetected ? '#a855f7' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(168,85,247,0.8))' : 'none'
+                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
+                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
                       }}
                     />
                   </div>
@@ -334,8 +334,8 @@ export default function FacialAuthModal({ onClose, onAuthSuccess }) {
 
                 {modelsLoaded && (
                   <div className="flex items-center justify-center gap-4 text-sm">
-                    <div className={`flex items-center gap-1.5 ${faceDetected ? 'text-purple-600 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                      <div className={`w-2.5 h-2.5 rounded-full ${faceDetected ? 'bg-purple-500 animate-pulse' : 'bg-gray-400'}`} />
+                    <div className={`flex items-center gap-1.5 ${faceDetected ? 'text-[#1976D2] dark:text-[#42A5F5]' : 'text-gray-500 dark:text-gray-400'}`}>
+                      <div className={`w-2.5 h-2.5 rounded-full ${faceDetected ? 'bg-[#1976D2] animate-pulse' : 'bg-gray-400'}`} />
                       <span className="font-medium">Rostro detectado</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
@@ -348,7 +348,7 @@ export default function FacialAuthModal({ onClose, onAuthSuccess }) {
                 {modelsLoaded && detectionProgress > 0 && (
                   <div className="w-full bg-gray-300 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
                     <div
-                      className="bg-purple-500 h-full transition-all duration-300 rounded-full"
+                      className="bg-[#1976D2] h-full transition-all duration-300 rounded-full"
                       style={{ width: `${detectionProgress}%` }}
                     />
                   </div>
@@ -356,7 +356,7 @@ export default function FacialAuthModal({ onClose, onAuthSuccess }) {
 
                 {!modelsLoaded && (
                   <div className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-purple-500 border-t-transparent"></div>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#1976D2] border-t-transparent"></div>
                     <span className="text-gray-600 dark:text-gray-400 text-xs">Cargando modelos...</span>
                   </div>
                 )}

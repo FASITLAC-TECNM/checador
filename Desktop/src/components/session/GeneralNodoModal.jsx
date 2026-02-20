@@ -7,7 +7,7 @@ import {
   obtenerEscritorioIdGuardado,
 } from "../../services/escritorioService";
 
-export default function GeneralNodoModal({ onClose, onBack }) {
+export default function GeneralNodoModal({ onClose, onBack, inline = false }) {
   const [isDetecting, setIsDetecting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -136,6 +136,14 @@ export default function GeneralNodoModal({ onClose, onBack }) {
 
   // Mostrar estado de carga
   if (isLoading) {
+    if (inline) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-4 py-20">
+          <Loader2 className="w-10 h-10 text-[#1976D2] animate-spin" />
+          <p className="text-text-primary text-sm font-medium">Cargando datos del escritorio...</p>
+        </div>
+      );
+    }
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden p-8">
@@ -150,6 +158,17 @@ export default function GeneralNodoModal({ onClose, onBack }) {
 
   // Mostrar error si no se pudo cargar
   if (error) {
+    if (inline) {
+      return (
+        <div className="flex flex-col items-center justify-center gap-4 py-20 px-6">
+          <AlertCircle className="w-10 h-10 text-red-500" />
+          <p className="text-text-secondary text-center">{error}</p>
+          <button onClick={cargarDatosEscritorio} className="px-4 py-2 text-sm bg-[#1976D2] text-white rounded-xl font-semibold hover:bg-[#1565C0] flex items-center gap-2">
+            <RefreshCw className="w-4 h-4" /> Reintentar
+          </button>
+        </div>
+      );
+    }
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden">
@@ -183,7 +202,7 @@ export default function GeneralNodoModal({ onClose, onBack }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className={inline ? "w-full h-full flex flex-col" : "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"}>
       {/* Toast de notificación */}
       {toast.show && (
         <div
@@ -201,9 +220,9 @@ export default function GeneralNodoModal({ onClose, onBack }) {
         </div>
       )}
 
-      <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden">
+      <div className={inline ? "flex-1 flex flex-col overflow-y-auto" : "bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden"}>
         {/* Header */}
-        <div className="bg-bg-primary p-6 border-b border-border-subtle">
+        <div className={`bg-bg-primary p-6 border-b border-border-subtle ${inline ? 'sticky top-0 z-10 flex-shrink-0' : ''}`}>
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <HardDrive className="w-8 h-8 text-[#1976D2]" />
@@ -214,12 +233,24 @@ export default function GeneralNodoModal({ onClose, onBack }) {
                 </p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
+            {!inline && (
+              <button
+                onClick={onClose}
+                className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            )}
+            {inline && (
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="px-5 py-2.5 text-sm bg-[#1976D2] text-white rounded-xl font-bold hover:bg-[#1565C0] transition-all flex items-center gap-2 disabled:opacity-50 shadow-md"
+              >
+                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {isSaving ? "Guardando..." : "Guardar Cambios"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -357,31 +388,33 @@ export default function GeneralNodoModal({ onClose, onBack }) {
           </div>
 
           {/* Botones */}
-          <div className="flex gap-3 mt-3">
-            <button
-              onClick={onBack || onClose}
-              className="flex-1 px-4 py-2 text-sm bg-bg-primary border border-border-subtle text-text-secondary rounded-xl font-semibold hover:bg-bg-secondary transition-colors"
-            >
-              {onBack ? "Volver" : "Cancelar"}
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="flex-1 px-4 py-2 text-sm bg-[#1976D2] text-white rounded-xl font-semibold hover:bg-[#1565C0] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Guardando...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  Guardar Configuración
-                </>
-              )}
-            </button>
-          </div>
+          {!inline && (
+            <div className="flex gap-3 mt-3">
+              <button
+                onClick={onBack || onClose}
+                className="flex-1 px-4 py-2 text-sm bg-bg-primary border border-border-subtle text-text-secondary rounded-xl font-semibold hover:bg-bg-secondary transition-colors"
+              >
+                {onBack ? "Volver" : "Cancelar"}
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="flex-1 px-4 py-2 text-sm bg-[#1976D2] text-white rounded-xl font-semibold hover:bg-[#1565C0] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Guardar Configuración
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -553,7 +553,7 @@ export default function AsistenciaFacial({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-purple-600 to-blue-600 px-6 py-4">
+        <div className="bg-gradient-to-r from-[#1976D2] to-[#001A70] px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
@@ -596,29 +596,29 @@ export default function AsistenciaFacial({
                     <div
                       className="absolute top-0 left-0 w-8 h-8 border-l-[3px] border-t-[3px] transition-all duration-300"
                       style={{
-                        borderColor: faceDetected ? '#a855f7' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(168,85,247,0.8))' : 'none'
+                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
+                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
                       }}
                     />
                     <div
                       className="absolute top-0 right-0 w-8 h-8 border-r-[3px] border-t-[3px] transition-all duration-300"
                       style={{
-                        borderColor: faceDetected ? '#a855f7' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(168,85,247,0.8))' : 'none'
+                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
+                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
                       }}
                     />
                     <div
                       className="absolute bottom-0 left-0 w-8 h-8 border-l-[3px] border-b-[3px] transition-all duration-300"
                       style={{
-                        borderColor: faceDetected ? '#a855f7' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(168,85,247,0.8))' : 'none'
+                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
+                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
                       }}
                     />
                     <div
                       className="absolute bottom-0 right-0 w-8 h-8 border-r-[3px] border-b-[3px] transition-all duration-300"
                       style={{
-                        borderColor: faceDetected ? '#a855f7' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(168,85,247,0.8))' : 'none'
+                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
+                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
                       }}
                     />
                   </div>
@@ -634,8 +634,8 @@ export default function AsistenciaFacial({
 
                 {modelsLoaded && (
                   <div className="flex items-center justify-center gap-4 text-sm">
-                    <div className={`flex items-center gap-1.5 ${faceDetected ? 'text-purple-600 dark:text-purple-400' : 'text-gray-500 dark:text-gray-400'}`}>
-                      <div className={`w-2.5 h-2.5 rounded-full ${faceDetected ? 'bg-purple-500 animate-pulse' : 'bg-gray-400'}`} />
+                    <div className={`flex items-center gap-1.5 ${faceDetected ? 'text-[#1976D2] dark:text-[#42A5F5]' : 'text-gray-500 dark:text-gray-400'}`}>
+                      <div className={`w-2.5 h-2.5 rounded-full ${faceDetected ? 'bg-[#1976D2] animate-pulse' : 'bg-gray-400'}`} />
                       <span className="font-medium">Rostro detectado</span>
                     </div>
                   </div>
@@ -643,7 +643,7 @@ export default function AsistenciaFacial({
 
                 {!modelsLoaded && (
                   <div className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-purple-500 border-t-transparent"></div>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#1976D2] border-t-transparent"></div>
                     <span className="text-gray-600 dark:text-gray-400 text-xs">Cargando modelos...</span>
                   </div>
                 )}
@@ -657,11 +657,11 @@ export default function AsistenciaFacial({
 
           {/* Identificando */}
           {step === "identifying" && (
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-8 text-center">
+            <div className="bg-[#E3F2FD] dark:bg-[#1565C0]/20 border border-[#BBDEFB] dark:border-[#1565C0]/40 rounded-xl p-8 text-center">
               <div className="relative">
-                <Camera className="w-20 h-20 mx-auto mb-4 text-blue-600 dark:text-blue-400 animate-pulse" />
+                <Camera className="w-20 h-20 mx-auto mb-4 text-[#1976D2] dark:text-[#42A5F5] animate-pulse" />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-28 h-28 border-4 border-blue-300 dark:border-blue-600 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin"></div>
+                  <div className="w-28 h-28 border-4 border-[#BBDEFB] dark:border-[#1565C0]/40 border-t-[#1976D2] dark:border-t-[#42A5F5] rounded-full animate-spin"></div>
                 </div>
               </div>
               <p className="text-gray-900 dark:text-white font-bold text-xl mb-2 mt-4">
@@ -685,10 +685,10 @@ export default function AsistenciaFacial({
               )}
 
               <p className={`font-bold text-lg mb-1 ${result.clasificacion === 'falta'
-                  ? "text-red-800 dark:text-red-300"
-                  : result.clasificacion === 'retardo' || result.clasificacion === 'salida_temprana'
-                    ? "text-yellow-800 dark:text-yellow-300"
-                    : "text-green-800 dark:text-green-300"
+                ? "text-red-800 dark:text-red-300"
+                : result.clasificacion === 'retardo' || result.clasificacion === 'salida_temprana'
+                  ? "text-yellow-800 dark:text-yellow-300"
+                  : "text-green-800 dark:text-green-300"
                 }`}>
                 Asistencia Registrada
               </p>
@@ -707,12 +707,12 @@ export default function AsistenciaFacial({
                   </p>
                   <span
                     className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${result.clasificacion === "entrada" || result.clasificacion === "salida_puntual"
-                        ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
-                        : result.clasificacion === "retardo" || result.clasificacion === "salida_temprana"
-                          ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
-                          : result.clasificacion === "falta"
-                            ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
-                            : "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300"
+                      ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
+                      : result.clasificacion === "retardo" || result.clasificacion === "salida_temprana"
+                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
+                        : result.clasificacion === "falta"
+                          ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
+                          : "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300"
                       }`}
                   >
                     {result.estadoTexto || result.estado || "Registrado"}
@@ -731,7 +731,7 @@ export default function AsistenciaFacial({
               <button
                 onClick={procesarLoginBiometrico}
                 disabled={processingLogin || !loginHabilitado}
-                className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mb-3"
+                className="w-full px-4 py-3 bg-[#1976D2] hover:bg-[#1565C0] disabled:bg-[#90CAF9] disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mb-3"
               >
                 {processingLogin ? (
                   <>
@@ -765,8 +765,8 @@ export default function AsistenciaFacial({
           {/* Error */}
           {step === "error" && (
             <div className={`rounded-xl p-6 text-center ${result?.noPuedeRegistrar
-                ? "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
-                : "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
+              ? "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
+              : "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
               }`}>
               {result?.noPuedeRegistrar ? (
                 <>
@@ -784,10 +784,10 @@ export default function AsistenciaFacial({
                   </p>
                   <span
                     className={`inline-block mt-3 px-3 py-1 rounded-full text-xs font-semibold ${result.estadoHorario === "completado"
-                        ? "bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300"
-                        : result.estadoHorario === "tiempo_insuficiente"
-                          ? "bg-orange-100 text-orange-800 dark:bg-orange-800/30 dark:text-orange-300"
-                          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
+                      ? "bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300"
+                      : result.estadoHorario === "tiempo_insuficiente"
+                        ? "bg-orange-100 text-orange-800 dark:bg-orange-800/30 dark:text-orange-300"
+                        : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
                       }`}
                   >
                     {result.estadoHorario === "completado"

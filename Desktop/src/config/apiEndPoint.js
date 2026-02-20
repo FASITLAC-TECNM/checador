@@ -40,7 +40,7 @@ export const fetchApi = async (endpoint, options = {}) => {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
+      ...(!options.skipAuth && token && { Authorization: `Bearer ${token}` }),
       ...options.headers,
     },
     ...options,

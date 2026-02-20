@@ -81,7 +81,7 @@ export async function getAvisosGlobales(forceRefresh = false) {
   }
 
   try {
-    const response = await fetchApi(`${AVISOS_ENDPOINT}/globales`);
+    const response = await fetchApi(`${AVISOS_ENDPOINT}/publicos`, { skipAuth: true });
 
     const avisos = response.success && Array.isArray(response.data)
       ? response.data.map(mapearAviso)

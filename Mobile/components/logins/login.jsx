@@ -398,14 +398,6 @@ export const LoginScreen = ({ onLoginSuccess }) => {
 
             <View style={styles.formContainer}>
               <Text style={styles.welcomeText}>Iniciar Sesión</Text>
-
-              {isOfflineLogin && (
-                <View style={styles.offlineBadge}>
-                  <Ionicons name="cloud-offline" size={14} color="#f59e0b" />
-                  <Text style={styles.offlineBadgeText}>Modo Sin Conexión</Text>
-                </View>
-              )}
-
               <View style={styles.inputWrapper}>
                 <Text style={styles.label}>Usuario o Correo</Text>
                 <View style={[styles.inputContainer, usuarioError ? styles.inputError : null]}>

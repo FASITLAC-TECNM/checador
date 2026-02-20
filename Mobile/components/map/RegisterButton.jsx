@@ -11,6 +11,7 @@ import {
   Vibration
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import { isPointInPolygon, extraerCoordenadas } from '../../services/ubicacionService';
 import { getApiEndpoint } from '../../config/api';
@@ -32,6 +33,10 @@ import pushService from '../../services/offline/pushService.mjs';
 
 const API_URL = getApiEndpoint('/api');
 const MINUTOS_SEPARACION_TURNOS = 15;
+
+// Clave AsyncStorage para persistir qué notificaciones de disponibilidad
+// ya se enviaron hoy (sobrevive desmontajes del componente)
+const NOTIF_DIARIA_KEY = '@notif_asistencia_disponible';
 
 export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [loading, setLoading] = useState(true);
@@ -68,6 +73,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   });
   const notificadoEstadoRef = useRef(null);
 
+  // ─── Ref para notificaciones diarias persistentes ───────────────────────────
+  // Estructura: { fecha: 'YYYY-MM-DD', entrada: bool, salida: bool }
+  // Se carga desde AsyncStorage al montar para sobrevivir re-renders y desmontajes
+  const notifDiariaRef = useRef({ fecha: '', entrada: false, salida: false });
+  // ────────────────────────────────────────────────────────────────────────────
+
   // ─── refs para que procederConRegistro siempre lea valores frescos ───
   const horarioInfoRef = useRef(null);
   const toleranciaInfoRef = useRef(null);
@@ -90,6 +101,34 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     cargarCredencialesYOrden();
     syncManager.initAutoSync();
   }, []);
+
+  // ─── Cargar estado de notificaciones diarias desde AsyncStorage ─────────────
+  // Esto garantiza que aunque el componente se desmonte y remonte (cambio de
+  // pantalla, etc.) no se vuelva a notificar si ya se hizo hoy.
+  useEffect(() => {
+    const cargarEstadoNotifDiaria = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(NOTIF_DIARIA_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const hoy = new Date().toISOString().split('T')[0];
+          if (parsed.fecha === hoy) {
+            // Es del día de hoy → restaurar estado para no re-notificar
+            notifDiariaRef.current = parsed;
+          } else {
+            // Es de otro día → nuevo día laboral, resetear
+            const nuevoEstado = { fecha: hoy, entrada: false, salida: false };
+            notifDiariaRef.current = nuevoEstado;
+            await AsyncStorage.setItem(NOTIF_DIARIA_KEY, JSON.stringify(nuevoEstado));
+          }
+        }
+      } catch (e) {
+        // Si AsyncStorage falla, simplemente no persiste pero no rompe la app
+      }
+    };
+    cargarEstadoNotifDiaria();
+  }, []);
+  // ────────────────────────────────────────────────────────────────────────────
 
   const cargarCredencialesYOrden = async () => {
     try {
@@ -191,6 +230,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }, 150);
   }, []);
 
+  // ─── Intervalo de 1 segundo — lógica de estado y notificaciones ─────────────
   useEffect(() => {
     const intervalo = setInterval(async () => {
       setHoraActual(new Date());
@@ -211,18 +251,43 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         setJornadaCompletada(estado.jornadaCompleta);
         setMensajeEspera(estado.mensajeEspera || '');
 
-        const claveEstado = `${estado.puedeRegistrar}-${estado.tipoRegistro}`;
-        if (estado.puedeRegistrar && claveEstado !== notificadoEstadoRef.current) {
-          notificadoEstadoRef.current = claveEstado;
-          notificarEstadoAsistencia(estado.tipoRegistro);
-        } else if (!estado.puedeRegistrar) {
-          notificadoEstadoRef.current = null;
+        // ── LÓGICA DE NOTIFICACIÓN: una sola vez por tipo (entrada/salida) por día ──
+        if (estado.puedeRegistrar) {
+          const hoy = new Date().toISOString().split('T')[0];
+          const tipo = estado.tipoRegistro; // 'entrada' | 'salida'
+
+          // Si cambió el día (medianoche), resetear el ref y AsyncStorage
+          if (notifDiariaRef.current.fecha !== hoy) {
+            const nuevoEstado = { fecha: hoy, entrada: false, salida: false };
+            notifDiariaRef.current = nuevoEstado;
+            AsyncStorage.setItem(NOTIF_DIARIA_KEY, JSON.stringify(nuevoEstado)).catch(() => { });
+          }
+
+          // Solo notificar si NO se ha enviado todavía hoy para este tipo
+          const yaNotificado = notifDiariaRef.current[tipo] === true;
+
+          if (!yaNotificado) {
+            // Marcar como enviado ANTES de llamar (evita doble disparo por async)
+            notifDiariaRef.current = {
+              ...notifDiariaRef.current,
+              [tipo]: true,
+            };
+            // Persistir para sobrevivir desmontajes del componente
+            AsyncStorage.setItem(
+              NOTIF_DIARIA_KEY,
+              JSON.stringify(notifDiariaRef.current)
+            ).catch(() => { });
+
+            notificarEstadoAsistencia(tipo);
+          }
         }
+        // ── FIN LÓGICA DE NOTIFICACIÓN ──
       }
     }, 1000);
 
     return () => clearInterval(intervalo);
   }, [calcularEstadoRegistro]);
+  // ────────────────────────────────────────────────────────────────────────────
 
   const getDiaSemana = () => {
     const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
@@ -941,9 +1006,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   }, [ubicacionActual, departamentos]);
 
   const handleVerificarPin = async (pin) => {
-    // ─── FIX: Separar verificación de PIN del proceso de registro.
-    // Si mezclamos ambos en el mismo try/catch, un error de registro
-    // (GPS, red, etc.) sube al modal y aparece como "PIN incorrecto".
     let pinVerificado = false;
 
     try {
@@ -975,8 +1037,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       console.log('PIN online falló por red, intentando offline...');
 
-      // FIX: String() en ambos lados — SQLite puede devolver pin_hash o
-      // empleado_id como número (INTEGER) y === fallaría silenciosamente.
       const identified = await offlineAuthService.identificarPorPinOffline(pin);
       if (identified && String(identified.empleado_id) === String(userData.empleado_id)) {
         pinVerificado = true;
@@ -985,9 +1045,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       }
     }
 
-    // PIN correcto: cerrar modal ANTES de proceder con el registro.
-    // Sin await en procederConRegistro — sus errores se manejan internamente
-    // con Alert, no deben subir al modal del PIN.
     if (pinVerificado) {
       setMostrarPinAuth(false);
       setMostrarAutenticacion(false);
@@ -1262,6 +1319,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         setJornadaCompletada(nuevoEstado.jornadaCompleta);
         setMensajeEspera(nuevoEstado.mensajeEspera || '');
       }
+
+      // ── Al registrar exitosamente, marcar el tipo como "ya notificado" para
+      //    que cuando se habilite el siguiente tipo (salida/entrada) se pueda notificar
+      //    sin interferir con el tipo que acaba de registrarse. ──────────────────────
+      // (No hace falta hacer nada aquí: el tipo cambiará y notifDiariaRef[nuevoTipo]
+      //  seguirá en false hasta que se habilite por primera vez)
 
       const tipoRegistrado = data.data?.tipo || tipoActual;
       const estadoRegistrado = data.data?.estado || 'puntual';

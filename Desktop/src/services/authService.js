@@ -107,7 +107,7 @@ export const loginUsuario = async (usuarioOCorreo, pin) => {
       estado_cuenta: usuarioData.estado_cuenta,
       activo: usuarioData.estado_cuenta,
       es_empleado: usuarioData.es_empleado,
-      esAdmin: usuarioData.esAdmin,
+      esAdmin: usuarioData.esAdmin || responseData.esAdmin,
       fecha_registro: usuarioData.fecha_registro,
       estado: "CONECTADO",
       token: token,
@@ -117,8 +117,8 @@ export const loginUsuario = async (usuarioOCorreo, pin) => {
       rfc: usuarioData.rfc || empleadoData?.rfc,
       nss: usuarioData.nss || empleadoData?.nss,
       horario_id: usuarioData.horario_id || empleadoData?.horario_id,
-      roles: usuarioData.roles,
-      permisos: usuarioData.permisos,
+      roles: usuarioData.roles || responseData.roles,
+      permisos: usuarioData.permisos || responseData.permisos,
     };
 
     // 4. Registrar login exitoso

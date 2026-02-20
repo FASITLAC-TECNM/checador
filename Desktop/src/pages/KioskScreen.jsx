@@ -14,13 +14,12 @@ import { useSound } from "../context/SoundContext";
 import { ConnectionStatusPanel } from "../components/common/ConnectionStatus";
 import AsistenciaHuella from "../components/kiosk/AsistenciaHuella";
 import AsistenciaFacial from "../components/kiosk/AsistenciaFacial";
-import { obtenerOrdenCredenciales } from "../services/configuracionService";
-import { desactivarEscritorio, obtenerEscritorioIdGuardado } from "../services/escritorioService";
+
+// Hooks
+import { useKioskConfiguration } from "../hooks/useKioskConfiguration";
+import { useInactivityTimer } from "../hooks/useInactivityTimer";
 
 export default function KioskScreen() {
-  // Estado de orden de credenciales desde el backend
-  const [ordenCredenciales, setOrdenCredenciales] = useState(null);
-  const [loadingCredenciales, setLoadingCredenciales] = useState(true);
 
   // Hook de conectividad
   const { isInternetConnected, isDatabaseConnected } = useConnectivity();
@@ -38,16 +37,8 @@ export default function KioskScreen() {
   const [isReaderConnected, setIsReaderConnected] = useState(false); // Estado del lector biométrico
   const [activeNoticeIndex, setActiveNoticeIndex] = useState(0); // Índice del aviso activo en el carrusel
 
-  // Obtener métodos activos ordenados desde backend
-  const getActiveMethods = () => {
-    if (!ordenCredenciales) return [];
-    return Object.entries(ordenCredenciales)
-      .filter(([, config]) => config.activo)
-      .sort(([, a], [, b]) => a.prioridad - b.prioridad)
-      .map(([key]) => key);
-  };
-
-  const activeMethods = getActiveMethods();
+  const { ordenCredenciales, loadingCredenciales, activeMethods } = useKioskConfiguration(isLoggedIn);
+  useInactivityTimer();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -67,70 +58,6 @@ export default function KioskScreen() {
     }, 6000);
     return () => clearInterval(noticeTimer);
   }, [notices.length]);
-
-  // Cargar orden de credenciales desde el backend
-  const cargarCredenciales = async () => {
-    try {
-      setLoadingCredenciales(true);
-      const { ordenCredenciales: orden } = await obtenerOrdenCredenciales();
-      setOrdenCredenciales(orden);
-    } catch (err) {
-      console.error("Error al cargar orden de credenciales:", err);
-      // Fallback por defecto si falla el backend
-      setOrdenCredenciales({
-        facial: { prioridad: 1, activo: true },
-        dactilar: { prioridad: 2, activo: true },
-        pin: { prioridad: 3, activo: true },
-      });
-    } finally {
-      setLoadingCredenciales(false);
-    }
-  };
-
-  // Cargar al montar el componente
-  useEffect(() => {
-    cargarCredenciales();
-  }, []);
-
-  // Recargar credenciales cuando el usuario cierra sesión
-  useEffect(() => {
-    if (!isLoggedIn) {
-      cargarCredenciales();
-    }
-  }, [isLoggedIn]);
-
-  // Atajo para resetear configuración: Ctrl+Shift+R
-  useEffect(() => {
-    const handleKeyPress = async (e) => {
-      if (e.ctrlKey && e.shiftKey && e.key === "R") {
-        e.preventDefault();
-        const confirmReset = confirm(
-          "¿Está seguro que desea resetear la configuración de la aplicación? Esto eliminará todos los datos guardados y deberá volver a afiliar el equipo.",
-        );
-        if (confirmReset) {
-          try {
-            const escritorioId = obtenerEscritorioIdGuardado();
-            if (escritorioId) {
-              await desactivarEscritorio(escritorioId);
-            }
-          } catch (error) {
-            console.error("Error al desactivar el escritorio en el servidor:", error);
-            // Continuar con el reseteo local aunque falle el servidor
-          }
-
-          localStorage.clear();
-          if (window.electronAPI && window.electronAPI.configRemove) {
-            window.electronAPI.configRemove("appConfigured");
-          }
-          alert("Configuración reseteada. La aplicación se recargará.");
-          window.location.reload();
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyPress);
-    return () => window.removeEventListener("keydown", handleKeyPress);
-  }, []);
 
   // Manejar login exitoso
   const handleLoginSuccess = (usuario) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, UserPlus, CheckCircle, XCircle, Eye } from "lucide-react";
 import { useFaceDetection } from "../../hooks/useFaceDetection";
 import { registrarDescriptorFacial } from "../../services/biometricAuthService";
@@ -26,6 +26,52 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
     startFaceDetection,
     stopFaceDetection,
   } = useFaceDetection();
+
+  const cropCanvasRef = useRef(null);
+
+  // Recortar video al area del ovalo guia
+  const getCroppedOvalFrame = (video) => {
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    if (!vw || !vh) return null;
+
+    const displayAspect = 4 / 3;
+    const videoAspect = vw / vh;
+    let sx, sy, sw, sh;
+    if (videoAspect > displayAspect) {
+      sh = vh; sw = vh * displayAspect;
+      sx = (vw - sw) / 2; sy = 0;
+    } else {
+      sw = vw; sh = vw / displayAspect;
+      sx = 0; sy = (vh - sh) / 2;
+    }
+
+    const oLeft = 120 / 400, oTop = 35 / 300;
+    const oW = 160 / 400, oH = 210 / 300;
+    const cropX = sx + sw * oLeft;
+    const cropY = sy + sh * oTop;
+    const cropW = sw * oW;
+    const cropH = sh * oH;
+
+    if (!cropCanvasRef.current) {
+      cropCanvasRef.current = document.createElement('canvas');
+    }
+    const canvas = cropCanvasRef.current;
+    const cw = 280, ch = Math.round(280 * (cropH / cropW));
+    canvas.width = cw;
+    canvas.height = ch;
+    const ctx = canvas.getContext('2d');
+
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(cw / 2, ch / 2, cw / 2, ch / 2, 0, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cw, ch);
+    ctx.restore();
+
+    return canvas;
+  };
 
   // Cargar modelos al montar
   useEffect(() => {
@@ -95,8 +141,11 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
           if (capturado) return;
 
           try {
+            const croppedFrame = getCroppedOvalFrame(video);
+            if (!croppedFrame) return;
+
             const detections = await faceapi
-              .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({
+              .detectSingleFace(croppedFrame, new faceapi.TinyFaceDetectorOptions({
                 inputSize: 224,
                 scoreThreshold: 0.4
               }))
@@ -361,38 +410,75 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
                   style={{ transform: "scaleX(-1)", minHeight: "300px" }}
                 />
 
-                {/* Guías de captura */}
+                {/* Guias de captura - Ovalo facial con animaciones */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="relative w-48 h-64">
-                    <div
-                      className="absolute top-0 left-0 w-10 h-10 border-l-[3px] border-t-[3px] transition-all duration-300"
-                      style={{
-                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
-                      }}
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
+                    <defs>
+                      <mask id="regFaceMask">
+                        <rect width="400" height="300" fill="white" />
+                        <ellipse cx="200" cy="140" rx="80" ry="105" fill="black" />
+                      </mask>
+                      <filter id="regGlow">
+                        <feGaussianBlur stdDeviation="4" result="blur" />
+                        <feMerge>
+                          <feMergeNode in="blur" />
+                          <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                      </filter>
+                      <linearGradient id="regScanGradient" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="transparent" />
+                        <stop offset="30%" stopColor={faceDetected ? "rgba(25, 118, 210, 0.6)" : "rgba(255,255,255,0.3)"} />
+                        <stop offset="50%" stopColor={faceDetected ? "rgba(25, 118, 210, 0.9)" : "rgba(255,255,255,0.5)"} />
+                        <stop offset="70%" stopColor={faceDetected ? "rgba(25, 118, 210, 0.6)" : "rgba(255,255,255,0.3)"} />
+                        <stop offset="100%" stopColor="transparent" />
+                      </linearGradient>
+                    </defs>
+                    <rect width="400" height="300" fill="rgba(0,0,0,0.45)" mask="url(#regFaceMask)" />
+                    <ellipse
+                      cx="200" cy="140" rx="80" ry="105"
+                      fill="none"
+                      stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.6)"}
+                      strokeWidth={faceDetected ? "3" : "2"}
+                      strokeDasharray={faceDetected ? "none" : "8 4"}
+                      filter={faceDetected ? "url(#regGlow)" : "none"}
+                      style={{ transition: "all 0.4s ease" }}
                     />
-                    <div
-                      className="absolute top-0 right-0 w-10 h-10 border-r-[3px] border-t-[3px] transition-all duration-300"
-                      style={{
-                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
-                      }}
-                    />
-                    <div
-                      className="absolute bottom-0 left-0 w-10 h-10 border-l-[3px] border-b-[3px] transition-all duration-300"
-                      style={{
-                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
-                      }}
-                    />
-                    <div
-                      className="absolute bottom-0 right-0 w-10 h-10 border-r-[3px] border-b-[3px] transition-all duration-300"
-                      style={{
-                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
-                      }}
-                    />
-                  </div>
+                    {faceDetected && (
+                      <ellipse
+                        cx="200" cy="140" rx="84" ry="109"
+                        fill="none"
+                        stroke="rgba(25, 118, 210, 0.25)"
+                        strokeWidth="6"
+                        style={{ animation: "regFacePulse 2s ease-in-out infinite" }}
+                      />
+                    )}
+                    {!faceDetected && (
+                      <line
+                        x1="120" y1="140" x2="280" y2="140"
+                        stroke="url(#regScanGradient)"
+                        strokeWidth="2"
+                        style={{ animation: "regScanLine 2.5s ease-in-out infinite" }}
+                      />
+                    )}
+                    <path d="M 135 55 L 135 40 L 155 40" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.7)"} strokeWidth="3" strokeLinecap="round" style={{ transition: "stroke 0.3s ease" }} />
+                    <path d="M 265 55 L 265 40 L 245 40" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.7)"} strokeWidth="3" strokeLinecap="round" style={{ transition: "stroke 0.3s ease" }} />
+                    <path d="M 135 245 L 135 260 L 155 260" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.7)"} strokeWidth="3" strokeLinecap="round" style={{ transition: "stroke 0.3s ease" }} />
+                    <path d="M 265 245 L 265 260 L 245 260" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.7)"} strokeWidth="3" strokeLinecap="round" style={{ transition: "stroke 0.3s ease" }} />
+                    <line x1="196" y1="135" x2="204" y2="135" stroke={faceDetected ? "rgba(25,118,210,0.4)" : "rgba(255,255,255,0.2)"} strokeWidth="1" />
+                    <line x1="200" y1="131" x2="200" y2="139" stroke={faceDetected ? "rgba(25,118,210,0.4)" : "rgba(255,255,255,0.2)"} strokeWidth="1" />
+                  </svg>
+                  <style>{`
+                    @keyframes regScanLine {
+                      0% { transform: translateY(-60px); opacity: 0; }
+                      15% { opacity: 1; }
+                      85% { opacity: 1; }
+                      100% { transform: translateY(60px); opacity: 0; }
+                    }
+                    @keyframes regFacePulse {
+                      0%, 100% { opacity: 0.3; }
+                      50% { opacity: 0.8; }
+                    }
+                  `}</style>
                 </div>
               </div>
 

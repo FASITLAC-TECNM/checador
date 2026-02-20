@@ -6,9 +6,11 @@ import { CameraProvider } from "./context/CameraContext";
 import AffiliationRequest from "./pages/AffiliationRequest";
 import KioskScreen from "./pages/KioskScreen";
 import SessionScreen from "./pages/SessionScreen";
+import MaintenanceScreen from "./components/maintenance/MaintenanceScreen";
 import storage from "./utils/storage";
 
 import { deviceMonitorService } from "./services/deviceMonitorService";
+import { API_CONFIG } from "./config/apiEndPoint";
 
 function App() {
   // Estado de la página actual
@@ -49,7 +51,41 @@ function App() {
     setCurrentPage("kiosk");
   };
 
-  // Mostrar pantalla de carga mientras se verifica la configuración
+  // Estado para Mantenimiento
+  const [isMaintenance, setIsMaintenance] = useState(false);
+  const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(false);
+
+  // Verificar estado de mantenimiento periódicamente
+  useEffect(() => {
+    const checkMaintenance = async () => {
+      try {
+        setIsCheckingMaintenance(true);
+        // Usar API_CONFIG para consistencia
+        const response = await fetch(`${API_CONFIG.BASE_URL}/api/configuracion/public/status`);
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.maintenance !== undefined) {
+            setIsMaintenance(data.maintenance);
+          }
+        }
+      } catch (error) {
+        console.warn("No se pudo verificar el estado de mantenimiento:", error);
+      } finally {
+        setIsCheckingMaintenance(false);
+      }
+    };
+
+    // Verificar inmediatamente al cargar
+    checkMaintenance();
+
+    // Luego verificar cada 60 segundos
+    const interval = setInterval(checkMaintenance, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Mostrar pantalla de carga mientras se verifica la configuración inicial
   if (isLoading) {
     return (
       <ThemeProvider>
@@ -59,6 +95,21 @@ function App() {
             <p className="text-text-secondary">Cargando...</p>
           </div>
         </div>
+      </ThemeProvider>
+    );
+  }
+
+  // Si está en mantenimiento, mostrar la pantalla de mantenimiento por encima de todo
+  if (isMaintenance) {
+    return (
+      <ThemeProvider>
+        <MaintenanceScreen
+          isChecking={isCheckingMaintenance}
+          onRetry={() => {
+            // Fuerza una recarga completa para asegurar que todo el estado se limpie
+            window.location.reload();
+          }}
+        />
       </ThemeProvider>
     );
   }

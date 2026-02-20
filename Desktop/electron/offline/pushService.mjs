@@ -129,12 +129,12 @@ export async function pushPendingRecords() {
     if (!result.success) {
       // Error general (network, auth, etc.)
       console.error(`❌ [Push] Error en batch: ${result.error}`);
-
+      
       // Marcar cada registro con error
       for (const record of pending) {
         sqliteManager.markSyncError(record.local_id, result.error, result.authError || false);
       }
-
+      
       return { total: pending.length, synced: 0, errors: pending.length, skipped: 0 };
     }
 
@@ -184,28 +184,8 @@ export async function pushPendingRecords() {
 export async function forcePushRecord(localId) {
   const db = sqliteManager.getDatabase();
   if (!db) return { success: false, error: 'Database not initialized' };
-
-  const stmt = db.prepare(`
-    SELECT 
-      L_id1 AS local_id,
-      iK_99 AS idempotency_key,
-      sRv_D AS server_id,
-      eMp_X AS empleado_id,
-      CASE tYp_3 WHEN 'IN_1' THEN 'entrada' WHEN 'OUT_0' THEN 'salida' ELSE tYp_3 END AS tipo,
-      st_5 AS estado,
-      CASE src_D WHEN 'dSk_T' THEN 'escritorio' ELSE src_D END AS dispositivo_origen,
-      CASE mTh_R WHEN 'pN_Val' THEN 'PIN' WHEN 'fP_Val' THEN 'HUELLA' WHEN 'fC_Val' THEN 'FACIAL' ELSE mTh_R END AS metodo_registro,
-      dEp_I AS departamento_id,
-      dT_Rg AS fecha_registro,
-      bIo_P AS payload_biometrico,
-      iS_yn AS is_synced,
-      s_AtM AS sync_attempts,
-      l_ErR AS last_sync_error,
-      l_AtT AS last_sync_attempt,
-      cR_at AS created_at
-    FROM kLoPs9 
-    WHERE L_id1 = ?
-  `);
+  
+  const stmt = db.prepare('SELECT * FROM offline_asistencias WHERE local_id = ?');
   const record = stmt.get(localId);
 
   if (!record) {

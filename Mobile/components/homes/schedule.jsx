@@ -918,7 +918,7 @@ const scheduleStyles = StyleSheet.create({
     marginRight: 12,
   },
   dayIconActive: {
-    backgroundColor: '#eef2ff',
+    backgroundColor: '#c7d2fe', // Indigo-200: más oscuro que el fondo del row today (#eef2ff)
   },
   dayIconInactive: {
     backgroundColor: '#f3f4f6',
@@ -967,7 +967,7 @@ const scheduleStyles = StyleSheet.create({
   multipleTurnsBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f3ff',
+    backgroundColor: '#ddd6fe', // Indigo-200: distinto del row today (#eef2ff)
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
@@ -1266,11 +1266,11 @@ const scheduleStylesDark = StyleSheet.create({
   },
   dayIconActive: {
     ...scheduleStyles.dayIconActive,
-    backgroundColor: '#1e3a8a',
+    backgroundColor: '#1e56a0', // Azul suave, contrasta sin ser intenso
   },
   dayInitialActive: {
     ...scheduleStyles.dayInitialActive,
-    color: '#3794fd',
+    color: '#38bdf8', // Azul cielo (sky-400)
   },
   todayDot: {
     ...scheduleStyles.todayDot,
@@ -1286,7 +1286,7 @@ const scheduleStylesDark = StyleSheet.create({
   },
   multipleTurnsBadge: {
     ...scheduleStyles.multipleTurnsBadge,
-    backgroundColor: '#1e3a8a',
+    backgroundColor: '#1e56a0', // Mismo tono que el icon, distinto al row today
   },
   multipleTurnsText: {
     ...scheduleStyles.multipleTurnsText,

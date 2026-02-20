@@ -117,8 +117,22 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
 
             const responseData = loginData.data || loginData;
             // Actualizar variables de contexto
-            usuarioData = responseData.usuario;
+            usuarioData = responseData.usuario || responseData;
             token = responseData.token;
+
+            // Asegurar que los campos de admin/roles se preserven desde responseData
+            if (responseData.esAdmin !== undefined && usuarioData.esAdmin === undefined) {
+                usuarioData.esAdmin = responseData.esAdmin;
+            }
+            if (responseData.es_admin !== undefined && usuarioData.es_admin === undefined) {
+                usuarioData.es_admin = responseData.es_admin;
+            }
+            if (responseData.roles && !usuarioData.roles) {
+                usuarioData.roles = responseData.roles;
+            }
+            if (responseData.permisos && !usuarioData.permisos) {
+                usuarioData.permisos = responseData.permisos;
+            }
 
             // Guardar token temporalmente
             if (token) {
@@ -438,26 +452,61 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
         setShowPassword(!showPassword);
     };
 
-    const handleLoginRequest = (userData) => {
+    const handleLoginRequest = async (userData) => {
         if (countdownRef.current) {
             clearInterval(countdownRef.current);
             countdownRef.current = null;
         }
 
-        // Si userData no se pasa, intentamos construirlo desde result
+        // Si userData no se pasa, obtener datos completos para la sesión
         if (!userData && onLoginRequest && result) {
-            if (result.noEsEmpleado) {
+            const empleadoId = result.empleado?.id || result.empleado?.empleado_id || result.usuario?.empleado_id;
+            const isOffline = result.offline || !navigator.onLine;
+
+            // Solo llamar a /api/auth/biometric si hay conexión (en offline no se necesitan permisos de admin)
+            if (empleadoId && !isOffline) {
+                try {
+                    console.log("🔐 Obteniendo datos completos de sesión vía /api/auth/biometric...");
+                    const authResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/biometric`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ empleado_id: empleadoId }),
+                    });
+
+                    if (authResponse.ok) {
+                        const authResult = await authResponse.json();
+                        if (authResult.success && authResult.data) {
+                            const { usuario, roles, permisos, esAdmin, token: authToken } = authResult.data;
+
+                            if (authToken) {
+                                localStorage.setItem('auth_token', authToken);
+                            }
+
+                            userData = {
+                                ...usuario,
+                                roles,
+                                permisos,
+                                esAdmin,
+                                token: authToken,
+                                metodoAutenticacion: "PIN",
+                            };
+                            console.log("✅ Datos completos obtenidos:", userData);
+                        }
+                    }
+                } catch (error) {
+                    console.error("❌ Error obteniendo datos completos:", error);
+                }
+            }
+
+            // Fallback: construir desde result (offline o si la llamada falló)
+            if (!userData) {
                 userData = {
                     ...result.usuario,
-                    es_empleado: false,
-                    token: result.token
-                };
-            } else {
-                userData = {
-                    ...result.usuario,
-                    ...result.empleado,
-                    es_empleado: true,
-                    empleado_id: result.empleado?.empleado_id || result.empleado?.id || result.usuario?.empleado_id,
+                    rfc: result.empleado?.rfc || result.usuario?.rfc,
+                    nss: result.empleado?.nss || result.usuario?.nss,
+                    horario_id: result.empleado?.horario_id || result.usuario?.horario_id,
+                    es_empleado: result.noEsEmpleado ? false : true,
+                    empleado_id: empleadoId,
                     nombre: result.empleado?.nombre || result.usuario?.nombre || result.usuario?.username,
                     token: result.token
                 };

@@ -15,7 +15,6 @@ import * as biometricService from "./services/biometricService.mjs";
 import * as networkService from "./services/networkService.mjs";
 import * as windowManager from "./managers/windowManager.mjs";
 import * as ipcManager from "./managers/ipcManager.mjs";
-import * as systemKioskManager from "./managers/systemKioskManager.mjs";
 import * as configHelper from "./utils/configHelper.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -112,26 +111,6 @@ app.whenReady().then(() => {
 
   // Iniciar monitoreo de red
   networkService.startMonitoring(mainWindow);
-
-  // ==========================================
-  // CONFIGURACIÓN AUTOMÁTICA DE KIOSCO (PRIMER INICIO)
-  // ==========================================
-  if (process.env.NODE_ENV !== "development") {
-    const isKioskSetupDone = configHelper.getConfig("kioskSetupDone", false);
-
-    if (!isKioskSetupDone) {
-      console.log("🛠️ [Main] Detectado primer inicio en producción. Ejecutando setup de Kiosco...");
-      // Ejecutar setup (async) sin bloquear la interfaz
-      systemKioskManager.setupKioskSystem().then((result) => {
-        // Marcar como hecho si al menos una cosa funcionó
-        // (Aunque falle TaskMgr por permisos, no queremos reintentar infinitamente en cada inicio si no es admin)
-        configHelper.setConfig("kioskSetupDone", true);
-        console.log("✅ [Main] Setup de Kiosco finalizado. Flags actualizadas.");
-      }).catch(err => {
-        console.error("❌ [Main] Error crítico en setup de Kiosco:", err);
-      });
-    }
-  }
 
   // Inicializar sistema Offline-First
   try {

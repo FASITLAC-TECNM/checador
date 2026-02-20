@@ -9,7 +9,7 @@ import { app } from "electron";
 import { exec } from "child_process";
 import util from "util";
 import path from "path";
-import * as configHelper from "../utils/configHelper.mjs";
+import configHelper from "../utils/configHelper.mjs";
 
 const execPromise = util.promisify(exec);
 

@@ -447,7 +447,21 @@ export default function App() {
   if (isMaintenance) {
     return (
       <SafeAreaProvider>
-        <MaintenanceScreen />
+        <MaintenanceScreen
+          darkMode={darkMode}
+          onRetry={async () => {
+            try {
+              const online = await syncManager.isOnline();
+              if (!online) return;
+              const { maintenance } = await getMaintenanceStatus();
+              if (!maintenance) {
+                setIsMaintenance(false);
+              }
+            } catch (e) {
+              // Silenciar error
+            }
+          }}
+        />
       </SafeAreaProvider>
     );
   }

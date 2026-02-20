@@ -5,6 +5,9 @@ import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SystemUI from 'expo-system-ui';
 import { LoginScreen } from './components/logins/login';
+import SplashScreen from './components/ui/SplashScreen';
+import MaintenanceScreen from './components/ui/MaintenanceScreen';
+import { getMaintenanceStatus } from './services/configurationService';
 import { HomeScreen } from './components/homes/home';
 import { HistoryScreen } from './components/homes/history';
 import { ScheduleScreen } from './components/homes/schedule';
@@ -39,6 +42,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [isOfflineSession, setIsOfflineSession] = useState(false);
+  const [isMaintenance, setIsMaintenance] = useState(false);
 
   const appState = useRef(AppState.currentState);
   const verificationInterval = useRef(null);
@@ -231,6 +235,20 @@ export default function App() {
 
   const checkAppState = async () => {
     try {
+      // Verificar mantenimiento solo si hay conexión
+      const online = await syncManager.isOnline();
+      if (online) {
+        try {
+          const { maintenance } = await getMaintenanceStatus();
+          if (maintenance) {
+            console.log('🔧 [App] Modo mantenimiento activo');
+            setIsMaintenance(true);
+          }
+        } catch (e) {
+          console.warn('[App] No se pudo verificar estado de mantenimiento');
+        }
+      }
+
       const [deviceCompleted, savedDarkMode] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETED),
         AsyncStorage.getItem(STORAGE_KEYS.DARK_MODE),
@@ -239,14 +257,17 @@ export default function App() {
       setDeviceRegistered(deviceCompleted === 'true');
       setDarkMode(savedDarkMode === 'true');
       setIsLoggedIn(false);
-      setCurrentScreen('home'); // 🔥 Resetear a Home al inicio
+      setCurrentScreen('home');
       console.log('🔒 [App] Login screen enforced on startup');
     } catch (error) {
       console.error('CheckAppState error:', error);
       setIsLoggedIn(false);
       setDeviceRegistered(false);
     } finally {
-      setIsLoading(false);
+      // Mantener splash screen al menos 2.5 segundos para que se vea la animación
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 2500);
     }
   };
 
@@ -418,9 +439,15 @@ export default function App() {
     return (
       <SafeAreaProvider>
         <StatusBar barStyle="dark-content" backgroundColor="#f9fafb" />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2563eb" />
-        </View>
+        <SplashScreen />
+      </SafeAreaProvider>
+    );
+  }
+
+  if (isMaintenance) {
+    return (
+      <SafeAreaProvider>
+        <MaintenanceScreen />
       </SafeAreaProvider>
     );
   }

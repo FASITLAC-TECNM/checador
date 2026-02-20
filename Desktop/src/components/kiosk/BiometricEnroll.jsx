@@ -13,6 +13,7 @@ export default function BiometricEnroll({
 
   const API_URL = "https://9dm7dqf9-3002.usw3.devtunnels.ms/api";
   const messageHandlerRef = useRef(null);
+  const isClosingRef = useRef(false);
 
   const [enrollProgress, setEnrollProgress] = useState({
     collected: 0,
@@ -42,6 +43,7 @@ export default function BiometricEnroll({
       addMessage("❌ No hay ID de empleado configurado", "error");
       return;
     }
+    isClosingRef.current = false;
     setLastEnrollmentData(null);
     setEnrollProgress({ collected: 0, required: 4, percentage: 0 });
     setCurrentOperation("Enrollment");
@@ -82,6 +84,14 @@ export default function BiometricEnroll({
             timestamp: result.data.timestamp,
           });
         }
+
+        // Cierre automático después de éxito
+        if (!isClosingRef.current) {
+          isClosingRef.current = true;
+          setTimeout(() => {
+            handleClose();
+          }, 2000);
+        }
       } else {
         addMessage(`❌ Error DB: ${result.error}`, "error");
       }
@@ -96,12 +106,18 @@ export default function BiometricEnroll({
   // Registrar el handler de mensajes
   useEffect(() => {
     messageHandlerRef.current = (data) => {
-      // Auto-iniciar enrollment cuando el lector esta listo
-      if (data.type === "systemStatus" && data.readerConnected && data.currentOperation === "None") {
-        setTimeout(() => iniciarEnrollment(), 500);
+
+      if (data.type === "systemStatus" && data.readerConnected && data.currentOperation !== "None" && data.currentOperation !== "Enrollment") {
+        addMessage("🔄 Deteniendo operación en curso del lector...", "info");
+        stopCapture();
       }
 
       if (data.type === "enrollProgress") {
+        // Validar que el progreso sea de la persona que actualmente estamos enrolando
+        if (data.userId && data.userId !== `emp_${idEmpleado}`) {
+          return;
+        }
+
         setEnrollProgress({
           collected: data.samplesCollected,
           required: data.samplesRequired,
@@ -114,6 +130,14 @@ export default function BiometricEnroll({
       }
 
       if (data.type === "captureComplete" && data.result === "enrollmentSuccess") {
+        if (data.userId !== `emp_${idEmpleado}`) {
+          addMessage("⚠️ Huella descartada (pertenece a un escaneo anterior)", "warning");
+          // Reseteamos el lector por si se quedó colgado
+          stopCapture();
+          setCurrentOperation("None");
+          return;
+        }
+
         addMessage(`✅ Captura completada: ${data.userId}`, "success");
 
         setLastEnrollmentData({
@@ -161,8 +185,10 @@ export default function BiometricEnroll({
   };
 
   const handleClose = () => {
+    isClosingRef.current = true;
     if (currentOperation !== "None") stopCapture();
     setCurrentOperation("None");
+    setLastEnrollmentData(null);
     setEnrollProgress({ collected: 0, required: 4, percentage: 0 });
     if (onClose) onClose();
   };
@@ -267,14 +293,28 @@ export default function BiometricEnroll({
                   </div>
                 )}
 
-                {currentOperation === "Enrollment" && (
-                  <div className="flex gap-3">
+                {currentOperation === "Enrollment" ? (
+                  <div className="flex gap-3 mt-4">
                     <button
                       onClick={cancelEnrollment}
                       className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
                     >
                       <X className="w-5 h-5" />
                       Cancelar
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-3 mt-4">
+                    <button
+                      onClick={iniciarEnrollment}
+                      disabled={!readerConnected}
+                      className={`flex-1 px-4 py-2.5 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${!readerConnected
+                        ? "bg-gray-400 cursor-not-allowed"
+                        : "bg-[#1976D2] hover:bg-[#1565C0]"
+                        }`}
+                    >
+                      <Fingerprint className="w-5 h-5" />
+                      {lastEnrollmentData ? "Registrar Otra Huella" : "Iniciar Registro"}
                     </button>
                   </div>
                 )}

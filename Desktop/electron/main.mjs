@@ -88,9 +88,9 @@ app.whenReady().then(() => {
     `default-src 'self'`,
     `script-src ${scriptSrc}`,                                          // JS permitido
     `style-src 'self' 'unsafe-inline'`,                                 // CSS inline (React/inyección de estilos)
-    `img-src 'self' data: blob: ${backendOrigin}`,                      // Imágenes: local, data URIs, blob, backend
+    `img-src 'self' data: blob: ${backendOrigin} https://www.google.com https://www.cloudflare.com`, // Imágenes + Pings de conectividad
     `media-src 'self' blob:`,                                           // Cámara / video
-    `connect-src 'self' ${backendOrigin} ws://localhost:* ${viteDevOrigin}`, // Fetch / WebSocket
+    `connect-src 'self' ${backendOrigin} ws://localhost:* ${viteDevOrigin} https://www.google.com https://www.cloudflare.com`, // Fetch / WebSocket
     `font-src 'self' data:`,                                            // Fuentes locales
     `object-src 'none'`,                                                // Bloquear plugins (Flash, etc.)
     `base-uri 'self'`,                                                  // Bloquear base tag injection

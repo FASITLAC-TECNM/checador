@@ -44,8 +44,8 @@ export function createWindow() {
             v8CacheOptions: "code",
             // Mejorar rendimiento de video
             backgroundThrottling: false,
-            // Deshabilitar seguridad web para permitir CORS en desarrollo
-            webSecurity: process.env.NODE_ENV !== "development" ? true : false,
+            // webSecurity siempre habilitada (en dev Vite corre en localhost, no hay problema de CORS)
+            webSecurity: true,
         },
         backgroundColor: "#ffffff",
         show: false, // No mostrar hasta que esté listo
@@ -88,6 +88,61 @@ export function createWindow() {
             console.error("[ERROR] Error de carga:", errorCode, errorDescription);
         },
     );
+
+    // ==========================================
+    // BLOQUEO DE TECLAS (MODO KIOSCO)
+    // ==========================================
+    if (FORCE_KIOSK) {
+        mainWindow.webContents.on("before-input-event", (event, input) => {
+            // Permitir explícitamente la tecla Windows (Meta) para escape del sistema
+            // TODO: [PRODUCCION] Comentar o eliminar este bloque IF para bloquear la tecla Windows en la versión final
+            if (input.key === "Meta" || input.meta) {
+                return; // Dejar pasar al SO
+            }
+
+            // Bloquear F11 (Pantalla completa)
+            if (input.key === "F11") {
+                event.preventDefault();
+                return;
+            }
+
+            // Bloquear Alt+F4 (Cerrar)
+            if (input.alt && input.key === "F4") {
+                event.preventDefault();
+                return;
+            }
+
+            // Bloquear Recargas (Ctrl+R, F5, Ctrl+Shift+R)
+            if (
+                (input.control && input.key.toLowerCase() === "r") ||
+                input.key === "F5"
+            ) {
+                event.preventDefault();
+                return;
+            }
+
+            // Bloquear Cierre de Pestaña/Ventana (Ctrl+W)
+            if (input.control && input.key.toLowerCase() === "w") {
+                event.preventDefault();
+                return;
+            }
+
+            // Bloquear Zoom (Ctrl + / Ctrl -)
+            if (input.control && (input.key === "+" || input.key === "-" || input.key === "=")) {
+                event.preventDefault();
+                return;
+            }
+        });
+
+        // Evitar que la ventana se cierre con eventos normales (solo via quit explícito)
+        mainWindow.on('close', (e) => {
+            if (!app.isQuitting) {
+                // e.preventDefault(); // Comentado: si bloqueamos close, no podremos salir ni con el botón de admin
+                // En Kiosco sin frame no hay botón X, así que el único 'close' vendría de Alt+F4 (ya bloqueado)
+                // o de app.quit(). Dejamos pasar si es app.quit.
+            }
+        });
+    }
 
     // Emitted when the window is closed.
     mainWindow.on("closed", function () {

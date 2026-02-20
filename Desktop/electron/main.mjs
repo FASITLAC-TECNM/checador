@@ -3,7 +3,7 @@
  * Este archivo maneja la ventana de la aplicación y la comunicación con el sistema
  */
 
-import { app, globalShortcut, BrowserWindow } from "electron";
+import { app, globalShortcut, BrowserWindow, session } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -15,6 +15,7 @@ import * as biometricService from "./services/biometricService.mjs";
 import * as networkService from "./services/networkService.mjs";
 import * as windowManager from "./managers/windowManager.mjs";
 import * as ipcManager from "./managers/ipcManager.mjs";
+import * as systemKioskManager from "./managers/systemKioskManager.mjs";
 import * as configHelper from "./utils/configHelper.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -68,8 +69,69 @@ app.whenReady().then(() => {
   // Crear la ventana principal
   const mainWindow = windowManager.createWindow();
 
+  // ============================================================
+  // CONTENT SECURITY POLICY
+  // Controla qué recursos puede cargar la app. Protege contra XSS.
+  // ============================================================
+  const isDev = process.env.NODE_ENV === "development";
+
+  // Orígenes permitidos para scripts y conexiones de red
+  // Usar configHelper para obtener la URL del backend
+  const backendOrigin = configHelper.getBackendUrl().replace(/\/$/, "");
+  const viteDevOrigin = isDev ? "http://localhost:5173 ws://localhost:5173" : "";
+
+  // CSP diferente para dev (necesita 'unsafe-eval' para Vite HMR) y prod
+  const scriptSrc = isDev
+    ? `'self' 'unsafe-eval' blob: ${viteDevOrigin}`
+    : `'self' blob:`;
+
+  const csp = [
+    `default-src 'self'`,
+    `script-src ${scriptSrc}`,                                          // JS permitido
+    `style-src 'self' 'unsafe-inline'`,                                 // CSS inline (React/inyección de estilos)
+    `img-src 'self' data: blob: ${backendOrigin} https://www.google.com https://www.cloudflare.com`, // Imágenes + Pings de conectividad
+    `media-src 'self' blob:`,                                           // Cámara / video
+    `connect-src 'self' ${backendOrigin} ws://localhost:* ${viteDevOrigin} https://www.google.com https://www.cloudflare.com`, // Fetch / WebSocket
+    `font-src 'self' data:`,                                            // Fuentes locales
+    `object-src 'none'`,                                                // Bloquear plugins (Flash, etc.)
+    `base-uri 'self'`,                                                  // Bloquear base tag injection
+    `form-action 'self'`,                                               // Formularios solo a sí mismo
+    `frame-ancestors 'none'`,                                           // No puede ser embebido en frame
+  ].join("; ");
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        "Content-Security-Policy": [csp],
+      },
+    });
+  });
+
+  console.log("🔒 [Security] CSP configurado correctamente");
+
   // Iniciar monitoreo de red
   networkService.startMonitoring(mainWindow);
+
+  // ==========================================
+  // CONFIGURACIÓN AUTOMÁTICA DE KIOSCO (PRIMER INICIO)
+  // ==========================================
+  if (process.env.NODE_ENV !== "development") {
+    const isKioskSetupDone = configHelper.getConfig("kioskSetupDone", false);
+
+    if (!isKioskSetupDone) {
+      console.log("🛠️ [Main] Detectado primer inicio en producción. Ejecutando setup de Kiosco...");
+      // Ejecutar setup (async) sin bloquear la interfaz
+      systemKioskManager.setupKioskSystem().then((result) => {
+        // Marcar como hecho si al menos una cosa funcionó
+        // (Aunque falle TaskMgr por permisos, no queremos reintentar infinitamente en cada inicio si no es admin)
+        configHelper.setConfig("kioskSetupDone", true);
+        console.log("✅ [Main] Setup de Kiosco finalizado. Flags actualizadas.");
+      }).catch(err => {
+        console.error("❌ [Main] Error crítico en setup de Kiosco:", err);
+      });
+    }
+  }
 
   // Inicializar sistema Offline-First
   try {

@@ -150,9 +150,34 @@ export const getOrdenCredenciales = async (token) => {
     }
 };
 
+// Verificar si la app está en modo mantenimiento (endpoint público, no requiere token)
+export const getMaintenanceStatus = async () => {
+    try {
+        const response = await fetch(`${API_URL}/configuracion/public/status`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            // Si el endpoint falla, asumimos que NO hay mantenimiento para no bloquear al usuario
+            return { maintenance: false };
+        }
+
+        const data = await response.json();
+        return { maintenance: data.maintenance === true };
+    } catch (error) {
+        console.warn('[configurationService] Error checking maintenance status:', error.message);
+        // En caso de error de red, no bloqueamos la app
+        return { maintenance: false };
+    }
+};
+
 export default {
     getConfiguracion,
     updateConfiguracion,
     toggleMantenimiento,
-    getOrdenCredenciales
+    getOrdenCredenciales,
+    getMaintenanceStatus
 };

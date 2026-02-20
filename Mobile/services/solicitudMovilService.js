@@ -236,7 +236,7 @@ export const verificarEmpresa = async (empresaId) => {
         return {
           existe: true,  // ✅ Si llegó aquí con éxito, la empresa existe
           nombre: response.data.data.nombre,
-          activa: response.data.data.es_activo  // ✅ El backend devuelve es_activo, no activa
+          activa: response.data.data.es_activo
         };
       }
 

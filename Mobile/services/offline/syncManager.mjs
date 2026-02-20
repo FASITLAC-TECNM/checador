@@ -40,7 +40,8 @@ export function setAuthToken(token, empleadoId = null) {
  */
 export async function isOnline() {
     const state = await NetInfo.fetch();
-    return state.isConnected && state.isInternetReachable;
+    // Android: isInternetReachable can be null initially. If connected to wifi/cell, assume online.
+    return state.isConnected && (state.isInternetReachable === true || state.isInternetReachable === null);
 }
 
 // ============================================================

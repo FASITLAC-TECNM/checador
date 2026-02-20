@@ -277,7 +277,7 @@ export default function App() {
     await AsyncStorage.setItem(STORAGE_KEYS.DARK_MODE, String(newValue));
   };
 
-  // 🔥 FUNCIÓN CORREGIDA: Verifica dispositivo en BD primero
+  // 🔥 FUNCIÓN CORREGIDA: Verificación Estricta en Nube
   const handleLoginSuccess = async (data, isOffline = false) => {
     try {
       setIsOfflineSession(isOffline); // Guardar estado de sesión
@@ -288,15 +288,16 @@ export default function App() {
 
       await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(data));
       setUserData(data);
+
+      // Robust extraction of Empleado ID
+      const empleadoId = data.empleado_id || data.empleadoInfo?.id || (data.es_empleado ? data.id : null);
+
       if (data.token) {
-        const empId = data.empleado_id || data.empleadoInfo?.id || null;
-        syncManager.setAuthToken(data.token, empId?.toString());
-        syncManager.pullData(empId).catch(e => console.log('Initial pull failed:', e.message));
+        syncManager.setAuthToken(data.token, empleadoId?.toString());
+        syncManager.pullData(empleadoId).catch(e => console.log('Initial pull failed:', e.message));
       }
 
-      // 🔥 CORRECCIÓN CRÍTICA: SIEMPRE verificar en BD primero si el empleado tiene dispositivo
-      const empleadoId = data.empleado_id || data.empleadoInfo?.id;
-
+      // Si no es empleado (admin/rh), no requiere dispositivo
       if (!empleadoId) {
         console.log('⚠️ [App] Usuario no es empleado, no requiere dispositivo');
         setDeviceRegistered(true);
@@ -304,93 +305,121 @@ export default function App() {
         return;
       }
 
-      const online = await syncManager.isOnline();
+      // Determinar si estamos online para verificación
+      // Si el login fue offline, asumimos offline. Si fue online, verificamos estado actual red.
+      const currentlyOnline = await syncManager.isOnline();
+      const treatAsOnline = !isOffline && currentlyOnline;
 
-      if (online && data.token) {
+      console.log(`🔍 [App] Login Mode: ${isOffline ? 'OFFLINE' : 'ONLINE'}, Net: ${currentlyOnline}`);
+
+      if (treatAsOnline && data.token) {
         try {
-          console.log('🔍 [App] Verificando dispositivo en BD para empleado:', empleadoId);
-
+          console.log('🔍 [App] ☁️ ONLINE: Verificando dispositivo estrictamente en servidor...');
           const dispositivoEnBD = await verificarDispositivoPorEmpleado(empleadoId, data.token);
 
+          // CASO 1: Dispositivo existe y está ACTIVO -> PERMITIR
           if (dispositivoEnBD.existe && dispositivoEnBD.activo) {
-            console.log('✅ [App] Dispositivo encontrado en BD y activo');
+            console.log('✅ [App] Dispositivo verificado en nube y ACTIVO');
 
-            // Restaurar datos en AsyncStorage si no existen
-            const tokenSolicitudLocal = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN_SOLICITUD);
-
-            if (!tokenSolicitudLocal && dispositivoEnBD.token) {
-              console.log('📝 [App] Restaurando datos de dispositivo en AsyncStorage');
-              await AsyncStorage.setItem(STORAGE_KEYS.TOKEN_SOLICITUD, dispositivoEnBD.token || '');
-              await AsyncStorage.setItem(STORAGE_KEYS.SOLICITUD_ID, dispositivoEnBD.solicitud_id || '');
-              await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETED, 'true');
-            } else if (!tokenSolicitudLocal) {
-              // Aunque no tengamos token, si está en BD y activo, marcar como completo
-              await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETED, 'true');
+            // Restaurar/Actualizar datos locales silenciosamente
+            if (dispositivoEnBD.token) {
+              await AsyncStorage.setItem(STORAGE_KEYS.TOKEN_SOLICITUD, dispositivoEnBD.token);
             }
+            if (dispositivoEnBD.solicitud_id) {
+              await AsyncStorage.setItem(STORAGE_KEYS.SOLICITUD_ID, dispositivoEnBD.solicitud_id.toString());
+            }
+            await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETED, 'true');
 
             setDeviceRegistered(true);
             setIsLoggedIn(true);
             return;
-          } else if (dispositivoEnBD.existe && !dispositivoEnBD.activo) {
-            console.log('⚠️ [App] Dispositivo existe pero está inactivo');
+          }
+
+          // CASO 2: Dispositivo existe pero INACTIVO/RECHAZADO -> BLOQUEAR (Sin fallback)
+          else if (dispositivoEnBD.existe && !dispositivoEnBD.activo) {
+            console.warn('⛔ [App] Dispositivo INACTIVO en nube. Bloqueando acceso.');
             await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
+
+            // Mostrar alerta y cerrar sesión
+            Alert.alert(
+              'Dispositivo No Autorizado',
+              'Este dispositivo ha sido desactivado o no esta autorizado por el administrador.',
+              [{ text: 'Entendido', onPress: () => handleLogout() }],
+              { cancelable: false }
+            );
+            return;
+          }
+
+          // CASO 3: No existe dispositivo en nube -> BLOQUEAR (Requiere registro)
+          // CASO 3: No existe dispositivo en nube -> BLOQUEAR (Requiere registro)
+          else {
+            console.warn('⛔ [App] No se encontró dispositivo registrado en nube.');
+
+            // 🔥 IMPORTANTE: Limpiar storage para evitar que OnboardingNavigator encuentre 
+            // credenciales antiguas y auto-complete el registro erróneamente.
+            await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
+            await AsyncStorage.removeItem(STORAGE_KEYS.SOLICITUD_ID);
+            await AsyncStorage.removeItem(STORAGE_KEYS.TOKEN_SOLICITUD);
+
+            // Si no existe, dejamos pasar al Onboarding (deviceRegistered = false)
             setDeviceRegistered(false);
             setIsLoggedIn(true);
             return;
           }
 
-          console.log('ℹ️ [App] No se encontró dispositivo en BD, verificando estado local');
+        } catch (error) {
+          console.error('❌ [App] Error verificando en nube:', error);
 
-        } catch (bdError) {
-          console.log('⚠️ [App] Error consultando BD, verificando estado local:', bdError.message);
+          // CRÍTICO: Si falla por error de RED (no 404/403 real), ¿permitimos fallback?
+          // La regla es "Enforcing Cloud-Only Device Verification When Online".
+          // Si el login fue online, deberíamos poder verificar.
+          // Si falló con 500 o timeout, es arriesgado dejar pasar.
+          // Pero si se acaba de ir la red, quizás fallback.
+
+          // Decisión: Si el error NO es de red clarísimo, bloqueamos o pedimos reintentar.
+          // Por simplicidad y seguridad: Si falló la verificación cloud en un login online, 
+          // NO confiamos en la base local (podría estar desactualizada "activo").
+          // Excepción: Si el error es 404 (Endpoint no encontrado?), asumimos sin dispositivo.
+
+          // Si es error de conexión, el usuario ya entró. Podríamos dejarlo pasar PERO
+          // mostrando alerta.
+          // Para "Enforcing", mostramos error y no dejamos pasar si no estamos seguros.
+
+          Alert.alert(
+            'Error de Verificación',
+            'No se pudo verificar el estado del dispositivo en el servidor. Intenta nuevamente.',
+            [{ text: 'Reintentar', onPress: () => handleLogout() }],
+            { cancelable: false }
+          );
+          return;
         }
       }
 
-      // Verificación local (fallback para offline o error de BD)
+      // ==============================================================================
+      // FALLBACK SOLO SI REALMENTE ESTAMOS OFFLINE (Login Offline)
+      // ==============================================================================
+
+      console.log('📴 [App] Modo OFFLINE detectado. Usando validación local.');
       const deviceCompleted = await AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
 
       if (deviceCompleted === 'true') {
-        if (!online) {
-          console.log('📴 [App] Offline — confiando en estado local del dispositivo');
-          setDeviceRegistered(true);
-        } else {
-          const tokenSolicitud = await AsyncStorage.getItem(STORAGE_KEYS.TOKEN_SOLICITUD);
-
-          if (tokenSolicitud) {
-            try {
-              const response = await getSolicitudPorToken(tokenSolicitud);
-              const estadoLower = response.estado?.toLowerCase();
-
-              if (estadoLower === 'aceptado') {
-                setDeviceRegistered(true);
-              } else {
-                await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
-                setDeviceRegistered(false);
-              }
-            } catch (error) {
-              if (error.code === 'SOLICITUD_NOT_FOUND' || error.status === 404) {
-                await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
-                setDeviceRegistered(false);
-              } else {
-                console.log('⚠️ [App] Error verificando solicitud, confiando en estado local');
-                setDeviceRegistered(true);
-              }
-            }
-          } else {
-            console.log('⚠️ [App] Sin token de solicitud local, requiere registro');
-            setDeviceRegistered(false);
-          }
-        }
+        setDeviceRegistered(true);
       } else {
         setDeviceRegistered(false);
       }
 
-      setCurrentScreen('home'); // 🔥 SIEMPRE iniciar en Home
+      setCurrentScreen('home');
       setIsLoggedIn(true);
+
     } catch (error) {
-      console.error('[App] Error en handleLoginSuccess:', error);
-      setIsLoggedIn(true);
-      setDeviceRegistered(false);
+      console.error('[App] Error FATAL en handleLoginSuccess:', error);
+      // En caso de error de código, para no dejar al usuario en el limbo, 
+      // cerramos sesión.
+      Alert.alert(
+        'Error',
+        'Ocurrió un problema al iniciar sesión. Intenta nuevamente.',
+        [{ text: 'OK', onPress: () => handleLogout() }]
+      );
     }
   };
 

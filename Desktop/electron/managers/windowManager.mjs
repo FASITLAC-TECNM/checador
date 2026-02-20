@@ -44,8 +44,8 @@ export function createWindow() {
             v8CacheOptions: "code",
             // Mejorar rendimiento de video
             backgroundThrottling: false,
-            // webSecurity siempre habilitada (en dev Vite corre en localhost, no hay problema de CORS)
-            webSecurity: true,
+            // Deshabilitar seguridad web para permitir CORS en desarrollo
+            webSecurity: process.env.NODE_ENV !== "development" ? true : false,
         },
         backgroundColor: "#ffffff",
         show: false, // No mostrar hasta que esté listo

@@ -7,10 +7,12 @@ import AffiliationRequest from "./pages/AffiliationRequest";
 import KioskScreen from "./pages/KioskScreen";
 import SessionScreen from "./pages/SessionScreen";
 import MaintenanceScreen from "./components/maintenance/MaintenanceScreen";
+import NodeDisabledScreen from "./components/maintenance/NodeDisabledScreen";
 import storage from "./utils/storage";
 
 import { deviceMonitorService } from "./services/deviceMonitorService";
 import { API_CONFIG } from "./config/apiEndPoint";
+import { obtenerEscritorio } from "./services/escritorioService";
 
 function App() {
   // Estado de la página actual
@@ -60,9 +62,7 @@ function App() {
     const checkMaintenance = async () => {
       try {
         setIsCheckingMaintenance(true);
-        // Usar API_CONFIG para consistencia
         const response = await fetch(`${API_CONFIG.BASE_URL}/api/configuracion/public/status`);
-
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.maintenance !== undefined) {
@@ -75,15 +75,57 @@ function App() {
         setIsCheckingMaintenance(false);
       }
     };
-
-    // Verificar inmediatamente al cargar
     checkMaintenance();
-
-    // Luego verificar cada 60 segundos
     const interval = setInterval(checkMaintenance, 60000);
-
     return () => clearInterval(interval);
   }, []);
+
+  // Estado para Nodo Deshabilitado
+  const [isNodeDisabled, setIsNodeDisabled] = useState(false);
+  const [nodeInfo, setNodeInfo] = useState(null);
+  const [isCheckingNode, setIsCheckingNode] = useState(false);
+
+  const checkNodeStatus = async () => {
+    // escritorio_id se guarda en localStorage directamente
+    const escritorioId = localStorage.getItem("escritorio_id");
+    if (!escritorioId) return;
+
+    try {
+      setIsCheckingNode(true);
+      // Usamos el servicio existente que ya maneja auth y fallbacks
+      const nodo = await obtenerEscritorio(escritorioId);
+      if (nodo) {
+        setNodeInfo(nodo);
+        // es_activo puede llegar como boolean false o número 0
+        const disabled = nodo.es_activo === false || nodo.es_activo === 0;
+        setIsNodeDisabled(disabled);
+      }
+    } catch (error) {
+      console.warn("No se pudo verificar el estado del nodo:", error);
+    } finally {
+      setIsCheckingNode(false);
+    }
+  };
+
+  // Verificar estado del nodo periódicamente
+  useEffect(() => {
+    checkNodeStatus();
+    const interval = setInterval(checkNodeStatus, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Manejador para iniciar nueva solicitud de afiliación
+  const handleNewAffiliation = async () => {
+    // Limpiar todo el estado de configuración (usando storage para Electron)
+    await storage.removeItem("appConfigured");
+    await storage.removeItem("escritorio_id");
+    await storage.removeItem("auth_token");
+    await storage.removeItem("solicitud_id");
+    await storage.removeItem("solicitud_token");
+    setIsNodeDisabled(false);
+    setNodeInfo(null);
+    setCurrentPage("affiliation");
+  };
 
   // Mostrar pantalla de carga mientras se verifica la configuración inicial
   if (isLoading) {
@@ -105,10 +147,21 @@ function App() {
       <ThemeProvider>
         <MaintenanceScreen
           isChecking={isCheckingMaintenance}
-          onRetry={() => {
-            // Fuerza una recarga completa para asegurar que todo el estado se limpie
-            window.location.reload();
-          }}
+          onRetry={window.location.reload}
+        />
+      </ThemeProvider>
+    );
+  }
+
+  // Si el nodo está deshabilitado, mostrar la pantalla correspondiente
+  if (isNodeDisabled && nodeInfo) {
+    return (
+      <ThemeProvider>
+        <NodeDisabledScreen
+          nodeName={nodeInfo.nombre}
+          isChecking={isCheckingNode}
+          onRetry={checkNodeStatus}
+          onNewAffiliation={handleNewAffiliation}
         />
       </ThemeProvider>
     );

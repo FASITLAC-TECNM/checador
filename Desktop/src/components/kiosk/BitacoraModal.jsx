@@ -1,4 +1,4 @@
-import { Activity, X } from "lucide-react";
+import { X } from "lucide-react";
 import { eventLog } from "../../constants/notices";
 import { obtenerBitacora } from "../../services/bitacoraService";
 import { useState, useEffect } from "react";
@@ -81,8 +81,7 @@ export default function BitacoraModal({ onClose }) {
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-bg-primary rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div className="bg-bg-primary px-5 py-4 flex items-center justify-between shrink-0 border-b border-border-subtle">
-          <div className="flex items-center gap-3">
-            <Activity className="w-8 h-8 text-[#1976D2]" />
+          <div className="flex items-center">
             <div>
               <h3 className="text-2xl font-bold text-text-primary">
                 Bitácora de Eventos

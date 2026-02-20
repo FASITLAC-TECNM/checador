@@ -24,8 +24,8 @@ const generarToken = () => {
  * @param {string} datos.nombre - Nombre del equipo (CHAR 55)
  * @param {string} datos.descripcion - Descripción del equipo (TEXT)
  * @param {string} datos.correo - Correo electrónico (CHAR 55, opcional)
- * @param {string} datos.ip - Dirección IP (CHAR 12)
- * @param {string} datos.mac - Dirección MAC (CHAR 12)
+ * @param {string} datos.ip - Dirección IP (CHAR 55)
+ * @param {string} datos.mac - Dirección MAC (CHAR 55)
  * @param {string} datos.sistema_operativo - Sistema operativo (CHAR 55)
  * @param {string} datos.empresa_id - ID de la empresa (CHAR 8)
  * @param {Array} datos.dispositivos - Dispositivos biométricos a registrar
@@ -51,8 +51,8 @@ export const crearSolicitudAfiliacion = async (datos) => {
       nombre: datos.nombre?.substring(0, 55) || "",
       descripcion: datos.descripcion || "",
       correo: datos.correo?.substring(0, 55) || null,
-      ip: datos.ip || "",
-      mac: datos.mac || "",
+      ip: datos.ip?.substring(0, 55) || "",
+      mac: datos.mac?.substring(0, 55) || "",
       sistema_operativo: datos.sistema_operativo?.substring(0, 55) || "",
       token: token,
       empresa_id: datos.empresa_id?.substring(0, 8) || "",

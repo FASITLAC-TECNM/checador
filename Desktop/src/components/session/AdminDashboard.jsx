@@ -33,6 +33,7 @@ export default function AdminDashboard({
     loadingEmpleado,
     userHorario,
     readerConnected,
+    isCameraConnected = false,
     isOnline,
     onShowHorario,
     onShowHistorial,
@@ -326,17 +327,17 @@ export default function AdminDashboard({
                                 </button>
 
                                 <button
-                                    disabled={!isOnline}
-                                    onClick={() => isOnline && onShowRegisterFace?.()}
-                                    className={`rounded-2xl shadow-sm p-4 transition-all flex flex-col items-center justify-center border border-border-subtle ${isOnline
+                                    disabled={!isOnline || !isCameraConnected}
+                                    onClick={() => isOnline && isCameraConnected && onShowRegisterFace?.()}
+                                    className={`rounded-2xl shadow-sm p-4 transition-all flex flex-col items-center justify-center border border-border-subtle ${isOnline && isCameraConnected
                                         ? "bg-bg-secondary hover:bg-bg-tertiary hover:shadow-md cursor-pointer text-[#1976D2] dark:text-[#42A5F5]"
                                         : "bg-gray-100 dark:bg-slate-700/50 text-gray-400 dark:text-gray-500 cursor-not-allowed"
                                         }`}
                                 >
                                     <Camera className="w-8 h-8 mb-2" />
-                                    <h3 className={`text-sm font-bold mb-0.5 ${isOnline ? "text-text-primary" : "text-gray-400 dark:text-gray-500"}`}>Reg. Rostro</h3>
-                                    <p className={`text-[10px] ${isOnline ? "text-text-secondary" : "text-gray-400 dark:text-gray-500"}`}>
-                                        {isOnline ? "Reconocimiento facial" : "Sin conexión"}
+                                    <h3 className={`text-sm font-bold mb-0.5 ${isOnline && isCameraConnected ? "text-text-primary" : "text-gray-400 dark:text-gray-500"}`}>Reg. Rostro</h3>
+                                    <p className={`text-[10px] ${isOnline && isCameraConnected ? "text-text-secondary" : "text-gray-400 dark:text-gray-500"}`}>
+                                        {!isOnline ? "Sin conexión" : !isCameraConnected ? "Cámara no disponible" : "Reconocimiento facial"}
                                     </p>
                                 </button>
                             </div>

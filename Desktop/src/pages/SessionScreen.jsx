@@ -38,6 +38,7 @@ import useBiometricWebSocket from "../hooks/useBiometricWebSocket";
 
 // Hooks
 import { useEmployeeData } from "../hooks/useEmployeeData";
+import { useCameraStatus } from "../hooks/useCameraStatus";
 
 export default function SessionScreen({ onLogout, usuario }) {
   const [time, setTime] = useState(new Date());
@@ -59,6 +60,9 @@ export default function SessionScreen({ onLogout, usuario }) {
 
   // Obtener estado del lector biométrico usando el hook
   const { readerConnected } = useBiometricWebSocket();
+
+  // Obtener estado de cámara registrada y conectada
+  const { isCameraConnected, hasCameraRegistered } = useCameraStatus();
 
   const [nombreNodo, setNombreNodo] = useState("Entrada Principal");
   const [descripcionNodo, setDescripcionNodo] = useState(
@@ -171,6 +175,7 @@ export default function SessionScreen({ onLogout, usuario }) {
             loadingEmpleado={loadingEmpleado}
             userHorario={userHorario}
             readerConnected={readerConnected}
+            isCameraConnected={hasCameraRegistered && isCameraConnected}
             isOnline={isOnline}
             onShowHorario={() => setShowHorarioModal(true)}
             onShowHistorial={() => setShowHistorialModal(true)}

@@ -18,6 +18,7 @@ import AsistenciaFacial from "../components/kiosk/AsistenciaFacial";
 // Hooks
 import { useKioskConfiguration } from "../hooks/useKioskConfiguration";
 import { useInactivityTimer } from "../hooks/useInactivityTimer";
+import { useCameraStatus } from "../hooks/useCameraStatus";
 
 export default function KioskScreen() {
 
@@ -39,6 +40,7 @@ export default function KioskScreen() {
 
   const { ordenCredenciales, loadingCredenciales, activeMethods } = useKioskConfiguration(isLoggedIn);
   useInactivityTimer();
+  const { isCameraConnected, hasCameraRegistered } = useCameraStatus(!isLoggedIn); // Solo monitorear cuando no está en sesión
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -208,11 +210,15 @@ export default function KioskScreen() {
       facial: {
         icon: Camera,
         label: "Reconocimiento Facial",
-        color:
-          "from-[#1976D2] to-[#001A70] dark:from-slate-700 dark:to-slate-800",
-        hoverColor:
-          "hover:from-[#1565C0] hover:to-[#001A70] dark:hover:from-slate-600 dark:hover:to-slate-700",
-        handler: handleFacialCheck,
+        color: (hasCameraRegistered && isCameraConnected)
+          ? "from-[#1976D2] to-[#001A70] dark:from-slate-700 dark:to-slate-800"
+          : "from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700",
+        hoverColor: (hasCameraRegistered && isCameraConnected)
+          ? "hover:from-[#1565C0] hover:to-[#001A70] dark:hover:from-slate-600 dark:hover:to-slate-700"
+          : "",
+        handler: (hasCameraRegistered && isCameraConnected) ? handleFacialCheck : null,
+        isDisabled: !(hasCameraRegistered && isCameraConnected),
+        disabledMessage: !hasCameraRegistered ? "Sin cámara registrada" : "Cámara desconectada",
       },
       dactilar: {
         icon: Fingerprint,
@@ -273,6 +279,7 @@ export default function KioskScreen() {
         <ConnectionStatusPanel
           isInternetConnected={isInternetConnected}
           isDatabaseConnected={isDatabaseConnected}
+          isCameraConnected={ordenCredenciales?.facial?.activo && hasCameraRegistered ? isCameraConnected : null}
           isReaderConnected={ordenCredenciales?.dactilar?.activo ? isReaderConnected : null}
         />
       </div>
@@ -303,13 +310,17 @@ export default function KioskScreen() {
             (() => {
               const method = getMethodInfo(activeMethods[0]);
               const Icon = method.icon;
-              const isClickable = method.handler && !method.isVisualOnly;
+              const isDisabled = method.isDisabled;
+              const isClickable = method.handler && !method.isVisualOnly && !isDisabled;
               return (
                 <div
                   onClick={isClickable ? method.handler : undefined}
-                  className={`bg-gradient-to-br ${method.color} rounded-3xl shadow-2xl h-full text-white text-center transition-all flex flex-col items-center justify-center p-8 ${isClickable
-                    ? `${method.hoverColor} cursor-pointer hover:shadow-3xl hover:scale-[1.01]`
-                    : "cursor-default"
+                  title={isDisabled ? method.disabledMessage : ""}
+                  className={`bg-gradient-to-br ${method.color} rounded-3xl shadow-2xl h-full text-white text-center transition-all flex flex-col items-center justify-center p-8 ${isDisabled
+                    ? "opacity-60 cursor-not-allowed"
+                    : isClickable
+                      ? `${method.hoverColor} cursor-pointer hover:shadow-3xl hover:scale-[1.01]`
+                      : "cursor-default"
                     }`}
                 >
                   <h2 className="text-3xl font-bold mb-4">
@@ -317,8 +328,13 @@ export default function KioskScreen() {
                   </h2>
 
                   <div className="flex justify-center mb-4">
-                    <Icon className="w-32 h-32 text-white" strokeWidth={1.5} />
+                    <Icon className={`w-32 h-32 ${isDisabled ? "text-gray-300" : "text-white"}`} strokeWidth={1.5} />
                   </div>
+                  {isDisabled && (
+                    <p className="text-lg text-gray-300 mb-2">
+                      ({method.disabledMessage})
+                    </p>
+                  )}
 
                   <div className="mb-3">
                     <div
@@ -541,6 +557,7 @@ export default function KioskScreen() {
           onLoginSuccess={handleLoginSuccess}
           ordenCredenciales={ordenCredenciales}
           isReaderConnected={isReaderConnected}
+          isCameraConnected={hasCameraRegistered && isCameraConnected}
         />
       )}
 

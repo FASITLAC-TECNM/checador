@@ -383,27 +383,18 @@ export const validarEntrada = (horario, tolerancia, minutosActuales, grupoInicio
     }
 
     // Ventanas de tiempo basadas en tolerancia y COMPORTAMIENTOS
-    // ventanaInicio: Cuándo puede empezar a registrar entrada
-    const ventanaInicio = tolerancia.permite_registro_anticipado
-      ? minEntrada - (tolerancia.minutos_anticipado_max || 60)
-      : minEntrada; // Si no permite anticipado, solo puede entrar en hora exacta o después
+    const minutosAnticipado = tolerancia.minutos_anticipado_max || 60;
+    const ventanaInicio = minEntrada - minutosAnticipado;
 
-    // ventanaRetardo: Hasta cuándo es puntual (entrada + retardo si aplica tolerancia)
-    const ventanaRetardo = tolerancia.aplica_tolerancia_entrada !== false
-      ? minEntrada + (tolerancia.minutos_retardo || 0)
-      : minEntrada; // Sin tolerancia = cualquier segundo después de hora es retardo
-
-    // ventanaFalta: Después de esto es falta (NO puede exceder hora de salida)
-    const ventanaFalta = Math.min(
-      minEntrada + (tolerancia.minutos_falta || 30),
-      minSalida
-    );
+    // Lógica dinámica de Post-its:
+    // Puntual: <= 10 minutos (tolerancia general asumida)
+    const margenPuntual = minEntrada + 10;
+    const margenRetardoA = minEntrada + 20; // Hasta 20 min
+    const margenRetardoB = minEntrada + 29; // Hasta 29 min
 
     console.log('   Grupo:', horaEntrada, '-', horaSalida);
-    console.log('   Tolerancias: permite_anticipado=', tolerancia.permite_registro_anticipado,
-      'aplica_entrada=', tolerancia.aplica_tolerancia_entrada);
-    console.log('   Ventanas: inicio=', ventanaInicio, 'retardo=', ventanaRetardo,
-      'falta=', ventanaFalta, 'salida=', minSalida);
+    console.log('   Ventanas: inicio=', ventanaInicio, 'puntual=', margenPuntual,
+      'retardoA=', margenRetardoA, 'retardoB=', margenRetardoB, 'salida=', minSalida);
     console.log('   Hora actual:', minutosActuales);
 
     // Si ya pasó la hora de salida de este turno, este grupo ya no es válido
@@ -419,7 +410,7 @@ export const validarEntrada = (horario, tolerancia, minutosActuales, grupoInicio
       continue;
     }
 
-    // Validar registro anticipado si está antes de la hora de entrada
+    // Validar registro anticipado si está antes de la hora de entrada y no está permitido
     if (tolerancia.permite_registro_anticipado === false && minutosActuales < minEntrada) {
       console.log('   ❌ Registro anticipado no permitido');
       return {
@@ -434,8 +425,8 @@ export const validarEntrada = (horario, tolerancia, minutosActuales, grupoInicio
       };
     }
 
-    // PUNTUAL: dentro del rango anticipado hasta retardo
-    if (minutosActuales >= ventanaInicio && minutosActuales <= ventanaRetardo) {
+    // PUNTUAL: hasta +10 min
+    if (minutosActuales >= ventanaInicio && minutosActuales <= margenPuntual) {
       console.log('   ✅ Entrada puntual');
       return {
         puedeRegistrar: true,
@@ -448,28 +439,42 @@ export const validarEntrada = (horario, tolerancia, minutosActuales, grupoInicio
       };
     }
 
-    // RETARDO: después del tiempo de retardo pero antes de falta
-    if (minutosActuales > ventanaRetardo && minutosActuales <= ventanaFalta) {
-      console.log('   ⚠️ Entrada con retardo');
+    // RETARDO A: 11 a 20 min
+    if (minutosActuales > margenPuntual && minutosActuales <= margenRetardoA) {
+      console.log('   ⚠️ Entrada con retardo tipo A');
       return {
         puedeRegistrar: true,
         tipoRegistro: 'entrada',
-        clasificacion: 'retardo',
-        estadoHorario: 'retardo',
+        clasificacion: 'retardo_a',
+        estadoHorario: 'retardo_a',
         jornadaCompleta: false,
         hayTurnoFuturo: false,
         grupoActual: grupo
       };
     }
 
-    // FALTA: después del tiempo de falta pero antes de fin de turno
-    if (minutosActuales > ventanaFalta && minutosActuales <= minSalida) {
-      console.log('   ❌ Entrada como falta');
+    // RETARDO B: 21 a 29 min
+    if (minutosActuales > margenRetardoA && minutosActuales <= margenRetardoB) {
+      console.log('   ⚠️ Entrada con retardo tipo B');
       return {
         puedeRegistrar: true,
         tipoRegistro: 'entrada',
-        clasificacion: 'falta',
-        estadoHorario: 'falta',
+        clasificacion: 'retardo_b',
+        estadoHorario: 'retardo_b',
+        jornadaCompleta: false,
+        hayTurnoFuturo: false,
+        grupoActual: grupo
+      };
+    }
+
+    // FALTA POR RETARDO: 30 o más minutos pero antes de fin de turno
+    if (minutosActuales > margenRetardoB && minutosActuales <= minSalida) {
+      console.log('   ❌ Entrada como falta por retardo');
+      return {
+        puedeRegistrar: true,
+        tipoRegistro: 'entrada',
+        clasificacion: 'falta_por_retardo',
+        estadoHorario: 'falta_por_retardo',
         jornadaCompleta: false,
         hayTurnoFuturo: false,
         grupoActual: grupo

@@ -781,7 +781,7 @@ export default function AsistenciaFacial({
           {/* Exito */}
           {step === "success" && result && (
             <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6 text-center">
-              {result.clasificacion === 'retardo' || result.clasificacion === 'salida_temprana' ? (
+              {result.clasificacion === 'retardo_a' || result.clasificacion === 'retardo_b' || result.clasificacion === 'salida_temprana' ? (
                 <AlertTriangle className="w-16 h-16 mx-auto mb-3 text-yellow-600 dark:text-yellow-400" />
               ) : result.clasificacion === 'falta' ? (
                 <XCircle className="w-16 h-16 mx-auto mb-3 text-red-600 dark:text-red-400" />
@@ -791,7 +791,7 @@ export default function AsistenciaFacial({
 
               <p className={`font-bold text-lg mb-1 ${result.clasificacion === 'falta'
                 ? "text-red-800 dark:text-red-300"
-                : result.clasificacion === 'retardo' || result.clasificacion === 'salida_temprana'
+                : result.clasificacion === 'retardo_a' || result.clasificacion === 'retardo_b' || result.clasificacion === 'salida_temprana'
                   ? "text-yellow-800 dark:text-yellow-300"
                   : "text-green-800 dark:text-green-300"
                 }`}>
@@ -813,7 +813,7 @@ export default function AsistenciaFacial({
                   <span
                     className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${result.clasificacion === "entrada" || result.clasificacion === "salida_puntual"
                       ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
-                      : result.clasificacion === "retardo" || result.clasificacion === "salida_temprana"
+                      : result.clasificacion === "retardo_a" || result.clasificacion === "retardo_b" || result.clasificacion === "salida_temprana"
                         ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
                         : result.clasificacion === "falta"
                           ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"

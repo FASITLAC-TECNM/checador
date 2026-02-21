@@ -355,83 +355,36 @@ export const verificarDispositivoPorEmpleado = async (empleadoId, token) => {
     });
 
     try {
-      const response = await tempApi.get(`/movil/sync/dispositivos/${empleadoId}`);
+      // Usar el endpoint de movil.controller que ahora devuelve el dispositivo
+      // con es_activo independientemente de su estado (activo o desactivado)
+      const response = await tempApi.get(`/movil/empleado/${empleadoId}`);
 
       console.log('📱 [solicitudMovilService] Respuesta del servidor:', response.data);
 
-      // 🔥 FIX: El endpoint retorna { dispositivos: [...], total: N, success: true }
-      if (response.data.success && response.data.dispositivos) {
-        const dispositivos = response.data.dispositivos;
+      if (response.data.success && response.data.data) {
+        const dispositivo = response.data.data;
 
-        if (dispositivos.length > 0) {
-          const dispositivo = dispositivos[0]; // Tomar el primer dispositivo
+        console.log('📱 [solicitudMovilService] Dispositivo encontrado:', {
+          id: dispositivo.id,
+          es_activo: dispositivo.es_activo
+        });
 
-          console.log('✅ [solicitudMovilService] Dispositivo encontrado:', {
-            id: dispositivo.id,
-            sistema_operativo: dispositivo.sistema_operativo
-          });
-
-          // Ahora necesitamos verificar si tiene solicitud aceptada
-          // Buscar en tabla de solicitudes por empleado_id
-          try {
-            // Intentar obtener la solicitud asociada
-            const solicitudesResponse = await tempApi.get(`/solicitudes/empleado/${empleadoId}`);
-
-            if (solicitudesResponse.data.success && solicitudesResponse.data.data) {
-              const solicitudes = Array.isArray(solicitudesResponse.data.data)
-                ? solicitudesResponse.data.data
-                : [solicitudesResponse.data.data];
-
-              // Buscar solicitud aceptada de tipo móvil
-              const solicitudAceptada = solicitudes.find(s =>
-                s.tipo === 'movil' && s.estado?.toLowerCase() === 'aceptado'
-              );
-
-              if (solicitudAceptada) {
-                return {
-                  existe: true,
-                  activo: true,
-                  dispositivo_id: dispositivo.id,
-                  solicitud_id: solicitudAceptada.id,
-                  token: solicitudAceptada.token || null,
-                  sistema_operativo: dispositivo.sistema_operativo
-                };
-              }
-            }
-          } catch (solError) {
-            console.log('⚠️ [solicitudMovilService] No se pudo obtener solicitud, asumiendo activo');
-          }
-
-          // Si tiene dispositivo pero no pudimos verificar solicitud, asumir activo
-          return {
-            existe: true,
-            activo: true, // Asumir activo si tiene dispositivo registrado
-            dispositivo_id: dispositivo.id,
-            sistema_operativo: dispositivo.sistema_operativo
-          };
-        }
-
-        // No tiene dispositivos
-        console.log('ℹ️ [solicitudMovilService] Empleado no tiene dispositivo registrado');
         return {
-          existe: false,
-          activo: false
+          existe: true,
+          activo: dispositivo.es_activo === true,
+          dispositivo_id: dispositivo.id,
+          sistema_operativo: dispositivo.sistema_operativo
         };
       }
 
-      console.log('⚠️ [solicitudMovilService] Respuesta inesperada del servidor');
-      return {
-        existe: false,
-        activo: false
-      };
+      // Respuesta inesperada
+      return { existe: false, activo: false };
 
     } catch (error) {
       if (error.response?.status === 404) {
-        console.log('ℹ️ [solicitudMovilService] Empleado no tiene dispositivo registrado (404)');
-        return {
-          existe: false,
-          activo: false
-        };
+        // El empleado no tiene ningún dispositivo registrado (ni activo ni inactivo)
+        console.log('ℹ️ [solicitudMovilService] Empleado sin dispositivo registrado (404)');
+        return { existe: false, activo: false };
       }
 
       console.error('❌ [solicitudMovilService] Error consultando dispositivo:', error.message);

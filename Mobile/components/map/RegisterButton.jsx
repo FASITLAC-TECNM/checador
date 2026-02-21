@@ -676,8 +676,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     const minSalida = hS * 60 + mS;
 
     const ventanaInicio = minEntrada - (tolerancia.minutos_anticipado_max || 60);
-    const ventanaRetardo = minEntrada + (tolerancia.minutos_retardo || 10);
-    const ventanaFalta = minEntrada + (tolerancia.minutos_falta || 30);
+    // Umbrales sincronizados con backend (asistencias.controller.js)
+    const margenPuntual = minEntrada + 10;  // <= 10 min → puntual
+    const margenRetardoA = minEntrada + 20;  // 11-20 min → retardo_a
+    const margenRetardoB = minEntrada + 29;  // 21-29 min → retardo_b
+    // > 29 min hasta salida → falta_por_retardo
 
     if (minutosActuales < ventanaInicio) {
       return {
@@ -690,7 +693,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       };
     }
 
-    if (minutosActuales >= ventanaInicio && minutosActuales <= ventanaRetardo) {
+    if (minutosActuales >= ventanaInicio && minutosActuales <= margenPuntual) {
       return {
         puedeRegistrar: true,
         tipoRegistro: 'entrada',
@@ -701,25 +704,36 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       };
     }
 
-    if (minutosActuales > ventanaRetardo && minutosActuales <= ventanaFalta) {
+    if (minutosActuales > margenPuntual && minutosActuales <= margenRetardoA) {
       return {
         puedeRegistrar: true,
         tipoRegistro: 'entrada',
-        estadoHorario: 'retardo',
+        estadoHorario: 'retardo_a',
         jornadaCompleta: false,
         hayTurnoFuturo: false,
-        mensaje: 'Registro con retardo'
+        mensaje: 'Retardo tipo A (hasta 20 min)'
       };
     }
 
-    if (minutosActuales > ventanaFalta && minutosActuales <= minSalida) {
+    if (minutosActuales > margenRetardoA && minutosActuales <= margenRetardoB) {
       return {
         puedeRegistrar: true,
         tipoRegistro: 'entrada',
-        estadoHorario: 'falta',
+        estadoHorario: 'retardo_b',
         jornadaCompleta: false,
         hayTurnoFuturo: false,
-        mensaje: 'Fuera de tolerancia (falta)'
+        mensaje: 'Retardo tipo B (hasta 29 min)'
+      };
+    }
+
+    if (minutosActuales > margenRetardoB && minutosActuales <= minSalida) {
+      return {
+        puedeRegistrar: true,
+        tipoRegistro: 'entrada',
+        estadoHorario: 'falta_por_retardo',
+        jornadaCompleta: false,
+        hayTurnoFuturo: false,
+        mensaje: 'Falta por retardo mayor'
       };
     }
 
@@ -1272,7 +1286,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           const totalRegs = ultimoActual?.totalRegistrosHoy || 0;
           if (tipoActual === 'entrada') {
             const r = validarEntrada(horarioActual, toleranciaActual, minutosAhora, totalRegs);
-            if (r.estadoHorario === 'retardo') estadoOffline = 'retardo';
+            if (r.estadoHorario === 'retardo_a') estadoOffline = 'retardo_a';
+            else if (r.estadoHorario === 'retardo_b') estadoOffline = 'retardo_b';
+            else if (r.estadoHorario === 'falta_por_retardo') estadoOffline = 'falta_por_retardo';
             else if (r.estadoHorario === 'falta') estadoOffline = 'falta';
           } else {
             const r = validarSalida(horarioActual, minutosAhora, ultimoActual, toleranciaActual, onlineActual);
@@ -1342,9 +1358,15 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           emoji = '✅';
         }
       } else {
-        if (estadoRegistrado === 'retardo') {
-          estadoTexto = 'retardo';
+        if (estadoRegistrado === 'retardo_a') {
+          estadoTexto = 'retardo tipo A';
           emoji = '⚠️';
+        } else if (estadoRegistrado === 'retardo_b') {
+          estadoTexto = 'retardo tipo B';
+          emoji = '⚠️';
+        } else if (estadoRegistrado === 'falta_por_retardo') {
+          estadoTexto = 'falta por retardo';
+          emoji = '❌';
         } else if (estadoRegistrado === 'falta') {
           estadoTexto = 'falta';
           emoji = '❌';
@@ -1443,7 +1465,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     if (!dentroDelArea || !puedeRegistrar) return '#ef4444';
     if (tipoSiguienteRegistro === 'salida' && puedeRegistrar) return '#10b981';
     if (estadoHorario === 'puntual') return '#10b981';
-    if (estadoHorario === 'retardo') return '#f59e0b';
+    if (estadoHorario === 'retardo_a') return '#f59e0b';   // ámbar
+    if (estadoHorario === 'retardo_b') return '#f97316';   // naranja
+    if (estadoHorario === 'falta_por_retardo') return '#ef4444';
     if (estadoHorario === 'falta') return '#ef4444';
     return '#6b7280';
   };
@@ -1455,7 +1479,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     if (!puedeRegistrar) return 'time';
     if (tipoSiguienteRegistro === 'salida') return 'log-out';
     if (estadoHorario === 'puntual') return 'checkmark-circle';
-    if (estadoHorario === 'retardo') return 'time';
+    if (estadoHorario === 'retardo_a') return 'time';
+    if (estadoHorario === 'retardo_b') return 'time';
+    if (estadoHorario === 'falta_por_retardo') return 'alert-circle';
     if (estadoHorario === 'falta') return 'alert-circle';
     return 'time';
   };
@@ -1469,7 +1495,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     if (!puedeRegistrar) return 'Fuera de horario';
     if (tipoSiguienteRegistro === 'salida' && puedeRegistrar) return 'Listo para salida';
     if (estadoHorario === 'puntual') return 'Listo para registrar';
-    if (estadoHorario === 'retardo') return 'Registro con retardo';
+    if (estadoHorario === 'retardo_a') return 'Retardo tipo A';
+    if (estadoHorario === 'retardo_b') return 'Retardo tipo B';
+    if (estadoHorario === 'falta_por_retardo') return 'Falta por retardo';
     if (estadoHorario === 'falta') return 'Fuera de tolerancia';
     return 'Verificando...';
   };
@@ -1539,8 +1567,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                     estadoHorario === 'tiempo_insuficiente' ? 'time-outline' :
                       tipoSiguienteRegistro === 'salida' ? 'checkmark-circle' :
                         estadoHorario === 'puntual' ? 'checkmark-circle' :
-                          estadoHorario === 'retardo' ? 'time' :
-                            estadoHorario === 'falta' ? 'alert-circle' :
+                          (estadoHorario === 'retardo_a' || estadoHorario === 'retardo_b' || estadoHorario === 'retardo') ? 'time' :
+                            (estadoHorario === 'falta_por_retardo' || estadoHorario === 'falta') ? 'alert-circle' :
                               'close-circle'
                   }
                   size={16}
@@ -1548,9 +1576,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                     estadoHorario === 'tiempo_insuficiente' ? '#f59e0b' :
                       tipoSiguienteRegistro === 'salida' && puedeRegistrar ? '#10b981' :
                         estadoHorario === 'puntual' ? '#10b981' :
-                          estadoHorario === 'retardo' ? '#f59e0b' :
-                            estadoHorario === 'falta' ? '#ef4444' :
-                              '#ef4444'
+                          estadoHorario === 'retardo_a' ? '#f59e0b' :
+                            estadoHorario === 'retardo_b' ? '#f97316' :
+                              estadoHorario === 'retardo' ? '#f59e0b' :
+                                (estadoHorario === 'falta_por_retardo' || estadoHorario === 'falta') ? '#ef4444' :
+                                  '#ef4444'
                   }
                 />
                 <Text style={[
@@ -1559,17 +1589,22 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                     color: estadoHorario === 'tiempo_insuficiente' ? '#f59e0b' :
                       tipoSiguienteRegistro === 'salida' && puedeRegistrar ? '#10b981' :
                         estadoHorario === 'puntual' ? '#10b981' :
-                          estadoHorario === 'retardo' ? '#f59e0b' :
-                            estadoHorario === 'falta' ? '#ef4444' :
-                              '#ef4444'
+                          estadoHorario === 'retardo_a' ? '#f59e0b' :
+                            estadoHorario === 'retardo_b' ? '#f97316' :
+                              estadoHorario === 'retardo' ? '#f59e0b' :
+                                (estadoHorario === 'falta_por_retardo' || estadoHorario === 'falta') ? '#ef4444' :
+                                  '#ef4444'
                   }
                 ]}>
                   {estadoHorario === 'tiempo_insuficiente' ? 'Trabajando...' :
                     tipoSiguienteRegistro === 'salida' && puedeRegistrar ? 'Hora de salida' :
                       estadoHorario === 'puntual' ? 'A tiempo' :
-                        estadoHorario === 'retardo' ? 'Con retardo' :
-                          estadoHorario === 'falta' ? 'Fuera tolerancia' :
-                            'Fuera de horario'}
+                        estadoHorario === 'retardo_a' ? 'Retardo A' :
+                          estadoHorario === 'retardo_b' ? 'Retardo B' :
+                            (estadoHorario === 'retardo') ? 'Con retardo' :
+                              estadoHorario === 'falta_por_retardo' ? 'Falta por retardo' :
+                                estadoHorario === 'falta' ? 'Fuera tolerancia' :
+                                  'Fuera de horario'}
                 </Text>
               </View>
             </View>

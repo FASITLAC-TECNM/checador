@@ -86,9 +86,17 @@ export const notificarRegistro = async (tipo, estado) => {
           emoji = '✅';
           cuerpo = 'Entrada registrada - Puntual';
           break;
-        case 'retardo':
+        case 'retardo_a':
           emoji = '⚠️';
-          cuerpo = 'Entrada registrada - Con retardo';
+          cuerpo = 'Entrada registrada - Retardo tipo A (hasta 20 min)';
+          break;
+        case 'retardo_b':
+          emoji = '⚠️';
+          cuerpo = 'Entrada registrada - Retardo tipo B (hasta 29 min)';
+          break;
+        case 'falta_por_retardo':
+          emoji = '❌';
+          cuerpo = 'Entrada registrada - Falta por retardo mayor';
           break;
         case 'falta':
           emoji = '❌';

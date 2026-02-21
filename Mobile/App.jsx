@@ -7,6 +7,7 @@ import * as SystemUI from 'expo-system-ui';
 import { LoginScreen } from './components/logins/login';
 import SplashScreen from './components/ui/SplashScreen';
 import MaintenanceScreen from './components/ui/MaintenanceScreen';
+import DeviceDisabledScreen from './components/ui/DeviceDisabledScreen';
 import { getMaintenanceStatus } from './services/configurationService';
 import { HomeScreen } from './components/homes/home';
 import { HistoryScreen } from './components/homes/history';
@@ -43,6 +44,7 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [isOfflineSession, setIsOfflineSession] = useState(false);
   const [isMaintenance, setIsMaintenance] = useState(false);
+  const [deviceDisabled, setDeviceDisabled] = useState(false);
 
   const appState = useRef(AppState.currentState);
   const verificationInterval = useRef(null);
@@ -210,27 +212,48 @@ export default function App() {
         rechazado: 'Tu dispositivo fue rechazado por el administrador'
       };
 
-      await handleDeviceInvalidated(mensajes[estadoLower] || 'El estado de tu dispositivo ha cambiado');
+      // Estado rechazado/pendiente: volver al onboarding (sin pantalla disabled)
+      await handleDeviceInvalidated(mensajes[estadoLower] || 'El estado de tu dispositivo ha cambiado', false);
 
     } catch (error) {
       if (error.code === 'SOLICITUD_NOT_FOUND' || error.status === 404) {
-        await handleDeviceInvalidated('Tu registro de dispositivo fue eliminado');
+        await handleDeviceInvalidated('Tu registro de dispositivo fue eliminado', false);
       }
     }
   };
 
-  const handleDeviceInvalidated = async (mensaje) => {
+  const handleDeviceInvalidated = async (mensaje, isDisabled = false) => {
     await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
     stopDeviceVerification();
     stopUserDataRefresh();
     setDeviceRegistered(false);
 
-    Alert.alert(
-      'Registro de Dispositivo Requerido',
-      `${mensaje}\n\nDebes registrar nuevamente este dispositivo para continuar.`,
-      [{ text: 'Entendido' }],
-      { cancelable: false }
-    );
+    if (isDisabled) {
+      // Dispositivo desactivado por admin -> pantalla dedicada
+      setDeviceDisabled(true);
+    } else {
+      // Solicitud rechazada/eliminada -> volver al onboarding con alerta
+      setDeviceDisabled(false);
+      Alert.alert(
+        'Registro de Dispositivo Requerido',
+        `${mensaje}\n\nDebes registrar nuevamente este dispositivo para continuar.`,
+        [{ text: 'Entendido' }],
+        { cancelable: false }
+      );
+    }
+  };
+
+  const handleReRequest = async () => {
+    // El usuario quiere re-solicitar acceso desde DeviceDisabledScreen.
+    // Limpiamos el estado disabled y los tokens viejos, enviando al onboarding.
+    await Promise.all([
+      AsyncStorage.removeItem(STORAGE_KEYS.SOLICITUD_ID),
+      AsyncStorage.removeItem(STORAGE_KEYS.TOKEN_SOLICITUD),
+      AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED),
+    ]);
+    setDeviceDisabled(false);
+    setDeviceRegistered(false);
+    // isLoggedIn ya es true -> OnboardingNavigator se mostrará
   };
 
   const checkAppState = async () => {
@@ -335,34 +358,24 @@ export default function App() {
             return;
           }
 
-          // CASO 2: Dispositivo existe pero INACTIVO/RECHAZADO -> BLOQUEAR (Sin fallback)
+          // CASO 2: Dispositivo existe pero INACTIVO -> Mostrar DeviceDisabledScreen
           else if (dispositivoEnBD.existe && !dispositivoEnBD.activo) {
-            console.warn('⛔ [App] Dispositivo INACTIVO en nube. Bloqueando acceso.');
+            console.warn('⛔ [App] Dispositivo INACTIVO en nube. Mostrando DeviceDisabledScreen.');
             await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
-
-            // Mostrar alerta y cerrar sesión
-            Alert.alert(
-              'Dispositivo No Autorizado',
-              'Este dispositivo ha sido desactivado o no esta autorizado por el administrador.',
-              [{ text: 'Entendido', onPress: () => handleLogout() }],
-              { cancelable: false }
-            );
+            setDeviceDisabled(true);
+            setDeviceRegistered(false);
+            setIsLoggedIn(true);
             return;
           }
 
-          // CASO 3: No existe dispositivo en nube -> BLOQUEAR (Requiere registro)
-          // CASO 3: No existe dispositivo en nube -> BLOQUEAR (Requiere registro)
+          // CASO 3: No existe dispositivo en nube → registro nuevo / primera afiliación
           else {
-            console.warn('⛔ [App] No se encontró dispositivo registrado en nube.');
-
-            // 🔥 IMPORTANTE: Limpiar storage para evitar que OnboardingNavigator encuentre 
-            // credenciales antiguas y auto-complete el registro erróneamente.
+            console.warn('ℹ️ [App] No se encontró dispositivo registrado. Primera afiliación.');
             await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
             await AsyncStorage.removeItem(STORAGE_KEYS.SOLICITUD_ID);
             await AsyncStorage.removeItem(STORAGE_KEYS.TOKEN_SOLICITUD);
-
-            // Si no existe, dejamos pasar al Onboarding (deviceRegistered = false)
             setDeviceRegistered(false);
+            setDeviceDisabled(false);
             setIsLoggedIn(true);
             return;
           }
@@ -500,6 +513,17 @@ export default function App() {
       <SafeAreaProvider>
         <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
         <LoginScreen onLoginSuccess={handleLoginSuccess} />
+      </SafeAreaProvider>
+    );
+  }
+
+  if (isLoggedIn && deviceDisabled) {
+    return (
+      <SafeAreaProvider>
+        <DeviceDisabledScreen
+          darkMode={darkMode}
+          onReRequest={handleReRequest}
+        />
       </SafeAreaProvider>
     );
   }

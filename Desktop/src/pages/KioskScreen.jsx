@@ -14,12 +14,13 @@ import { useSound } from "../context/SoundContext";
 import { ConnectionStatusPanel } from "../components/common/ConnectionStatus";
 import AsistenciaHuella from "../components/kiosk/AsistenciaHuella";
 import AsistenciaFacial from "../components/kiosk/AsistenciaFacial";
-import { obtenerOrdenCredenciales } from "../services/configuracionService";
+
+// Hooks
+import { useKioskConfiguration } from "../hooks/useKioskConfiguration";
+import { useInactivityTimer } from "../hooks/useInactivityTimer";
+import { useCameraStatus } from "../hooks/useCameraStatus";
 
 export default function KioskScreen() {
-  // Estado de orden de credenciales desde el backend
-  const [ordenCredenciales, setOrdenCredenciales] = useState(null);
-  const [loadingCredenciales, setLoadingCredenciales] = useState(true);
 
   // Hook de conectividad
   const { isInternetConnected, isDatabaseConnected } = useConnectivity();
@@ -37,16 +38,9 @@ export default function KioskScreen() {
   const [isReaderConnected, setIsReaderConnected] = useState(false); // Estado del lector biométrico
   const [activeNoticeIndex, setActiveNoticeIndex] = useState(0); // Índice del aviso activo en el carrusel
 
-  // Obtener métodos activos ordenados desde backend
-  const getActiveMethods = () => {
-    if (!ordenCredenciales) return [];
-    return Object.entries(ordenCredenciales)
-      .filter(([, config]) => config.activo)
-      .sort(([, a], [, b]) => a.prioridad - b.prioridad)
-      .map(([key]) => key);
-  };
-
-  const activeMethods = getActiveMethods();
+  const { ordenCredenciales, loadingCredenciales, activeMethods } = useKioskConfiguration(isLoggedIn);
+  useInactivityTimer();
+  const { isCameraConnected, hasCameraRegistered } = useCameraStatus(!isLoggedIn); // Solo monitorear cuando no está en sesión
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -66,60 +60,6 @@ export default function KioskScreen() {
     }, 6000);
     return () => clearInterval(noticeTimer);
   }, [notices.length]);
-
-  // Cargar orden de credenciales desde el backend
-  const cargarCredenciales = async () => {
-    try {
-      setLoadingCredenciales(true);
-      const { ordenCredenciales: orden } = await obtenerOrdenCredenciales();
-      setOrdenCredenciales(orden);
-    } catch (err) {
-      console.error("Error al cargar orden de credenciales:", err);
-      // Fallback por defecto si falla el backend
-      setOrdenCredenciales({
-        facial: { prioridad: 1, activo: true },
-        dactilar: { prioridad: 2, activo: true },
-        pin: { prioridad: 3, activo: true },
-      });
-    } finally {
-      setLoadingCredenciales(false);
-    }
-  };
-
-  // Cargar al montar el componente
-  useEffect(() => {
-    cargarCredenciales();
-  }, []);
-
-  // Recargar credenciales cuando el usuario cierra sesión
-  useEffect(() => {
-    if (!isLoggedIn) {
-      cargarCredenciales();
-    }
-  }, [isLoggedIn]);
-
-  // Atajo para resetear configuración: Ctrl+Shift+R
-  useEffect(() => {
-    const handleKeyPress = (e) => {
-      if (e.ctrlKey && e.shiftKey && e.key === "R") {
-        e.preventDefault();
-        const confirmReset = confirm(
-          "¿Está seguro que desea resetear la configuración de la aplicación? Esto eliminará todos los datos guardados y deberá volver a afiliar el equipo.",
-        );
-        if (confirmReset) {
-          localStorage.clear();
-          if (window.electronAPI && window.electronAPI.configRemove) {
-            window.electronAPI.configRemove("appConfigured");
-          }
-          alert("Configuración reseteada. La aplicación se recargará.");
-          window.location.reload();
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyPress);
-    return () => window.removeEventListener("keydown", handleKeyPress);
-  }, []);
 
   // Manejar login exitoso
   const handleLoginSuccess = (usuario) => {
@@ -270,11 +210,15 @@ export default function KioskScreen() {
       facial: {
         icon: Camera,
         label: "Reconocimiento Facial",
-        color:
-          "from-[#1976D2] to-[#001A70] dark:from-slate-700 dark:to-slate-800",
-        hoverColor:
-          "hover:from-[#1565C0] hover:to-[#001A70] dark:hover:from-slate-600 dark:hover:to-slate-700",
-        handler: handleFacialCheck,
+        color: (hasCameraRegistered && isCameraConnected)
+          ? "from-[#1976D2] to-[#001A70] dark:from-slate-700 dark:to-slate-800"
+          : "from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700",
+        hoverColor: (hasCameraRegistered && isCameraConnected)
+          ? "hover:from-[#1565C0] hover:to-[#001A70] dark:hover:from-slate-600 dark:hover:to-slate-700"
+          : "",
+        handler: (hasCameraRegistered && isCameraConnected) ? handleFacialCheck : null,
+        isDisabled: !(hasCameraRegistered && isCameraConnected),
+        disabledMessage: !hasCameraRegistered ? "Sin cámara registrada" : "Cámara desconectada",
       },
       dactilar: {
         icon: Fingerprint,
@@ -303,7 +247,7 @@ export default function KioskScreen() {
 
   // Si está logueado, mostrar SessionScreen
   if (isLoggedIn) {
-    return <SessionScreen onLogout={handleLogout} usuario={usuarioActual} />;
+    return <SessionScreen onLogout={handleLogout} usuario={usuarioActual} isReaderConnected={isReaderConnected} />;
   }
 
   return (
@@ -335,6 +279,7 @@ export default function KioskScreen() {
         <ConnectionStatusPanel
           isInternetConnected={isInternetConnected}
           isDatabaseConnected={isDatabaseConnected}
+          isCameraConnected={ordenCredenciales?.facial?.activo && hasCameraRegistered ? isCameraConnected : null}
           isReaderConnected={ordenCredenciales?.dactilar?.activo ? isReaderConnected : null}
         />
       </div>
@@ -365,13 +310,17 @@ export default function KioskScreen() {
             (() => {
               const method = getMethodInfo(activeMethods[0]);
               const Icon = method.icon;
-              const isClickable = method.handler && !method.isVisualOnly;
+              const isDisabled = method.isDisabled;
+              const isClickable = method.handler && !method.isVisualOnly && !isDisabled;
               return (
                 <div
                   onClick={isClickable ? method.handler : undefined}
-                  className={`bg-gradient-to-br ${method.color} rounded-3xl shadow-2xl h-full text-white text-center transition-all flex flex-col items-center justify-center p-8 ${isClickable
-                    ? `${method.hoverColor} cursor-pointer hover:shadow-3xl hover:scale-[1.01]`
-                    : "cursor-default"
+                  title={isDisabled ? method.disabledMessage : ""}
+                  className={`bg-gradient-to-br ${method.color} rounded-3xl shadow-2xl h-full text-white text-center transition-all flex flex-col items-center justify-center p-8 ${isDisabled
+                    ? "opacity-60 cursor-not-allowed"
+                    : isClickable
+                      ? `${method.hoverColor} cursor-pointer hover:shadow-3xl hover:scale-[1.01]`
+                      : "cursor-default"
                     }`}
                 >
                   <h2 className="text-3xl font-bold mb-4">
@@ -379,8 +328,13 @@ export default function KioskScreen() {
                   </h2>
 
                   <div className="flex justify-center mb-4">
-                    <Icon className="w-32 h-32 text-white" strokeWidth={1.5} />
+                    <Icon className={`w-32 h-32 ${isDisabled ? "text-gray-300" : "text-white"}`} strokeWidth={1.5} />
                   </div>
+                  {isDisabled && (
+                    <p className="text-lg text-gray-300 mb-2">
+                      ({method.disabledMessage})
+                    </p>
+                  )}
 
                   <div className="mb-3">
                     <div
@@ -603,6 +557,7 @@ export default function KioskScreen() {
           onLoginSuccess={handleLoginSuccess}
           ordenCredenciales={ordenCredenciales}
           isReaderConnected={isReaderConnected}
+          isCameraConnected={hasCameraRegistered && isCameraConnected}
         />
       )}
 
@@ -611,7 +566,7 @@ export default function KioskScreen() {
       {/* Modal de AsistenciaHuella para registro de asistencia con huella */}
       {/* En modo background: siempre activo escuchando, modal aparece al detectar huella */}
       {/* En modo normal: aparece solo cuando showBiometricReader es true */}
-      {ordenCredenciales?.dactilar?.activo && (
+      {ordenCredenciales?.dactilar?.activo && !isLoggedIn && (
         <AsistenciaHuella
           isOpen={showBiometricReader}
           backgroundMode={!showBiometricReader} // Si no está abierto manualmente, usar modo background

@@ -196,3 +196,45 @@ export const verificarEscritorioActivo = async (escritorioId) => {
     return false;
   }
 };
+
+/**
+ * Desactiva el escritorio en el servidor
+ * @param {string} escritorioId - ID del escritorio a desactivar
+ * @returns {Promise<Object>} - Respuesta del servidor
+ */
+export const desactivarEscritorio = async (escritorioId) => {
+  try {
+    if (!escritorioId) {
+      throw new Error("No se proporcionó el ID del escritorio");
+    }
+
+    const token = getAuthToken();
+    if (!token) {
+      console.warn("⚠️ No hay token de autenticación para desactivar escritorio. Intentando sin token o puede fallar.");
+    }
+
+    console.log("🛑 Desactivando escritorio:", escritorioId);
+    const url = getApiEndpoint(`${ESCRITORIO_ENDPOINT}/${escritorioId}`);
+
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {})
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Error HTTP ${response.status}`);
+    }
+
+    const resultado = await response.json();
+    console.log("✅ Escritorio desactivado en el servidor:", resultado);
+
+    return resultado;
+  } catch (error) {
+    console.error("❌ Error al desactivar escritorio:", error);
+    throw error;
+  }
+};

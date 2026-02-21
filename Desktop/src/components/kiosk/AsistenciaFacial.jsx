@@ -47,8 +47,58 @@ export default function AsistenciaFacial({
   const isProcessingRef = useRef(false);
   const captureIntervalRef = useRef(null);
   const timeoutRef = useRef(null);
+  const cropCanvasRef = useRef(null);
+
   // Hook de camara singleton
   const { initCamera, releaseCamera } = useCamera();
+
+  // Recortar video al area del ovalo guia
+  const getCroppedOvalFrame = (video) => {
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    if (!vw || !vh) return null;
+
+    // Calcular area visible (object-cover con aspect 4:3)
+    const displayAspect = 4 / 3;
+    const videoAspect = vw / vh;
+    let sx, sy, sw, sh;
+    if (videoAspect > displayAspect) {
+      sh = vh; sw = vh * displayAspect;
+      sx = (vw - sw) / 2; sy = 0;
+    } else {
+      sw = vw; sh = vw / displayAspect;
+      sx = 0; sy = (vh - sh) / 2;
+    }
+
+    // Mapear ovalo SVG (viewBox 400x300, ellipse cx=200 cy=140 rx=80 ry=105)
+    const oLeft = 120 / 400, oTop = 35 / 300;
+    const oW = 160 / 400, oH = 210 / 300;
+    const cropX = sx + sw * oLeft;
+    const cropY = sy + sh * oTop;
+    const cropW = sw * oW;
+    const cropH = sh * oH;
+
+    // Reusar canvas
+    if (!cropCanvasRef.current) {
+      cropCanvasRef.current = document.createElement('canvas');
+    }
+    const canvas = cropCanvasRef.current;
+    const cw = 280, ch = Math.round(280 * (cropH / cropW));
+    canvas.width = cw;
+    canvas.height = ch;
+    const ctx = canvas.getContext('2d');
+
+    // Limpiar y aplicar clip eliptico
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(cw / 2, ch / 2, cw / 2, ch / 2, 0, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cw, ch);
+    ctx.restore();
+
+    return canvas;
+  };
 
   const {
     modelsLoaded,
@@ -125,8 +175,12 @@ export default function AsistenciaFacial({
         if (capturado || isProcessingRef.current) return;
 
         try {
+          // Recortar al area del ovalo guia
+          const croppedFrame = getCroppedOvalFrame(video);
+          if (!croppedFrame) return;
+
           const detections = await faceapi
-            .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({
+            .detectSingleFace(croppedFrame, new faceapi.TinyFaceDetectorOptions({
               inputSize: 224,
               scoreThreshold: 0.4
             }))
@@ -590,38 +644,89 @@ export default function AsistenciaFacial({
                   style={{ transform: "scaleX(-1)", minHeight: "280px" }}
                 />
 
-                {/* Guias de captura */}
+                {/* Guias de captura - Ovalo facial con animaciones */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="relative w-44 h-56">
-                    <div
-                      className="absolute top-0 left-0 w-8 h-8 border-l-[3px] border-t-[3px] transition-all duration-300"
-                      style={{
-                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
-                      }}
+                  {/* Oscurecer areas fuera del ovalo */}
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
+                    <defs>
+                      <mask id="faceMaskOverlay">
+                        <rect width="400" height="300" fill="white" />
+                        <ellipse cx="200" cy="140" rx="80" ry="105" fill="black" />
+                      </mask>
+                      {/* Glow filter para deteccion */}
+                      <filter id="faceGuideGlow">
+                        <feGaussianBlur stdDeviation="4" result="blur" />
+                        <feMerge>
+                          <feMergeNode in="blur" />
+                          <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                      </filter>
+                      {/* Gradiente para linea de escaneo */}
+                      <linearGradient id="scanLineGradient" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="transparent" />
+                        <stop offset="30%" stopColor={faceDetected ? "rgba(25, 118, 210, 0.6)" : "rgba(255,255,255,0.3)"} />
+                        <stop offset="50%" stopColor={faceDetected ? "rgba(25, 118, 210, 0.9)" : "rgba(255,255,255,0.5)"} />
+                        <stop offset="70%" stopColor={faceDetected ? "rgba(25, 118, 210, 0.6)" : "rgba(255,255,255,0.3)"} />
+                        <stop offset="100%" stopColor="transparent" />
+                      </linearGradient>
+                    </defs>
+                    {/* Overlay semi-oscuro */}
+                    <rect width="400" height="300" fill="rgba(0,0,0,0.45)" mask="url(#faceMaskOverlay)" />
+                    {/* Ovalo guia principal */}
+                    <ellipse
+                      cx="200" cy="140" rx="80" ry="105"
+                      fill="none"
+                      stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.6)"}
+                      strokeWidth={faceDetected ? "3" : "2"}
+                      strokeDasharray={faceDetected ? "none" : "8 4"}
+                      filter={faceDetected ? "url(#faceGuideGlow)" : "none"}
+                      style={{ transition: "all 0.4s ease" }}
                     />
-                    <div
-                      className="absolute top-0 right-0 w-8 h-8 border-r-[3px] border-t-[3px] transition-all duration-300"
-                      style={{
-                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
-                      }}
-                    />
-                    <div
-                      className="absolute bottom-0 left-0 w-8 h-8 border-l-[3px] border-b-[3px] transition-all duration-300"
-                      style={{
-                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
-                      }}
-                    />
-                    <div
-                      className="absolute bottom-0 right-0 w-8 h-8 border-r-[3px] border-b-[3px] transition-all duration-300"
-                      style={{
-                        borderColor: faceDetected ? '#1976D2' : 'rgba(255,255,255,0.5)',
-                        filter: faceDetected ? 'drop-shadow(0 0 8px rgba(25, 118, 210,0.8))' : 'none'
-                      }}
-                    />
-                  </div>
+                    {/* Segundo ovalo glow (solo visible con rostro detectado) */}
+                    {faceDetected && (
+                      <ellipse
+                        cx="200" cy="140" rx="84" ry="109"
+                        fill="none"
+                        stroke="rgba(25, 118, 210, 0.25)"
+                        strokeWidth="6"
+                        style={{ animation: "facePulse 2s ease-in-out infinite" }}
+                      />
+                    )}
+                    {/* Linea de escaneo animada */}
+                    {!faceDetected && (
+                      <line
+                        x1="120" y1="140" x2="280" y2="140"
+                        stroke="url(#scanLineGradient)"
+                        strokeWidth="2"
+                        style={{ animation: "scanLine 2.5s ease-in-out infinite" }}
+                      />
+                    )}
+                    {/* Marcas de alineacion - esquinas */}
+                    {/* Superior izquierda */}
+                    <path d="M 135 55 L 135 40 L 155 40" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.7)"} strokeWidth="3" strokeLinecap="round" style={{ transition: "stroke 0.3s ease" }} />
+                    {/* Superior derecha */}
+                    <path d="M 265 55 L 265 40 L 245 40" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.7)"} strokeWidth="3" strokeLinecap="round" style={{ transition: "stroke 0.3s ease" }} />
+                    {/* Inferior izquierda */}
+                    <path d="M 135 245 L 135 260 L 155 260" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.7)"} strokeWidth="3" strokeLinecap="round" style={{ transition: "stroke 0.3s ease" }} />
+                    {/* Inferior derecha */}
+                    <path d="M 265 245 L 265 260 L 245 260" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.7)"} strokeWidth="3" strokeLinecap="round" style={{ transition: "stroke 0.3s ease" }} />
+                    {/* Cruz de alineacion central (sutil) */}
+                    <line x1="196" y1="135" x2="204" y2="135" stroke={faceDetected ? "rgba(25,118,210,0.4)" : "rgba(255,255,255,0.2)"} strokeWidth="1" />
+                    <line x1="200" y1="131" x2="200" y2="139" stroke={faceDetected ? "rgba(25,118,210,0.4)" : "rgba(255,255,255,0.2)"} strokeWidth="1" />
+                  </svg>
+                  {/* Keyframes para animaciones */}
+                  <style>{`
+                    @keyframes scanLine {
+                      0% { transform: translateY(-60px); opacity: 0; }
+                      15% { opacity: 1; }
+                      85% { opacity: 1; }
+                      100% { transform: translateY(60px); opacity: 0; }
+                    }
+                    @keyframes facePulse {
+                      0%, 100% { opacity: 0.3; }
+                      50% { opacity: 0.8; }
+                    }
+                  `}</style>
                 </div>
               </div>
 

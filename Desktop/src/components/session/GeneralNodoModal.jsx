@@ -256,17 +256,16 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false }) {
 
         {/* Body */}
         <div className="p-3">
-          {/* ID del Escritorio */}
+          {/* Estado del Escritorio */}
           <div className="mb-3 px-3 py-2 bg-[#1976D2]/10 dark:bg-blue-900/30 border border-[#1976D2]/20 dark:border-blue-800 rounded-xl">
             <p className="text-xs text-[#1976D2] dark:text-blue-300">
-              <span className="font-semibold">ID del Escritorio:</span>{" "}
-              <span className="font-mono">{escritorioId}</span>
+              <span className="font-semibold">Estado:</span>{" "}
               {nodeConfig.esActivo ? (
-                <span className="ml-2 px-2 py-0.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded-full text-xs">
+                <span className="ml-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded-full text-xs">
                   Activo
                 </span>
               ) : (
-                <span className="ml-2 px-2 py-0.5 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-full text-xs">
+                <span className="ml-1 px-2 py-0.5 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-full text-xs">
                   Inactivo
                 </span>
               )}

@@ -1,5 +1,4 @@
 import { X } from "lucide-react";
-import { eventLog } from "../../constants/notices";
 import { obtenerBitacora } from "../../services/bitacoraService";
 import { useState, useEffect } from "react";
 
@@ -56,14 +55,8 @@ export default function BitacoraModal({ onClose }) {
       const eventosDinamicos = obtenerBitacora();
       console.log("Bitácora Modal - Cargando eventos:", eventosDinamicos.length);
 
-      // Si hay eventos en localStorage, usarlos; si no, usar los de ejemplo
-      if (eventosDinamicos.length > 0) {
-        setEventos(eventosDinamicos);
-        console.log("Eventos cargados desde localStorage");
-      } else {
-        setEventos(eventLog);
-        console.log("No hay eventos en localStorage, usando eventos de ejemplo");
-      }
+      setEventos(eventosDinamicos);
+      // console.log("Eventos cargados desde localStorage");
     };
 
     // Cargar eventos inicialmente

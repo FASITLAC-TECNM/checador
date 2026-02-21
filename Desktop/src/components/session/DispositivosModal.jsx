@@ -362,12 +362,12 @@ export default function DispositivosModal({ onClose, onBack, escritorioId, inlin
                         </div>
                       )}
 
-                      {/* Fila 1: ID, Estado, Eliminar */}
+                      {/* Fila 1: Nombre, Estado, Eliminar */}
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-3">
                           <h4 className="font-bold text-text-primary text-sm flex items-center gap-2">
                             <Smartphone className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" />
-                            {device.id}
+                            {device.nombre || "Dispositivo"}
                           </h4>
                           <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1.5 ${getEstadoColor(device.estado)}`}>
                             {device.estado === "conectado" && (

@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import BiometricAuth from "./BiometricAuth";
 import FacialAuthModal from "./FacialAuthModal";
 
-function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales, isReaderConnected = false }) {
+function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales, isReaderConnected = false, isCameraConnected = false }) {
     // Verificar si los métodos biométricos están habilitados
     const isFingerprintEnabled = ordenCredenciales?.dactilar?.activo ?? false;
     const isFacialEnabled = ordenCredenciales?.facial?.activo ?? false;
@@ -337,34 +337,40 @@ function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales,
                                         type="button"
                                         onClick={handleBiometricLogin}
                                         disabled={isSubmitting || loading || !isFingerprintEnabled || !isReaderConnected}
-                                        title={!isFingerprintEnabled ? "Método de huella digital no habilitado" : !isReaderConnected ? "Lector de huella desconectado" : ""}
-                                        className={`w-full py-2.5 rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${!isReaderConnected && isFingerprintEnabled
-                                            ? "bg-gradient-to-r from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700 text-gray-200"
+                                        className={`w-full py-2.5 px-4 rounded-lg font-semibold text-sm transition-all flex items-center gap-3 disabled:cursor-not-allowed ${!isFingerprintEnabled || !isReaderConnected
+                                            ? "bg-gradient-to-r from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700 text-white/80 opacity-60"
                                             : "bg-[#1976D2] hover:bg-[#1565C0] text-white"
                                             }`}
                                     >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
                                         </svg>
-                                        Iniciar con Huella Digital
-                                        {!isFingerprintEnabled && <span className="text-xs opacity-75">(No habilitado)</span>}
-                                        {isFingerprintEnabled && !isReaderConnected && <span className="text-xs opacity-75">(Desconectado)</span>}
+                                        <div className="flex flex-col items-start">
+                                            <span>Huella Digital</span>
+                                            {!isFingerprintEnabled && <span className="text-[10px] opacity-75 font-normal">No habilitado</span>}
+                                            {isFingerprintEnabled && !isReaderConnected && <span className="text-[10px] opacity-75 font-normal">Lector desconectado</span>}
+                                        </div>
                                     </button>
 
                                     {/* Facial recognition button */}
                                     <button
                                         type="button"
                                         onClick={handleFacialLogin}
-                                        disabled={isSubmitting || loading || !isFacialEnabled}
-                                        title={!isFacialEnabled ? "Método de reconocimiento facial no habilitado" : ""}
-                                        className="w-full py-2.5 bg-bg-secondary hover:bg-bg-tertiary border border-border-subtle text-text-secondary hover:text-text-primary rounded-lg font-semibold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        disabled={isSubmitting || loading || !isFacialEnabled || !isCameraConnected}
+                                        className={`w-full py-2.5 px-4 rounded-lg font-semibold text-sm transition-all flex items-center gap-3 disabled:cursor-not-allowed ${!isFacialEnabled || !isCameraConnected
+                                            ? "bg-gradient-to-r from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700 text-white/80 opacity-60"
+                                            : "bg-[#1976D2] hover:bg-[#1565C0] text-white"
+                                            }`}
                                     >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                                         </svg>
-                                        Iniciar con Reconocimiento Facial
-                                        {!isFacialEnabled && <span className="text-xs opacity-75">(No habilitado)</span>}
+                                        <div className="flex flex-col items-start">
+                                            <span>Reconocimiento Facial</span>
+                                            {!isFacialEnabled && <span className="text-[10px] opacity-75 font-normal">No habilitado</span>}
+                                            {isFacialEnabled && !isCameraConnected && <span className="text-[10px] opacity-75 font-normal">Cámara no disponible</span>}
+                                        </div>
                                     </button>
                                 </div>
                             </>

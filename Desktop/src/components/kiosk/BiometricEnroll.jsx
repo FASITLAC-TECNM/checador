@@ -107,11 +107,6 @@ export default function BiometricEnroll({
   useEffect(() => {
     messageHandlerRef.current = (data) => {
 
-      if (data.type === "systemStatus" && data.readerConnected && data.currentOperation !== "None" && data.currentOperation !== "Enrollment") {
-        addMessage("🔄 Deteniendo operación en curso del lector...", "info");
-        stopCapture();
-      }
-
       if (data.type === "enrollProgress") {
         // Validar que el progreso sea de la persona que actualmente estamos enrolando
         if (data.userId && data.userId !== `emp_${idEmpleado}`) {
@@ -168,7 +163,7 @@ export default function BiometricEnroll({
           addMessage("⚠️ Template no disponible", "warning");
         }
 
-        // Resetear servidor a modo "None" para que AsistenciaHuella pueda iniciar identificacion
+        // Resetear servidor a modo "None" para dejar el lector limpio
         stopCapture();
         setEnrollProgress({ collected: 0, required: 4, percentage: 0 });
         setCurrentOperation("None");

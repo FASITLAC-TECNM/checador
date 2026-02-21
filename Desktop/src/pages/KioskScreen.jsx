@@ -241,7 +241,7 @@ export default function KioskScreen() {
 
   // Si está logueado, mostrar SessionScreen
   if (isLoggedIn) {
-    return <SessionScreen onLogout={handleLogout} usuario={usuarioActual} />;
+    return <SessionScreen onLogout={handleLogout} usuario={usuarioActual} isReaderConnected={isReaderConnected} />;
   }
 
   return (
@@ -549,7 +549,7 @@ export default function KioskScreen() {
       {/* Modal de AsistenciaHuella para registro de asistencia con huella */}
       {/* En modo background: siempre activo escuchando, modal aparece al detectar huella */}
       {/* En modo normal: aparece solo cuando showBiometricReader es true */}
-      {ordenCredenciales?.dactilar?.activo && (
+      {ordenCredenciales?.dactilar?.activo && !isLoggedIn && (
         <AsistenciaHuella
           isOpen={showBiometricReader}
           backgroundMode={!showBiometricReader} // Si no está abierto manualmente, usar modo background

@@ -34,12 +34,11 @@ import NoEmployeeInfo from "../components/session/NoEmployeeInfo";
 import AdminDashboard from "../components/session/AdminDashboard";
 import BiometricEnroll from "../components/kiosk/BiometricEnroll";
 import RegisterFaceModal from "../components/kiosk/RegisterFaceModal";
-import useBiometricWebSocket from "../hooks/useBiometricWebSocket";
 
 // Hooks
 import { useEmployeeData } from "../hooks/useEmployeeData";
 
-export default function SessionScreen({ onLogout, usuario }) {
+export default function SessionScreen({ onLogout, usuario, isReaderConnected = false }) {
   const [time, setTime] = useState(new Date());
   const [selectedNotice, setSelectedNotice] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -57,8 +56,7 @@ export default function SessionScreen({ onLogout, usuario }) {
   // Custom hook para datos del empleado
   const { datosCompletos, loadingEmpleado, departamentos, notices, setNotices } = useEmployeeData(usuario);
 
-  // Obtener estado del lector biométrico usando el hook
-  const { readerConnected } = useBiometricWebSocket();
+  // isReaderConnected viene como prop desde KioskScreen
 
   const [nombreNodo, setNombreNodo] = useState("Entrada Principal");
   const [descripcionNodo, setDescripcionNodo] = useState(
@@ -170,7 +168,7 @@ export default function SessionScreen({ onLogout, usuario }) {
             notices={notices}
             loadingEmpleado={loadingEmpleado}
             userHorario={userHorario}
-            readerConnected={readerConnected}
+            readerConnected={isReaderConnected}
             isOnline={isOnline}
             onShowHorario={() => setShowHorarioModal(true)}
             onShowHistorial={() => setShowHistorialModal(true)}

@@ -37,6 +37,7 @@ import RegisterFaceModal from "../components/kiosk/RegisterFaceModal";
 
 // Hooks
 import { useEmployeeData } from "../hooks/useEmployeeData";
+import { useCameraStatus } from "../hooks/useCameraStatus";
 
 export default function SessionScreen({ onLogout, usuario, isReaderConnected = false }) {
   const [time, setTime] = useState(new Date());
@@ -57,6 +58,9 @@ export default function SessionScreen({ onLogout, usuario, isReaderConnected = f
   const { datosCompletos, loadingEmpleado, departamentos, notices, setNotices } = useEmployeeData(usuario);
 
   // isReaderConnected viene como prop desde KioskScreen
+
+  // Obtener estado de cámara registrada y conectada
+  const { isCameraConnected, hasCameraRegistered } = useCameraStatus();
 
   const [nombreNodo, setNombreNodo] = useState("Entrada Principal");
   const [descripcionNodo, setDescripcionNodo] = useState(
@@ -169,6 +173,7 @@ export default function SessionScreen({ onLogout, usuario, isReaderConnected = f
             loadingEmpleado={loadingEmpleado}
             userHorario={userHorario}
             readerConnected={isReaderConnected}
+            isCameraConnected={hasCameraRegistered && isCameraConnected}
             isOnline={isOnline}
             onShowHorario={() => setShowHorarioModal(true)}
             onShowHistorial={() => setShowHistorialModal(true)}

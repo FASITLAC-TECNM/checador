@@ -312,17 +312,17 @@ export default function AdminDashboard({
                                 </button>
 
                                 <button
-                                    onClick={() => readerConnected && onShowBiometric?.()}
-                                    disabled={!readerConnected}
-                                    className={`rounded-2xl shadow-sm p-4 transition-all flex flex-col items-center justify-center border border-border-subtle ${readerConnected
+                                    onClick={() => readerConnected && isOnline && onShowBiometric?.()}
+                                    disabled={!readerConnected || !isOnline}
+                                    className={`rounded-2xl shadow-sm p-4 transition-all flex flex-col items-center justify-center border border-border-subtle ${readerConnected && isOnline
                                         ? "bg-bg-secondary hover:bg-bg-tertiary hover:shadow-md cursor-pointer text-[#1976D2] dark:text-[#42A5F5]"
                                         : "bg-gray-100 dark:bg-slate-700/50 text-gray-400 dark:text-gray-500 cursor-not-allowed"
                                         }`}
                                 >
                                     <Fingerprint className="w-8 h-8 mb-2" />
-                                    <h3 className={`text-sm font-bold mb-0.5 ${readerConnected ? "text-text-primary" : "text-gray-400 dark:text-gray-500"}`}>Reg. Huella</h3>
-                                    <p className={`text-[10px] ${readerConnected ? "text-text-secondary" : "text-gray-400 dark:text-gray-500"}`}>
-                                        {readerConnected ? "Vincular huella" : "Desconectado"}
+                                    <h3 className={`text-sm font-bold mb-0.5 ${readerConnected && isOnline ? "text-text-primary" : "text-gray-400 dark:text-gray-500"}`}>Reg. Huella</h3>
+                                    <p className={`text-[10px] ${readerConnected && isOnline ? "text-text-secondary" : "text-gray-400 dark:text-gray-500"}`}>
+                                        {!isOnline ? "Sin conexión" : readerConnected ? "Vincular huella" : "Desconectado"}
                                     </p>
                                 </button>
 

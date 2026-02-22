@@ -30,13 +30,13 @@ export function initDatabase() {
   if (db) return db;
 
   const dbPath = getDbPath();
-  console.log('📦 [SQLite] Inicializando base de datos en:', dbPath);
+  console.log('[SQLite] Initialization: Inicializando base de datos en:', dbPath);
 
   try {
     db = new Database(dbPath);
   } catch (error) {
-    console.error('❌ [SQLite] Error abriendo base de datos:', error.message);
-    console.error('💡 [SQLite] Si ves un error de módulo nativo, ejecuta:');
+    console.error('[SQLite] Error: Error abriendo base de datos:', error.message);
+    console.error('[SQLite] Info: Si ves un error de módulo nativo, ejecuta:');
     console.error('   npx electron-rebuild -f -w better-sqlite3');
     db = null;
     return null;
@@ -50,10 +50,10 @@ export function initDatabase() {
   try {
     runMigrations();
   } catch (migError) {
-    console.error('❌ [SQLite] Error en migraciones:', migError.message);
+    console.error('[SQLite] Error: Error en migraciones:', migError.message);
   }
 
-  console.log('✅ [SQLite] Base de datos inicializada correctamente');
+  console.log('[SQLite] Status: Base de datos inicializada correctamente');
   return db;
 }
 
@@ -61,7 +61,7 @@ export function initDatabase() {
  * Ejecuta las migraciones para crear/actualizar las tablas
  */
 function runMigrations() {
-  console.log('🔄 [SQLite] Ejecutando migraciones...');
+  console.log('[SQLite] Action: Ejecutando migraciones...');
 
   db.exec(`
     -- Cola de registros de asistencia pendientes
@@ -192,14 +192,14 @@ function runMigrations() {
     const columns = tableInfo.map(col => col.name);
     if (!columns.includes('usuario')) {
       db.exec("ALTER TABLE cache_empleados ADD COLUMN usuario TEXT");
-      console.log('🔄 [SQLite] Migración: columna "usuario" agregada a cache_empleados');
+      console.log('[SQLite] Action: Migracion - columna "usuario" agregada a cache_empleados');
     }
     if (!columns.includes('correo')) {
       db.exec("ALTER TABLE cache_empleados ADD COLUMN correo TEXT");
-      console.log('🔄 [SQLite] Migración: columna "correo" agregada a cache_empleados');
+      console.log('[SQLite] Action: Migracion - columna "correo" agregada a cache_empleados');
     }
   } catch (alterError) {
-    console.warn('⚠️ [SQLite] Error en migración de columnas:', alterError.message);
+    console.warn('[SQLite] Error: Error en migracion de columnas:', alterError.message);
   }
 
   // Migración: si cache_tolerancias tiene columna empleado_id (esquema viejo), recrear tablas
@@ -207,7 +207,7 @@ function runMigrations() {
     const tolInfo = db.prepare("PRAGMA table_info(cache_tolerancias)").all();
     const tolCols = tolInfo.map(col => col.name);
     if (tolCols.includes('empleado_id')) {
-      console.log('🔄 [SQLite] Migración: detectado esquema viejo de cache_tolerancias, recreando...');
+      console.log('[SQLite] Action: Migracion - detectado esquema viejo de cache_tolerancias, recreando...');
       db.exec('DROP TABLE IF EXISTS cache_tolerancias');
       db.exec(`
         CREATE TABLE cache_tolerancias (
@@ -223,13 +223,13 @@ function runMigrations() {
           updated_at TEXT NOT NULL
         )
       `);
-      console.log('✅ [SQLite] Migración: cache_tolerancias recreada con esquema normalizado');
+      console.log('[SQLite] Status: Migracion - cache_tolerancias recreada con esquema normalizado');
     }
   } catch (tolMigError) {
-    console.warn('⚠️ [SQLite] Error en migración de cache_tolerancias:', tolMigError.message);
+    console.warn('[SQLite] Error: Error en migracion de cache_tolerancias:', tolMigError.message);
   }
 
-  console.log('✅ [SQLite] Migraciones completadas');
+  console.log('[SQLite] Status: Migraciones completadas');
 }
 
 // ============================================================
@@ -262,7 +262,7 @@ export function saveOfflineAsistencia(data) {
     data.payload_biometrico ? JSON.stringify(data.payload_biometrico) : null
   );
 
-  console.log(`📝 [SQLite] Asistencia offline guardada: local_id=${result.lastInsertRowid}, key=${idempotencyKey}`);
+  console.log(`[SQLite] Action: Asistencia offline guardada - local_id=${result.lastInsertRowid}, key=${idempotencyKey}`);
 
   return {
     local_id: result.lastInsertRowid,
@@ -425,7 +425,7 @@ export function upsertEmpleados(empleados) {
 
   upsertMany(empleados);
   updateMetaCount('cache_empleados');
-  console.log(`✅ [SQLite] ${empleados.length} empleados cacheados`);
+  console.log(`[SQLite] Status: ${empleados.length} empleados cacheados`);
 }
 
 /**
@@ -468,7 +468,7 @@ export function upsertCredenciales(credenciales) {
 
   upsertMany(credenciales);
   updateMetaCount('cache_credenciales');
-  console.log(`✅ [SQLite] ${credenciales.length} credenciales cacheadas`);
+  console.log(`[SQLite] Status: ${credenciales.length} credenciales cacheadas`);
 }
 
 /**
@@ -538,7 +538,7 @@ export function upsertToleranciasBulk(tolerancias) {
 
   upsertMany(tolerancias);
   updateMetaCount('cache_tolerancias');
-  console.log(`✅ [SQLite] ${tolerancias.length} tolerancias cacheadas`);
+  console.log(`[SQLite] Status: ${tolerancias.length} tolerancias cacheadas`);
 }
 
 /**
@@ -569,7 +569,7 @@ export function upsertRoles(roles) {
 
   upsertMany(roles);
   updateMetaCount('cache_roles');
-  console.log(`✅ [SQLite] ${roles.length} roles cacheados`);
+  console.log(`[SQLite] Status: ${roles.length} roles cacheados`);
 }
 
 /**
@@ -597,7 +597,7 @@ export function upsertUsuariosRoles(items) {
 
   upsertMany(items);
   updateMetaCount('cache_usuarios_roles');
-  console.log(`✅ [SQLite] ${items.length} usuarios_roles cacheados`);
+  console.log(`[SQLite] Status: ${items.length} usuarios_roles cacheados`);
 }
 
 /**
@@ -813,7 +813,7 @@ export function markDeletedEmpleados(serverIds) {
   `);
   const result = stmt.run(...serverIds);
   if (result.changes > 0) {
-    console.log(`⚠️ [SQLite] ${result.changes} empleados marcados como eliminados`);
+    console.log(`[SQLite] Info: ${result.changes} empleados marcados como eliminados`);
   }
   return result.changes;
 }
@@ -829,7 +829,7 @@ export function closeDatabase() {
   if (db) {
     db.close();
     db = null;
-    console.log('🔒 [SQLite] Base de datos cerrada');
+    console.log('[SQLite] Status: Base de datos cerrada');
   }
 }
 

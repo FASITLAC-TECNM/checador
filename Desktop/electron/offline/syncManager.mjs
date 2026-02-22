@@ -48,19 +48,19 @@ export function init(config) {
   mainWindow = window;
   storedApiBaseUrl = apiBaseUrl || '';
 
-  console.log('🔧 [SyncManager] API Base URL:', storedApiBaseUrl || '(vacío!)');
+  console.log('[SyncManager] Initialization: API Base URL =', storedApiBaseUrl || '(vacio!)');
 
   if (!storedApiBaseUrl) {
-    console.error('❌ [SyncManager] ERROR: apiBaseUrl está vacío. El Pull no funcionará.');
+    console.error('[SyncManager] Error: apiBaseUrl esta vacio. El Pull no funcionara.');
   }
 
   // Inicializar SQLite
   try {
     sqliteManager.initDatabase();
-    console.log('✅ [SyncManager] SQLite inicializado');
+    console.log('[SyncManager] Status: SQLite inicializado');
   } catch (dbError) {
-    console.error('❌ [SyncManager] Error inicializando SQLite:', dbError.message);
-    console.error('💡 [SyncManager] Intenta: npx electron-rebuild -f -w better-sqlite3');
+    console.error('[SyncManager] Error: Error inicializando SQLite:', dbError.message);
+    console.error('[SyncManager] Info: Intenta: npx electron-rebuild -f -w better-sqlite3');
   }
 
   // Configurar servicios con la URL
@@ -70,7 +70,7 @@ export function init(config) {
   // Actualizar el conteo de pendientes
   updatePendingCount();
 
-  console.log('🚀 [SyncManager] Inicializado');
+  console.log('[SyncManager] Status: Inicializado exitosamente');
 }
 
 /**
@@ -81,11 +81,11 @@ export function updateAuthToken(token) {
   // IMPORTANTE: preservar la URL almacenada al actualizar solo el token
   pullService.configure(storedApiBaseUrl, token);
   pushService.updateToken(token);
-  console.log('🔑 [SyncManager] Token actualizado');
+  console.log('[SyncManager] Status: Token actualizado');
 
   // Si tenemos un nuevo token válido, iniciar Pull para cachear datos
   if (token && isOnline) {
-    console.log('🔄 [SyncManager] Token recibido — iniciando Pull con autenticación...');
+    console.log('[SyncManager] Action: Token recibido — iniciando Pull con autenticacion...');
     performSync('token-update');
   }
 }
@@ -104,7 +104,7 @@ export function startPeriodicSync() {
     }
   }, SYNC_INTERVAL_MS);
 
-  console.log(`⏰ [SyncManager] Sync periódico cada ${SYNC_INTERVAL_MS / 1000}s`);
+  console.log(`[SyncManager] Status: Sync periodico configurado cada ${SYNC_INTERVAL_MS / 1000}s`);
 }
 
 /**
@@ -115,7 +115,7 @@ export function stopPeriodicSync() {
     clearInterval(syncTimer);
     syncTimer = null;
   }
-  console.log('⏹️ [SyncManager] Sync periódico detenido');
+  console.log('[SyncManager] Action: Sync periodico detenido');
 }
 
 /**
@@ -138,7 +138,7 @@ export function setOnlineStatus(online) {
         ? Date.now() - lastOfflineTimestamp
         : 0;
 
-      console.log(`🟢 [SyncManager] Reconexión detectada. Offline por ${Math.round(offlineDuration / 1000)}s`);
+      console.log(`[SyncManager] Event: Reconexion detectada. Offline por ${Math.round(offlineDuration / 1000)}s`);
 
       // Cooldown antes de sincronizar
       setTimeout(() => {
@@ -153,7 +153,7 @@ export function setOnlineStatus(online) {
       // Solo loggear la primera vez que se detecta offline
       lastOfflineTimestamp = Date.now();
       updateStatus('offline', null);
-      console.log('🔴 [SyncManager] Conexión perdida');
+      console.log('[SyncManager] Event: Conexion perdida');
     }
     // Si ya estábamos offline, no repetir log
   }
@@ -165,17 +165,17 @@ export function setOnlineStatus(online) {
  */
 export async function performSync(reason = 'manual') {
   if (isSyncing) {
-    console.log('⏳ [SyncManager] Sync ya en curso, omitiendo...');
+    console.log('[SyncManager] Info: Sync ya en curso, omitiendo...');
     return;
   }
 
   if (!isOnline && reason !== 'initial') {
-    console.log('🔌 [SyncManager] Sin conexión, omitiendo sync');
+    console.log('[SyncManager] Info: Sin conexion, omitiendo sync');
     return;
   }
 
   isSyncing = true;
-  console.log(`🔄 [SyncManager] Iniciando sync (${reason})...`);
+  console.log(`[SyncManager] Action: Iniciando sync (${reason})...`);
 
   try {
     // PULL — Descargar datos maestros
@@ -184,7 +184,7 @@ export async function performSync(reason = 'manual') {
       const pullResult = await pullService.fullPull();
 
       if (!pullResult.empleados.success && !pullResult.credenciales.success) {
-        console.warn('⚠️ [SyncManager] Pull falló (posible falta de auth o conexión)');
+        console.warn('[SyncManager] Warning: Pull fallo (posible falta de auth o conexion)');
       }
     }
 
@@ -199,9 +199,9 @@ export async function performSync(reason = 'manual') {
     syncStatus.lastSync = new Date().toISOString();
     notifyRenderer();
 
-    console.log(`✅ [SyncManager] Sync completo (${reason}): Pull OK, Push: ${pushResult.synced}/${pushResult.total}`);
+    console.log(`[SyncManager] Status: Sync completo (${reason}) - Pull OK, Push: ${pushResult.synced}/${pushResult.total}`);
   } catch (error) {
-    console.error(`❌ [SyncManager] Error en sync (${reason}):`, error.message);
+    console.error(`[SyncManager] Error: Error en sync (${reason}):`, error.message);
     updateStatus('error', error.message);
   } finally {
     isSyncing = false;
@@ -281,7 +281,7 @@ function notifyRenderer() {
 export function destroy() {
   stopPeriodicSync();
   sqliteManager.closeDatabase();
-  console.log('🔒 [SyncManager] Destruido');
+  console.log('[SyncManager] Status: Destruido');
 }
 
 export default {

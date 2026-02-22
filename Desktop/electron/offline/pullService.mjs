@@ -19,7 +19,7 @@ export function configure(baseUrl, token) {
   if (token !== undefined) {
     authToken = token || '';
   }
-  console.log('🔧 [Pull] Configurado: URL=', apiBaseUrl ? apiBaseUrl.substring(0, 40) + '...' : '(vacío!)');
+  console.log('[PullService] Initialization: Configurado URL =', apiBaseUrl ? apiBaseUrl.substring(0, 40) + '...' : '(vacio!)');
 }
 
 /**
@@ -69,7 +69,7 @@ async function apiFetch(endpoint, timeoutMs = 30000) {
  * @returns {Object} resumen del sync
  */
 export async function fullPull() {
-  console.log('🔄 [Pull] Iniciando Pull completo...');
+  console.log('[PullService] Action: Starting full data pull...');
   const startTime = Date.now();
 
   const results = {
@@ -81,7 +81,7 @@ export async function fullPull() {
   };
 
   if (!authToken) {
-    console.warn('⚠️ [Pull] Sin token de autenticación, omitiendo Pull...');
+    console.warn('[PullService] Warning: Sin token de autenticacion, omitiendo Pull...');
     results.duration = Date.now() - startTime;
     return results;
   }
@@ -113,13 +113,13 @@ export async function fullPull() {
         sqliteManager.setLastFullSync('cache_empleados');
 
         results.empleados = { success: true, count: mapped.length };
-        console.log(`✅ [Pull] ${mapped.length} empleados sincronizados`);
+        console.log(`[PullService] Status: ${mapped.length} empleados sincronizados`);
       } else {
-        console.log('⚠️ [Pull] No se encontraron empleados');
+        console.log('[PullService] Info: No se encontraron empleados');
         results.empleados = { success: true, count: 0 };
       }
     } catch (empError) {
-      console.error('❌ [Pull] Error procesando empleados:', empError.message);
+      console.error('[PullService] Error: Error procesando empleados:', empError.message);
       results.empleados = { success: false, error: empError.message };
     }
 
@@ -156,13 +156,13 @@ export async function fullPull() {
         sqliteManager.setLastFullSync('cache_credenciales');
 
         results.credenciales = { success: true, count: mapped.length };
-        console.log(`✅ [Pull] ${mapped.length} credenciales sincronizadas`);
+        console.log(`[PullService] Status: ${mapped.length} credenciales sincronizadas`);
       } else {
-        console.log('⚠️ [Pull] No se encontraron credenciales');
+        console.log('[PullService] Info: No se encontraron credenciales');
         results.credenciales = { success: true, count: 0 };
       }
     } catch (credError) {
-      console.error('❌ [Pull] Error procesando credenciales:', credError.message);
+      console.error('[PullService] Error: Error procesando credenciales:', credError.message);
       results.credenciales = { success: false, error: credError.message };
     }
 
@@ -185,9 +185,9 @@ export async function fullPull() {
 
       sqliteManager.setLastFullSync('cache_horarios');
       results.horarios = { success: true, count: horariosCount };
-      console.log(`✅ [Pull] ${horariosCount} horarios sincronizados`);
+      console.log(`[PullService] Status: ${horariosCount} horarios sincronizados`);
     } catch (horError) {
-      console.error('❌ [Pull] Error procesando horarios:', horError.message);
+      console.error('[PullService] Error: Error procesando horarios:', horError.message);
       results.horarios = { success: false, error: horError.message };
     }
 
@@ -198,13 +198,13 @@ export async function fullPull() {
         sqliteManager.upsertToleranciasBulk(tolerancias);
         sqliteManager.setLastFullSync('cache_tolerancias');
         results.tolerancias = { success: true, count: tolerancias.length };
-        console.log(`✅ [Pull] ${tolerancias.length} tolerancias sincronizadas`);
+        console.log(`[PullService] Status: ${tolerancias.length} tolerancias sincronizadas`);
       } else {
-        console.warn('⚠️ [Pull] El servidor no devolvió tolerancias');
+        console.warn('[PullService] Warning: El servidor no devolvio tolerancias');
         results.tolerancias = { success: true, count: 0 };
       }
     } catch (tolError) {
-      console.error('❌ [Pull] Error procesando tolerancias:', tolError.message);
+      console.error('[PullService] Error: Error procesando tolerancias:', tolError.message);
       results.tolerancias = { success: false, error: tolError.message };
     }
 
@@ -229,7 +229,7 @@ export async function fullPull() {
         const roles = Array.from(rolesMap.values());
         sqliteManager.upsertRoles(roles);
         sqliteManager.setLastFullSync('cache_roles');
-        console.log(`✅ [Pull] ${roles.length} roles sincronizados`);
+        console.log(`[PullService] Status: ${roles.length} roles sincronizados`);
 
         // Insertar usuarios_roles
         const urMapped = usuarios_roles.map(ur => ({
@@ -239,10 +239,10 @@ export async function fullPull() {
         }));
         sqliteManager.upsertUsuariosRoles(urMapped);
         sqliteManager.setLastFullSync('cache_usuarios_roles');
-        console.log(`✅ [Pull] ${urMapped.length} usuarios_roles sincronizados`);
+        console.log(`[PullService] Status: ${urMapped.length} usuarios_roles sincronizados`);
       }
     } catch (urError) {
-      console.error('❌ [Pull] Error procesando roles/usuarios_roles:', urError.message);
+      console.error('[PullService] Error: Error procesando roles/usuarios_roles:', urError.message);
     }
 
     // ========== DEPARTAMENTOS ==========
@@ -266,20 +266,20 @@ export async function fullPull() {
         }
 
         sqliteManager.setLastFullSync('cache_departamentos');
-        console.log(`✅ [Pull] Departamentos sincronizados para ${Object.keys(byEmpleado).length} empleados`);
+        console.log(`[PullService] Status: Departamentos sincronizados para ${Object.keys(byEmpleado).length} empleados`);
       }
     } catch (deptError) {
-      console.error('❌ [Pull] Error procesando departamentos:', deptError.message);
+      console.error('[PullService] Error: Error procesando departamentos:', deptError.message);
     }
 
   } catch (error) {
-    console.error('❌ [Pull] Error en Pull completo:', error.message);
+    console.error('[PullService] Error: Error en Pull completo:', error.message);
     // Si falla la llamada principal, todos los resultados quedan como fallidos
   }
 
   results.duration = Date.now() - startTime;
   const allSuccess = results.empleados.success && results.credenciales.success;
-  console.log(`${allSuccess ? '✅' : '⚠️'} [Pull] Pull completo finalizado en ${results.duration}ms`);
+  console.log(`[PullService] Status: Pull completo ${allSuccess ? 'exitoso' : 'con advertencias'} en ${results.duration}ms`);
 
   return results;
 }

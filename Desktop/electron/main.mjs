@@ -36,11 +36,11 @@ app.whenReady().then(() => {
   if (!ALLOW_DEV_TOOLS) {
     // 1. Bloquear F12 y Ctrl+Shift+I (DevTools)
     globalShortcut.register('F12', () => {
-      console.log('F12 bloqueado por política de seguridad');
+      console.log('F12 bloqueado por politica de seguridad');
     });
 
     globalShortcut.register('CommandOrControl+Shift+I', () => {
-      console.log('DevTools bloqueado por política de seguridad');
+      console.log('DevTools bloqueado por politica de seguridad');
     });
 
     // 2. Bloquear recarga forzada (opcional, evita Ctrl+R)
@@ -82,9 +82,9 @@ app.whenReady().then(() => {
     // Asumir online inicialmente, el renderer confirmará
     syncManager.setOnlineStatus(true);
     syncManager.startPeriodicSync();
-    console.log('🚀 [Main] Sistema Offline-First inicializado');
+    console.log('[Main] Status: Sistema Offline-First inicializado');
   } catch (error) {
-    console.error('❌ [Main] Error inicializando sistema offline:', error);
+    console.error('[Main] Error: Error inicializando sistema offline:', error);
   }
 
   app.on("activate", function () {

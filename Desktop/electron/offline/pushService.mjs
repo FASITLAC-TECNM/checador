@@ -77,7 +77,7 @@ async function pushBatch(records) {
 
     if (!response.ok) {
       const errorMsg = data.message || data.error || `HTTP ${response.status}`;
-      console.log(`  📋 [Push] Respuesta del servidor (${response.status}):`, JSON.stringify(data).substring(0, 300));
+      console.log(`[PushService] Info: Respuesta del servidor (${response.status}):`, JSON.stringify(data).substring(0, 300));
 
       // Auth errors — no point retrying without new token
       if (response.status === 401 || response.status === 403) {
@@ -107,34 +107,34 @@ async function pushBatch(records) {
  */
 export async function pushPendingRecords() {
   if (isPushing) {
-    console.log('⏳ [Push] Ya hay un push en curso, omitiendo...');
+    console.log('[PushService] Info: Ya hay un push en curso, omitiendo...');
     return { total: 0, synced: 0, errors: 0, skipped: 0, busy: true };
   }
 
   isPushing = true;
-  console.log('⬆️ [Push] Iniciando push de registros pendientes...');
+  console.log('[PushService] Action: Iniciando push de registros pendientes...');
 
   try {
     const pending = sqliteManager.getPendingAsistencias(50); // Máximo 50
 
     if (pending.length === 0) {
-      console.log('✅ [Push] No hay registros pendientes');
+      console.log('[PushService] Info: No hay registros pendientes');
       return { total: 0, synced: 0, errors: 0, skipped: 0 };
     }
 
-    console.log(`📤 [Push] ${pending.length} registros pendientes encontrados`);
+    console.log(`[PushService] Info: ${pending.length} registros pendientes encontrados`);
 
     const result = await pushBatch(pending);
 
     if (!result.success) {
       // Error general (network, auth, etc.)
-      console.error(`❌ [Push] Error en batch: ${result.error}`);
-      
+      console.error(`[PushService] Error: Error en batch: ${result.error}`);
+
       // Marcar cada registro con error
       for (const record of pending) {
         sqliteManager.markSyncError(record.local_id, result.error, result.authError || false);
       }
-      
+
       return { total: pending.length, synced: 0, errors: pending.length, skipped: 0 };
     }
 
@@ -148,7 +148,7 @@ export async function pushPendingRecords() {
       );
       if (record) {
         sqliteManager.markAsSynced(record.local_id, sync.id_servidor);
-        console.log(`  ✅ local_id=${record.local_id} → server_id=${sync.id_servidor}`);
+        console.log(`[PushService] Success: local_id=${record.local_id} -> server_id=${sync.id_servidor}`);
       }
     }
 
@@ -160,16 +160,16 @@ export async function pushPendingRecords() {
       if (record) {
         const definitivo = ['CAMPOS_FALTANTES', 'EMPLEADO_NO_EXISTE', 'DUPLICADO'].includes(rej.codigo);
         sqliteManager.markSyncError(record.local_id, rej.error, definitivo);
-        console.log(`  ❌ local_id=${record.local_id}: ${rej.error} (${rej.codigo})${definitivo ? ' DEFINITIVO' : ''}`);
+        console.log(`[PushService] Error: local_id=${record.local_id} : ${rej.error} (${rej.codigo})${definitivo ? ' DEFINITIVO' : ''}`);
       }
     }
 
     const synced = sincronizados.length;
     const errors = rechazados.length;
-    console.log(`📊 [Push] Resultado: ${synced} sincronizados, ${errors} rechazados`);
+    console.log(`[PushService] Status: Resultado = ${synced} sincronizados, ${errors} rechazados`);
     return { total: pending.length, synced, errors, skipped: 0 };
   } catch (error) {
-    console.error('❌ [Push] Error general en push:', error.message);
+    console.error('[PushService] Error: Error general en push:', error.message);
     return { total: 0, synced: 0, errors: 0, skipped: 0, error: error.message };
   } finally {
     isPushing = false;
@@ -184,7 +184,7 @@ export async function pushPendingRecords() {
 export async function forcePushRecord(localId) {
   const db = sqliteManager.getDatabase();
   if (!db) return { success: false, error: 'Database not initialized' };
-  
+
   const stmt = db.prepare('SELECT * FROM offline_asistencias WHERE local_id = ?');
   const record = stmt.get(localId);
 

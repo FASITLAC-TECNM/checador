@@ -53,7 +53,7 @@ export function checkDigitalPersonaSdk() {
 
     // Verificar si existe el directorio del SDK
     if (!fs.existsSync(DIGITALPERSONA_SDK_PATH)) {
-        console.log("[SDK] Directorio del SDK no encontrado:", DIGITALPERSONA_SDK_PATH);
+        console.log("[BiometricService] Info: Directorio del SDK no encontrado:", DIGITALPERSONA_SDK_PATH);
         result.missingFiles = DIGITALPERSONA_REQUIRED_DLLS;
         return result;
     }
@@ -67,7 +67,7 @@ export function checkDigitalPersonaSdk() {
     }
 
     result.installed = result.missingFiles.length === 0;
-    console.log("[SDK] Estado del SDK:", result.installed ? "Instalado" : "Faltante", result.missingFiles);
+    console.log("[BiometricService] Status: Estado del SDK:", result.installed ? "Instalado" : "Faltante", result.missingFiles);
     return result;
 }
 
@@ -88,11 +88,11 @@ export async function installDigitalPersonaSdk() {
             installerPath = path.join(ELECTRON_ROOT, "BiometricMiddleware", "installers", "DigitalPersona_SDK_Setup.msi");
         }
 
-        console.log("[SDK] Buscando instalador en:", installerPath);
+        console.log("[BiometricService] Action: Buscando instalador en:", installerPath);
 
         // Verificar que el instalador existe
         if (!fs.existsSync(installerPath)) {
-            console.error("[SDK] Instalador no encontrado:", installerPath);
+            console.error("[BiometricService] Error: Instalador no encontrado:", installerPath);
             resolve({
                 success: false,
                 message: `Instalador no encontrado en: ${installerPath}`
@@ -100,7 +100,7 @@ export async function installDigitalPersonaSdk() {
             return;
         }
 
-        console.log("[SDK] Iniciando instalación silenciosa del MSI...");
+        console.log("[BiometricService] Action: Iniciando instalacion silenciosa del MSI...");
 
         // Usar msiexec para instalar el MSI silenciosamente
         // /i = install, /quiet = sin UI, /norestart = no reiniciar
@@ -111,7 +111,7 @@ export async function installDigitalPersonaSdk() {
         });
 
         let installTimeout = setTimeout(() => {
-            console.warn("[SDK] Timeout de instalación - el proceso puede seguir en segundo plano");
+            console.warn("[BiometricService] Warning: Timeout de instalacion - el proceso puede seguir en segundo plano");
             resolve({
                 success: true,
                 message: "Instalación iniciada. Puede tardar unos minutos."
@@ -120,7 +120,7 @@ export async function installDigitalPersonaSdk() {
 
         installProcess.on("close", (code) => {
             clearTimeout(installTimeout);
-            console.log("[SDK] Instalador terminó con código:", code);
+            console.log("[BiometricService] Status: Instalador termino con codigo:", code);
 
             // Verificar si la instalación fue exitosa
             const checkResult = checkDigitalPersonaSdk();
@@ -146,7 +146,7 @@ export async function installDigitalPersonaSdk() {
 
         installProcess.on("error", (error) => {
             clearTimeout(installTimeout);
-            console.error("[SDK] Error en instalación:", error.message);
+            console.error("[BiometricService] Error: Error en instalacion:", error.message);
             resolve({
                 success: false,
                 message: `Error al ejecutar instalador: ${error.message}`
@@ -170,7 +170,7 @@ export function buildBiometricMiddlewareIfNeeded() {
 
     // En producción, el ejecutable debe existir en extraResources
     if (app.isPackaged) {
-        console.error("[ERROR] BiometricMiddleware.exe no encontrado en producción:", middlewarePath);
+        console.error("[BiometricService] Error: BiometricMiddleware.exe no encontrado en produccion:", middlewarePath);
         return false;
     }
 
@@ -181,7 +181,7 @@ export function buildBiometricMiddlewareIfNeeded() {
     // Verificar que existe el proyecto
     const csprojPath = path.join(middlewareDir, "BiometricMiddleware.csproj");
     if (!fs.existsSync(csprojPath)) {
-        console.error("[ERROR] BiometricMiddleware.csproj no encontrado en:", csprojPath);
+        console.error("[BiometricService] Error: BiometricMiddleware.csproj no encontrado en:", csprojPath);
         return false;
     }
 
@@ -220,12 +220,12 @@ export function buildBiometricMiddlewareIfNeeded() {
         if (fs.existsSync(middlewarePath)) {
             return true;
         } else {
-            console.error("[ERROR] La compilacion termino pero no se creo el ejecutable");
+            console.error("[BiometricService] Error: La compilacion termino pero no se creo el ejecutable");
             return false;
         }
     } catch (error) {
-        console.error("[ERROR] Error al compilar BiometricMiddleware:", error.message);
-        console.error("[INFO] Asegurate de tener .NET SDK instalado");
+        console.error("[BiometricService] Error: Error al compilar BiometricMiddleware:", error.message);
+        console.error("[BiometricService] Info: Asegurate de tener .NET SDK instalado");
         return false;
     }
 }
@@ -240,24 +240,24 @@ export async function startBiometricMiddleware() {
         const sdkStatus = checkDigitalPersonaSdk();
 
         if (!sdkStatus.installed) {
-            console.log("[BIOMETRIC] SDK no instalado, esperando instalación...");
+            console.log("[BiometricService] Info: SDK no instalado, esperando instalacion...");
             const installResult = await installDigitalPersonaSdk();
 
             if (!installResult.success) {
-                console.error("[BIOMETRIC] No se pudo instalar el SDK:", installResult.message);
-                console.warn("[BIOMETRIC] El middleware puede no funcionar correctamente");
+                console.error("[BiometricService] Error: No se pudo instalar el SDK:", installResult.message);
+                console.warn("[BiometricService] Warning: El middleware puede no funcionar correctamente");
             } else {
-                console.log("[BIOMETRIC] SDK instalado:", installResult.message);
+                console.log("[BiometricService] Status: SDK instalado:", installResult.message);
                 // Pequeña pausa para que Windows registre los archivos
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
         } else {
-            console.log("[BIOMETRIC] SDK ya instalado, continuando...");
+            console.log("[BiometricService] Info: SDK ya instalado, continuando...");
         }
 
         // Compilar si es necesario
         if (!buildBiometricMiddlewareIfNeeded()) {
-            console.error("[ERROR] No se pudo obtener el ejecutable de BiometricMiddleware");
+            console.error("[BiometricService] Error: No se pudo obtener el ejecutable de BiometricMiddleware");
             return;
         }
 
@@ -268,7 +268,7 @@ export async function startBiometricMiddleware() {
 
         // Generar token de autenticación único para esta sesión
         biometricToken = crypto.randomUUID();
-        console.log("[BIOMETRIC] Token de autenticación generado");
+        console.log("[BiometricService] Status: Token de autenticacion generado");
 
         const spawnOptions = {
             cwd: workingDir,
@@ -292,12 +292,12 @@ export async function startBiometricMiddleware() {
         });
 
         biometricProcess.on("error", (error) => {
-            console.error("[ERROR] Error al iniciar BiometricMiddleware:", error.message);
+            console.error("[BiometricService] Error: Error al iniciar BiometricMiddleware:", error.message);
             biometricProcess = null;
         });
 
     } catch (error) {
-        console.error("[ERROR] Error al iniciar BiometricMiddleware:", error);
+        console.error("[BiometricService] Error: Error al iniciar BiometricMiddleware:", error);
     }
 }
 
@@ -310,7 +310,7 @@ export function stopBiometricMiddleware() {
             biometricProcess.kill();
             biometricProcess = null;
         } catch (error) {
-            console.error("[ERROR] Error al detener BiometricMiddleware:", error.message);
+            console.error("[BiometricService] Error: Error al detener BiometricMiddleware:", error.message);
         }
     }
 }

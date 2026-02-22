@@ -34,6 +34,7 @@ import NoEmployeeInfo from "../components/session/NoEmployeeInfo";
 import AdminDashboard from "../components/session/AdminDashboard";
 import BiometricEnroll from "../components/kiosk/BiometricEnroll";
 import RegisterFaceModal from "../components/kiosk/RegisterFaceModal";
+import EmployeeSelectionModal from "../components/session/EmployeeSelectionModal";
 
 // Hooks
 import { useEmployeeData } from "../hooks/useEmployeeData";
@@ -53,6 +54,9 @@ export default function SessionScreen({ onLogout, usuario, isReaderConnected = f
   const [showBiometricReader, setShowBiometricReader] = useState(false);
   const [showRegisterFace, setShowRegisterFace] = useState(false);
   const [showAllDepartamentos, setShowAllDepartamentos] = useState(false);
+  const [showEmployeeSelectionModal, setShowEmployeeSelectionModal] = useState(false);
+  const [selectedBiometricType, setSelectedBiometricType] = useState('huella');
+  const [targetEmployeeId, setTargetEmployeeId] = useState(null);
 
   // Custom hook para datos del empleado
   const { datosCompletos, loadingEmpleado, departamentos, notices, setNotices } = useEmployeeData(usuario);
@@ -158,6 +162,21 @@ export default function SessionScreen({ onLogout, usuario, isReaderConnected = f
     );
   };
 
+  const handleOpenEmployeeSelection = (tipo) => {
+    setSelectedBiometricType(tipo);
+    setShowEmployeeSelectionModal(true);
+  };
+
+  const handleSelectEmployee = (empleadoId) => {
+    setTargetEmployeeId(empleadoId);
+    setShowEmployeeSelectionModal(false);
+    if (selectedBiometricType === 'huella') {
+      setShowBiometricReader(true);
+    } else {
+      setShowRegisterFace(true);
+    }
+  };
+
   return (
     <div className="h-screen bg-bg-secondary p-4 overflow-hidden">
       <div className="max-w-[1600px] mx-auto h-full flex flex-col">
@@ -177,8 +196,8 @@ export default function SessionScreen({ onLogout, usuario, isReaderConnected = f
             isOnline={isOnline}
             onShowHorario={() => setShowHorarioModal(true)}
             onShowHistorial={() => setShowHistorialModal(true)}
-            onShowBiometric={() => setShowBiometricReader(true)}
-            onShowRegisterFace={() => setShowRegisterFace(true)}
+            onShowBiometric={() => handleOpenEmployeeSelection('huella')}
+            onShowRegisterFace={() => handleOpenEmployeeSelection('rostro')}
             onSelectNotice={(notice) => setSelectedNotice(notice)}
           />
         </div>
@@ -324,20 +343,27 @@ export default function SessionScreen({ onLogout, usuario, isReaderConnected = f
       {showBiometricReader && (
         <BiometricEnroll
           isOpen={showBiometricReader}
-          onClose={() => setShowBiometricReader(false)}
+          onClose={() => {
+            setShowBiometricReader(false);
+            setTargetEmployeeId(null);
+          }}
           onEnrollmentSuccess={(data) => {
             console.log("✅ Huella registrada:", data);
             setShowBiometricReader(false);
+            setTargetEmployeeId(null);
           }}
-          idEmpleado={datosCompletos?.empleado_id}
+          idEmpleado={targetEmployeeId}
         />
       )}
 
       {/* Modal de RegisterFaceModal para registro facial */}
       {showRegisterFace && (
         <RegisterFaceModal
-          onClose={() => setShowRegisterFace(false)}
-          empleadoId={datosCompletos?.empleado_id}
+          onClose={() => {
+            setShowRegisterFace(false);
+            setTargetEmployeeId(null);
+          }}
+          empleadoId={targetEmployeeId}
         />
       )}
 
@@ -346,6 +372,15 @@ export default function SessionScreen({ onLogout, usuario, isReaderConnected = f
         <HorarioModal
           onClose={() => setShowHorarioModal(false)}
           usuario={datosCompletos}
+        />
+      )}
+
+      {/* Modal de selección de empleado para biometría */}
+      {showEmployeeSelectionModal && (
+        <EmployeeSelectionModal
+          biometriaTipo={selectedBiometricType}
+          onClose={() => setShowEmployeeSelectionModal(false)}
+          onSelect={handleSelectEmployee}
         />
       )}
     </div>

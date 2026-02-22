@@ -1,0 +1,142 @@
+import React, { useState, useEffect } from "react";
+import { Search, User, X, Briefcase, FileText } from "lucide-react";
+import { getAllEmpleados } from "../../services/empleadoService";
+
+export default function EmployeeSelectionModal({ onClose, onSelect, biometriaTipo = 'huella' }) {
+    const [empleados, setEmpleados] = useState([]);
+    const [filteredEmpleados, setFilteredEmpleados] = useState([]);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const fetchEmpleados = async () => {
+            try {
+                setLoading(true);
+                const data = await getAllEmpleados();
+                setEmpleados(data);
+                setFilteredEmpleados(data);
+            } catch (err) {
+                console.error("Error cargando empleados:", err);
+                setError("No se pudieron cargar los empleados.");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchEmpleados();
+    }, []);
+
+    useEffect(() => {
+        if (searchTerm.trim() === "") {
+            setFilteredEmpleados(empleados);
+        } else {
+            const lowerSearch = searchTerm.toLowerCase();
+            const filtered = empleados.filter((emp) =>
+                (emp.nombre && emp.nombre.toLowerCase().includes(lowerSearch)) ||
+                (emp.usuario && emp.usuario.toLowerCase().includes(lowerSearch)) ||
+                (emp.id && String(emp.id).toLowerCase().includes(lowerSearch))
+            );
+            setFilteredEmpleados(filtered);
+        }
+    }, [searchTerm, empleados]);
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-bg-primary rounded-xl shadow-2xl max-w-lg w-full flex flex-col h-[600px] overflow-hidden">
+                {/* Header */}
+                <div className="p-6 border-b border-border-subtle flex-shrink-0">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-[#1976D2]/10 p-2 rounded-lg">
+                                <User className="w-6 h-6 text-[#1976D2]" />
+                            </div>
+                            <h2 className="text-xl font-bold text-text-primary">
+                                Seleccionar Empleado
+                            </h2>
+                        </div>
+                        <button
+                            onClick={onClose}
+                            className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    <p className="text-sm text-text-secondary mb-4">
+                        Selecciona el empleado para registrar su {biometriaTipo === 'huella' ? 'huella digital' : 'rostro'}.
+                    </p>
+
+                    <div className="relative">
+                        <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary" />
+                        <input
+                            type="text"
+                            placeholder="Buscar por nombre, usuario o ID..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 border border-border-subtle rounded-lg bg-bg-secondary focus:ring-2 focus:ring-[#1976D2] focus:border-transparent outline-none transition-all text-text-primary"
+                        />
+                    </div>
+                </div>
+
+                {/* Lista de Empleados */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center h-full text-center">
+                            <div className="w-8 h-8 border-4 border-[#1976D2] border-t-transparent rounded-full animate-spin mb-4" />
+                            <p className="text-text-secondary">Cargando empleados...</p>
+                        </div>
+                    ) : error ? (
+                        <div className="flex flex-col items-center justify-center h-full text-center text-red-500">
+                            <p>{error}</p>
+                            <button
+                                onClick={() => window.location.reload()}
+                                className="mt-4 px-4 py-2 bg-bg-secondary border border-border-subtle rounded-lg hover:bg-bg-tertiary transition-colors"
+                            >
+                                Reintentar
+                            </button>
+                        </div>
+                    ) : filteredEmpleados.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full text-center py-8">
+                            <User className="w-12 h-12 text-text-tertiary mb-3 opacity-50" />
+                            <p className="text-text-secondary">No se encontraron empleados que coincidan con la búsqueda.</p>
+                        </div>
+                    ) : (
+                        filteredEmpleados.map((empleado) => (
+                            <button
+                                key={empleado.id}
+                                onClick={() => onSelect(empleado.id, empleado)}
+                                className="w-full flex items-center justify-between p-3 rounded-lg border border-border-subtle bg-bg-primary hover:bg-bg-secondary hover:border-[#1976D2]/50 transition-all text-left group"
+                            >
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-10 h-10 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <User className="w-5 h-5 text-[#1976D2]" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="font-bold text-text-primary text-sm truncate">
+                                            {empleado.nombre || "Sin Nombre"}
+                                        </p>
+                                        <div className="flex items-center gap-3 text-xs text-text-tertiary mt-0.5">
+                                            <span className="flex items-center gap-1">
+                                                <Briefcase className="w-3 h-3" />
+                                                {empleado.usuario || "N/A"}
+                                            </span>
+                                            {empleado.rfc && (
+                                                <span className="flex items-center gap-1">
+                                                    <FileText className="w-3 h-3" />
+                                                    {empleado.rfc}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-[#1976D2] text-white px-3 py-1.5 rounded text-xs font-semibold flex-shrink-0 ml-2">
+                                    Seleccionar
+                                </div>
+                            </button>
+                        ))
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}

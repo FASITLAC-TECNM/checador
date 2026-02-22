@@ -65,6 +65,7 @@ export default function AdminDashboard({
         { id: "general", title: "General del Nodo", icon: Settings },
         { id: "dispositivos", title: "Dispositivos", icon: Smartphone },
         { id: "preferencias", title: "Preferencias", icon: Sliders },
+        { id: "biometria", title: "Gestión Biométrica", icon: Fingerprint },
     ];
 
     return (
@@ -291,8 +292,8 @@ export default function AdminDashboard({
                                 </div>
                             </div>
 
-                            {/* Bottom Row - Quick Action Buttons (4 columns) */}
-                            <div className="grid grid-cols-4 gap-3 flex-shrink-0">
+                            {/* Bottom Row - Quick Action Buttons (4 columns or 2) */}
+                            <div className={`grid ${isAdmin ? "grid-cols-4" : "grid-cols-2"} gap-3 flex-shrink-0`}>
                                 <button
                                     onClick={onShowHorario}
                                     className="bg-bg-secondary hover:bg-bg-tertiary rounded-2xl shadow-sm p-4 transition-all hover:shadow-md flex flex-col items-center justify-center border border-border-subtle text-[#1976D2] dark:text-[#42A5F5]"
@@ -311,35 +312,39 @@ export default function AdminDashboard({
                                     <p className="text-[10px] text-text-secondary">Días anteriores</p>
                                 </button>
 
-                                <button
-                                    onClick={() => readerConnected && isOnline && onShowBiometric?.()}
-                                    disabled={!readerConnected || !isOnline}
-                                    className={`rounded-2xl shadow-sm p-4 transition-all flex flex-col items-center justify-center border border-border-subtle ${readerConnected && isOnline
-                                        ? "bg-bg-secondary hover:bg-bg-tertiary hover:shadow-md cursor-pointer text-[#1976D2] dark:text-[#42A5F5]"
-                                        : "bg-gray-100 dark:bg-slate-700/50 text-gray-400 dark:text-gray-500 cursor-not-allowed"
-                                        }`}
-                                >
-                                    <Fingerprint className="w-8 h-8 mb-2" />
-                                    <h3 className={`text-sm font-bold mb-0.5 ${readerConnected && isOnline ? "text-text-primary" : "text-gray-400 dark:text-gray-500"}`}>Reg. Huella</h3>
-                                    <p className={`text-[10px] ${readerConnected && isOnline ? "text-text-secondary" : "text-gray-400 dark:text-gray-500"}`}>
-                                        {!isOnline ? "Sin conexión" : readerConnected ? "Vincular huella" : "Desconectado"}
-                                    </p>
-                                </button>
+                                {isAdmin && (
+                                    <>
+                                        <button
+                                            onClick={() => readerConnected && isOnline && onShowBiometric?.()}
+                                            disabled={!readerConnected || !isOnline}
+                                            className={`rounded-2xl shadow-sm p-4 transition-all flex flex-col items-center justify-center border border-border-subtle ${readerConnected && isOnline
+                                                ? "bg-bg-secondary hover:bg-bg-tertiary hover:shadow-md cursor-pointer text-[#1976D2] dark:text-[#42A5F5]"
+                                                : "bg-gray-100 dark:bg-slate-700/50 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                                                }`}
+                                        >
+                                            <Fingerprint className="w-8 h-8 mb-2" />
+                                            <h3 className={`text-sm font-bold mb-0.5 ${readerConnected && isOnline ? "text-text-primary" : "text-gray-400 dark:text-gray-500"}`}>Reg. Huella</h3>
+                                            <p className={`text-[10px] ${readerConnected && isOnline ? "text-text-secondary" : "text-gray-400 dark:text-gray-500"}`}>
+                                                {!isOnline ? "Sin conexión" : readerConnected ? "Vincular huella" : "Desconectado"}
+                                            </p>
+                                        </button>
 
-                                <button
-                                    disabled={!isOnline || !isCameraConnected}
-                                    onClick={() => isOnline && isCameraConnected && onShowRegisterFace?.()}
-                                    className={`rounded-2xl shadow-sm p-4 transition-all flex flex-col items-center justify-center border border-border-subtle ${isOnline && isCameraConnected
-                                        ? "bg-bg-secondary hover:bg-bg-tertiary hover:shadow-md cursor-pointer text-[#1976D2] dark:text-[#42A5F5]"
-                                        : "bg-gray-100 dark:bg-slate-700/50 text-gray-400 dark:text-gray-500 cursor-not-allowed"
-                                        }`}
-                                >
-                                    <Camera className="w-8 h-8 mb-2" />
-                                    <h3 className={`text-sm font-bold mb-0.5 ${isOnline && isCameraConnected ? "text-text-primary" : "text-gray-400 dark:text-gray-500"}`}>Reg. Rostro</h3>
-                                    <p className={`text-[10px] ${isOnline && isCameraConnected ? "text-text-secondary" : "text-gray-400 dark:text-gray-500"}`}>
-                                        {!isOnline ? "Sin conexión" : !isCameraConnected ? "Cámara no disponible" : "Reconocimiento facial"}
-                                    </p>
-                                </button>
+                                        <button
+                                            disabled={!isOnline || !isCameraConnected}
+                                            onClick={() => isOnline && isCameraConnected && onShowRegisterFace?.()}
+                                            className={`rounded-2xl shadow-sm p-4 transition-all flex flex-col items-center justify-center border border-border-subtle ${isOnline && isCameraConnected
+                                                ? "bg-bg-secondary hover:bg-bg-tertiary hover:shadow-md cursor-pointer text-[#1976D2] dark:text-[#42A5F5]"
+                                                : "bg-gray-100 dark:bg-slate-700/50 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                                                }`}
+                                        >
+                                            <Camera className="w-8 h-8 mb-2" />
+                                            <h3 className={`text-sm font-bold mb-0.5 ${isOnline && isCameraConnected ? "text-text-primary" : "text-gray-400 dark:text-gray-500"}`}>Reg. Rostro</h3>
+                                            <p className={`text-[10px] ${isOnline && isCameraConnected ? "text-text-secondary" : "text-gray-400 dark:text-gray-500"}`}>
+                                                {!isOnline ? "Sin conexión" : !isCameraConnected ? "Cámara no disponible" : "Reconocimiento facial"}
+                                            </p>
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}
@@ -353,6 +358,54 @@ export default function AdminDashboard({
                     )}
                     {activeSection === "preferencias" && isAdmin && (
                         <PreferenciasModal inline />
+                    )}
+                    {activeSection === "biometria" && isAdmin && (
+                        <div className="p-5 h-full overflow-y-auto w-full">
+                            <div className="bg-bg-secondary rounded-2xl shadow-sm border border-border-subtle p-6 mb-6">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="bg-[#1976D2]/10 p-2 rounded-xl">
+                                        <Fingerprint className="w-6 h-6 text-[#1976D2]" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-xl font-bold text-text-primary">Gestión Biométrica</h2>
+                                        <p className="text-sm text-text-secondary">
+                                            Registra huellas y rostros para cualquier empleado del sistema.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <button
+                                        onClick={() => readerConnected && isOnline && onShowBiometric?.()}
+                                        disabled={!readerConnected || !isOnline}
+                                        className={`rounded-2xl shadow-sm p-6 transition-all flex flex-col items-center justify-center border border-border-subtle ${readerConnected && isOnline
+                                            ? "bg-bg-primary hover:bg-bg-secondary hover:border-[#1976D2]/50 hover:shadow-md cursor-pointer text-[#1976D2]"
+                                            : "bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                                            }`}
+                                    >
+                                        <Fingerprint className="w-12 h-12 mb-4" />
+                                        <h3 className={`text-lg font-bold mb-1 ${readerConnected && isOnline ? "text-text-primary" : "text-gray-400 dark:text-gray-600"}`}>Registrar Huella</h3>
+                                        <p className={`text-sm text-center ${readerConnected && isOnline ? "text-text-secondary" : "text-gray-400 dark:text-gray-500"}`}>
+                                            {!isOnline ? "Sin conexión" : readerConnected ? "Seleccionar empleado y registrar huella" : "Lector desconectado"}
+                                        </p>
+                                    </button>
+
+                                    <button
+                                        disabled={!isOnline || !isCameraConnected}
+                                        onClick={() => isOnline && isCameraConnected && onShowRegisterFace?.()}
+                                        className={`rounded-2xl shadow-sm p-6 transition-all flex flex-col items-center justify-center border border-border-subtle ${isOnline && isCameraConnected
+                                            ? "bg-bg-primary hover:bg-bg-secondary hover:border-[#1976D2]/50 hover:shadow-md cursor-pointer text-[#1976D2]"
+                                            : "bg-gray-100 dark:bg-slate-800 text-gray-400 dark:text-gray-500 cursor-not-allowed"
+                                            }`}
+                                    >
+                                        <Camera className="w-12 h-12 mb-4" />
+                                        <h3 className={`text-lg font-bold mb-1 ${isOnline && isCameraConnected ? "text-text-primary" : "text-gray-400 dark:text-gray-600"}`}>Registrar Rostro</h3>
+                                        <p className={`text-sm text-center ${isOnline && isCameraConnected ? "text-text-secondary" : "text-gray-400 dark:text-gray-500"}`}>
+                                            {!isOnline ? "Sin conexión" : !isCameraConnected ? "Cámara no disponible" : "Seleccionar empleado y registrar rostro"}
+                                        </p>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     )}
 
                     {/* No access message */}

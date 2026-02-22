@@ -6,6 +6,34 @@ import { API_CONFIG } from "../config/apiEndPoint";
 const API_URL = API_CONFIG.BASE_URL;
 
 /**
+ * Obtener todos los empleados
+ * @returns {Promise<Array>} - Lista de empleados
+ */
+export const getAllEmpleados = async () => {
+  try {
+    console.log(`📋 Obteniendo todos los empleados...`);
+    const token = localStorage.getItem("auth_token");
+
+    const response = await fetch(`${API_URL}${API_CONFIG.ENDPOINTS.EMPLEADOS}`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error("Error al obtener empleados");
+    }
+
+    const empleados = await response.json();
+    return empleados;
+  } catch (error) {
+    console.error("❌ Error al obtener empleados:", error);
+    throw error;
+  }
+};
+
+/**
  * Obtener datos completos de un empleado por su ID de usuario
  * @param {string} usuarioId - ID del usuario
  * @returns {Promise<Object>} - Datos del empleado
@@ -336,6 +364,7 @@ export const getDepartamentoById = async (departamentoId) => {
 };
 
 export default {
+  getAllEmpleados,
   getEmpleadoById,
   getHorarioById,
   getEmpleadoConHorario,

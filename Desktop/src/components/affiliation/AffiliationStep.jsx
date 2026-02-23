@@ -50,14 +50,14 @@ export default function AffiliationStep({
                 </h3>
                 <p className="text-sm text-text-secondary mb-3">
                   Este código único fue proporcionado por el administrador de su
-                  empresa. Tiene el formato EMA-XXXXX
+                  empresa. Tiene un formato similar a SYS-EMA-000...
                 </p>
                 <input
                   type="text"
                   value={companyId}
                   onChange={(e) => setCompanyId(e.target.value)}
-                  placeholder="EMA-XXXXX"
-                  className="w-full px-4 py-3 bg-bg-primary border border-border-subtle rounded-xl focus:ring-2 focus:ring-[#42A5F5]/50 focus:border-transparent text-center font-mono text-lg tracking-widest transition-all duration-200"
+                  placeholder="SYS-EMA-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                  className="w-full px-4 py-3 bg-bg-primary border border-border-subtle rounded-xl focus:ring-2 focus:ring-[#42A5F5]/50 focus:border-transparent text-center font-mono text-sm tracking-widest transition-all duration-200"
                 />
               </div>
             </div>

@@ -24,7 +24,7 @@ export const obtenerOrdenCredenciales = async () => {
   if (!token) throw new Error("No hay sesión activa");
 
   // 1. Obtener la empresa activa
-  const urlEmpresa = getApiEndpoint(`${EMPRESAS_ENDPOINT}?es_activo=true`);
+  const urlEmpresa = getApiEndpoint(`${EMPRESAS_ENDPOINT}/mi-empresa`);
   const resEmpresa = await fetch(urlEmpresa, {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -32,12 +32,13 @@ export const obtenerOrdenCredenciales = async () => {
   if (!resEmpresa.ok) throw new Error("Error al obtener empresa");
   const dataEmpresa = await resEmpresa.json();
 
-  if (!dataEmpresa.success || !dataEmpresa.data?.length) {
+  if (!dataEmpresa.success || !dataEmpresa.data) {
     throw new Error("No se encontró una empresa activa");
   }
 
-  const empresa = dataEmpresa.data[0];
-  if (!empresa.configuracion_id) {
+  // La nueva ruta /mi-empresa devuelve un objeto directamente
+  const empresa = Array.isArray(dataEmpresa.data) ? dataEmpresa.data[0] : dataEmpresa.data;
+  if (!empresa || !empresa.configuracion_id) {
     throw new Error("La empresa no tiene configuración asignada");
   }
 
@@ -66,17 +67,71 @@ export const obtenerOrdenCredenciales = async () => {
           ? JSON.parse(cfg.orden_credenciales)
           : cfg.orden_credenciales;
 
+      const validKeys = Object.keys(ORDEN_CREDENCIALES_DEFAULT);
+      const legacyMapping = {
+        "huella": "dactilar",
+        "rostro": "facial",
+        "dactilar": "dactilar",
+        "facial": "facial",
+        "pin": "pin",
+        "password": "pin"
+      };
+
       if (Array.isArray(parsed)) {
-        // Formato antiguo (array de strings) → convertir a objeto
+        // Formato antiguo (array) → convertir a objeto validando/mapeando claves
         ordenCredenciales = {};
-        parsed.forEach((metodo, index) => {
-          ordenCredenciales[metodo] = { prioridad: index + 1, activo: true };
+        let currentPriority = 1;
+        parsed.forEach((metodo) => {
+          if (typeof metodo !== "string") return;
+          const rawKey = metodo.toLowerCase().trim();
+          const mappedKey = legacyMapping[rawKey] || rawKey;
+          
+          if (validKeys.includes(mappedKey)) {
+            ordenCredenciales[mappedKey] = { prioridad: currentPriority++, activo: true };
+          }
         });
-      } else {
-        ordenCredenciales = parsed;
+      } else if (typeof parsed === "object" && parsed !== null) {
+        ordenCredenciales = {};
+        // Formato objeto: filtrar y mapear
+        let currentPriority = 1;
+        for (const [k, v] of Object.entries(parsed)) {
+          const rawKey = k.toLowerCase().trim();
+          const mappedKey = legacyMapping[rawKey] || rawKey;
+          
+          if (validKeys.includes(mappedKey)) {
+            // Asegurarnos de que tenga el formato correcto interno
+            if (typeof v === "object" && v !== null) {
+              ordenCredenciales[mappedKey] = {
+                prioridad: v.prioridad || currentPriority++,
+                activo: v.activo !== undefined ? v.activo : true
+              };
+            } else {
+              ordenCredenciales[mappedKey] = { prioridad: currentPriority++, activo: true };
+            }
+          }
+        }
+      }
+
+      // Asegurarnos de que todos los métodos válidos existan siempre
+      let maxPrioridad = Object.values(ordenCredenciales).reduce((max, obj) => Math.max(max, obj.prioridad), 0);
+      
+      validKeys.forEach(key => {
+        if (!ordenCredenciales[key]) {
+          ordenCredenciales[key] = {
+            prioridad: ++maxPrioridad,
+            activo: false // Por defecto apagados si no venían en la base de datos
+          };
+        }
+      });
+
+      // Si después del filtrado no quedó ningún método válido, 
+      // restauramos a sus valores por defecto en memoria.
+      if (Object.keys(ordenCredenciales).length === 0) {
+        ordenCredenciales = { ...ORDEN_CREDENCIALES_DEFAULT };
       }
     } catch (e) {
       console.error("Error parseando orden_credenciales:", e);
+      ordenCredenciales = { ...ORDEN_CREDENCIALES_DEFAULT };
     }
   }
 

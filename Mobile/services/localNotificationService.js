@@ -31,7 +31,6 @@ export const initNotifications = async () => {
     }
 
     if (finalStatus !== 'granted') {
-      console.log('⚠️ Permisos de notificaciones no otorgados');
       return false;
     }
 
@@ -61,10 +60,8 @@ export const initNotifications = async () => {
       });
     }
 
-    console.log('✅ Notificaciones inicializadas');
     return true;
   } catch (error) {
-    console.error('❌ Error inicializando notificaciones:', error);
     return false;
   }
 };
@@ -118,7 +115,7 @@ export const notificarRegistro = async (tipo, estado) => {
       ...(Platform.OS === 'android' && { channelId: 'asistencia' }),
     });
   } catch (error) {
-    console.error('Error enviando notificación de registro:', error);
+    // Silencio
   }
 };
 
@@ -143,7 +140,7 @@ export const notificarEstadoAsistencia = async (tipoRegistro) => {
       ...(Platform.OS === 'android' && { channelId: 'asistencia' }),
     });
   } catch (error) {
-    console.error('Error enviando notificación de estado asistencia:', error);
+    // Silencio
   }
 };
 
@@ -181,7 +178,7 @@ export const notificarIncidencia = async (tipoIncidencia, estado) => {
       ...(Platform.OS === 'android' && { channelId: 'incidencias' }),
     });
   } catch (error) {
-    console.error('Error enviando notificación de incidencia:', error);
+    // Silencio
   }
 };
 
@@ -198,7 +195,7 @@ export const notificarAviso = async (titulo) => {
       ...(Platform.OS === 'android' && { channelId: 'avisos' }),
     });
   } catch (error) {
-    console.error('Error enviando notificación de aviso:', error);
+    // Silencio
   }
 };
 
@@ -236,7 +233,7 @@ export const detectarCambiosIncidencias = async (incidenciasActuales) => {
       }
     }
   } catch (error) {
-    console.error('Error detectando cambios de incidencias:', error);
+    // Silencio
   }
 };
 
@@ -264,7 +261,7 @@ export const detectarAvisosNuevos = async (avisosActuales) => {
       await notificarAviso(aviso.titulo || 'Tienes un nuevo aviso');
     }
   } catch (error) {
-    console.error('Error detectando avisos nuevos:', error);
+    // Silencio
   }
 };
 

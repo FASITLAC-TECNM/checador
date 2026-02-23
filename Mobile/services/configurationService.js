@@ -168,7 +168,6 @@ export const getMaintenanceStatus = async () => {
         const data = await response.json();
         return { maintenance: data.maintenance === true };
     } catch (error) {
-        console.warn('[configurationService] Error checking maintenance status:', error.message);
         // En caso de error de red, no bloqueamos la app
         return { maintenance: false };
     }

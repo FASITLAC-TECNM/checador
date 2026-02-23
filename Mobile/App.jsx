@@ -272,16 +272,60 @@ export default function App() {
         }
       }
 
-      const [deviceCompleted, savedDarkMode] = await Promise.all([
+      const [deviceCompleted, savedDarkMode, storedUserData, storedToken] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETED),
         AsyncStorage.getItem(STORAGE_KEYS.DARK_MODE),
+        AsyncStorage.getItem(STORAGE_KEYS.USER_DATA),
+        AsyncStorage.getItem(STORAGE_KEYS.USER_TOKEN),
       ]);
 
-      setDeviceRegistered(deviceCompleted === 'true');
       setDarkMode(savedDarkMode === 'true');
       setIsLoggedIn(false);
       setCurrentScreen('home');
       console.log('🔒 [App] Login screen enforced on startup');
+
+      // Si el onboarding estaba marcado como completado, verificar contra el servidor
+      // para detectar si el admin eliminó / desactivó el dispositivo mientras la app estaba cerrada
+      if (deviceCompleted === 'true' && online && storedUserData && storedToken) {
+        try {
+          const parsedUser = JSON.parse(storedUserData);
+          const empleadoId = parsedUser.empleado_id || parsedUser.empleadoInfo?.id;
+
+          if (empleadoId) {
+            console.log('🔍 [App] Verificando estado del dispositivo en servidor al arrancar...');
+            const dispositivoEnBD = await verificarDispositivoPorEmpleado(empleadoId, storedToken);
+
+            if (dispositivoEnBD.existe && dispositivoEnBD.activo) {
+              console.log('✅ [App] Dispositivo activo en servidor. Onboarding OK.');
+              setDeviceRegistered(true);
+            } else if (dispositivoEnBD.existe && !dispositivoEnBD.activo) {
+              console.warn('⛔ [App] Dispositivo DESACTIVADO en servidor. Limpiando onboarding.');
+              await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
+              setDeviceRegistered(false);
+              // deviceDisabled se mostrará solo si el usuario inicia sesión
+            } else {
+              console.warn('ℹ️ [App] Dispositivo no encontrado en servidor. Limpiando onboarding.');
+              await AsyncStorage.multiRemove([
+                STORAGE_KEYS.ONBOARDING_COMPLETED,
+                STORAGE_KEYS.SOLICITUD_ID,
+                STORAGE_KEYS.TOKEN_SOLICITUD,
+              ]);
+              setDeviceRegistered(false);
+            }
+          } else {
+            // Admin / usuario sin empleado_id: no requiere dispositivo
+            setDeviceRegistered(true);
+          }
+        } catch (verifyError) {
+          // Error de red al verificar: confiar en el estado local para no bloquear al usuario
+          console.warn('⚠️ [App] No se pudo verificar dispositivo al arrancar, usando estado local:', verifyError.message);
+          setDeviceRegistered(deviceCompleted === 'true');
+        }
+      } else {
+        // Sin conexión o sin datos locales: confiar en AsyncStorage
+        setDeviceRegistered(deviceCompleted === 'true');
+      }
+
     } catch (error) {
       console.error('CheckAppState error:', error);
       setIsLoggedIn(false);
@@ -517,12 +561,21 @@ export default function App() {
     );
   }
 
+  const handleDeviceReEnabled = async () => {
+    // El admin volvió a habilitar el nodo. Restauramos el estado.
+    await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETED, 'true');
+    setDeviceDisabled(false);
+    setDeviceRegistered(true);
+    // startDeviceVerification se dispara automáticamente por el useEffect en isLoggedIn+deviceRegistered
+  };
+
   if (isLoggedIn && deviceDisabled) {
     return (
       <SafeAreaProvider>
         <DeviceDisabledScreen
           darkMode={darkMode}
           onReRequest={handleReRequest}
+          onReEnabled={handleDeviceReEnabled}
         />
       </SafeAreaProvider>
     );

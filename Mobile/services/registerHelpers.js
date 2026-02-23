@@ -57,23 +57,35 @@ export const obtenerHorarioSimplificado = async (empleadoId, token) => {
             salida: turnosHoy[turnosHoy.length - 1]?.salida || null
         };
     } catch (err) {
-        console.error('Error obteniendo horario:', err);
         return { trabaja: false, turnos: [] };
     }
 };
 
 /**
- * Obtener tolerancia del empleado
+ * Tolerancia por defecto alineada con el backend actualizado.
+ * Incluye los nuevos campos de retardo A/B.
+ */
+const DEFAULT_TOLERANCIA = {
+    minutos_retardo: 10,
+    minutos_falta: 30,
+    permite_registro_anticipado: true,
+    minutos_anticipado_max: 60,
+    aplica_tolerancia_entrada: true,
+    aplica_tolerancia_salida: false,
+    // Nuevos campos — alineados con tolerancias.controller.js
+    minutos_retardo_a_max: 20,
+    minutos_retardo_b_max: 29,
+    equivalencia_retardo_a: 10,
+    equivalencia_retardo_b: 5,
+};
+
+/**
+ * Obtener tolerancia del empleado.
+ * Usa el endpoint /api/tolerancias y combina con los valores por defecto
+ * para garantizar que los campos nuevos (retardo_a_max, retardo_b_max, etc.)
+ * siempre estén presentes.
  */
 export const obtenerTolerancia = async (token) => {
-    const defaultTolerancia = {
-        minutos_retardo: 10,
-        minutos_falta: 30,
-        permite_registro_anticipado: true,
-        minutos_anticipado_max: 60,
-        aplica_tolerancia_salida: false
-    };
-
     try {
         const response = await fetch(`${API_URL}/tolerancias`, {
             headers: {
@@ -82,17 +94,17 @@ export const obtenerTolerancia = async (token) => {
             }
         });
 
-        if (!response.ok) return defaultTolerancia;
+        if (!response.ok) return { ...DEFAULT_TOLERANCIA };
 
         const data = await response.json();
         if (data.data && data.data.length > 0) {
-            return data.data[0]; // Primera tolerancia (la del rol del usuario)
+            // Mezclar con defaults para garantizar que los campos nuevos existan
+            return { ...DEFAULT_TOLERANCIA, ...data.data[0] };
         }
 
-        return defaultTolerancia;
+        return { ...DEFAULT_TOLERANCIA };
     } catch (err) {
-        console.error('Error obteniendo tolerancia:', err);
-        return defaultTolerancia;
+        return { ...DEFAULT_TOLERANCIA };
     }
 };
 
@@ -137,18 +149,55 @@ export const obtenerUltimoRegistro = async (empleadoId, token) => {
             totalRegistrosHoy: registrosHoy.length
         };
     } catch (err) {
-        console.error('Error obteniendo último registro:', err);
         return null;
     }
 };
 
 /**
- * Validación simplificada del lado del cliente
- * Solo para UX - el backend hace la validación real
+ * Calcula el estado de entrada basado en la tolerancia del empleado.
+ * Alineado con la lógica de calcularEstadoEntrada en asistencias.controller.js.
+ *
+ * @param {number} minutosActuales - Minutos desde medianoche de la hora actual
+ * @param {number} minEntrada - Minutos desde medianoche de la hora de entrada del turno
+ * @param {Object} tolerancia - Objeto de tolerancia del empleado
+ * @returns {'puntual'|'retardo_a'|'retardo_b'|'falta_por_retardo'|'falta'}
+ */
+export const calcularEstadoEntrada = (minutosActuales, minEntrada, tolerancia) => {
+    const tol = { ...DEFAULT_TOLERANCIA, ...tolerancia };
+    const anticipadoMax = tol.minutos_anticipado_max || 60;
+    const inicioVentana = minEntrada - anticipadoMax;
+
+    // Umbrales basados en el backend (con los nuevos campos de tolerancia)
+    const margenPuntual = minEntrada + (tol.minutos_retardo || 10);
+    const margenRetardoA = minEntrada + (tol.minutos_retardo_a_max || 20);
+    const margenRetardoB = minEntrada + (tol.minutos_retardo_b_max || 29);
+
+    if (minutosActuales >= inicioVentana && minutosActuales <= margenPuntual) {
+        return 'puntual';
+    }
+    if (minutosActuales > margenPuntual && minutosActuales <= margenRetardoA) {
+        return 'retardo_a';
+    }
+    if (minutosActuales > margenRetardoA && minutosActuales <= margenRetardoB) {
+        return 'retardo_b';
+    }
+    // Si superó retardo_b pero sigue en período del turno
+    const margenFaltaPorRetardo = minEntrada + (tol.minutos_falta || 30);
+    if (minutosActuales > margenRetardoB && minutosActuales <= margenFaltaPorRetardo) {
+        return 'falta_por_retardo';
+    }
+    return 'falta';
+};
+
+/**
+ * Validación simplificada del lado del cliente.
+ * Solo para UX — el backend hace la validación real y definitiva.
+ * Usa los nuevos campos de tolerancia (retardo_a_max, retardo_b_max) cuando estén disponibles.
  */
 export const validarRegistroCliente = (horario, ultimoRegistro, tolerancia) => {
     const ahora = new Date();
     const minutosActuales = ahora.getHours() * 60 + ahora.getMinutes();
+    const tol = { ...DEFAULT_TOLERANCIA, ...tolerancia };
 
     // Si no trabaja hoy
     if (!horario || !horario.trabaja) {
@@ -163,12 +212,12 @@ export const validarRegistroCliente = (horario, ultimoRegistro, tolerancia) => {
     const esEntrada = !ultimoRegistro || ultimoRegistro.tipo === 'salida';
     const tipoSiguiente = esEntrada ? 'entrada' : 'salida';
 
-    // Validación básica de horario de entrada
+    // Validación de entrada
     if (esEntrada && horario.entrada) {
         const [hE, mE] = horario.entrada.split(':').map(Number);
         const minEntrada = hE * 60 + mE;
-        const ventanaInicio = minEntrada - (tolerancia.minutos_anticipado_max || 60);
-        const ventanaFin = minEntrada + (tolerancia.minutos_falta || 30);
+        const ventanaInicio = minEntrada - (tol.minutos_anticipado_max || 60);
+        const ventanaFin = minEntrada + (tol.minutos_falta || 30);
 
         if (minutosActuales < ventanaInicio) {
             return {
@@ -186,26 +235,33 @@ export const validarRegistroCliente = (horario, ultimoRegistro, tolerancia) => {
             };
         }
 
+        // Usar calcularEstadoEntrada para el mensaje con umbrales correctos
+        const estado = calcularEstadoEntrada(minutosActuales, minEntrada, tol);
+        const mensajes = {
+            puntual: 'Puedes registrar tu entrada',
+            retardo_a: `Registro con retardo menor (retardo A)`,
+            retardo_b: `Registro con retardo mayor (retardo B)`,
+            falta_por_retardo: 'Registro tardío (se contará como falta por retardo)',
+            falta: 'Fuera de tolerancia (se registrará como falta)',
+        };
+
         return {
             puedeRegistrar: true,
-            mensaje: minutosActuales <= minEntrada + (tolerancia.minutos_retardo || 10)
-                ? 'Puedes registrar tu entrada'
-                : 'Registro con retardo',
+            mensaje: mensajes[estado] || 'Puedes registrar tu entrada',
+            estado,
             tipoSiguiente
         };
     }
 
-    // Validación básica de salida
+    // Validación de salida
     if (!esEntrada && ultimoRegistro && horario.salida) {
-        const ahora = new Date();
         const horaUltimoRegistro = new Date(ultimoRegistro.fecha_registro);
         const diferenciaMinutos = (ahora - horaUltimoRegistro) / 1000 / 60;
 
-        // Validación mínima: al menos 30 minutos trabajados
         if (diferenciaMinutos < 30) {
             return {
                 puedeRegistrar: false,
-                mensaje: `Espera al menos 30 minutos desde tu entrada`,
+                mensaje: 'Espera al menos 30 minutos desde tu entrada',
                 tipoSiguiente
             };
         }
@@ -239,5 +295,7 @@ export default {
     obtenerHorarioSimplificado,
     obtenerTolerancia,
     obtenerUltimoRegistro,
-    validarRegistroCliente
+    validarRegistroCliente,
+    calcularEstadoEntrada,
+    DEFAULT_TOLERANCIA,
 };

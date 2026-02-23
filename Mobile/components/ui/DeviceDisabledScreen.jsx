@@ -1,26 +1,28 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
     View, Text, StyleSheet, Animated,
-    StatusBar, TouchableOpacity,
+    StatusBar, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { verificarDispositivoPorEmpleado } from '../../services/solicitudMovilService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * DeviceDisabledScreen
- * Pantalla de "Nodo Deshabilitado" que se muestra cuando el administrador
- * desactiva el dispositivo móvil. Inspirada visualmente en MaintenanceScreen
- * pero con acento rojo y semántica de bloqueo de dispositivo.
+ * Pantalla de "Nodo Deshabilitado" cuando el administrador desactiva el dispositivo.
  *
- * @param {function} onReRequest - Callback para re-solicitar acceso (vuelve al onboarding)
- * @param {boolean}  darkMode    - Tema oscuro
+ * @param {function} onReRequest   - Callback para re-solicitar acceso (vuelve al onboarding)
+ * @param {function} onReEnabled   - Callback cuando el admin volvió a habilitar el nodo
+ * @param {boolean}  darkMode      - Tema oscuro
  */
-const DeviceDisabledScreen = ({ onReRequest, darkMode = false }) => {
+const DeviceDisabledScreen = ({ onReRequest, onReEnabled, darkMode = false }) => {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(30)).current;
-    const pulseAnim = useRef(new Animated.Value(1)).current;
     const [confirming, setConfirming] = useState(false);
+    const [checking, setChecking] = useState(false);
+    const [checkResult, setCheckResult] = useState(null); // null | 'enabled' | 'still_disabled'
 
-    // Entrada de la tarjeta
+    // Entrada de la tarjeta (sin pulso en el icono — solo slide in)
     useEffect(() => {
         Animated.parallel([
             Animated.timing(fadeAnim, {
@@ -35,26 +37,63 @@ const DeviceDisabledScreen = ({ onReRequest, darkMode = false }) => {
                 useNativeDriver: true,
             }),
         ]).start();
-
-        // Pulso suave del ícono
-        const pulse = Animated.loop(
-            Animated.sequence([
-                Animated.timing(pulseAnim, { toValue: 1.08, duration: 900, useNativeDriver: true }),
-                Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
-            ])
-        );
-        pulse.start();
-        return () => pulse.stop();
     }, []);
 
     const handleReRequest = () => {
         if (confirming) return;
         setConfirming(true);
-        // Pequeño delay para feedback visual antes de navegar
         setTimeout(() => {
             setConfirming(false);
             onReRequest?.();
         }, 400);
+    };
+
+    /**
+     * Verifica en el servidor si el admin ya volvió a habilitar el dispositivo.
+     * Si está activo → llama onReEnabled (que hace handleLoginSuccess de nuevo).
+     * Si sigue desactivado → muestra feedback visual.
+     */
+    const handleCheckStatus = async () => {
+        if (checking) return;
+        setChecking(true);
+        setCheckResult(null);
+
+        try {
+            const [storedUserData, storedToken] = await Promise.all([
+                AsyncStorage.getItem('@user_data'),
+                AsyncStorage.getItem('userToken'),
+            ]);
+
+            if (!storedUserData || !storedToken) {
+                setCheckResult('still_disabled');
+                return;
+            }
+
+            const parsedUser = JSON.parse(storedUserData);
+            const empleadoId = parsedUser.empleado_id || parsedUser.empleadoInfo?.id;
+
+            if (!empleadoId) {
+                setCheckResult('still_disabled');
+                return;
+            }
+
+            const dispositivoEnBD = await verificarDispositivoPorEmpleado(empleadoId, storedToken);
+
+            if (dispositivoEnBD.existe && dispositivoEnBD.activo) {
+                // ¡El admin lo habilitó! Actualizar AsyncStorage y navegar
+                await AsyncStorage.setItem('@onboarding_completed', 'true');
+                setCheckResult('enabled');
+                setTimeout(() => {
+                    onReEnabled?.();
+                }, 800);
+            } else {
+                setCheckResult('still_disabled');
+            }
+        } catch {
+            setCheckResult('still_disabled');
+        } finally {
+            setChecking(false);
+        }
     };
 
     const dm = darkMode;
@@ -64,16 +103,21 @@ const DeviceDisabledScreen = ({ onReRequest, darkMode = false }) => {
         cardBorder: dm ? '#374151' : '#e5e7eb',
         title: dm ? '#f9fafb' : '#111827',
         subtitle: dm ? '#9ca3af' : '#4b5563',
-        statusBg: dm ? 'rgba(185,28,28,0.15)' : '#fef2f2',
-        statusBorder: dm ? 'rgba(185,28,28,0.35)' : '#fecaca',
-        statusText: dm ? '#f87171' : '#b91c1c',
+        // Franja de estado: más contraste que antes
+        statusBg: dm ? 'rgba(185,28,28,0.22)' : '#fde8e8',
+        statusBorder: dm ? 'rgba(239,68,68,0.5)' : '#f87171',
+        statusText: dm ? '#fca5a5' : '#991b1b',
         retryBg: dm ? '#1d4ed8' : '#2563eb',
         retryText: '#ffffff',
+        checkBg: dm ? '#14532d' : '#dcfce7',
+        checkBorder: dm ? '#16a34a' : '#86efac',
+        checkText: dm ? '#4ade80' : '#15803d',
         footer: dm ? '#4b5563' : '#9ca3af',
         iconBg: dm ? 'rgba(239,68,68,0.18)' : '#fee2e2',
         badgeBg: dm ? '#374151' : '#ffffff',
-        stripeBg: dm ? 'rgba(239,68,68,0.04)' : 'rgba(239,68,68,0.07)',
-        stripeColor: dm ? 'rgba(239,68,68,0.03)' : 'rgba(239,68,68,0.09)',
+        // Franjas con mayor contraste
+        stripeBg: dm ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.12)',
+        stripeColor: dm ? 'rgba(239,68,68,0.07)' : 'rgba(239,68,68,0.16)',
     };
 
     return (
@@ -95,7 +139,7 @@ const DeviceDisabledScreen = ({ onReRequest, darkMode = false }) => {
                 {/* Franja roja superior */}
                 <View style={styles.topBar} />
 
-                {/* Franjas diagonales decorativas */}
+                {/* Franjas diagonales decorativas — más visibles */}
                 <View style={[styles.stripesContainer, { backgroundColor: colors.stripeBg }]}>
                     {[...Array(20)].map((_, i) => (
                         <View key={i} style={[styles.stripe, {
@@ -107,8 +151,8 @@ const DeviceDisabledScreen = ({ onReRequest, darkMode = false }) => {
 
                 {/* Cuerpo */}
                 <View style={styles.cardBody}>
-                    {/* Ícono */}
-                    <Animated.View style={[styles.iconWrapper, { transform: [{ scale: pulseAnim }] }]}>
+                    {/* Ícono — sin animación de pulso */}
+                    <View style={styles.iconWrapper}>
                         <View style={[styles.iconCircle, { backgroundColor: colors.iconBg }]}>
                             <Ionicons name="phone-portrait" size={38} color="#ef4444" />
                         </View>
@@ -119,7 +163,7 @@ const DeviceDisabledScreen = ({ onReRequest, darkMode = false }) => {
                         }]}>
                             <Ionicons name="ban" size={14} color="#dc2626" />
                         </View>
-                    </Animated.View>
+                    </View>
 
                     {/* Textos */}
                     <Text style={[styles.title, { color: colors.title }]}>
@@ -129,13 +173,39 @@ const DeviceDisabledScreen = ({ onReRequest, darkMode = false }) => {
                         Este dispositivo ha sido desactivado por el administrador del sistema y ya no cuenta con acceso autorizado.{'\n\n'}Contacta a tu administrador o solicita nuevamente el acceso.
                     </Text>
 
-                    {/* Status indicator */}
-                    <View style={[styles.statusRow, { backgroundColor: colors.statusBg, borderColor: colors.statusBorder }]}>
-                        <Ionicons name="shield-checkmark" size={18} color={colors.statusText} />
-                        <Text style={[styles.statusText, { color: colors.statusText }]}>
-                            Acceso revocado por política de seguridad
+                    {/* Feedback de verificación */}
+                    {checkResult === 'enabled' && (
+                        <View style={[styles.statusRow, { backgroundColor: colors.checkBg, borderColor: colors.checkBorder, marginBottom: 10 }]}>
+                            <Ionicons name="checkmark-circle" size={18} color={colors.checkText} />
+                            <Text style={[styles.statusText, { color: colors.checkText }]}>
+                                Acceso restaurado
+                            </Text>
+                        </View>
+                    )}
+                    {checkResult === 'still_disabled' && (
+                        <View style={[styles.statusRow, { backgroundColor: colors.statusBg, borderColor: colors.statusBorder, marginBottom: 10 }]}>
+                            <Ionicons name="close-circle" size={18} color={colors.statusText} />
+                            <Text style={[styles.statusText, { color: colors.statusText }]}>
+                                Sigue deshabilitado.
+                            </Text>
+                        </View>
+                    )}
+
+                    {/* Botón Actualizar — verifica si el admin ya habilitó el nodo */}
+                    <TouchableOpacity
+                        style={[styles.checkBtn, { opacity: checking ? 0.75 : 1 }]}
+                        onPress={handleCheckStatus}
+                        activeOpacity={0.8}
+                        disabled={checking || checkResult === 'enabled'}
+                    >
+                        {checking
+                            ? <ActivityIndicator size="small" color="#ffffff" />
+                            : <Ionicons name="cloud-download-outline" size={18} color="#ffffff" />
+                        }
+                        <Text style={styles.checkBtnText}>
+                            {checking ? 'Verificando...' : 'Actualizar estado'}
                         </Text>
-                    </View>
+                    </TouchableOpacity>
 
                     {/* Botón Re-solicitar */}
                     <TouchableOpacity
@@ -193,7 +263,7 @@ const styles = StyleSheet.create({
     stripe: {
         position: 'absolute',
         top: -20,
-        width: 12,
+        width: 14,          // más ancho que antes (era 12)
         height: 120,
         transform: [{ rotate: '30deg' }],
     },
@@ -257,6 +327,24 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '500',
         flex: 1,
+    },
+    // Botón "Actualizar estado" — verde/teal para diferenciar del re-solicitar
+    checkBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        width: '100%',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 14,
+        backgroundColor: '#16a34a',
+        marginBottom: 10,
+    },
+    checkBtnText: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#ffffff',
     },
     retryBtn: {
         flexDirection: 'row',

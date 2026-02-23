@@ -56,7 +56,6 @@ function bufferToFloat32Array(data) {
 
         return null;
     } catch (error) {
-        console.error('[OfflineAuth] Error convirtiendo a Float32Array:', error);
         return null;
     }
 }
@@ -70,7 +69,6 @@ export async function identificarPorPinOffline(pinIngresado) {
         const credenciales = await sqliteManager.getAllCredenciales();
 
         if (!credenciales || credenciales.length === 0) {
-            console.warn('[OfflineAuth] No hay credenciales en caché');
             return null;
         }
 
@@ -84,7 +82,6 @@ export async function identificarPorPinOffline(pinIngresado) {
             if (String(cred.pin_hash).trim() === pinStr) {
                 const empleado = await sqliteManager.getEmpleado(cred.empleado_id);
                 if (empleado && empleado.estado_cuenta === 'activo') {
-                    console.log(`✅ [OfflineAuth] PIN match → empleado ${cred.empleado_id}`);
                     return {
                         empleado_id: cred.empleado_id,
                         nombre: empleado.nombre || cred.nombre,
@@ -97,7 +94,6 @@ export async function identificarPorPinOffline(pinIngresado) {
 
         return null;
     } catch (error) {
-        console.error('[OfflineAuth] Error en identificación por PIN:', error);
         return null;
     }
 }
@@ -108,11 +104,8 @@ export async function identificarPorFacialOffline(descriptorCapturado, umbral = 
         const conFacial = credenciales.filter(c => c.facial_descriptor);
 
         if (conFacial.length === 0) {
-            console.warn('[OfflineAuth] No hay descriptores faciales en caché');
             return null;
         }
-
-        console.log(`🔍 [OfflineAuth] Comparando rostro contra ${conFacial.length} descriptores...`);
 
         let bestMatch = null;
         let bestDistance = Infinity;
@@ -135,8 +128,6 @@ export async function identificarPorFacialOffline(descriptorCapturado, umbral = 
         if (bestMatch && bestDistance < umbral) {
             const empleado = await sqliteManager.getEmpleado(bestMatch.empleado_id);
 
-            console.log(`✅ [OfflineAuth] Facial match → empleado ${bestMatch.empleado_id} (${bestDistance.toFixed(4)})`);
-
             return {
                 empleado_id: bestMatch.empleado_id,
                 nombre: empleado?.nombre || bestMatch.nombre,
@@ -148,7 +139,6 @@ export async function identificarPorFacialOffline(descriptorCapturado, umbral = 
 
         return null;
     } catch (error) {
-        console.error('[OfflineAuth] Error en identificación facial:', error);
         return null;
     }
 }
@@ -171,7 +161,6 @@ export async function cargarDatosOffline(empleadoId) {
             registrosHoy: registrosHoy || [],
         };
     } catch (error) {
-        console.error('[OfflineAuth] Error cargando datos offline:', error);
         return { horario: null, tolerancia: null, registrosHoy: [] };
     }
 }

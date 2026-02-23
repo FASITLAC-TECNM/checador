@@ -15,8 +15,6 @@ const API_URL = getApiEndpoint('/api');
  */
 export const processFaceImage = async (imageUri) => {
     try {
-        console.log('📤 Enviando imagen al backend para procesamiento...');
-
         // Crear FormData para enviar la imagen
         const formData = new FormData();
 
@@ -41,12 +39,10 @@ export const processFaceImage = async (imageUri) => {
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('❌ Error del backend:', errorText);
-            throw new Error(`Error HTTP: ${response.status}`);
+            throw new Error(`Error HTTP: ${response.status}: ${errorText}`);
         }
 
         const result = await response.json();
-        console.log('✅ Descriptor recibido del backend');
 
         if (!result.success || !result.descriptor) {
             throw new Error(result.message || 'No se pudo extraer el descriptor facial');
@@ -59,13 +55,13 @@ export const processFaceImage = async (imageUri) => {
         };
 
     } catch (error) {
-        console.error('❌ Error procesando imagen:', error);
         return {
             success: false,
             error: error.message || 'Error al procesar la imagen'
         };
     }
 };
+
 
 /**
  * Registrar descriptor facial para un empleado
@@ -78,8 +74,6 @@ export const processFaceImage = async (imageUri) => {
  */
 export const registrarDescriptorFacial = async (empleadoId, descriptorBase64, token) => {
     try {
-        console.log(`💾 Registrando descriptor facial para empleado ${empleadoId}...`);
-
         const response = await fetch(`${API_URL}/credenciales/facial`, {
             method: 'POST',
             headers: {
@@ -104,9 +98,6 @@ export const registrarDescriptorFacial = async (empleadoId, descriptorBase64, to
             throw new Error(errorMessage);
         }
 
-        const result = await response.json();
-        console.log('✅ Descriptor facial registrado exitosamente');
-
         return {
             success: true,
             data: {
@@ -117,7 +108,6 @@ export const registrarDescriptorFacial = async (empleadoId, descriptorBase64, to
         };
 
     } catch (error) {
-        console.error('❌ Error registrando descriptor facial:', error);
         return {
             success: false,
             error: error.message || 'Error al registrar descriptor facial',
@@ -134,8 +124,6 @@ export const registrarDescriptorFacial = async (empleadoId, descriptorBase64, to
  */
 export const identificarPorFacial = async (descriptorBase64) => {
     try {
-        console.log('🔍 Iniciando identificación facial...');
-
         const response = await fetch(`${API_URL}/credenciales/facial/identify`, {
             method: 'POST',
             headers: {
@@ -158,9 +146,6 @@ export const identificarPorFacial = async (descriptorBase64) => {
             throw new Error(errorMessage);
         }
 
-        const result = await response.json();
-        console.log('📨 Respuesta del backend:', result);
-
         if (!result.success || !result.data) {
             return {
                 success: false,
@@ -169,7 +154,6 @@ export const identificarPorFacial = async (descriptorBase64) => {
         }
 
         const { empleado, matchScore } = result.data;
-        console.log('👤 Empleado identificado:', empleado);
 
         return {
             success: true,
@@ -178,7 +162,6 @@ export const identificarPorFacial = async (descriptorBase64) => {
         };
 
     } catch (error) {
-        console.error('❌ Error en identificación facial:', error);
         return {
             success: false,
             error: error.message || 'Error al identificar rostro',
@@ -195,7 +178,6 @@ export const identificarPorFacial = async (descriptorBase64) => {
 export const captureAndIdentify = async (imageUri) => {
     try {
         // 1. Procesar imagen y obtener descriptor
-        console.log('🎯 Paso 1: Procesando imagen...');
         const processResult = await processFaceImage(imageUri);
 
         if (!processResult.success) {
@@ -206,13 +188,11 @@ export const captureAndIdentify = async (imageUri) => {
         }
 
         // 2. Identificar usuario con el descriptor
-        console.log('🎯 Paso 2: Identificando usuario...');
         const identifyResult = await identificarPorFacial(processResult.descriptorBase64);
 
         return identifyResult;
 
     } catch (error) {
-        console.error('❌ Error en flujo completo:', error);
         return {
             success: false,
             error: error.message || 'Error en el proceso de identificación'
@@ -231,7 +211,6 @@ export const captureAndIdentify = async (imageUri) => {
 export const captureAndRegister = async (imageUri, empleadoId, token) => {
     try {
         // 1. Procesar imagen y obtener descriptor
-        console.log('🎯 Paso 1: Procesando imagen...');
         const processResult = await processFaceImage(imageUri);
 
         if (!processResult.success) {
@@ -242,7 +221,6 @@ export const captureAndRegister = async (imageUri, empleadoId, token) => {
         }
 
         // 2. Registrar descriptor
-        console.log('🎯 Paso 2: Registrando descriptor...');
         const registerResult = await registrarDescriptorFacial(
             empleadoId,
             processResult.descriptorBase64,
@@ -252,7 +230,6 @@ export const captureAndRegister = async (imageUri, empleadoId, token) => {
         return registerResult;
 
     } catch (error) {
-        console.error('❌ Error en flujo completo:', error);
         return {
             success: false,
             error: error.message || 'Error en el proceso de registro'

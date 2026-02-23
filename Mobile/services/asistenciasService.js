@@ -2,13 +2,23 @@ import { getApiEndpoint } from '../config/api.js';
 
 const API_URL = getApiEndpoint('/api');
 
-export const registrarAsistencia = async (empleadoId, ubicacion, token, departamentoId = null) => {
+/**
+ * Registrar asistencia en el backend.
+ * @param {string} empleadoId
+ * @param {{ lat: number, lng: number }} ubicacion
+ * @param {string} token
+ * @param {string|null} departamentoId
+ * @param {string|null} tipo - 'entrada' | 'salida' | null (el backend infiere si no se envía)
+ */
+export const registrarAsistencia = async (empleadoId, ubicacion, token, departamentoId = null, tipo = null) => {
     try {
         const payload = {
             empleado_id: empleadoId,
             dispositivo_origen: 'movil',
             ubicacion: [ubicacion.lat, ubicacion.lng],
-            departamento_id: departamentoId
+            departamento_id: departamentoId,
+            // Enviar tipo solo si el caller lo conoce — el backend lo prioriza sobre inferencia
+            ...(tipo ? { tipo } : {})
         };
 
         const response = await fetch(`${API_URL}/asistencias/registrar`, {
@@ -29,7 +39,12 @@ export const registrarAsistencia = async (empleadoId, ubicacion, token, departam
             } catch {
                 errorData = { message: responseText };
             }
-            throw new Error(errorData.message || `Error del servidor (${response.status})`);
+
+            // Propagar el flag bloque_completado para que el caller pueda manejarlo
+            const err = new Error(errorData.message || `Error del servidor (${response.status})`);
+            err.bloque_completado = errorData.bloque_completado || false;
+            err.es_festivo = errorData.es_festivo || false;
+            throw err;
         }
 
         const data = JSON.parse(responseText);

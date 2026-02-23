@@ -38,10 +38,6 @@ export function updateToken(token) {
  * Helper para registrar eventos en el backend (POST /api/eventos)
  * Si no hay conexión, guarda el evento en la cola offline de SQLite.
  */
-/**
- * Helper para registrar eventos en el backend (POST /api/eventos)
- * Si no hay conexión, guarda el evento en la cola offline de SQLite.
- */
 export async function postEvent(titulo, tipo, descripcion, empleadoId, prioridad = 'media') {
     try {
         // Si no hay token, guardar en cola offline
@@ -54,7 +50,6 @@ export async function postEvent(titulo, tipo, descripcion, empleadoId, prioridad
             return;
         }
 
-        console.log(`📝 [Push] Creando evento: ${titulo} (${tipo}) para emp=${empleadoId}`);
         const response = await fetch(`${apiBaseUrl}/eventos`, {
             method: 'POST',
             headers: {
@@ -80,7 +75,6 @@ export async function postEvent(titulo, tipo, descripcion, empleadoId, prioridad
             });
         }
     } catch (e) {
-        console.log(`⚠️ [Push] No se pudo crear evento ${titulo}: ${e.message}`);
         // Guardar en cola offline
         try {
             await sqliteManager.saveOfflineEvent({
@@ -89,7 +83,7 @@ export async function postEvent(titulo, tipo, descripcion, empleadoId, prioridad
                 detalles: { origen: 'movil_sync_offline' }
             });
         } catch (saveErr) {
-            console.log(`⚠️ [Push] No se pudo guardar evento offline: ${saveErr.message}`);
+            // Silencio en producción
         }
     }
 }
@@ -143,7 +137,6 @@ async function pushBatch(records) {
 
         if (!response.ok) {
             const errorMsg = data.message || data.error || `HTTP ${response.status}`;
-            console.log(`  📋 [Push] Respuesta del servidor (${response.status}):`, JSON.stringify(data).substring(0, 300));
 
             // Auth errors — no tiene sentido reintentar sin nuevo token
             if (response.status === 401 || response.status === 403) {
@@ -174,28 +167,21 @@ async function pushBatch(records) {
  */
 export async function pushPendingRecords() {
     if (isPushing) {
-        console.log('⏳ [Push] Ya hay un push en curso, omitiendo...');
         return { total: 0, synced: 0, errors: 0, skipped: 0, busy: true };
     }
 
     isPushing = true;
-    console.log('⬆️ [Push] Iniciando push de registros pendientes... (Fixed)');
 
     try {
         const pending = await sqliteManager.getPendingAsistencias(50);
 
         if (pending.length === 0) {
-            console.log('✅ [Push] No hay registros pendientes');
             return { total: 0, synced: 0, errors: 0, skipped: 0 };
         }
-
-        console.log(`📤 [Push] ${pending.length} registros pendientes encontrados`);
 
         const result = await pushBatch(pending);
 
         if (!result.success) {
-            console.error(`❌ [Push] Error en batch: ${result.error}`);
-
             // Marcar cada registro con error
             for (const record of pending) {
                 await sqliteManager.markSyncError(record.local_id, result.error, result.authError || false);
@@ -214,7 +200,6 @@ export async function pushPendingRecords() {
             );
             if (record) {
                 await sqliteManager.markAsSynced(record.local_id, sync.id_servidor);
-                console.log(`  ✅ local_id=${record.local_id} → server_id=${sync.id_servidor}`);
 
                 // Crear evento de sistema (Restaurado para asegurar bitácora)
                 await postEvent(
@@ -235,16 +220,13 @@ export async function pushPendingRecords() {
             if (record) {
                 const definitivo = ['CAMPOS_FALTANTES', 'EMPLEADO_NO_EXISTE', 'DUPLICADO'].includes(rej.codigo);
                 await sqliteManager.markSyncError(record.local_id, rej.error, definitivo);
-                console.log(`  ❌ local_id=${record.local_id}: ${rej.error} (${rej.codigo})${definitivo ? ' DEFINITIVO' : ''}`);
             }
         }
 
         const synced = sincronizados.length;
         const errors = rechazados.length;
-        console.log(`📊 [Push] Resultado: ${synced} sincronizados, ${errors} rechazados`);
         return { total: pending.length, synced, errors, skipped: 0 };
     } catch (error) {
-        console.error('❌ [Push] Error general en push:', error.message);
         return { total: 0, synced: 0, errors: 0, skipped: 0, error: error.message };
     } finally {
         isPushing = false;
@@ -259,11 +241,6 @@ export async function pushPendingRecords() {
 let isPushingEvents = false;
 
 /**
- * Configure
- */
-// ... (omitted)
-
-/**
  * Push de eventos offline pendientes al servidor
  */
 export async function pushEvents() {
@@ -276,7 +253,6 @@ export async function pushEvents() {
         const pending = await sqliteManager.getPendingEvents(100);
         if (pending.length === 0) return { success: true, count: 0 };
 
-        console.log(`📤 [Push] ${pending.length} eventos offline pendientes`);
         let sincronizados = 0;
         const processedIds = new Set();
 
@@ -313,10 +289,8 @@ export async function pushEvents() {
             }
         }
 
-        console.log(`📊 [Push] Eventos: ${sincronizados}/${pending.length} sincronizados`);
         return { success: true, count: sincronizados };
     } catch (error) {
-        console.error('❌ [Push] Error en pushEvents:', error.message);
         return { success: false, error: error.message };
     } finally {
         isPushingEvents = false;

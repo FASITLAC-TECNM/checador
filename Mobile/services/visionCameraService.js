@@ -27,7 +27,6 @@ export const requestCameraPermission = async () => {
         return { granted: true };
 
     } catch (error) {
-        console.error('Error al solicitar permisos de cámara:', error);
         return {
             granted: false,
             message: 'Error al solicitar permisos de cámara'
@@ -55,7 +54,6 @@ export const checkCameraAvailability = async () => {
         };
 
     } catch (error) {
-        console.error('Error al verificar la cámara:', error);
         return {
             available: false,
             message: 'Error al verificar la cámara'
@@ -72,13 +70,6 @@ export const processFaceData = (face) => {
     const mouth = face.landmarks?.MOUTH_BOTTOM || face.mouthPosition;
     const leftCheek = face.landmarks?.LEFT_CHEEK || face.leftCheekPosition;
     const rightCheek = face.landmarks?.RIGHT_CHEEK || face.rightCheekPosition;
-
-    console.log('📊 Procesando datos faciales de Vision Camera:', {
-        bounds: face.bounds,
-        rollAngle: face.rollAngle,
-        yawAngle: face.yawAngle,
-        hasLandmarks: !!(leftEye && rightEye)
-    });
 
     const faceFeatures = {
         bounds: {
@@ -113,12 +104,6 @@ export const validateFaceQuality = (faceData) => {
         errors: [],
         warnings: []
     };
-
-    console.log('✅ Validando calidad facial:', {
-        eyesOpen: `L:${faceData.leftEyeOpenProbability} R:${faceData.rightEyeOpenProbability}`,
-        angles: `Yaw:${faceData.yawAngle}° Roll:${faceData.rollAngle}° Pitch:${faceData.pitchAngle}°`,
-        size: `${faceData.bounds.width}x${faceData.bounds.height}`
-    });
 
     // 1. Verificar que ambos ojos estén abiertos
     if (faceData.leftEyeOpenProbability > 0 || faceData.rightEyeOpenProbability > 0) {
@@ -161,16 +146,12 @@ export const validateFaceQuality = (faceData) => {
         validations.warnings.push('Aléjate un poco de la cámara');
     }
 
-    console.log('✅ Resultado validación:', validations.isValid ? 'VÁLIDO' : 'INVÁLIDO', validations.errors);
-
     return validations;
 };
 
 // Generar template facial a partir de las características
 export const generateFacialTemplate = async (faceData, photoUri, empleadoId) => {
     try {
-        console.log('🔐 Generando template facial para empleado:', empleadoId);
-
         const timestamp = Date.now();
         const deviceId = await getDeviceId();
 
@@ -233,7 +214,6 @@ export const generateFacialTemplate = async (faceData, photoUri, empleadoId) => 
         };
 
     } catch (error) {
-        console.error('Error al generar template facial:', error);
         throw new Error('Error al generar template facial');
     }
 };
@@ -291,7 +271,6 @@ const generateTemplateHash = async (data) => {
         return base64Template;
 
     } catch (error) {
-        console.error('Error al generar hash:', error);
         throw error;
     }
 };
@@ -308,7 +287,6 @@ const getDeviceId = async () => {
 
         return deviceId;
     } catch (error) {
-        console.error('Error al obtener device ID:', error);
         return `device_fallback_${Date.now()}`;
     }
 };
@@ -319,7 +297,6 @@ export const clearLocalFacialData = async (empleadoId) => {
         await SecureStore.deleteItemAsync(`facial_vision_${empleadoId}`);
         return { success: true };
     } catch (error) {
-        console.error('Error al limpiar datos faciales:', error);
         return { success: false };
     }
 };
@@ -336,7 +313,6 @@ export const checkLocalFacialData = async (empleadoId) => {
 
         return { exists: false };
     } catch (error) {
-        console.error('Error al verificar datos faciales:', error);
         return { exists: false };
     }
 };

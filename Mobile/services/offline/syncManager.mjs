@@ -8,6 +8,7 @@
  */
 
 import NetInfo from '@react-native-community/netinfo';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import sqliteManager from './sqliteManager.mjs';
 import pullService from './pullService.mjs';
 import pushService from './pushService.mjs';
@@ -22,6 +23,24 @@ let isPushingIncidencias = false;
 let isSyncing = false;
 
 const API_URL = getApiEndpoint('/api');
+const CLEANUP_KEY = '@sqlite_last_cleanup';
+
+/**
+ * Ejecuta la limpieza de registros sincronizados UNA VEZ POR DÍA.
+ * Usa AsyncStorage para recordar cuándo fue la última limpieza.
+ */
+async function cleanupDiario() {
+    try {
+        const hoy = new Date().toISOString().split('T')[0];
+        const ultima = await AsyncStorage.getItem(CLEANUP_KEY);
+        if (ultima === hoy) return; // Ya se limpió hoy
+
+        await sqliteManager.cleanupSyncedRecords(7);
+        await AsyncStorage.setItem(CLEANUP_KEY, hoy);
+    } catch (e) {
+        // No crítico — si falla no interrumpe el sync
+    }
+}
 
 /**
  * Configura el token de autenticación y el empleado ID
@@ -89,14 +108,11 @@ export async function pushData() {
  */
 export async function pushSessions() {
     if (isPushingSessions) {
-        console.log('📤 [Sync] pushSessions ya en curso, saltando...');
         return { success: false, busy: true };
     }
     isPushingSessions = true;
-    console.log('📤 [Sync] === PUSH SESSIONS INICIO ===');
 
     if (!authToken) {
-        console.log('📤 [Sync] ⚠️ Sin token de autenticación, sesiones se enviarán cuando haya token.');
         isPushingSessions = false;
         return { success: false, error: 'No hay token' };
     }
@@ -106,10 +122,8 @@ export async function pushSessions() {
 
     try {
         const pending = await sqliteManager.getPendingSessions(50);
-        console.log(`📤 [Sync] Sesiones pendientes encontradas: ${pending.length}`);
 
         if (pending.length === 0) {
-            console.log('📤 [Sync] No hay sesiones pendientes. Nada que enviar.');
             return { success: true, count: 0 };
         }
 
@@ -124,7 +138,6 @@ export async function pushSessions() {
         }));
 
         const url = `${API_URL}/movil/sync/sesiones`;
-        console.log(`📤 [Sync] POST ${url}`);
 
         const response = await fetch(url, {
             method: 'POST',
@@ -136,8 +149,7 @@ export async function pushSessions() {
         });
 
         if (!response.ok) {
-            const errorTxt = await response.text();
-            console.error(`📤 [Sync] ❌ Error del servidor: ${errorTxt}`);
+            await response.text();
             throw new Error(`HTTP ${response.status}`);
         }
 
@@ -145,7 +157,6 @@ export async function pushSessions() {
 
         if (result.sincronizados) {
             for (const s of result.sincronizados) {
-                console.log(`📤 [Sync] ✅ Marcando local_id=${s.local_id} como synced`);
                 await sqliteManager.markSessionSynced(s.local_id);
 
                 // Crear evento de sistema para la sesión (Login/Logout)
@@ -166,7 +177,7 @@ export async function pushSessions() {
                             if (emp && emp.nombre) nombreEmpleado = emp.nombre;
                         }
                     } catch (e) {
-                        console.log('⚠️ [Sync] No se pudo obtener nombre para evento:', e.message);
+                        // No crítico
                     }
 
                     // Formato solicitado: "Inicio de sesión" y "[Nombre] inicio sesión"
@@ -187,22 +198,16 @@ export async function pushSessions() {
 
         if (result.errores && result.errores.length > 0) {
             for (const e of result.errores) {
-                console.error(`📤 [Sync] ❌ Error para local_id=${e.local_id}: ${e.error}`);
                 await sqliteManager.markSessionSyncError(e.local_id, e.error);
             }
         }
 
-        console.log(`📤 [Sync] === PUSH SESSIONS FIN: ${result.sincronizados?.length || 0} OK ===`);
-
-        // FORZAR envío inmediato de eventos generados (Login/Logout)
-        console.log('📤 [Sync] Forzando envío de eventos de sesión...');
-        await pushService.pushEvents().catch(e => console.log('⚠️ Error en pushEvents forzado:', e.message));
+        await pushService.pushEvents().catch(() => { });
 
         // Si enviamos 50, podría haber más. Retornamos count para que el caller decida si llamar de nuevo.
         return { success: true, count: result.sincronizados?.length };
 
     } catch (error) {
-        console.error(`📤 [Sync] ❌ Error en pushSessions: ${error.message}`);
         return { success: false, error: error.message };
     } finally {
         isPushingSessions = false;
@@ -219,7 +224,6 @@ export async function pushSessions() {
  */
 export async function pushIncidencias() {
     if (isPushingIncidencias) {
-        console.log('⏳ [Sync] pushIncidencias ya en curso, saltando...');
         return { success: false, busy: true };
     }
 
@@ -236,15 +240,11 @@ export async function pushIncidencias() {
             return { success: false, error: 'Offline' };
         }
 
-        console.log('📤 [Sync] === PUSH INCIDENCIAS INICIO ===');
-
         const pending = await sqliteManager.getPendingIncidencias(50);
         if (pending.length === 0) {
-            console.log('📤 [Sync] No hay incidencias pendientes.');
             return { success: true, count: 0 };
         }
 
-        console.log(`📤 [Sync] ${pending.length} incidencias pendientes de enviar`);
         let sincronizadas = 0;
         const processedIds = new Set(); // Evitar procesar duplicados en el mismo ciclo
 
@@ -254,8 +254,6 @@ export async function pushIncidencias() {
             processedIds.add(inc.local_id);
 
             try {
-                console.log(`📤 [Sync] Enviando incidencia local_id=${inc.local_id}...`);
-
                 const response = await fetch(`${API_URL}/incidencias`, {
                     method: 'POST',
                     headers: {
@@ -276,23 +274,18 @@ export async function pushIncidencias() {
                     const serverId = data.data?.id || null;
                     await sqliteManager.markIncidenciaSynced(inc.local_id, serverId);
                     sincronizadas++;
-                    console.log(`📤 [Sync] ✅ Incidencia local_id=${inc.local_id} sincronizada (server_id=${serverId})`);
                 } else {
                     const errText = await response.text();
                     await sqliteManager.markIncidenciaSyncError(inc.local_id, `HTTP ${response.status}: ${errText}`);
-                    console.log(`📤 [Sync] ❌ Error incidencia local_id=${inc.local_id}: HTTP ${response.status}`);
                 }
             } catch (e) {
                 await sqliteManager.markIncidenciaSyncError(inc.local_id, e.message);
-                console.log(`📤 [Sync] ❌ Error red incidencia local_id=${inc.local_id}: ${e.message}`);
             }
         }
 
-        console.log(`📤 [Sync] === PUSH INCIDENCIAS FIN: ${sincronizadas}/${pending.length} OK ===`);
         return { success: true, count: sincronizadas };
 
     } catch (error) {
-        console.error(`📤 [Sync] ❌ Error en pushIncidencias: ${error.message}`);
         return { success: false, error: error.message };
     } finally {
         isPushingIncidencias = false; // Liberar lock
@@ -309,58 +302,55 @@ export async function pushIncidencias() {
  */
 export async function performSync(reason = 'manual') {
     if (isSyncing) {
-        console.log('⏳ [SyncManager] Sync ya en curso, omitiendo...');
         return;
     }
 
     const online = await isOnline();
     if (!online && reason !== 'initial') {
-        console.log('🔌 [SyncManager] Sin conexión, omitiendo sync');
         return;
     }
 
     isSyncing = true;
-    console.log(`🔄 [SyncManager] Iniciando sync completo (${reason})...`);
 
     try {
+        // 0. Limpieza diaria de registros sincronizados (no-op si ya se hizo hoy)
+        await cleanupDiario();
+
         // 1. Enviar sesiones SIEMPRE primero
-        await pushSessions().catch(e => console.log('Error pushSessions:', e.message));
+        await pushSessions().catch(() => { });
 
         // 2. Enviar asistencias pendientes
         if (authToken) {
-            await pushData().catch(e => console.log('Error pushData:', e.message));
+            await pushData().catch(() => { });
         }
 
         // 3. Enviar incidencias offline pendientes
         if (authToken) {
-            await pushIncidencias().catch(e => console.log('Error pushIncidencias:', e.message));
+            await pushIncidencias().catch(() => { });
         }
 
         // 4. Enviar eventos offline pendientes
         if (authToken) {
-            await pushService.pushEvents().catch(e => console.log('Error pushEvents:', e.message));
+            await pushService.pushEvents().catch(() => { });
         }
 
         // 5. Traer datos nuevos (pull)
         if (authToken && storedEmpleadoId) {
-            const pullRes = await pullData(storedEmpleadoId).catch(e => console.log('Error pullData:', e.message));
+            const pullRes = await pullData(storedEmpleadoId).catch(() => null);
 
             // Si hubo éxito en incidencias, verificar cambios para notificar
             if (pullRes && pullRes.incidencias && pullRes.incidencias.success && pullRes.incidencias.data) {
-                console.log('🔔 [SyncManager] Verificando cambios en incidencias para notificación...');
                 detectarCambiosIncidencias(pullRes.incidencias.data);
             }
 
             // Si hubo éxito en avisos, verificar nuevos para notificar
             if (pullRes && pullRes.avisos && pullRes.avisos.success && pullRes.avisos.data) {
-                console.log('🔔 [SyncManager] Verificando nuevos avisos para notificación...');
                 detectarAvisosNuevos(pullRes.avisos.data);
             }
         }
 
-        console.log(`✅ [SyncManager] Sync completo (${reason}) finalizado`);
     } catch (error) {
-        console.error(`❌ [SyncManager] Error en sync (${reason}):`, error.message);
+        // Silencio en producción
     } finally {
         isSyncing = false;
     }
@@ -374,12 +364,9 @@ export async function performSync(reason = 'manual') {
  * Inicializa el monitor de red y sincronización automática
  */
 export function initAutoSync() {
-    console.log('🔄 [SyncManager] Iniciando servicio de autosincronización...');
-
     // Verificación inicial inmediata
     NetInfo.fetch().then(state => {
         if (state.isConnected && state.isInternetReachable) {
-            console.log('✅ [SyncManager] Red detectada al inicio. Sincronizando ahora...');
             setTimeout(() => performSync('initial'), 2000);
         }
     });
@@ -390,12 +377,9 @@ export function initAutoSync() {
 
     const unsubscribe = NetInfo.addEventListener(state => {
         if (state.isConnected && state.isInternetReachable) {
-            console.log('✅ [SyncManager] Conexión detectada. Programando sync (debounce 2s)...');
-
             if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
 
             syncDebounceTimer = setTimeout(() => {
-                console.log('✅ [SyncManager] Ejecutando sync (debounce completado)...');
                 performSync('reconnect');
                 syncDebounceTimer = null;
             }, 2000);

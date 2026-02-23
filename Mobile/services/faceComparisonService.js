@@ -96,11 +96,8 @@ export const extractFaceFeatures = (faceData) => {
             );
         }
 
-        console.log(`✅ Extraídas ${features.length} características faciales`);
         return features;
-
     } catch (error) {
-        console.error('❌ Error extrayendo características:', error);
         throw new Error('No se pudieron extraer características faciales');
     }
 };
@@ -133,7 +130,6 @@ const normalizeAngle = (angle) => {
 export const calculateSimilarity = (features1, features2) => {
     try {
         if (features1.length !== features2.length) {
-            console.warn('⚠️ Vectores de características tienen diferente longitud');
             // Tomar el mínimo
             const minLength = Math.min(features1.length, features2.length);
             features1 = features1.slice(0, minLength);
@@ -159,12 +155,8 @@ export const calculateSimilarity = (features1, features2) => {
         // Convertir a porcentaje
         const similarityPercent = similarity * 100;
 
-        console.log(`📊 Distancia: ${distance.toFixed(4)}, Similitud: ${similarityPercent.toFixed(2)}%`);
-
         return similarityPercent;
-
     } catch (error) {
-        console.error('❌ Error calculando similitud:', error);
         return 0;
     }
 };
@@ -179,8 +171,6 @@ export const calculateSimilarity = (features1, features2) => {
  */
 export const saveFaceFeatures = async (empleadoId, features, photoUri = null) => {
     try {
-        console.log(`💾 Guardando características faciales para empleado ${empleadoId}...`);
-
         const faceData = {
             empleadoId,
             features,
@@ -194,15 +184,11 @@ export const saveFaceFeatures = async (empleadoId, features, photoUri = null) =>
             JSON.stringify(faceData)
         );
 
-        console.log('✅ Características guardadas exitosamente');
-
         return {
             success: true,
             message: 'Características faciales guardadas'
         };
-
     } catch (error) {
-        console.error('❌ Error guardando características:', error);
         return {
             success: false,
             error: error.message || 'Error al guardar características faciales'
@@ -235,7 +221,6 @@ export const getFaceFeatures = async (empleadoId) => {
         };
 
     } catch (error) {
-        console.error('❌ Error obteniendo características:', error);
         return {
             success: false,
             error: error.message || 'Error al obtener características faciales'
@@ -252,8 +237,6 @@ export const getFaceFeatures = async (empleadoId) => {
  */
 export const verifyFace = async (empleadoId, currentFaceData) => {
     try {
-        console.log(`🔍 Verificando rostro para empleado ${empleadoId}...`);
-
         // 1. Obtener características guardadas
         const savedResult = await getFaceFeatures(empleadoId);
 
@@ -279,8 +262,6 @@ export const verifyFace = async (empleadoId, currentFaceData) => {
 
         const verified = similarity >= SIMILARITY_THRESHOLD;
 
-        console.log(`${verified ? '✅' : '❌'} Verificación: ${similarity.toFixed(2)}% (Umbral: ${SIMILARITY_THRESHOLD}%)`);
-
         return {
             success: true,
             verified,
@@ -292,7 +273,6 @@ export const verifyFace = async (empleadoId, currentFaceData) => {
         };
 
     } catch (error) {
-        console.error('❌ Error en verificación facial:', error);
         return {
             success: false,
             verified: false,
@@ -317,7 +297,6 @@ export const deleteFaceFeatures = async (empleadoId) => {
         };
 
     } catch (error) {
-        console.error('❌ Error eliminando características:', error);
         return {
             success: false,
             error: error.message || 'Error al eliminar características faciales'
@@ -336,7 +315,6 @@ export const hasFaceFeatures = async (empleadoId) => {
         const data = await SecureStore.getItemAsync(`face_features_${empleadoId}`);
         return data !== null;
     } catch (error) {
-        console.error('❌ Error verificando características:', error);
         return false;
     }
 };

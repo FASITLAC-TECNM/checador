@@ -22,7 +22,6 @@ export function configure(baseUrl, token) {
     if (token !== undefined) {
         authToken = token || '';
     }
-    // console.log('🔧 [Pull] Configurado: URL=', apiBaseUrl ? apiBaseUrl.substring(0, 40) + '...' : '(vacío!)');
 }
 
 /**
@@ -85,16 +84,13 @@ async function apiFetch(endpoint, options = {}) {
  */
 export async function fullPull(empleadoId) {
     if (!empleadoId) {
-        console.warn('⚠️ [Pull] empleadoId requerido para fullPull');
         return { success: false, error: 'empleadoId requerido' };
     }
 
     if (!authToken) {
-        console.warn('⚠️ [Pull] Sin token de autenticación, omitiendo Pull...');
         return { success: false, error: 'Sin token' };
     }
 
-    console.log(`🔄 [Pull] Iniciando Pull completo para empleado: "${empleadoId}"`);
     const startTime = Date.now();
 
     const results = {
@@ -119,18 +115,10 @@ export async function fullPull(empleadoId) {
         try {
             if (data.empleado) {
                 await sqliteManager.upsertEmpleados([data.empleado]);
-
-                // Marcar empleados eliminados (patrón Desktop)
-                const serverIds = [data.empleado.empleado_id || data.empleado.id];
-                // Nota: En mobile solo cacheamos al empleado logueado, no hay marcado masivo
-                // pero dejamos la función disponible por si se usa multiusuario
-
                 await sqliteManager.setLastFullSync('cache_empleados');
                 results.empleado = { success: true, count: 1 };
-                // console.log(`   ✅ Empleado: ${data.empleado.nombre}`);
             }
         } catch (empError) {
-            console.error('❌ [Pull] Error procesando empleado:', empError.message);
             results.empleado = { success: false, error: empError.message };
         }
 
@@ -147,56 +135,80 @@ export async function fullPull(empleadoId) {
                 await sqliteManager.upsertCredenciales([cred]);
                 await sqliteManager.setLastFullSync('cache_credenciales');
                 results.credenciales = { success: true, count: 1 };
-                // console.log(`   ✅ Credenciales cargadas`);
             }
         } catch (credError) {
-            console.error('❌ [Pull] Error procesando credenciales:', credError.message);
             results.credenciales = { success: false, error: credError.message };
         }
 
         // ========== TOLERANCIA ==========
+        // Incluye campos nuevos: minutos_retardo_a_max, minutos_retardo_b_max,
+        // equivalencia_retardo_a, equivalencia_retardo_b, dias_aplica
         try {
             if (data.tolerancia) {
-                await sqliteManager.upsertTolerancia(empleadoId, data.tolerancia);
+                const DEFAULTS_TOLERANCIA = {
+                    minutos_retardo: 10,
+                    minutos_falta: 30,
+                    minutos_retardo_a_max: 20,
+                    minutos_retardo_b_max: 29,
+                    equivalencia_retardo_a: 10,
+                    equivalencia_retardo_b: 5,
+                    permite_registro_anticipado: true,
+                    minutos_anticipado_max: 60,
+                    aplica_tolerancia_entrada: true,
+                    aplica_tolerancia_salida: false,
+                };
+                const toleranciaCompleta = { ...DEFAULTS_TOLERANCIA, ...data.tolerancia };
+                await sqliteManager.upsertTolerancia(empleadoId, toleranciaCompleta);
                 await sqliteManager.setLastFullSync('cache_tolerancias');
                 results.tolerancia = { success: true, count: 1 };
-                // console.log(`   ✅ Tolerancia: ${data.tolerancia.nombre}`);
             }
         } catch (tolError) {
-            console.error('❌ [Pull] Error procesando tolerancia:', tolError.message);
             results.tolerancia = { success: false, error: tolError.message };
         }
 
         // ========== DEPARTAMENTOS ==========
+        // El backend mete las coordenadas dentro del campo JSON 'ubicacion'.
+        // Se extrae latitud/longitud/radio de ese objeto para el geofencing offline.
         try {
             if (data.departamentos && data.departamentos.length > 0) {
-                const deptos = data.departamentos.map(d => ({
-                    id: d.departamento_id,
-                    departamento_id: d.departamento_id,
-                    es_activo: d.es_activo,
-                    nombre: d.nombre,
-                    ubicacion: d.ubicacion
-                        ? (typeof d.ubicacion === 'string' ? d.ubicacion : JSON.stringify(d.ubicacion))
-                        : null,
-                    latitud: d.latitud,
-                    longitud: d.longitud,
-                    radio: d.radio
-                }));
+                const deptos = data.departamentos.map(d => {
+                    // Extraer coordenadas del campo ubicacion (JSON o string)
+                    let lat = null, lng = null, radio = null;
+                    if (d.ubicacion) {
+                        const ub = typeof d.ubicacion === 'string'
+                            ? (() => { try { return JSON.parse(d.ubicacion); } catch { return {}; } })()
+                            : d.ubicacion;
+                        lat = ub.latitud ?? ub.lat ?? null;
+                        lng = ub.longitud ?? ub.lng ?? null;
+                        radio = ub.radio ?? null;
+                    }
+
+                    return {
+                        id: d.departamento_id,
+                        departamento_id: d.departamento_id,
+                        es_activo: d.es_activo,
+                        nombre: d.nombre,
+                        // Guardar ubicacion raw para otros usos
+                        ubicacion: d.ubicacion
+                            ? (typeof d.ubicacion === 'string' ? d.ubicacion : JSON.stringify(d.ubicacion))
+                            : null,
+                        // Coordenadas aplanadas para el geofencing offline
+                        latitud: lat,
+                        longitud: lng,
+                        radio: radio,
+                    };
+                });
                 await sqliteManager.upsertDepartamentos(empleadoId, deptos);
                 await sqliteManager.setLastFullSync('cache_departamentos');
                 results.departamentos = { success: true, count: deptos.length };
-                // console.log(`   ✅ Departamentos: ${deptos.length}`);
             }
         } catch (deptError) {
-            console.error('❌ [Pull] Error procesando departamentos:', deptError.message);
             results.departamentos = { success: false, error: deptError.message };
         }
 
         // ========== HORARIO (endpoint separado) ==========
         try {
             const horarioUrl = `/empleados/${empleadoId}/horario`;
-            console.log(`   🔄 [Pull] Cacheando horario desde API${horarioUrl}`);
-
             const horarioData = await apiFetch(horarioUrl).catch(() => null);
 
             if (horarioData) {
@@ -206,25 +218,19 @@ export async function fullPull(empleadoId) {
                     await sqliteManager.upsertHorario(empleadoId, horario);
                     await sqliteManager.setLastFullSync('cache_horarios');
                     results.horario = { success: true, count: 1 };
-                    // console.log(`   ✅ Horario cacheado en SQLite (id: ${horario.id || horario.horario_id})`);
                 } else {
-                    console.log(`   ⚠️ [Pull] Horario sin configuración válida, no se cachea`);
                     results.horario = { success: true, count: 0 };
                 }
             } else {
-                console.log(`   ℹ️ [Pull] Empleado sin horario asignado`);
                 results.horario = { success: true, count: 0 };
             }
         } catch (horError) {
-            console.log(`   ⚠️ [Pull] Error cacheando horario: ${horError.message}`);
             results.horario = { success: false, error: horError.message };
         }
 
         // ========== INCIDENCIAS ==========
         try {
             const incUrl = `/incidencias?empleado_id=${empleadoId}`;
-            console.log(`   🔄 [Pull] Cacheando incidencias...`);
-
             const incData = await apiFetch(incUrl).catch(() => null);
 
             if (incData) {
@@ -232,22 +238,16 @@ export async function fullPull(empleadoId) {
                 if (incidencias.length > 0) {
                     await sqliteManager.upsertIncidencias(empleadoId, incidencias);
                     results.incidencias = { success: true, count: incidencias.length, data: incidencias };
-                    // console.log(`   ✅ ${incidencias.length} incidencias cacheadas`);
                 } else {
-                    console.log(`   ℹ️ [Pull] Sin incidencias para este empleado`);
                     results.incidencias = { success: true, count: 0 };
                 }
             }
         } catch (incError) {
-            console.log(`   ⚠️ [Pull] Error cacheando incidencias: ${incError.message}`);
             results.incidencias = { success: false, error: incError.message };
         }
 
         // ========== AVISOS ==========
         try {
-            // Nota: getAvisosGlobales normalmente se usa en UI, aqui usamos fetch directo para background
-            console.log(`   🔄 [Pull] Cacheando avisos...`);
-
             // 1. Avisos Globales
             const globUrl = `/avisos/globales`;
             const globData = await apiFetch(globUrl).catch(() => null);
@@ -276,17 +276,15 @@ export async function fullPull(empleadoId) {
             }
 
         } catch (avisoError) {
-            console.log(`   ⚠️ [Pull] Error cacheando avisos: ${avisoError.message}`);
             results.avisos = { success: false, error: avisoError.message };
         }
 
     } catch (error) {
-        console.error('❌ [Pull] Error en Pull completo:', error.message);
+        // Silencio en producción
     }
 
     results.duration = Date.now() - startTime;
     const allSuccess = results.empleado.success && results.credenciales.success;
-    console.log(`${allSuccess ? '✅' : '⚠️'} [Pull] Pull completo finalizado en ${results.duration}ms`);
 
     return { success: allSuccess, ...results };
 }

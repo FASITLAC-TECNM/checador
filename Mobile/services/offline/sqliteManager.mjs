@@ -32,7 +32,6 @@ export async function initDatabase() {
     }
 
     initializationPromise = (async () => {
-        console.log('📦 [SQLite] Inicializando base de datos:', DB_NAME);
         try {
             const database = await SQLite.openDatabaseAsync(DB_NAME);
 
@@ -40,7 +39,6 @@ export async function initDatabase() {
             try {
                 await database.execAsync('SELECT 1');
             } catch (e) {
-                console.warn('⚠️ [SQLite] Verificación fallida, reintentando apertura...', e);
                 throw new Error('Database verification failed');
             }
 
@@ -52,10 +50,8 @@ export async function initDatabase() {
             db = database; // Asignar instancia global
             await runMigrations();
 
-            console.log('✅ [SQLite] Base de datos inicializada y verificada correctamente');
             return db;
         } catch (error) {
-            console.error('❌ [SQLite] Error CRÍTICO inicializando base de datos:', error);
             db = null;
             initializationPromise = null; // Permitir reintento
             throw error;
@@ -69,7 +65,6 @@ export async function initDatabase() {
  * Ejecuta las migraciones para crear/actualizar las tablas
  */
 async function runMigrations() {
-    console.log('🔄 [SQLite] Ejecutando migraciones...');
 
     await db.execAsync(`
     -- Cola de registros de asistencia pendientes
@@ -272,7 +267,6 @@ async function runMigrations() {
     // Migración segura: agregar columna ubicacion si no existe (para DBs existentes)
     try {
         await db.execAsync('ALTER TABLE cache_departamentos ADD COLUMN ubicacion TEXT');
-        console.log('📦 [SQLite] Columna ubicacion agregada a cache_departamentos');
     } catch (e) {
         // La columna ya existe — ignorar
     }
@@ -283,7 +277,6 @@ async function runMigrations() {
         await db.runAsync('INSERT OR IGNORE INTO sync_metadata (tabla) VALUES (?)', t);
     }
 
-    console.log('✅ [SQLite] Migraciones completadas');
 }
 
 // ============================================================
@@ -317,15 +310,12 @@ export async function saveOfflineAsistencia(data) {
             ]
         );
 
-        console.log(`📝 [SQLite] Asistencia offline guardada: local_id=${result.lastInsertRowId}, key=${idempotencyKey}`);
-
         return {
             local_id: result.lastInsertRowId,
             idempotency_key: idempotencyKey,
             ...data
         };
     } catch (error) {
-        console.error('❌ [SQLite] Error guardando asistencia offline:', error);
         throw error;
     }
 }
@@ -474,7 +464,6 @@ export async function upsertEmpleados(empleados) {
         // await db.execAsync('COMMIT');
     } catch (error) {
         // await db.execAsync('ROLLBACK');
-        console.error('❌ [SQLite] Error upsertEmpleados:', error);
         throw error;
     }
     await updateMetaCount('cache_empleados');
@@ -504,7 +493,6 @@ export async function upsertCredenciales(credenciales) {
             );
         }
     } catch (error) {
-        console.error('❌ [SQLite] Error upsertCredenciales:', error);
         throw error;
     }
     await updateMetaCount('cache_credenciales');
@@ -571,7 +559,7 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
             await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN max_retardos INTEGER DEFAULT 0');
             await upsertTolerancia(empleadoId, tolerancia);
         } catch (e) {
-            console.error('Error actualizando tolerancia (posiblemente migración pendiente):', e);
+            // Silencio en producción
         }
     }
 }
@@ -597,7 +585,6 @@ export async function upsertDepartamentos(empleadoId, departamentos) {
             ]);
         }
     } catch (error) {
-        console.error('❌ [SQLite] Error upsertDepartamentos:', error);
         throw error;
     }
 }
@@ -619,9 +606,6 @@ export async function markDeletedEmpleados(serverIds) {
      WHERE empleado_id NOT IN (${placeholders}) AND estado_cuenta != 'eliminado'`,
         serverIds
     );
-    if (result.changes > 0) {
-        console.log(`⚠️ [SQLite] ${result.changes} empleados marcados como eliminados`);
-    }
     return result.changes || 0;
 }
 
@@ -741,7 +725,6 @@ export async function upsertAsistenciasMes(empleadoId, mesKey, asistencias) {
             );
         }
     });
-    console.log(`✅ [SQLite] ${asistencias.length} asistencias cacheadas para ${empleadoId} (${mesKey})`);
 }
 
 export async function getAsistenciasMesLocal(empleadoId, mesKey) {
@@ -781,7 +764,6 @@ export async function upsertIncidencias(empleadoId, incidencias) {
             );
         }
     });
-    console.log(`✅ [SQLite] ${incidencias.length} incidencias cacheadas para empleado ${empleadoId}`);
 }
 
 export async function getIncidenciasLocal(empleadoId) {
@@ -811,8 +793,6 @@ export async function saveOfflineIncidencia(data) {
             'pendiente'
         ]
     );
-
-    console.log(`📝 [SQLite] Incidencia offline guardada: local_id=${result.lastInsertRowId}, key=${idempotencyKey}`);
 
     return {
         local_id: result.lastInsertRowId,
@@ -866,7 +846,6 @@ export async function upsertEmpresa(empresa) {
             empresa.es_activo !== false ? 1 : 0
         ]
     );
-    console.log(`✅ [SQLite] Empresa cacheada: ${empresa.nombre}`);
 }
 
 export async function getEmpresaLocal(empresaId) {
@@ -880,50 +859,66 @@ export async function getEmpresaLocal(empresaId) {
 
 export async function upsertAvisosGlobales(avisos) {
     if (!db) await initDatabase();
+    if (!avisos || avisos.length === 0) return;
 
-    await db.withTransactionAsync(async () => {
-        await db.runAsync("DELETE FROM cache_avisos WHERE tipo = 'global'");
-
-        for (const aviso of avisos) {
-            await db.runAsync(
-                `INSERT INTO cache_avisos (id, tipo, empleado_id, titulo, contenido, fecha_registro, fecha_asignacion, remitente_nombre, updated_at)
-                 VALUES (?, 'global', NULL, ?, ?, ?, NULL, ?, datetime('now', 'localtime'))`,
-                [
-                    aviso.id,
-                    aviso.titulo || null,
-                    aviso.contenido || null,
-                    aviso.fecha_registro || null,
-                    aviso.remitente_nombre || null
-                ]
-            );
-        }
-    });
-    console.log(`✅ [SQLite] ${avisos.length} avisos globales cacheados`);
+    // Usar INSERT OR REPLACE para no borrar todo — solo actualiza si el aviso cambió
+    // Esto evita el caro DELETE + INSERT en cada sync (~cada 2 min)
+    for (const aviso of avisos) {
+        await db.runAsync(
+            `INSERT OR REPLACE INTO cache_avisos (id, tipo, empleado_id, titulo, contenido, fecha_registro, fecha_asignacion, remitente_nombre, updated_at)
+             VALUES (?, 'global', NULL, ?, ?, ?, NULL, ?, datetime('now', 'localtime'))`,
+            [
+                aviso.id,
+                aviso.titulo || null,
+                aviso.contenido || null,
+                aviso.fecha_registro || null,
+                aviso.remitente_nombre || null
+            ]
+        );
+    }
+    // Limpiar avisos globales que ya no existen en el servidor (por ID)
+    if (avisos.length > 0) {
+        const ids = avisos.map(() => '?').join(',');
+        await db.runAsync(
+            `DELETE FROM cache_avisos WHERE tipo = 'global' AND id NOT IN (${ids})`,
+            avisos.map(a => a.id)
+        );
+    }
 }
 
 export async function upsertAvisosEmpleado(empleadoId, avisos) {
     if (!db) await initDatabase();
 
-    await db.withTransactionAsync(async () => {
-        await db.runAsync("DELETE FROM cache_avisos WHERE tipo = 'personal' AND empleado_id = ?", [empleadoId]);
-
-        for (const aviso of avisos) {
-            await db.runAsync(
-                `INSERT INTO cache_avisos (id, tipo, empleado_id, titulo, contenido, fecha_registro, fecha_asignacion, remitente_nombre, updated_at)
-                 VALUES (?, 'personal', ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))`,
-                [
-                    aviso.id,
-                    empleadoId,
-                    aviso.titulo || null,
-                    aviso.contenido || null,
-                    aviso.fecha_registro || null,
-                    aviso.fecha_asignacion || null,
-                    aviso.remitente_nombre || null
-                ]
-            );
-        }
-    });
-    console.log(`✅ [SQLite] ${avisos.length} avisos personales cacheados para empleado ${empleadoId}`);
+    // Usar INSERT OR REPLACE — evita DELETE completo en cada sync
+    for (const aviso of avisos) {
+        await db.runAsync(
+            `INSERT OR REPLACE INTO cache_avisos (id, tipo, empleado_id, titulo, contenido, fecha_registro, fecha_asignacion, remitente_nombre, updated_at)
+             VALUES (?, 'personal', ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))`,
+            [
+                aviso.id,
+                empleadoId,
+                aviso.titulo || null,
+                aviso.contenido || null,
+                aviso.fecha_registro || null,
+                aviso.fecha_asignacion || null,
+                aviso.remitente_nombre || null
+            ]
+        );
+    }
+    // Limpiar avisos personales que ya no existen en el servidor
+    if (avisos.length > 0) {
+        const ids = avisos.map(() => '?').join(',');
+        await db.runAsync(
+            `DELETE FROM cache_avisos WHERE tipo = 'personal' AND empleado_id = ? AND id NOT IN (${ids})`,
+            [empleadoId, ...avisos.map(a => a.id)]
+        );
+    } else {
+        // Si el servidor devuelve lista vacía, borrar todos los personales del empleado
+        await db.runAsync(
+            `DELETE FROM cache_avisos WHERE tipo = 'personal' AND empleado_id = ?`,
+            [empleadoId]
+        );
+    }
 }
 
 export async function getAvisosGlobalesLocal() {
@@ -953,7 +948,6 @@ async function saveOfflineSession({ usuario_id, empleado_id, tipo, modo = 'offli
          VALUES (?, ?, ?, ?, ?)`,
         [usuario_id, empleado_id || null, tipo, modo, fecha]
     );
-    console.log(`📝 [SQLite] Sesión ${tipo} (${modo}) guardada para usuario ${usuario_id}`);
 }
 
 async function getPendingSessions(limit = 50) {
@@ -1001,7 +995,6 @@ export async function saveOfflineEvent(data) {
             data.detalles ? JSON.stringify(data.detalles) : null
         ]
     );
-    console.log(`📝 [SQLite] Evento offline guardado: ${data.titulo}`);
 }
 
 /**
@@ -1102,6 +1095,53 @@ export async function getAllSyncMetadata() {
 // ============================================================
 
 /**
+ * Limpia registros ya sincronizados de las tablas de cola.
+ * Elimina entradas con más de `diasRetencion` días de antigüedad.
+ * Llamar periódicamente (e.g. una vez al día al iniciar sesión).
+ * @param {number} diasRetencion - días a conservar (default: 7)
+ */
+export async function cleanupSyncedRecords(diasRetencion = 7) {
+    if (!db) await initDatabase();
+
+    const cutoff = `datetime('now', '-${diasRetencion} days', 'localtime')`;
+    let totalEliminados = 0;
+
+    try {
+        // Asistencias sincronizadas o con error definitivo
+        const r1 = await db.runAsync(
+            `DELETE FROM offline_asistencias WHERE is_synced != 0 AND created_at < ${cutoff}`
+        );
+        totalEliminados += r1.changes || 0;
+
+        // Sesiones sincronizadas
+        const r2 = await db.runAsync(
+            `DELETE FROM sesiones_offline WHERE is_synced = 1 AND created_at < ${cutoff}`
+        );
+        totalEliminados += r2.changes || 0;
+
+        // Eventos offline sincronizados
+        const r3 = await db.runAsync(
+            `DELETE FROM offline_events WHERE is_synced = 1 AND created_at < ${cutoff}`
+        );
+        totalEliminados += r3.changes || 0;
+
+        // Incidencias offline sincronizadas
+        const r4 = await db.runAsync(
+            `DELETE FROM offline_incidencias WHERE is_synced = 1 AND created_at < ${cutoff}`
+        );
+        totalEliminados += r4.changes || 0;
+
+        if (totalEliminados > 50) {
+            await db.execAsync('VACUUM');
+        }
+
+        return { success: true, eliminados: totalEliminados };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
  * Cierra la conexión a la base de datos
  */
 export async function closeDatabase() {
@@ -1110,11 +1150,9 @@ export async function closeDatabase() {
             await db.closeAsync();
         } catch (e) {
             // Algunos drivers no soportan closeAsync
-            console.warn('⚠️ [SQLite] Error cerrando DB:', e.message);
         }
         db = null;
         initializationPromise = null;
-        console.log('🔒 [SQLite] Base de datos cerrada');
     }
 }
 
@@ -1189,4 +1227,6 @@ export default {
     setLastIncrementalSync,
     getSyncMetadata,
     getAllSyncMetadata,
+    // Utilidades
+    cleanupSyncedRecords,
 };

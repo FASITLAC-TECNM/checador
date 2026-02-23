@@ -24,7 +24,7 @@ api.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (error) {
-      console.log('Error al obtener token:', error);
+      // Silencio — no bloquear la petición por fallo al leer token
     }
     return config;
   },
@@ -194,7 +194,6 @@ export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
     }
 
   } catch (error) {
-    console.log('Error en verificarCorreoEnEmpresa:', error);
     return {
       existe: true,
       activo: true,
@@ -216,8 +215,6 @@ export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
  */
 export const verificarEmpresa = async (empresaId) => {
   try {
-    console.log('🔍 Verificando empresa:', empresaId);
-
     // Validación básica del formato
     if (!empresaId || empresaId.trim().length < 3) {
       return {
@@ -229,8 +226,6 @@ export const verificarEmpresa = async (empresaId) => {
     try {
       // ✅ CAMBIO PRINCIPAL: Usar el endpoint público que ya existe en el backend
       const response = await api.get(`/empresas/public/${empresaId}`);
-
-      console.log('✅ Empresa verificada:', response.data);
 
       if (response.data.success && response.data.data) {
         return {
@@ -246,8 +241,6 @@ export const verificarEmpresa = async (empresaId) => {
       };
 
     } catch (error) {
-      console.log('❌ Error al verificar empresa:', error.response?.status, error.message);
-
       // Si es 404, la empresa no existe
       if (error.response?.status === 404) {
         return {
@@ -266,7 +259,6 @@ export const verificarEmpresa = async (empresaId) => {
     }
 
   } catch (error) {
-    console.error('❌ Error crítico en verificarEmpresa:', error);
     throw error;
   }
 };
@@ -278,7 +270,7 @@ export const guardarToken = async (token) => {
   try {
     await AsyncStorage.setItem('@auth_token', token);
   } catch (error) {
-    console.log('Error al guardar token:', error);
+    // Silencio
   }
 };
 
@@ -332,19 +324,29 @@ export const verificarDispositivoActivo = async (solicitudId) => {
 };
 
 /**
- * 🔥 NUEVA FUNCIÓN: Verificar si un empleado tiene dispositivo móvil registrado en la BD
- * Usa el endpoint dedicado: GET /api/movil/sync/dispositivos/:empleadoId
- * 
- * Resuelve el problema de cuando se borra la caché de la app - ahora consulta la BD real
- * 
+ * 🔒 Verificar si un empleado tiene dispositivo móvil registrado en la BD.
+ *
+ * Usa el endpoint público de sync: GET /api/movil/sync/dispositivos/:empleadoId
+ * Este endpoint NO requiere permiso DISPOSITIVO_VER, por lo que cualquier
+ * empleado autenticado puede consultarlo (incluyendo empleados con roles básicos).
+ *
+ * Respuesta del endpoint:
+ *   { success: true, dispositivos: [...], total: N }
+ *   - total > 0  → tiene al menos un dispositivo ACTIVO
+ *   - total === 0 → no tiene dispositivos activos (puede ser que nunca se registró
+ *                   o que el admin lo desactivó)
+ *
+ * Para distinguir entre "nunca registrado" y "desactivado por admin" se hace
+ * una segunda consulta a /movil/empleado/:id (con el token del usuario logueado).
+ * Si esa devuelve 404 → nunca registró (ir a onboarding).
+ * Si devuelve datos con es_activo=false → desactivado por admin (DeviceDisabledScreen).
+ *
  * @param {string} empleadoId - ID del empleado
- * @param {string} token - Token de autenticación
- * @returns {Promise<{existe: boolean, activo: boolean, solicitud_id?: string, token?: string}>}
+ * @param {string} token - Token de autenticación del usuario logueado
+ * @returns {Promise<{existe: boolean, activo: boolean, dispositivo_id?: string}>}
  */
 export const verificarDispositivoPorEmpleado = async (empleadoId, token) => {
   try {
-    console.log('🔍 [solicitudMovilService] Verificando dispositivo para empleado:', empleadoId);
-
     const tempApi = axios.create({
       baseURL: API_BASE_URL,
       timeout: 15000,
@@ -354,45 +356,71 @@ export const verificarDispositivoPorEmpleado = async (empleadoId, token) => {
       },
     });
 
+    // PASO 1: Consultar el endpoint público de sync que devuelve dispositivos ACTIVOS.
+    // No requiere permiso especial — cualquier usuario autenticado puede consultarlo.
+    let dispositivosActivos = [];
     try {
-      // Usar el endpoint de movil.controller que ahora devuelve el dispositivo
-      // con es_activo independientemente de su estado (activo o desactivado)
-      const response = await tempApi.get(`/movil/empleado/${empleadoId}`);
-
-      console.log('📱 [solicitudMovilService] Respuesta del servidor:', response.data);
-
-      if (response.data.success && response.data.data) {
-        const dispositivo = response.data.data;
-
-        console.log('📱 [solicitudMovilService] Dispositivo encontrado:', {
-          id: dispositivo.id,
-          es_activo: dispositivo.es_activo
-        });
-
-        return {
-          existe: true,
-          activo: dispositivo.es_activo === true,
-          dispositivo_id: dispositivo.id,
-          sistema_operativo: dispositivo.sistema_operativo
-        };
+      const syncResponse = await tempApi.get(`/movil/sync/dispositivos/${empleadoId}`);
+      if (syncResponse.data.success) {
+        dispositivosActivos = syncResponse.data.dispositivos || [];
       }
+    } catch (syncError) {
+      // Si falla el endpoint público, re-lanzar para que App.jsx lo maneje como error de red
+      throw syncError;
+    }
 
-      // Respuesta inesperada
-      return { existe: false, activo: false };
+    // CASO A: Tiene dispositivo(s) activo(s) → todo bien
+    if (dispositivosActivos.length > 0) {
+      const dispositivo = dispositivosActivos[0];
+      return {
+        existe: true,
+        activo: true,
+        dispositivo_id: dispositivo.id,
+        sistema_operativo: dispositivo.sistema_operativo,
+      };
+    }
 
-    } catch (error) {
-      if (error.response?.status === 404) {
-        // El empleado no tiene ningún dispositivo registrado (ni activo ni inactivo)
-        console.log('ℹ️ [solicitudMovilService] Empleado sin dispositivo registrado (404)');
+    // CASO B: No tiene dispositivos activos.
+    // Necesitamos saber si ALGUNA VEZ tuvo uno (desactivado por admin)
+    // vs. si NUNCA se registró (primera vez / caché borrada).
+    // Consultamos el endpoint autenticado que devuelve el último (activo o no).
+    try {
+      const movilResponse = await tempApi.get(`/movil/empleado/${empleadoId}`);
+
+      if (movilResponse.data.success && movilResponse.data.data) {
+        const dispositivo = movilResponse.data.data;
+
+        if (dispositivo.es_activo === false) {
+          // Estaba registrado pero el admin lo desactivó → DeviceDisabledScreen
+          return {
+            existe: true,
+            activo: false,
+            dispositivo_id: dispositivo.id,
+            sistema_operativo: dispositivo.sistema_operativo,
+          };
+        }
+      }
+    } catch (movilError) {
+      if (movilError.response?.status === 404) {
+        // 404 = nunca registró dispositivo → ir a onboarding
         return { existe: false, activo: false };
       }
 
-      console.error('❌ [solicitudMovilService] Error consultando dispositivo:', error.message);
-      throw error;
+      if (movilError.response?.status === 403) {
+        // Sin permiso DISPOSITIVO_VER (rol muy básico).
+        // Confiamos en que el endpoint sync ya dijo total=0 → sin dispositivo activo.
+        // Tratar como "sin dispositivo" → onboarding.
+        return { existe: false, activo: false };
+      }
+
+      // Otro error de red/servidor → propagar
+      throw movilError;
     }
 
+    // Sin dispositivo activo, y sin historial encontrado → primera afiliación
+    return { existe: false, activo: false };
+
   } catch (error) {
-    console.error('❌ [solicitudMovilService] Error crítico en verificarDispositivoPorEmpleado:', error);
     throw error;
   }
 };
@@ -404,6 +432,6 @@ export const limpiarToken = async () => {
   try {
     await AsyncStorage.removeItem('@auth_token');
   } catch (error) {
-    console.log('Error al limpiar token:', error);
+    // Silencio
   }
 };

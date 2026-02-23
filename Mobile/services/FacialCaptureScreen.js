@@ -309,7 +309,7 @@ export const FacialCaptureScreen = ({
       });
 
     } catch (error) {
-      console.error('❌ Error en captura:', error);
+      // Silencio en producción
       setIsValidating(false);
       setIsProcessing(false);
       setCountdown(null);

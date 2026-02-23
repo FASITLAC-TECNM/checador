@@ -11,7 +11,8 @@ export default function HistorialModal({ onClose, usuario }) {
   const [isOfflineData, setIsOfflineData] = useState(false);
   const [estadisticas, setEstadisticas] = useState({
     puntuales: 0,
-    retardos: 0,
+    retardos_a: 0,
+    retardos_b: 0,
     faltas: 0
   });
 
@@ -83,12 +84,13 @@ export default function HistorialModal({ onClose, usuario }) {
   }, [usuario, currentMonth, cargarAsistenciasOffline]);
 
   const calcularEstadisticas = (data) => {
-    const stats = { puntuales: 0, retardos: 0, faltas: 0 };
+    const stats = { puntuales: 0, retardos_a: 0, retardos_b: 0, faltas: 0 };
     data.forEach(registro => {
-      if (registro.tipo === 'entrada') {
+      if (registro.tipo === 'entrada' || registro.tipo === 'sistema') {
         if (registro.estado === 'puntual') stats.puntuales++;
-        if (registro.estado === 'retardo') stats.retardos++;
-        if (registro.estado === 'falta') stats.faltas++;
+        if (registro.estado === 'retardo_a') stats.retardos_a++;
+        if (registro.estado === 'retardo_b') stats.retardos_b++;
+        if (registro.estado === 'falta' || registro.estado === 'falta_por_retardo') stats.faltas++;
       }
     });
     setEstadisticas(stats);
@@ -127,11 +129,12 @@ export default function HistorialModal({ onClose, usuario }) {
     const fecha = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia);
     const registrosDia = asistencias.filter(registro => {
       const registroFecha = new Date(registro.fecha_registro);
-      return registroFecha.toDateString() === fecha.toDateString() && registro.tipo === 'entrada';
+      return registroFecha.toDateString() === fecha.toDateString() && (registro.tipo === 'entrada' || registro.tipo === 'sistema');
     });
     if (registrosDia.length === 0) return null;
-    if (registrosDia.some(r => r.estado === 'falta')) return 'falta';
-    if (registrosDia.some(r => r.estado === 'retardo')) return 'retardo';
+    if (registrosDia.some(r => r.estado === 'falta' || r.estado === 'falta_por_retardo')) return 'falta';
+    if (registrosDia.some(r => r.estado === 'retardo_b')) return 'retardo_b';
+    if (registrosDia.some(r => r.estado === 'retardo_a')) return 'retardo_a';
     return 'puntual';
   };
 
@@ -157,7 +160,9 @@ export default function HistorialModal({ onClose, usuario }) {
   const obtenerColorEstado = (estado) => {
     switch (estado) {
       case 'puntual': return { bg: 'bg-emerald-50 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-100 dark:border-emerald-800', dot: 'bg-emerald-500' };
-      case 'retardo': return { bg: 'bg-amber-50 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-400', border: 'border-amber-100 dark:border-amber-800', dot: 'bg-amber-500' };
+      case 'retardo_a': return { bg: 'bg-amber-50 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-400', border: 'border-amber-100 dark:border-amber-800', dot: 'bg-amber-500' };
+      case 'retardo_b': return { bg: 'bg-orange-50 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-400', border: 'border-orange-100 dark:border-orange-800', dot: 'bg-orange-500' };
+      case 'falta_por_retardo':
       case 'falta': return { bg: 'bg-red-50 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-400', border: 'border-red-100 dark:border-red-800', dot: 'bg-red-500' };
       default: return { bg: 'bg-slate-50 dark:bg-slate-800', text: 'text-slate-700 dark:text-slate-300', border: 'border-slate-100 dark:border-slate-700', dot: 'bg-slate-400' };
     }
@@ -252,8 +257,13 @@ export default function HistorialModal({ onClose, usuario }) {
                 </div>
                 <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800 rounded-lg px-3 py-2">
                   <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-                  <span className="text-xs font-bold text-amber-700 dark:text-amber-400 flex-1">Retardos</span>
-                  <span className="text-xs font-black text-amber-700 dark:text-amber-400">{estadisticas.retardos}</span>
+                  <span className="text-xs font-bold text-amber-700 dark:text-amber-400 flex-1">Retardo A</span>
+                  <span className="text-xs font-black text-amber-700 dark:text-amber-400">{estadisticas.retardos_a}</span>
+                </div>
+                <div className="flex items-center gap-3 bg-orange-50 dark:bg-orange-900/30 border border-orange-100 dark:border-orange-800 rounded-lg px-3 py-2">
+                  <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                  <span className="text-xs font-bold text-orange-700 dark:text-orange-400 flex-1">Retardo B</span>
+                  <span className="text-xs font-black text-orange-700 dark:text-orange-400">{estadisticas.retardos_b}</span>
                 </div>
                 <div className="flex items-center gap-3 bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-800 rounded-lg px-3 py-2">
                   <div className="w-2 h-2 rounded-full bg-red-500"></div>

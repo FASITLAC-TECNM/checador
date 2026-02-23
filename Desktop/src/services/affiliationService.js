@@ -55,7 +55,7 @@ export const crearSolicitudAfiliacion = async (datos) => {
       mac: datos.mac?.substring(0, 55) || "",
       sistema_operativo: datos.sistema_operativo?.substring(0, 55) || "",
       token: token,
-      empresa_id: datos.empresa_id?.substring(0, 8) || "",
+      empresa_id: datos.empresa_id || "",
       dispositivos_temp: dispositivosTemp,
     };
 

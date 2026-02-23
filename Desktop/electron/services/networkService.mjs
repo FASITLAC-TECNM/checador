@@ -68,7 +68,7 @@ export function startMonitoring(window) {
             currentDetails.ipAddress !== lastNetworkState.ipAddress ||
             currentDetails.macAddress !== lastNetworkState.macAddress
         ) {
-            console.log("[NetworkService] Cambio de red detectado:", currentDetails);
+            console.log("[NetworkService] Event: Cambio de red detectado:", currentDetails);
             lastNetworkState = currentDetails;
 
             if (window && !window.isDestroyed()) {
@@ -77,7 +77,7 @@ export function startMonitoring(window) {
         }
     }, 2000);
 
-    console.log("[NetworkService] Monitoreo de red iniciado");
+    console.log("[NetworkService] Status: Monitoreo de red iniciado");
 }
 
 /**
@@ -87,6 +87,6 @@ export function stopMonitoring() {
     if (networkMonitorInterval) {
         clearInterval(networkMonitorInterval);
         networkMonitorInterval = null;
-        console.log("[NetworkService] Monitoreo de red detenido");
+        console.log("[NetworkService] Status: Monitoreo de red detenido");
     }
 }

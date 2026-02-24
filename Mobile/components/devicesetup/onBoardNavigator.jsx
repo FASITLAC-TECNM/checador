@@ -22,7 +22,7 @@ const STORAGE_KEYS = {
   ONBOARDING_COMPLETED: '@onboarding_completed'
 };
 
-export const OnboardingNavigator = ({ onComplete, userData }) => {
+export const OnboardingNavigator = ({ onComplete, userData, onLogout }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
   const [onboardingData, setOnboardingData] = useState({
@@ -270,15 +270,12 @@ export const OnboardingNavigator = ({ onComplete, userData }) => {
           <RejectedScreen
             motivoRechazo={onboardingData.motivoRechazo}
             onRetry={handleRetry}
-            onCancel={() => {
-              Alert.alert(
-                'Cancelar registro',
-                'Debes registrar este dispositivo para continuar. ¿Deseas intentarlo de nuevo?',
-                [
-                  { text: 'Sí, intentar de nuevo', onPress: handleRetry },
-                  { text: 'Salir', style: 'cancel' }
-                ]
-              );
+            onCancel={async () => {
+              // Limpiar datos y devolver a Login directament (sin alert)
+              await clearDeviceData();
+              await AsyncStorage.removeItem('userToken');
+              await AsyncStorage.removeItem('userData');
+              if (onLogout) onLogout();
             }}
           />
         )}

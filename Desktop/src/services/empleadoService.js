@@ -1,7 +1,7 @@
 // src/services/empleadoService.js
 // Servicio para obtener datos de empleados
 
-import { API_CONFIG } from "../config/apiEndPoint";
+import { API_CONFIG, fetchApi } from "../config/apiEndPoint";
 
 const API_URL = API_CONFIG.BASE_URL;
 
@@ -25,8 +25,8 @@ export const getAllEmpleados = async () => {
       throw new Error("Error al obtener empleados");
     }
 
-    const empleados = await response.json();
-    return empleados;
+    const json = await response.json();
+    return json.data || json;
   } catch (error) {
     console.error("❌ Error al obtener empleados:", error);
     throw error;
@@ -54,7 +54,15 @@ export const getEmpleadoByUsuarioId = async (usuarioId) => {
       throw new Error("Error al obtener empleados");
     }
 
-    const empleados = await response.json();
+    const json = await response.json();
+    const empleados = json.data || json;
+    
+    // Validar que sea un arreglo antes de tratar de buscar
+    if (!Array.isArray(empleados)) {
+      console.warn("⚠️ La respuesta de la API no es un arreglo de empleados:", empleados);
+      return null;
+    }
+
     const empleado = empleados.find((emp) => emp.usuario_id === usuarioId);
 
     if (empleado) {
@@ -88,7 +96,8 @@ export const getEmpleadoById = async (empleadoId) => {
       throw new Error("Empleado no encontrado");
     }
 
-    const empleado = await response.json();
+    const json = await response.json();
+    const empleado = json.data || json;
     console.log("✅ Datos del empleado obtenidos:", empleado);
     return empleado;
   } catch (error) {
@@ -118,7 +127,8 @@ export const getHorarioById = async (horarioId) => {
       throw new Error("Horario no encontrado");
     }
 
-    const horario = await response.json();
+    const json = await response.json();
+    const horario = json.data || json;
     console.log("✅ Horario obtenido:", horario);
     return horario;
   } catch (error) {

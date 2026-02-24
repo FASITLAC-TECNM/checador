@@ -170,7 +170,7 @@ export default function BiometricEnroll({
         setStatus("ready");
       }
     };
-  });
+  }, []);
 
   const cancelEnrollment = () => {
     stopCapture();

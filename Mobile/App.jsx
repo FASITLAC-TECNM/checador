@@ -589,6 +589,7 @@ export default function App() {
         <OnboardingNavigator
           onComplete={handleOnboardingComplete}
           userData={userData}
+          onLogout={handleLogout}
         />
       </SafeAreaProvider>
     );

@@ -18,8 +18,16 @@ export const detectDeviceInfo = async () => {
     const netInfo = await NetInfo.fetch();
     const ipAddress = netInfo.details?.ipAddress || '192.168.1.0';
 
-    // Generar MAC simulada (no disponible en dispositivos modernos)
-    const macAddress = generateMacAddress();
+    // Generar MAC simulada (no disponible en dispositivos modernos),
+    // guardándola en AsyncStorage para que sea persistente y el backend
+    // no duplique el dispositivo al reactivarlo.
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    let macAddress = await AsyncStorage.getItem('@simulated_mac_address');
+
+    if (!macAddress) {
+      macAddress = generateMacAddress();
+      await AsyncStorage.setItem('@simulated_mac_address', macAddress);
+    }
 
     // Fecha actual
     const today = new Date();

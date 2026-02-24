@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from "react";
-import { X, HardDrive, Save, RefreshCw, AlertCircle, Loader2, CheckCircle } from "lucide-react";
+import { X, HardDrive, Save, RefreshCw, AlertCircle, Loader2, CheckCircle, Trash2 } from "lucide-react";
 import { getSystemInfoAdvanced } from "../../utils/systemInfoAdvanced";
 import {
   obtenerEscritorio,
   actualizarEscritorio,
   obtenerEscritorioIdGuardado,
+  desactivarEscritorio,
 } from "../../services/escritorioService";
+import { useAuth } from "../../context/AuthContext";
 
 export default function GeneralNodoModal({ onClose, onBack, inline = false }) {
+  const { user } = useAuth();
+  const isAdmin = user?.esAdmin || user?.es_admin || (Array.isArray(user?.roles) && user.roles.some(r => r.es_admin)) || false;
+
   const [isDetecting, setIsDetecting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -23,6 +28,29 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false }) {
     dispositivosBiometricos: [],
     esActivo: true,
   });
+
+  const handleResetNode = async () => {
+    const confirmReset = window.confirm(
+      "¿Está seguro que desea eliminar este nodo? Esto borrará toda la configuración local y deberá volver a afiliar el equipo. Esta acción no se puede deshacer."
+    );
+
+    if (confirmReset) {
+      try {
+        if (escritorioId) {
+          await desactivarEscritorio(escritorioId);
+        }
+      } catch (error) {
+        console.error("Error al desactivar el escritorio en el servidor:", error);
+      }
+
+      localStorage.clear();
+      if (window.electronAPI && window.electronAPI.configRemove) {
+        window.electronAPI.configRemove("appConfigured");
+      }
+      alert("Nodo eliminado correctamente. La aplicación se recargará.");
+      window.location.reload();
+    }
+  };
 
   // Cargar datos del escritorio al montar el componente
   useEffect(() => {
@@ -385,6 +413,20 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false }) {
               )}
             </div>
           </div>
+
+          {/* Eliminar Nodo (Solo Admin) */}
+          {isAdmin && (
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={handleResetNode}
+                className="px-4 py-2 text-sm text-red-500 border border-red-500/50 hover:bg-red-50 dark:hover:bg-red-500/10 hover:border-red-500 rounded-lg font-medium transition-all flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Eliminar Nodo
+              </button>
+            </div>
+          )}
 
           {/* Botones */}
           {!inline && (

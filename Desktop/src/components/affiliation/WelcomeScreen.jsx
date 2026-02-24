@@ -17,7 +17,7 @@ const steps = [
     number: 3,
     icon: Building2,
     title: "Afiliarse a Empresa",
-    desc: "Ingrese el código de su empresa",
+    desc: "Ingrese el identificador de su empresa",
   },
   {
     number: 4,
@@ -30,7 +30,7 @@ const steps = [
 const requirements = [
   {
     title: "Código de la Empresa",
-    desc: "Proporcionado por su administrador (formato EMA-XXXXX)",
+    desc: "Proporcionado por su administrador (formato nombre-empresa-XXX)",
   },
   {
     title: "Información del Nodo",

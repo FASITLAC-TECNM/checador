@@ -35,7 +35,7 @@ export default function AffiliationStep({
               Paso 3: Afiliación a Empresa
             </h1>
             <p className="text-text-secondary text-sm">
-              Ingrese el ID único de su empresa para vincular este nodo
+              Ingrese el identificador único de su empresa para vincular este nodo
             </p>
           </div>
 
@@ -46,17 +46,19 @@ export default function AffiliationStep({
               </div>
               <div className="flex-1">
                 <h3 className="font-bold text-text-primary mb-2">
-                  ID de la Empresa
+                  Identificador de la Empresa
                 </h3>
                 <p className="text-sm text-text-secondary mb-3">
-                  Este código único fue proporcionado por el administrador de su
-                  empresa. Tiene un formato similar a SYS-EMA-000...
+                  Este identificador único fue proporcionado por el administrador de su
+                  empresa.
+                  <br />
+                  Tiene un formato similar a nombre-empresa-XXX...
                 </p>
                 <input
                   type="text"
                   value={companyId}
                   onChange={(e) => setCompanyId(e.target.value)}
-                  placeholder="SYS-EMA-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                  placeholder="nombre-empresa-XXX"
                   className="w-full px-4 py-3 bg-bg-primary border border-border-subtle rounded-xl focus:ring-2 focus:ring-[#42A5F5]/50 focus:border-transparent text-center font-mono text-sm tracking-widest transition-all duration-200"
                 />
               </div>

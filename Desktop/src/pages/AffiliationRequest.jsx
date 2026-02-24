@@ -142,7 +142,8 @@ export default function AffiliationRequest({ onComplete }) {
         ip: nodeConfig.ipAddress || '127.0.0.1',
         mac: nodeConfig.macAddress || '00:00:00:00:00:00',
         sistema_operativo: nodeConfig.operatingSystem || 'Unknown',
-        empresa_id: companyId,
+        identificador: companyId,
+        observaciones: null,
         dispositivos: devices,
       });
 

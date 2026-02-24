@@ -292,8 +292,7 @@ export default function AdminDashboard({
                                 </div>
                             </div>
 
-                            {/* Bottom Row - Quick Action Buttons (4 columns or 2) */}
-                            <div className={`grid ${isAdmin ? "grid-cols-4" : "grid-cols-2"} gap-3 flex-shrink-0`}>
+                            <div className={`grid grid-cols-2 gap-3 flex-shrink-0`}>
                                 <button
                                     onClick={onShowHorario}
                                     className="bg-bg-secondary hover:bg-bg-tertiary rounded-2xl shadow-sm p-4 transition-all hover:shadow-md flex flex-col items-center justify-center border border-border-subtle text-[#1976D2] dark:text-[#42A5F5]"
@@ -311,40 +310,6 @@ export default function AdminDashboard({
                                     <h3 className="text-sm font-bold text-text-primary mb-0.5">Historial</h3>
                                     <p className="text-[10px] text-text-secondary">Días anteriores</p>
                                 </button>
-
-                                {isAdmin && (
-                                    <>
-                                        <button
-                                            onClick={() => readerConnected && isOnline && onShowBiometric?.()}
-                                            disabled={!readerConnected || !isOnline}
-                                            className={`rounded-2xl shadow-sm p-4 transition-all flex flex-col items-center justify-center border border-border-subtle ${readerConnected && isOnline
-                                                ? "bg-bg-secondary hover:bg-bg-tertiary hover:shadow-md cursor-pointer text-[#1976D2] dark:text-[#42A5F5]"
-                                                : "bg-gray-100 dark:bg-slate-700/50 text-gray-400 dark:text-gray-500 cursor-not-allowed"
-                                                }`}
-                                        >
-                                            <Fingerprint className="w-8 h-8 mb-2" />
-                                            <h3 className={`text-sm font-bold mb-0.5 ${readerConnected && isOnline ? "text-text-primary" : "text-gray-400 dark:text-gray-500"}`}>Reg. Huella</h3>
-                                            <p className={`text-[10px] ${readerConnected && isOnline ? "text-text-secondary" : "text-gray-400 dark:text-gray-500"}`}>
-                                                {!isOnline ? "Sin conexión" : readerConnected ? "Vincular huella" : "Desconectado"}
-                                            </p>
-                                        </button>
-
-                                        <button
-                                            disabled={!isOnline || !isCameraConnected}
-                                            onClick={() => isOnline && isCameraConnected && onShowRegisterFace?.()}
-                                            className={`rounded-2xl shadow-sm p-4 transition-all flex flex-col items-center justify-center border border-border-subtle ${isOnline && isCameraConnected
-                                                ? "bg-bg-secondary hover:bg-bg-tertiary hover:shadow-md cursor-pointer text-[#1976D2] dark:text-[#42A5F5]"
-                                                : "bg-gray-100 dark:bg-slate-700/50 text-gray-400 dark:text-gray-500 cursor-not-allowed"
-                                                }`}
-                                        >
-                                            <Camera className="w-8 h-8 mb-2" />
-                                            <h3 className={`text-sm font-bold mb-0.5 ${isOnline && isCameraConnected ? "text-text-primary" : "text-gray-400 dark:text-gray-500"}`}>Reg. Rostro</h3>
-                                            <p className={`text-[10px] ${isOnline && isCameraConnected ? "text-text-secondary" : "text-gray-400 dark:text-gray-500"}`}>
-                                                {!isOnline ? "Sin conexión" : !isCameraConnected ? "Cámara no disponible" : "Reconocimiento facial"}
-                                            </p>
-                                        </button>
-                                    </>
-                                )}
                             </div>
                         </div>
                     )}

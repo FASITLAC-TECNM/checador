@@ -4,41 +4,76 @@ import { getAllEmpleados } from "../../services/empleadoService";
 
 export default function EmployeeSelectionModal({ onClose, onSelect, biometriaTipo = 'huella' }) {
     const [empleados, setEmpleados] = useState([]);
+    const [credenciales, setCredenciales] = useState([]);
     const [filteredEmpleados, setFilteredEmpleados] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        const fetchEmpleados = async () => {
+        const fetchData = async () => {
             try {
                 setLoading(true);
-                const data = await getAllEmpleados();
-                setEmpleados(data);
-                setFilteredEmpleados(data);
+                // Run both fetches in parallel if possible
+                const [empleadosData, credencialesData] = await Promise.all([
+                    getAllEmpleados(),
+                    window.electronAPI ? window.electronAPI.offlineDB.getAllCredenciales() : Promise.resolve([])
+                ]);
+
+                setEmpleados(empleadosData);
+                setCredenciales(credencialesData || []);
+                // Initial sort and filter
+                applyFilterAndSort(empleadosData, credencialesData || [], searchTerm);
             } catch (err) {
-                console.error("Error cargando empleados:", err);
+                console.error("Error cargando datos:", err);
                 setError("No se pudieron cargar los empleados.");
             } finally {
                 setLoading(false);
             }
         };
-        fetchEmpleados();
+        fetchData();
     }, []);
 
-    useEffect(() => {
-        if (searchTerm.trim() === "") {
-            setFilteredEmpleados(empleados);
-        } else {
-            const lowerSearch = searchTerm.toLowerCase();
-            const filtered = empleados.filter((emp) =>
+    const hasBiometricData = (empleadoId, type, credencialesData) => {
+        const cred = credencialesData.find(c => String(c.empleado_id) === String(empleadoId));
+        if (!cred) return false;
+
+        if (type === 'huella') {
+            return !!cred.dactilar_template;
+        } else if (type === 'rostro') {
+            return !!cred.facial_descriptor;
+        }
+        return false;
+    };
+
+    const applyFilterAndSort = (empleadosList, credsList, term) => {
+        let filtered = empleadosList;
+
+        // Filter by search term
+        if (term.trim() !== "") {
+            const lowerSearch = term.toLowerCase();
+            filtered = empleadosList.filter((emp) =>
                 (emp.nombre && emp.nombre.toLowerCase().includes(lowerSearch)) ||
                 (emp.usuario && emp.usuario.toLowerCase().includes(lowerSearch)) ||
                 (emp.id && String(emp.id).toLowerCase().includes(lowerSearch))
             );
-            setFilteredEmpleados(filtered);
         }
-    }, [searchTerm, empleados]);
+
+        // Sort by biometric status: those WITHOUT data come first
+        filtered.sort((a, b) => {
+            const aHasData = hasBiometricData(a.id, biometriaTipo, credsList);
+            const bHasData = hasBiometricData(b.id, biometriaTipo, credsList);
+
+            if (aHasData === bHasData) return 0;
+            return aHasData ? 1 : -1; // true (has data) goes to bottom
+        });
+
+        setFilteredEmpleados(filtered);
+    };
+
+    useEffect(() => {
+        applyFilterAndSort(empleados, credenciales, searchTerm);
+    }, [searchTerm, empleados, credenciales, biometriaTipo]);
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -101,39 +136,47 @@ export default function EmployeeSelectionModal({ onClose, onSelect, biometriaTip
                             <p className="text-text-secondary">No se encontraron empleados que coincidan con la búsqueda.</p>
                         </div>
                     ) : (
-                        filteredEmpleados.map((empleado) => (
-                            <button
-                                key={empleado.id}
-                                onClick={() => onSelect(empleado.id, empleado)}
-                                className="w-full flex items-center justify-between p-3 rounded-lg border border-border-subtle bg-bg-primary hover:bg-bg-secondary hover:border-[#1976D2]/50 transition-all text-left group"
-                            >
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-10 h-10 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-full flex items-center justify-center flex-shrink-0">
-                                        <User className="w-5 h-5 text-[#1976D2]" />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="font-bold text-text-primary text-sm truncate">
-                                            {empleado.nombre || "Sin Nombre"}
-                                        </p>
-                                        <div className="flex items-center gap-3 text-xs text-text-tertiary mt-0.5">
-                                            <span className="flex items-center gap-1">
-                                                <Briefcase className="w-3 h-3" />
-                                                {empleado.usuario || "N/A"}
-                                            </span>
-                                            {empleado.rfc && (
-                                                <span className="flex items-center gap-1">
-                                                    <FileText className="w-3 h-3" />
-                                                    {empleado.rfc}
+                        filteredEmpleados.map((empleado) => {
+                            const hasData = hasBiometricData(empleado.id, biometriaTipo, credenciales);
+                            return (
+                                <button
+                                    key={empleado.id}
+                                    onClick={() => onSelect(empleado.id, empleado)}
+                                    className="w-full flex items-center justify-between p-3 rounded-lg border border-border-subtle bg-bg-primary hover:bg-bg-secondary hover:border-[#1976D2]/50 transition-all text-left group"
+                                >
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${hasData ? 'bg-green-100 dark:bg-green-900/30' : 'bg-[#E3F2FD] dark:bg-[#1565C0]/20'}`}>
+                                            <User className={`w-5 h-5 ${hasData ? 'text-green-600' : 'text-[#1976D2]'}`} />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="font-bold text-text-primary text-sm truncate">
+                                                {empleado.nombre || "Sin Nombre"}
+                                            </p>
+                                            <div className="flex items-center gap-3 text-xs mt-0.5">
+                                                <span className="flex items-center gap-1 text-text-tertiary">
+                                                    <Briefcase className="w-3 h-3" />
+                                                    {empleado.usuario || "N/A"}
                                                 </span>
-                                            )}
+                                                {hasData && (
+                                                    <span className="flex items-center gap-1 text-green-600 font-semibold px-2 py-0.5 bg-green-50 dark:bg-green-900/20 rounded text-[10px]">
+                                                        Ya Registrado
+                                                    </span>
+                                                )}
+                                                {!hasData && empleado.rfc && (
+                                                    <span className="flex items-center gap-1 text-text-tertiary">
+                                                        <FileText className="w-3 h-3" />
+                                                        {empleado.rfc}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-[#1976D2] text-white px-3 py-1.5 rounded text-xs font-semibold flex-shrink-0 ml-2">
-                                    Seleccionar
-                                </div>
-                            </button>
-                        ))
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-[#1976D2] text-white px-3 py-1.5 rounded text-xs font-semibold flex-shrink-0 ml-2">
+                                        {hasData ? "Sobrescribir" : "Seleccionar"}
+                                    </div>
+                                </button>
+                            );
+                        })
                     )}
                 </div>
             </div>

@@ -39,21 +39,11 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
       return;
     }
 
-    // Validar longitud exacta de 8 caracteres
-    if (trimmedCode.length !== 8) {
+    // Validar longitud mínima
+    if (trimmedCode.length < 5) {
       Alert.alert(
         'Código Inválido',
-        'El código de empresa debe tener exactamente 8 caracteres.\nEjemplo: EMA00001'
-      );
-      return;
-    }
-
-    // Validar formato (3 letras + 5 números)
-    const formatoValido = /^[A-Z]{3}\d{5}$/.test(trimmedCode);
-    if (!formatoValido) {
-      Alert.alert(
-        'Formato Inválido',
-        'El código debe tener el formato: 3 letras + 5 números\nEjemplo: EMA00001'
+        'El código de empresa ingresado es muy corto.'
       );
       return;
     }
@@ -145,30 +135,22 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
             {/* Input Card */}
             <View style={styles.inputCard}>
               <Text style={styles.inputLabel}>Código de la Empresa</Text>
-              <Text style={styles.formatHint}>Formato: 3 letras + 5 números (Ej: EMA00001)</Text>
+              <Text style={styles.formatHint}>Ingresa el identificador de tu empresa</Text>
               <TextInput
                 style={styles.input}
-                placeholder="EMA00001"
+                placeholder="ID de empresa"
                 placeholderTextColor="#9ca3af"
                 value={companyCode}
                 onChangeText={(text) => {
                   const upperText = text.toUpperCase();
-                  if (upperText.length <= 8) {
+                  if (upperText.length <= 45) {
                     setCompanyCode(upperText);
                   }
                 }}
                 autoCapitalize="characters"
-                maxLength={8}
+                maxLength={45}
                 editable={!isLoading}
               />
-              {companyCode.length > 0 && (
-                <Text style={[
-                  styles.charCounter,
-                  companyCode.length === 8 ? styles.charCounterValid : styles.charCounterInvalid
-                ]}>
-                  {companyCode.length}/8 caracteres
-                </Text>
-              )}
             </View>
 
             {/* Help Text */}

@@ -14,8 +14,23 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getEmpresaById } from '../../services/empresaService';
+import { getMiEmpresa } from '../../services/empresaService';
 import sqliteManager from '../../services/offline/sqliteManager.mjs';
+import getApiEndpoint from '../../config/api.js';
+
+const obtenerUrlLogo = (logo) => {
+  if (!logo) {
+    return null;
+  }
+  if (logo.startsWith('data:image/')) {
+    return logo;
+  }
+  if (logo.startsWith('http://') || logo.startsWith('https://')) {
+    return logo;
+  }
+  const cleanPath = logo.startsWith('/') ? logo.substring(1) : logo;
+  return getApiEndpoint(`/${cleanPath}`);
+};
 
 export const SupportScreen = ({ darkMode, onBack, userData }) => {
   const [expandedFaq, setExpandedFaq] = useState(null);
@@ -47,7 +62,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
       let cargoOnline = false;
       if (token) {
         try {
-          const response = await getEmpresaById(empresaId, token);
+          const response = await getMiEmpresa(token);
           if (response.success && response.data) {
             setEmpresaData(response.data);
             cargoOnline = true;
@@ -268,7 +283,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
             <View style={styles.quickHelpIconContainer}>
               {empresaData?.logo ? (
                 <Image
-                  source={{ uri: empresaData.logo }}
+                  source={{ uri: obtenerUrlLogo(empresaData.logo) }}
                   style={styles.empresaLogo}
                   resizeMode="contain"
                 />

@@ -20,8 +20,10 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { login } from '../../services/authService';
 import { getEmpleadoById } from '../../services/empleadoServices';
+import { getEmpresaPublicaById } from '../../services/empresaService'; // Added this import
 import syncManager from '../../services/offline/syncManager.mjs';
 import sqliteManager from '../../services/offline/sqliteManager.mjs';
+import { SeleccionEmpresaScreen } from './SeleccionEmpresaScreen';
 
 // Claves para SecureStore (credenciales cifradas en hardware del dispositivo)
 const SECURE_KEYS = {
@@ -52,6 +54,8 @@ export const LoginScreen = ({ onLoginSuccess }) => {
   const [isOfflineLogin, setIsOfflineLogin] = useState(false);
   const [isWifiConnected, setIsWifiConnected] = useState(false);
   const [isDbReady, setIsDbReady] = useState(false);
+  const [showEmpresaSelector, setShowEmpresaSelector] = useState(false);
+  const [empresasList, setEmpresasList] = useState([]);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // Monitor WiFi status en tiempo real
@@ -159,7 +163,11 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     }
   };
 
-  const handleLogin = async () => {
+  const handleLogin = () => {
+    executeLogin();
+  };
+
+  const executeLogin = async (empresaId = null) => {
     setUsuarioError('');
     setPasswordError('');
     setGeneralError('');
@@ -180,7 +188,36 @@ export const LoginScreen = ({ onLoginSuccess }) => {
 
     try {
       // ====== INTENTO 1: Login Online ======
-      const response = await login(usuario, password);
+      const response = await login(usuario, password, empresaId);
+
+      if (response && response.isMultiCompany) {
+        // Fetch public company data to get the logos
+        try {
+          const empresasConLogo = await Promise.all(
+            response.empresas.map(async (emp) => {
+              try {
+                const publicData = await getEmpresaPublicaById(emp.empresa_id);
+                if (publicData.success && publicData.data) {
+                  return { ...emp, logo: publicData.data.logo };
+                }
+                return emp;
+              } catch (err) {
+                console.warn(`Error fetching public info for company ${emp.empresa_id}:`, err);
+                return emp;
+              }
+            })
+          );
+          setEmpresasList(empresasConLogo);
+        } catch (error) {
+          console.warn('Error processing public company data:', error);
+          setEmpresasList(response.empresas);
+        }
+
+        setShowEmpresaSelector(true);
+        setIsLoading(false);
+        return;
+      }
+
       if (response && response.success && response.usuario) {
         const token = response.token;
         let empresaId = null;
@@ -342,6 +379,21 @@ export const LoginScreen = ({ onLoginSuccess }) => {
       setIsLoading(false);
     }
   };
+
+  if (showEmpresaSelector) {
+    return (
+      <SeleccionEmpresaScreen
+        empresasList={empresasList}
+        onSelect={(empresaId) => {
+          setShowEmpresaSelector(false);
+          executeLogin(empresaId);
+        }}
+        onCancel={() => {
+          setShowEmpresaSelector(false);
+        }}
+      />
+    );
+  }
 
   return (
     <View style={styles.mainContainer}>

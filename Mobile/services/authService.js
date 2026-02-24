@@ -12,22 +12,27 @@ const API_URL = getApiEndpoint('/api');
  * @param {string} contraseña - Contraseña del usuario
  * @returns {Promise<Object>} Objeto con información del usuario autenticado
  */
-export const login = async (usuario, contraseña) => {
+export const login = async (usuario, contraseña, empresaId = null) => {
     try {
         if (!usuario || !contraseña) {
             throw new Error('Usuario y contraseña son obligatorios');
         }
 
+        const body = {
+            usuario: usuario.trim(),
+            contraseña: contraseña
+        };
+
+        if (empresaId) {
+            body.empresa_id = empresaId;
+        }
 
         const response = await fetch(`${API_URL}/auth/login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                usuario: usuario.trim(),
-                contraseña: contraseña
-            }),
+            body: JSON.stringify(body),
         });
 
         const responseText = await response.text();
@@ -37,6 +42,16 @@ export const login = async (usuario, contraseña) => {
             data = responseText ? JSON.parse(responseText) : {};
         } catch (parseError) {
             throw new Error(`Error del servidor: respuesta no válida (${response.status})`);
+        }
+
+        // Handle 300 Multiple Choices for multi-company selection
+        if (response.status === 300 && data.empresas) {
+            return {
+                success: true,
+                isMultiCompany: true,
+                empresas: data.empresas,
+                message: data.message
+            };
         }
 
         if (!response.ok) {

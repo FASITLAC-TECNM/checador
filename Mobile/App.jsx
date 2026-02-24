@@ -14,6 +14,7 @@ import { HistoryScreen } from './components/homes/history';
 import { ScheduleScreen } from './components/homes/schedule';
 import { SettingsScreen } from './components/settingsPages/settings';
 import { BottomNavigation } from './components/homes/nav';
+import { AdminScreen } from './components/admin/AdminScreen';
 import { NotifyScreen } from './components/homes/NotifyScreen';
 import { OnboardingNavigator } from './components/devicesetup/onBoardNavigator';
 import { getSolicitudPorToken, verificarDispositivoPorEmpleado } from './services/solicitudMovilService';
@@ -608,6 +609,7 @@ export default function App() {
           {currentScreen === 'avisos' && <NotifyScreen userData={userData} darkMode={darkMode} onGoBack={() => setCurrentScreen('home')} />}
           {currentScreen === 'history' && <HistoryScreen darkMode={darkMode} userData={userData} />}
           {currentScreen === 'schedule' && <ScheduleScreen userData={userData} darkMode={darkMode} />}
+          {currentScreen === 'admin' && userData?.esAdmin && <AdminScreen userData={userData} darkMode={darkMode} />}
           {currentScreen === 'settings' && (
             <SettingsScreen
               userData={userData}
@@ -623,6 +625,7 @@ export default function App() {
               currentScreen={currentScreen}
               onScreenChange={setCurrentScreen}
               darkMode={darkMode}
+              userData={userData}
             />
           )}
         </View>

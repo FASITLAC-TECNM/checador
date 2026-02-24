@@ -30,31 +30,14 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
   const affiliation = AFFILIATION_CONFIG;
   const [companyCode, setCompanyCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
+  const [verifiedCompanyName, setVerifiedCompanyName] = useState('');
 
   const handleNext = async () => {
     const trimmedCode = companyCode.trim();
 
     if (!trimmedCode) {
       Alert.alert('Error', 'Por favor ingresa el código de tu empresa');
-      return;
-    }
-
-    // Validar longitud exacta de 8 caracteres
-    if (trimmedCode.length !== 8) {
-      Alert.alert(
-        'Código Inválido',
-        'El código de empresa debe tener exactamente 8 caracteres.\nEjemplo: EMA00001'
-      );
-      return;
-    }
-
-    // Validar formato (3 letras + 5 números)
-    const formatoValido = /^[A-Z]{3}\d{5}$/.test(trimmedCode);
-    if (!formatoValido) {
-      Alert.alert(
-        'Formato Inválido',
-        'El código debe tener el formato: 3 letras + 5 números\nEjemplo: EMA00001'
-      );
       return;
     }
 
@@ -87,11 +70,18 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
 
       console.log('✅ Empresa válida, continuando...');
 
-      // ✅ Todo bien, continuar al siguiente paso
-      onNext({
-        empresaId: trimmedCode,
-        empresaNombre: empresaInfo.nombre
-      });
+      // ✅ Todo bien, continuar al siguiente paso con una animación de verificación
+      setIsVerified(true);
+      setVerifiedCompanyName(empresaInfo.nombre);
+      setIsLoading(false);
+
+      setTimeout(() => {
+        onNext({
+          empresaId: empresaInfo.id,
+          empresaCodigo: trimmedCode,
+          empresaNombre: empresaInfo.nombre
+        });
+      }, 1500);
 
     } catch (error) {
       console.error('❌ Error al verificar empresa:', error);
@@ -100,7 +90,6 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
         'Error de Conexión',
         error.message || 'No se pudo verificar el código de empresa. Por favor intenta nuevamente.'
       );
-    } finally {
       setIsLoading(false);
     }
   };
@@ -144,30 +133,25 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
 
             {/* Input Card */}
             <View style={styles.inputCard}>
-              <Text style={styles.inputLabel}>Código de la Empresa</Text>
-              <Text style={styles.formatHint}>Formato: 3 letras + 5 números (Ej: EMA00001)</Text>
+              <Text style={styles.inputLabel}>Identificador de la Empresa</Text>
+              <Text style={styles.formatHint}>Ingresa el código único proporcionado por tu empresa.</Text>
               <TextInput
-                style={styles.input}
-                placeholder="EMA00001"
+                style={[styles.input, isVerified && styles.inputVerified]}
+                placeholder="Identificador"
                 placeholderTextColor="#9ca3af"
                 value={companyCode}
                 onChangeText={(text) => {
-                  const upperText = text.toUpperCase();
-                  if (upperText.length <= 8) {
-                    setCompanyCode(upperText);
-                  }
+                  setCompanyCode(text.replace(/\s/g, ''));
+                  setIsVerified(false);
                 }}
-                autoCapitalize="characters"
-                maxLength={8}
-                editable={!isLoading}
+                autoCapitalize="none"
+                editable={!isLoading && !isVerified}
               />
-              {companyCode.length > 0 && (
-                <Text style={[
-                  styles.charCounter,
-                  companyCode.length === 8 ? styles.charCounterValid : styles.charCounterInvalid
-                ]}>
-                  {companyCode.length}/8 caracteres
-                </Text>
+              {isVerified && (
+                <View style={styles.verifiedContainer}>
+                  <Ionicons name="checkmark-circle" size={20} color="#10b981" />
+                  <Text style={styles.verifiedText}>{verifiedCompanyName}</Text>
+                </View>
               )}
             </View>
 
@@ -196,9 +180,9 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.nextButton, (!companyCode || isLoading) && styles.nextButtonDisabled]}
+            style={[styles.nextButton, (!companyCode || isLoading || isVerified) && styles.nextButtonDisabled]}
             onPress={handleNext}
-            disabled={!companyCode || isLoading}
+            disabled={!companyCode || isLoading || isVerified}
             activeOpacity={0.8}
           >
             {isLoading ? (
@@ -206,9 +190,14 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
                 <ActivityIndicator color="#fff" size="small" />
                 <Text style={[styles.nextButtonText, { marginLeft: 8 }]}>Verificando...</Text>
               </>
+            ) : isVerified ? (
+              <>
+                <Text style={styles.nextButtonText}>Ingresando</Text>
+                <Ionicons name="checkmark" size={18} color="#fff" />
+              </>
             ) : (
               <>
-                <Text style={styles.nextButtonText}>Continuar</Text>
+                <Text style={styles.nextButtonText}>Verificar</Text>
                 <Ionicons name="arrow-forward" size={18} color="#fff" />
               </>
             )}
@@ -350,23 +339,27 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#e5e7eb',
     padding: 16,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
-    letterSpacing: 4,
+    letterSpacing: 1, // Reducido para que quepan identificadores largos (antes 4)
     color: '#1f2937',
   },
-  charCounter: {
-    fontSize: 11,
-    textAlign: 'center',
-    marginTop: 8,
-    fontWeight: '600',
+  inputVerified: {
+    borderColor: '#10b981',
+    backgroundColor: '#f0fdf4',
   },
-  charCounterValid: {
+  verifiedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    gap: 6,
+  },
+  verifiedText: {
     color: '#10b981',
-  },
-  charCounterInvalid: {
-    color: '#ef4444',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   helpContainer: {
     alignItems: 'center',

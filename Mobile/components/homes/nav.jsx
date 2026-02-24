@@ -40,22 +40,22 @@ const NavItem = ({ item, isActive, onPress, darkMode, navStyles }) => {
     >
       {/* Active Indicator - Línea superior */}
       {isActive && <View style={navStyles.activeIndicator} />}
-      
+
       {/* Icon con animación */}
-      <Animated.View 
+      <Animated.View
         style={[
           navStyles.iconWrapper,
           isActive && navStyles.iconWrapperActive,
           { transform: [{ scale: scaleAnim }] }
         ]}
       >
-        <Ionicons 
+        <Ionicons
           name={item.icon}
-          size={20} 
-          color={isActive ? '#2563eb' : (darkMode ? '#9ca3af' : '#6b7280')} 
+          size={20}
+          color={isActive ? '#2563eb' : (darkMode ? '#9ca3af' : '#6b7280')}
         />
       </Animated.View>
-      
+
       {/* Label */}
       <Text style={[
         navStyles.label,
@@ -68,7 +68,7 @@ const NavItem = ({ item, isActive, onPress, darkMode, navStyles }) => {
   );
 };
 
-export const BottomNavigation = ({ currentScreen, onScreenChange, darkMode }) => {
+export const BottomNavigation = ({ currentScreen, onScreenChange, darkMode, userData }) => {
   const insets = useSafeAreaInsets();
   const styles = darkMode ? navStylesDark : navStyles;
 
@@ -76,25 +76,30 @@ export const BottomNavigation = ({ currentScreen, onScreenChange, darkMode }) =>
     { id: 'home', icon: 'home', label: 'Inicio' },
     { id: 'history', icon: 'time', label: 'Historial' },
     { id: 'schedule', icon: 'calendar', label: 'Horario' },
-    { id: 'settings', icon: 'settings', label: 'Ajustes' },
   ];
 
+  if (userData?.esAdmin) {
+    navItems.push({ id: 'admin', icon: 'shield-checkmark', label: 'Admin' });
+  }
+
+  navItems.push({ id: 'settings', icon: 'settings', label: 'Ajustes' });
+
   return (
-    <View 
+    <View
       style={[
         styles.container,
-        { 
+        {
           paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 6) : insets.bottom,
         }
       ]}
     >
       {/* Sombra superior sutil */}
       <View style={styles.shadow} />
-      
+
       <View style={styles.navBar}>
         {navItems.map((item) => {
           const isActive = currentScreen === item.id;
-          
+
           return (
             <NavItem
               key={item.id}

@@ -224,12 +224,13 @@ export const verificarEmpresa = async (empresaId) => {
     }
 
     try {
-      // ✅ CAMBIO PRINCIPAL: Usar el endpoint público que ya existe en el backend
-      const response = await api.get(`/empresas/public/${empresaId}`);
+      // ✅ CAMBIO PRINCIPAL: Usar el endpoint de identificador en lugar del de ID público
+      const response = await api.get(`/empresas/identificador/${empresaId}`);
 
       if (response.data.success && response.data.data) {
         return {
           existe: true,  // ✅ Si llegó aquí con éxito, la empresa existe
+          id: response.data.data.id,
           nombre: response.data.data.nombre,
           activa: response.data.data.es_activo
         };

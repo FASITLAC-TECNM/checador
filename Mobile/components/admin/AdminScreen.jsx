@@ -56,7 +56,7 @@ export const AdminScreen = ({ userData, darkMode }) => {
                 >
                     <View style={styles.cardLeft}>
                         <View style={styles.iconWrap}>
-                            <Ionicons name="finger-print" size={28} color="#2563eb" />
+                            <Ionicons name="finger-print" size={28} color={darkMode ? '#60a5fa' : '#2563eb'} />
                         </View>
                         <View style={styles.cardText}>
                             <Text style={styles.cardTitle}>Credenciales</Text>

@@ -32,10 +32,7 @@ import syncManager from '../../services/offline/syncManager.mjs';
 import pushService from '../../services/offline/pushService.mjs';
 
 const API_URL = getApiEndpoint('/api');
-const MINUTOS_SEPARACION_TURNOS = 15;
-
-// Clave AsyncStorage para persistir qué notificaciones de disponibilidad
-// ya se enviaron hoy (sobrevive desmontajes del componente)
+const MINUTOS_SEPARACION_TURNOS = 120;
 const NOTIF_DIARIA_KEY = '@notif_asistencia_disponible';
 
 export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
@@ -64,9 +61,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [puedeRegistrar, setPuedeRegistrar] = useState(false);
   const [tipoSiguienteRegistro, setTipoSiguienteRegistro] = useState('entrada');
   const [estadoHorario, setEstadoHorario] = useState(null);
-  const [jornadaCompletada, setJornadaCompletada] = useState(false);
+
   const [mensajeEspera, setMensajeEspera] = useState('');
   const [isOnline, setIsOnline] = useState(false);
+  const [diaFestivo, setDiaFestivo] = useState(null); // { nombre, tipo } si hoy es festivo
 
   const datosRegistroRef = useRef({
     ubicacion: null,
@@ -278,7 +276,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         setPuedeRegistrar(estado.puedeRegistrar);
         setTipoSiguienteRegistro(estado.tipoRegistro);
         setEstadoHorario(estado.estadoHorario);
-        setJornadaCompletada(estado.jornadaCompleta);
+
         setMensajeEspera(estado.mensajeEspera || '');
 
         // ── LÓGICA DE NOTIFICACIÓN: una sola vez por tipo (entrada/salida) por día ──
@@ -695,7 +693,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         puedeRegistrar: false,
         tipoRegistro: 'entrada',
         estadoHorario: 'fuera_horario',
-        jornadaCompleta: false,
         hayTurnoFuturo: false,
         mensaje: 'No hay turnos configurados'
       };
@@ -718,9 +715,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         puedeRegistrar: false,
         tipoRegistro: 'entrada',
         estadoHorario: 'fuera_horario',
-        jornadaCompleta: !hayTurnoFuturo,
         hayTurnoFuturo,
-        mensaje: hayTurnoFuturo ? 'Aún no es hora de entrada' : 'Jornada completada'
+        mensaje: hayTurnoFuturo ? 'Aún no es hora de entrada' : 'Fuera de horario'
       };
     }
 
@@ -732,7 +728,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         puedeRegistrar: false,
         tipoRegistro: 'entrada',
         estadoHorario: 'fuera_horario',
-        jornadaCompleta: false,
         hayTurnoFuturo: false,
         mensaje: 'Configuración de turno inválida'
       };
@@ -755,7 +750,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         puedeRegistrar: false,
         tipoRegistro: 'entrada',
         estadoHorario: 'fuera_horario',
-        jornadaCompleta: false,
         hayTurnoFuturo: true,
         mensaje: 'Aún no es hora de entrada'
       };
@@ -766,7 +760,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         puedeRegistrar: true,
         tipoRegistro: 'entrada',
         estadoHorario: 'puntual',
-        jornadaCompleta: false,
         hayTurnoFuturo: false,
         mensaje: 'Puedes registrar tu entrada'
       };
@@ -777,7 +770,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         puedeRegistrar: true,
         tipoRegistro: 'entrada',
         estadoHorario: 'retardo_a',
-        jornadaCompleta: false,
         hayTurnoFuturo: false,
         mensaje: 'Retardo tipo A (hasta 20 min)'
       };
@@ -788,7 +780,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         puedeRegistrar: true,
         tipoRegistro: 'entrada',
         estadoHorario: 'retardo_b',
-        jornadaCompleta: false,
         hayTurnoFuturo: false,
         mensaje: 'Retardo tipo B (hasta 29 min)'
       };
@@ -799,7 +790,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         puedeRegistrar: true,
         tipoRegistro: 'entrada',
         estadoHorario: 'falta_por_retardo',
-        jornadaCompleta: false,
         hayTurnoFuturo: false,
         mensaje: 'Falta por retardo mayor'
       };
@@ -809,7 +799,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       puedeRegistrar: false,
       tipoRegistro: 'entrada',
       estadoHorario: 'fuera_horario',
-      jornadaCompleta: false,
       hayTurnoFuturo: false,
       mensaje: 'Fuera de horario'
     };
@@ -824,7 +813,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         puedeRegistrar: false,
         tipoRegistro: 'salida',
         estadoHorario: 'fuera_horario',
-        jornadaCompleta: false,
         mensaje: 'No hay turnos configurados'
       };
     }
@@ -837,7 +825,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         puedeRegistrar: false,
         tipoRegistro: 'salida',
         estadoHorario: 'fuera_horario',
-        jornadaCompleta: false,
         mensaje: 'Fuera de horario'
       };
     }
@@ -876,7 +863,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             puedeRegistrar: false,
             tipoRegistro: 'salida',
             estadoHorario: 'tiempo_insuficiente',
-            jornadaCompleta: false,
             mensaje: 'Tiempo insuficiente trabajado',
             mensajeEspera: `Espera ${minutosRestantes} min más`,
             minutosRestantes
@@ -900,7 +886,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       tipoRegistro: 'salida',
       estadoHorario: estadoSalida === 'salida_puntual' ? 'puntual' : 'salida_temprano',
       estadoAsistencia: estadoSalida,
-      jornadaCompleta: false,
       mensaje: estadoSalida === 'salida_puntual' ? 'Puedes registrar tu salida' : 'Salida anticipada'
     };
   };
@@ -912,12 +897,21 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   // agregue en cualquier momento, sin bloquear el botón permanentemente.
   // ============================================================
   const calcularEstadoRegistro = useCallback((registrosTodos, ultimo, horario, tolerancia, isOnlineNow = false) => {
+    // Bloquear si es día festivo obligatorio
+    if (diaFestivo) {
+      return {
+        puedeRegistrar: false,
+        tipoRegistro: 'entrada',
+        estadoHorario: 'dia_festivo',
+        mensaje: `Hoy es día festivo: ${diaFestivo.nombre}`
+      };
+    }
+
     if (!horario?.trabaja) {
       return {
         puedeRegistrar: false,
         tipoRegistro: 'entrada',
         estadoHorario: 'fuera_horario',
-        jornadaCompleta: false,
         mensaje: 'No tienes horario configurado para hoy'
       };
     }
@@ -927,7 +921,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         puedeRegistrar: false,
         tipoRegistro: 'entrada',
         estadoHorario: 'fuera_horario',
-        jornadaCompleta: false,
         mensaje: 'No hay turnos configurados'
       };
     }
@@ -949,9 +942,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         puedeRegistrar: false,
         tipoRegistro: 'entrada',
         estadoHorario: 'fuera_horario',
-        jornadaCompleta: !hayTurnoFuturo,
         hayTurnoFuturo,
-        mensaje: hayTurnoFuturo ? 'Aún no es hora de entrada' : 'Jornada completada'
+        mensaje: hayTurnoFuturo ? 'Aún no es hora de entrada' : 'Fuera de horario'
       };
     }
 
@@ -971,7 +963,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         puedeRegistrar: false,
         tipoRegistro: 'entrada',
         estadoHorario: 'fuera_horario',
-        jornadaCompleta: false,
         mensaje: 'Bloque de turno completado'
       };
     }
@@ -988,21 +979,21 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const margenRetardoB = minEntrada + 29;
 
       if (ahora < ventanaInicio) {
-        return { puedeRegistrar: false, tipoRegistro: 'entrada', estadoHorario: 'fuera_horario', jornadaCompleta: false, hayTurnoFuturo: true, mensaje: 'Aún no es hora de entrada' };
+        return { puedeRegistrar: false, tipoRegistro: 'entrada', estadoHorario: 'fuera_horario', hayTurnoFuturo: true, mensaje: 'Aún no es hora de entrada' };
       }
       if (ahora <= margenPuntual) {
-        return { puedeRegistrar: true, tipoRegistro: 'entrada', estadoHorario: 'puntual', jornadaCompleta: false, mensaje: 'Puedes registrar tu entrada' };
+        return { puedeRegistrar: true, tipoRegistro: 'entrada', estadoHorario: 'puntual', mensaje: 'Puedes registrar tu entrada' };
       }
       if (ahora <= margenRetardoA) {
-        return { puedeRegistrar: true, tipoRegistro: 'entrada', estadoHorario: 'retardo_a', jornadaCompleta: false, mensaje: 'Retardo tipo A (hasta 20 min)' };
+        return { puedeRegistrar: true, tipoRegistro: 'entrada', estadoHorario: 'retardo_a', mensaje: 'Retardo tipo A (hasta 20 min)' };
       }
       if (ahora <= margenRetardoB) {
-        return { puedeRegistrar: true, tipoRegistro: 'entrada', estadoHorario: 'retardo_b', jornadaCompleta: false, mensaje: 'Retardo tipo B (hasta 29 min)' };
+        return { puedeRegistrar: true, tipoRegistro: 'entrada', estadoHorario: 'retardo_b', mensaje: 'Retardo tipo B (hasta 29 min)' };
       }
       if (ahora <= minSalida) {
-        return { puedeRegistrar: true, tipoRegistro: 'entrada', estadoHorario: 'falta_por_retardo', jornadaCompleta: false, mensaje: 'Falta por retardo mayor' };
+        return { puedeRegistrar: true, tipoRegistro: 'entrada', estadoHorario: 'falta_por_retardo', mensaje: 'Falta por retardo mayor' };
       }
-      return { puedeRegistrar: false, tipoRegistro: 'entrada', estadoHorario: 'fuera_horario', jornadaCompleta: false, mensaje: 'Fuera de horario' };
+      return { puedeRegistrar: false, tipoRegistro: 'entrada', estadoHorario: 'fuera_horario', mensaje: 'Fuera de horario' };
     }
 
     // ── 5. Hay entrada pero no salida → validar salida ───────────────────────
@@ -1035,7 +1026,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             puedeRegistrar: false,
             tipoRegistro: 'salida',
             estadoHorario: 'tiempo_insuficiente',
-            jornadaCompleta: false,
             mensaje: 'Tiempo insuficiente trabajado',
             mensajeEspera: `Espera ${minutosRestantes} min más`,
             minutosRestantes
@@ -1046,16 +1036,16 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const tolMinutos = tolerancia?.aplica_tolerancia_salida ? (tolerancia.minutos_retardo || 10) : 10;
       const inicioVentanaSalida = minSalida - tolMinutos;
       const estadoSalida = ahora >= inicioVentanaSalida ? 'salida_puntual' : 'salida_temprano';
+
       return {
         puedeRegistrar: true,
         tipoRegistro: 'salida',
         estadoHorario: estadoSalida === 'salida_puntual' ? 'puntual' : 'salida_temprano',
         estadoAsistencia: estadoSalida,
-        jornadaCompleta: false,
         mensaje: estadoSalida === 'salida_puntual' ? 'Puedes registrar tu salida' : 'Salida anticipada'
       };
     }
-  }, []);
+  }, [diaFestivo]);
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -1065,6 +1055,29 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         let onlineNow = false;
         try { onlineNow = await syncManager.isOnline(); } catch (e) { /* offline */ }
         setIsOnline(onlineNow);
+
+        // Verificar si hoy es día festivo obligatorio (solo online)
+        if (onlineNow) {
+          try {
+            const hoy = new Date().toISOString().split('T')[0];
+            const yearActual = new Date().getFullYear();
+            const festivoResp = await fetch(
+              `${API_URL}/dias-festivos?year=${yearActual}`,
+              { headers: { 'Authorization': `Bearer ${userData.token}`, 'Content-Type': 'application/json' } }
+            );
+            if (festivoResp.ok) {
+              const festivoData = await festivoResp.json();
+              const festivosObligatorios = (festivoData.data || []).filter(
+                f => f.es_obligatorio && f.es_activo && f.fecha?.split('T')[0] === hoy
+              );
+              if (festivosObligatorios.length > 0) {
+                setDiaFestivo({ nombre: festivosObligatorios[0].nombre, tipo: festivosObligatorios[0].tipo });
+              } else {
+                setDiaFestivo(null);
+              }
+            }
+          } catch (_e) { /* Si falla, no bloqueamos — el backend validará */ }
+        }
 
         const [resultadoRegistro, horario, tolerancia, deptos] = await Promise.all([
           obtenerUltimoRegistro(),
@@ -1085,7 +1098,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           setPuedeRegistrar(estado.puedeRegistrar);
           setTipoSiguienteRegistro(estado.tipoRegistro);
           setEstadoHorario(estado.estadoHorario);
-          setJornadaCompletada(estado.jornadaCompleta);
+
           setMensajeEspera(estado.mensajeEspera || '');
         }
       } catch (err) {
@@ -1386,12 +1399,35 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       setRegistrando(true);
 
+      // Calcular estado para enviar al backend (mantiene sincronía visual)
+      let estadoCalculado = tipoActual === 'entrada' ? 'puntual' : 'salida_puntual';
+      if (horarioActual && toleranciaActual) {
+        const minutosAhora = new Date().getHours() * 60 + new Date().getMinutes();
+        const totalRegs = ultimoActual?.totalRegistrosHoy || 0;
+        if (tipoActual === 'entrada') {
+          const r = validarEntrada(horarioActual, toleranciaActual, minutosAhora, totalRegs);
+          estadoCalculado = r.estadoHorario || 'puntual';
+          // Mapear estadoHorario a los estados válidos del backend
+          if (estadoCalculado === 'puntual' || estadoCalculado === 'retardo_a' ||
+            estadoCalculado === 'retardo_b' || estadoCalculado === 'falta_por_retardo' ||
+            estadoCalculado === 'falta') {
+            // ya es válido
+          } else {
+            estadoCalculado = 'puntual';
+          }
+        } else {
+          const r = validarSalida(horarioActual, minutosAhora, ultimoActual, toleranciaActual, onlineActual);
+          estadoCalculado = r.estadoAsistencia || 'salida_puntual';
+        }
+      }
+
       const payload = {
         empleado_id: userData.empleado_id,
         dispositivo_origen: 'movil',
         ubicacion: [ubicacionFinal.lat, ubicacionFinal.lng],
         departamento_id: departamento.id,
         tipo: tipoActual,
+        estado: estadoCalculado,
       };
 
       let success = false;
@@ -1525,7 +1561,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         setPuedeRegistrar(nuevoEstado.puedeRegistrar);
         setTipoSiguienteRegistro(nuevoEstado.tipoRegistro);
         setEstadoHorario(nuevoEstado.estadoHorario);
-        setJornadaCompletada(nuevoEstado.jornadaCompleta);
+
         setMensajeEspera(nuevoEstado.mensajeEspera || '');
       }
 
@@ -1618,8 +1654,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         mensaje = 'Debes estar dentro de un área permitida';
       } else if (!departamentoSeleccionado) {
         mensaje = 'Selecciona un departamento para registrar';
-      } else if (jornadaCompletada) {
-        mensaje = 'Ya completaste tu jornada de hoy';
+
       } else if (estadoHorario === 'tiempo_insuficiente') {
         mensaje = `Aún no puedes salir.\n\n${mensajeEspera}`;
       } else if (estadoHorario === 'fuera_horario') {
@@ -1654,7 +1689,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   };
 
   const getButtonColor = () => {
-    if (jornadaCompletada) return '#6b7280';
+    if (estadoHorario === 'dia_festivo') return '#8b5cf6'; // púrpura
     if (!dentroDelArea || !puedeRegistrar) return '#ef4444';
     if (tipoSiguienteRegistro === 'salida' && puedeRegistrar) return '#10b981';
     if (estadoHorario === 'puntual') return '#10b981';
@@ -1666,7 +1701,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   };
 
   const getIcon = () => {
-    if (jornadaCompletada) return 'checkmark-done-circle';
+    if (estadoHorario === 'dia_festivo') return 'calendar-outline';
     if (!dentroDelArea) return 'location';
     if (estadoHorario === 'tiempo_insuficiente') return 'time-outline';
     if (!puedeRegistrar) return 'time';
@@ -1680,7 +1715,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   };
 
   const getStatusText = () => {
-    if (jornadaCompletada) return 'Jornada completada';
+    if (estadoHorario === 'dia_festivo') return diaFestivo ? `Día festivo: ${diaFestivo.nombre}` : 'Día festivo';
     if (!dentroDelArea) return 'Fuera del área';
     if (estadoHorario === 'tiempo_insuficiente' && tipoSiguienteRegistro === 'salida') {
       return mensajeEspera || 'Tiempo insuficiente';
@@ -1696,12 +1731,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   };
 
   const getButtonText = () => {
-    if (jornadaCompletada) return 'Jornada completada';
+
     if (!puedeRegistrar || !dentroDelArea) return 'No disponible';
     return `Registrar ${tipoSiguienteRegistro === 'entrada' ? 'Entrada' : 'Salida'}`;
   };
 
-  const puedePresionarBoton = puedeRegistrar && dentroDelArea && !jornadaCompletada && !registrando && departamentoSeleccionado;
+  const puedePresionarBoton = puedeRegistrar && dentroDelArea && !registrando && departamentoSeleccionado;
 
   if (mostrarCapturaFacial) {
     return (
@@ -1741,7 +1776,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             </Text>
           </View>
 
-          {!loading && !jornadaCompletada && (
+          {!loading && (
             <View style={styles.statusIndicators}>
               <View style={styles.indicator}>
                 <Ionicons
@@ -1867,7 +1902,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             ) : (
               <>
                 <Ionicons
-                  name={puedePresionarBoton ? 'finger-print' : jornadaCompletada ? 'checkmark-done' : 'lock-closed'}
+                  name={puedePresionarBoton ? 'finger-print' : 'lock-closed'}
                   size={20}
                   color="#fff"
                 />

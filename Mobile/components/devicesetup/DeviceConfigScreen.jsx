@@ -43,12 +43,12 @@ const DEVICE_CONFIG = {
     {
       id: "macAddress",
       label: "Dirección MAC",
-      placeholder: "00:00:00:00:00:00",
+      placeholder: "AA:BB:CC:DD:EE:FF",
       icon: "hardware-chip-outline",
       type: "text",
       required: true,
-      readonly: true,
-      helpText: "Identificador único del dispositivo"
+      readonly: false,
+      helpText: "Ingresa la dirección MAC de tu dispositivo (Formato: XX:XX:XX:XX:XX:XX)"
     },
     {
       id: "ipAddress",
@@ -166,7 +166,6 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
       setFormData(prev => ({
         ...prev,
         registrationDate: deviceData.registrationDate,
-        macAddress: deviceData.macAddress,
         ipAddress: deviceData.ipAddress,
         deviceModel: deviceData.deviceInfo.model,
         os: deviceData.deviceInfo.os,
@@ -258,6 +257,11 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
     }
   };
 
+  const isValidMacFormat = (mac) => {
+    const macRegex = /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/;
+    return macRegex.test(mac);
+  };
+
   const handleNext = async () => {
     const emailTrimmed = formData.email.trim().toLowerCase();
 
@@ -272,6 +276,16 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
         'Por favor verifica tu correo electrónico antes de continuar',
         [{ text: 'Validar ahora', onPress: handleEmailBlur }]
       );
+      return;
+    }
+
+    const macTrimmed = formData.macAddress.trim().toUpperCase();
+    if (!macTrimmed) {
+      Alert.alert('Error', 'Por favor ingresa la dirección MAC de tu dispositivo');
+      return;
+    }
+    if (!isValidMacFormat(macTrimmed)) {
+      Alert.alert('Formato Inválido', 'La dirección MAC debe tener el formato XX:XX:XX:XX:XX:XX (ejemplo: A1:B2:C3:D4:E5:F6)');
       return;
     }
 
@@ -362,8 +376,10 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
   const renderField = (field) => {
     const isReadonly = field.readonly;
     const isEmailField = field.id === 'email';
+    const isMacField = field.id === 'macAddress';
 
     // ✅ El campo de email SIEMPRE es readonly (auto-detectado desde userData)
+    // ✅ El campo de MAC es editable para que el usuario ingrese la MAC real
     const fieldIsReadonly = isReadonly || isEmailField;
 
     return (
@@ -388,10 +404,23 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
             placeholder={field.placeholder}
             placeholderTextColor="#9ca3af"
             value={formData[field.id]}
-            onChangeText={(text) => setFormData(prev => ({ ...prev, [field.id]: text }))}
-            keyboardType={field.type === 'email' ? 'email-address' : 'default'}
-            autoCapitalize={field.type === 'email' ? 'none' : 'sentences'}
-            editable={false} // ✅ TODOS los campos bloqueados (auto-detectados)
+            onChangeText={(text) => {
+              if (isMacField) {
+                // Auto-formatear MAC: insertar ':' cada 2 caracteres hex
+                const clean = text.replace(/[^0-9A-Fa-f]/g, '').toUpperCase().slice(0, 12);
+                let formatted = '';
+                for (let i = 0; i < clean.length; i++) {
+                  if (i > 0 && i % 2 === 0) formatted += ':';
+                  formatted += clean[i];
+                }
+                setFormData(prev => ({ ...prev, [field.id]: formatted }));
+              } else {
+                setFormData(prev => ({ ...prev, [field.id]: text }));
+              }
+            }}
+            keyboardType={isMacField ? 'default' : (field.type === 'email' ? 'email-address' : 'default')}
+            autoCapitalize={isMacField ? 'characters' : (field.type === 'email' ? 'none' : 'sentences')}
+            editable={isMacField ? true : false} // ✅ Solo MAC es editable, los demás auto-detectados
           />
           {fieldIsReadonly && (
             <Ionicons
@@ -517,10 +546,10 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
           <TouchableOpacity
             style={[
               styles.nextButton,
-              (!emailValidation.isValid || isLoading || isValidatingEmail) && styles.nextButtonDisabled
+              (!emailValidation.isValid || isLoading || isValidatingEmail || !formData.macAddress.trim()) && styles.nextButtonDisabled
             ]}
             onPress={handleNext}
-            disabled={!emailValidation.isValid || isLoading || isValidatingEmail}
+            disabled={!emailValidation.isValid || isLoading || isValidatingEmail || !formData.macAddress.trim()}
             activeOpacity={0.8}
           >
             {isLoading ? (

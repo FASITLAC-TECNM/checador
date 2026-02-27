@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, HardDrive, Save, RefreshCw, AlertCircle, Loader2, CheckCircle, Trash2 } from "lucide-react";
+import { X, HardDrive, Save, RefreshCw, AlertCircle, Loader2, CheckCircle, Trash2, Power } from "lucide-react";
 import { getSystemInfoAdvanced } from "../../utils/systemInfoAdvanced";
 import {
   obtenerEscritorio,
@@ -19,6 +19,8 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false }) {
   const [error, setError] = useState(null);
   const [escritorioId, setEscritorioId] = useState(null);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [showConfirmShutdown, setShowConfirmShutdown] = useState(false);
   const [nodeConfig, setNodeConfig] = useState({
     nodeName: "",
     nodeDescription: "",
@@ -29,27 +31,41 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false }) {
     esActivo: true,
   });
 
-  const handleResetNode = async () => {
-    const confirmReset = window.confirm(
-      "¿Está seguro que desea eliminar este nodo? Esto borrará toda la configuración local y deberá volver a afiliar el equipo. Esta acción no se puede deshacer."
-    );
+  const handleShutdown = () => {
+    setShowConfirmShutdown(true);
+  };
 
-    if (confirmReset) {
-      try {
-        if (escritorioId) {
-          await desactivarEscritorio(escritorioId);
-        }
-      } catch (error) {
-        console.error("Error al desactivar el escritorio en el servidor:", error);
-      }
-
-      localStorage.clear();
-      if (window.electronAPI && window.electronAPI.configRemove) {
-        window.electronAPI.configRemove("appConfigured");
-      }
-      alert("Nodo eliminado correctamente. La aplicación se recargará.");
-      window.location.reload();
+  const confirmShutdown = () => {
+    setShowConfirmShutdown(false);
+    if (window.electronAPI && window.electronAPI.closeWindow) {
+      window.electronAPI.closeWindow();
+    } else {
+      showToast("La función de apagar sistema no está disponible en este entorno", "error");
     }
+  };
+
+  const handleResetNode = () => {
+    setShowConfirmDelete(true);
+  };
+
+  const confirmResetNode = async () => {
+    setShowConfirmDelete(false);
+    try {
+      if (escritorioId) {
+        await desactivarEscritorio(escritorioId);
+      }
+    } catch (error) {
+      console.error("Error al desactivar el escritorio en el servidor:", error);
+    }
+
+    localStorage.clear();
+    if (window.electronAPI && window.electronAPI.configRemove) {
+      window.electronAPI.configRemove("appConfigured");
+    }
+    showToast("Nodo eliminado correctamente. La aplicación se recargará.", "success");
+    setTimeout(() => {
+      window.location.reload();
+    }, 1500);
   };
 
   // Cargar datos del escritorio al montar el componente
@@ -234,7 +250,7 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false }) {
       {/* Toast de notificación */}
       {toast.show && (
         <div
-          className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-pulse ${toast.type === "success"
+          className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[80] px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-pulse ${toast.type === "success"
             ? "bg-green-500 text-white"
             : "bg-red-500 text-white"
             }`}
@@ -245,6 +261,80 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false }) {
             <AlertCircle className="w-5 h-5" />
           )}
           <span className="font-semibold">{toast.message}</span>
+        </div>
+      )}
+
+      {/* Modal de Confirmación de Apagado */}
+      {showConfirmShutdown && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+          <div className="bg-bg-primary rounded-xl shadow-2xl max-w-md w-full overflow-hidden p-6 animate-in fade-in zoom-in duration-200">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center mb-4">
+                <Power className="w-8 h-8 text-orange-500" />
+              </div>
+              <h3 className="text-xl font-bold text-text-primary mb-2">
+                ¿Apagar sistema?
+              </h3>
+              <p className="text-text-secondary text-sm mb-6">
+                Esto cerrará la aplicación por completo. ¿Desea continuar?
+              </p>
+
+              <div className="flex gap-3 w-full">
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmShutdown(false)}
+                  className="flex-1 px-4 py-2.5 text-sm bg-bg-secondary border border-border-subtle text-text-secondary rounded-xl font-semibold hover:bg-bg-primary transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmShutdown}
+                  className="flex-1 px-4 py-2.5 text-sm bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                >
+                  <Power className="w-4 h-4" />
+                  Sí, apagar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación de Eliminación */}
+      {showConfirmDelete && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70] p-4">
+          <div className="bg-bg-primary rounded-xl shadow-2xl max-w-md w-full overflow-hidden p-6 animate-in fade-in zoom-in duration-200">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4">
+                <AlertCircle className="w-8 h-8 text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-text-primary mb-2">
+                ¿Eliminar este nodo?
+              </h3>
+              <p className="text-text-secondary text-sm mb-6">
+                Esto borrará toda la configuración local y deberá volver a afiliar el equipo. Esta acción no se puede deshacer.
+              </p>
+
+              <div className="flex gap-3 w-full">
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmDelete(false)}
+                  className="flex-1 px-4 py-2.5 text-sm bg-bg-secondary border border-border-subtle text-text-secondary rounded-xl font-semibold hover:bg-bg-primary transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmResetNode}
+                  className="flex-1 px-4 py-2.5 text-sm bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Sí, eliminar
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -414,9 +504,17 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false }) {
             </div>
           </div>
 
-          {/* Eliminar Nodo (Solo Admin) */}
+          {/* Opciones de Administrador */}
           {isAdmin && (
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleShutdown}
+                className="px-4 py-2 text-sm text-orange-500 border border-orange-500/50 hover:bg-orange-50 dark:hover:bg-orange-500/10 hover:border-orange-500 rounded-lg font-medium transition-all flex items-center gap-2"
+              >
+                <Power className="w-4 h-4" />
+                Apagar sistema
+              </button>
               <button
                 type="button"
                 onClick={handleResetNode}

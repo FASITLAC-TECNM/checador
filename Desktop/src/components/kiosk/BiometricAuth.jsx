@@ -100,7 +100,7 @@ export default function BiometricAuth({ isOpen = false, onClose, onAuthSuccess }
           addMessage(`✅ Huella reconocida: ${data.userId}`, "success");
           addMessage(`🎯 Precisión: ${data.matchScore || 100}%`, "info");
 
-          const match = data.userId?.match(/emp_([A-Z0-9]+)/i);
+          const match = data.userId?.match(/emp_([A-Z0-9\-]+)/i);
           if (match) {
             procesarLoginBiometrico(match[1], data.matchScore || 100);
           } else {

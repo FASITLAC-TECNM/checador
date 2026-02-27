@@ -43,13 +43,21 @@ export default function BiometricEnroll({
       addMessage("❌ No hay ID de empleado configurado", "error");
       return;
     }
+
+    // Forzar limpieza de cualquier operación previa (ej: AsistenciaHuella que quedó colgada)
+    stopCapture();
+
     isClosingRef.current = false;
     setLastEnrollmentData(null);
     setEnrollProgress({ collected: 0, required: 4, percentage: 0 });
     setCurrentOperation("Enrollment");
-    const userId = `emp_${idEmpleado}`;
-    sendCommand("startEnrollment", { userId });
-    addMessage("🔍 Esperando huella para registro...", "info");
+
+    // Pequeño delay de 250ms para asegurar que el middleware detuvo la captura anterior
+    setTimeout(() => {
+      const userId = `emp_${idEmpleado}`;
+      sendCommand("startEnrollment", { userId });
+      addMessage("🔍 Esperando huella para registro...", "info");
+    }, 250);
   };
 
   const guardarHuellaEnBaseDatos = async (userId, templateBase64) => {

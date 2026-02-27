@@ -140,6 +140,14 @@ export default function AsistenciaHuella({
         clearTimeout(reconnectTimeoutRef.current);
       }
       if (wsRef.current) {
+        // Enviar stopCapture antes de cerrar la conexión para asegurar que el lector se libere
+        if (wsRef.current.readyState === WebSocket.OPEN) {
+          try {
+            wsRef.current.send(JSON.stringify({ command: "stopCapture" }));
+          } catch (e) {
+            console.error("Error enviando stopCapture en AsistenciaHuella:", e);
+          }
+        }
         wsRef.current.close();
       }
       if (countdownIntervalRef.current) {
@@ -866,8 +874,8 @@ export default function AsistenciaHuella({
           addMessage(`✅ Huella reconocida: ${data.userId}`, "success");
           addMessage(`🎯 Precisión: ${data.matchScore || 100}%`, "info");
 
-          // Extraer el ID del empleado del userId (formato: emp_EMP00003)
-          const idEmpleadoMatch = data.userId?.match(/emp_([A-Z0-9]+)/i);
+          // Extraer el ID del empleado del userId (formato: emp_EMP00003 o emp_ITL-EMP-001)
+          const idEmpleadoMatch = data.userId?.match(/emp_([A-Z0-9\-]+)/i);
           if (idEmpleadoMatch) {
             const empleadoId = idEmpleadoMatch[1];
             registrarAsistencia(empleadoId, data.matchScore || 100);

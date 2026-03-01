@@ -90,10 +90,14 @@ export default function AffiliationStep({
           </button>
           <button
             onClick={onSubmit}
-            className="group px-6 py-2.5 bg-[#1976D2] text-white rounded-xl hover:bg-[#1565C0] font-medium transition-all duration-200 shadow-sm shadow-[#1976D2]/20 hover:shadow-lg hover:shadow-[#1976D2]/30 hover:-translate-y-0.5 flex items-center gap-2"
+            disabled={!companyId.trim()}
+            className={`group px-6 py-2.5 text-white rounded-xl font-medium transition-all duration-200 flex items-center gap-2 ${!companyId.trim()
+                ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed opacity-70"
+                : "bg-[#1976D2] hover:bg-[#1565C0] shadow-sm shadow-[#1976D2]/20 hover:shadow-lg hover:shadow-[#1976D2]/30 hover:-translate-y-0.5"
+              }`}
           >
             Solicitar Afiliación
-            <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-200" />
+            <ChevronRight className={`w-4 h-4 transition-transform duration-200 ${!companyId.trim() ? "" : "group-hover:translate-x-0.5"}`} />
           </button>
         </div>
       </div>

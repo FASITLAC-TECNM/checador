@@ -370,10 +370,47 @@ export async function getPendingCount() {
 export async function getRegistrosHoy(empleadoId) {
     if (!db) await initDatabase();
     const hoy = new Date().toISOString().split('T')[0];
+    // UNION: registros creados offline (pendientes) + registros online cacheados localmente
     return await db.getAllAsync(
-        `SELECT * FROM offline_asistencias WHERE empleado_id = ? AND fecha_registro LIKE ? || '%' ORDER BY fecha_registro ASC`,
-        [empleadoId, hoy]
+        `SELECT tipo, estado, fecha_registro FROM offline_asistencias
+         WHERE empleado_id = ? AND fecha_registro LIKE ? || '%'
+         UNION
+         SELECT tipo, estado, fecha_registro FROM cache_asistencias
+         WHERE empleado_id = ? AND fecha_registro LIKE ? || '%'
+         ORDER BY fecha_registro ASC`,
+        [empleadoId, hoy, empleadoId, hoy]
     );
+}
+
+/**
+ * Guarda una copia local de un registro de asistencia realizado online.
+ * Permite que el modo offline detecte correctamente el tipo del siguiente registro
+ * (entrada vs salida) incluso si el registro anterior se hizo con conexión.
+ */
+export async function saveOnlineAsistenciaToCache(data) {
+    if (!db) await initDatabase();
+    const mesKey = (data.fecha_registro || new Date().toISOString()).substring(0, 7);
+    try {
+        await db.runAsync(
+            `INSERT OR REPLACE INTO cache_asistencias
+             (id, empleado_id, tipo, estado, fecha_registro, dispositivo_origen, departamento_id, departamento_nombre, mes_key, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','localtime'))`,
+            [
+                data.id || `local_online_${Date.now()}`,
+                data.empleado_id,
+                data.tipo,
+                data.estado || null,
+                data.fecha_registro,
+                data.dispositivo_origen || 'movil',
+                data.departamento_id || null,
+                data.departamento_nombre || null,
+                mesKey
+            ]
+        );
+    } catch (error) {
+        // No crítico — no interrumpir el flujo principal
+        console.log('saveOnlineAsistenciaToCache error (no crítico):', error.message);
+    }
 }
 
 /**
@@ -1197,6 +1234,7 @@ export default {
     // Asistencias (historial)
     upsertAsistenciasMes,
     getAsistenciasMesLocal,
+    saveOnlineAsistenciaToCache,
     // Empresa
     upsertEmpresa,
     getEmpresaLocal,

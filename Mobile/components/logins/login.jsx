@@ -112,10 +112,11 @@ export const LoginScreen = ({ onLoginSuccess }) => {
    */
   const cacheCredentials = async (user, pass, datosCompletos) => {
     try {
-      await SecureStore.setItemAsync(SECURE_KEYS.CACHED_USER, user.trim().toLowerCase());
-      await SecureStore.setItemAsync(SECURE_KEYS.CACHED_PASS_HASH, simpleHash(pass));
-      await SecureStore.setItemAsync(SECURE_KEYS.CACHED_USER_DATA, JSON.stringify(datosCompletos));
-      console.log('🔐 [Login] Credenciales cacheadas para uso offline');
+      await Promise.all([
+        SecureStore.setItemAsync(SECURE_KEYS.CACHED_USER, user.trim().toLowerCase()),
+        SecureStore.setItemAsync(SECURE_KEYS.CACHED_PASS_HASH, simpleHash(pass)),
+        SecureStore.setItemAsync(SECURE_KEYS.CACHED_USER_DATA, JSON.stringify(datosCompletos)),
+      ]);
     } catch (e) {
       console.error('Error cacheando credenciales:', e);
     }
@@ -248,77 +249,63 @@ export const LoginScreen = ({ onLoginSuccess }) => {
           token: token
         };
 
-        // Cachear credenciales para uso offline futuro
-        await cacheCredentials(usuario, password, datosCompletos);
+        // Verificación dispositivo + cacheo en paralelo (ambos son independientes)
+        const verificarDispositivo = async () => {
+          try {
+            const tokenSolicitud = await AsyncStorage.getItem('token_solicitud');
+            if (tokenSolicitud) {
+              const { getSolicitudPorToken } = require('../../services/solicitudMovilService');
+              const solicitud = await getSolicitudPorToken(tokenSolicitud);
+              const emailUsuario = datosCompletos.usuario.correo.trim().toLowerCase();
+              const emailDispositivo = solicitud.correo.trim().toLowerCase();
 
-        // ------------------------------------------------------------------
-        // 🛡️ VERIFICACIÓN ESTRICTA DISPOSITIVO <-> USUARIO
-        // ------------------------------------------------------------------
-        try {
-          // 1. Obtener token de solicitud (device token)
-          const tokenSolicitud = await AsyncStorage.getItem('token_solicitud'); // Usar string directo por si STORAGE_KEYS no está importado aquí
-
-          if (tokenSolicitud) {
-            // 2. Consultar info de la solicitud en backend
-            const { getSolicitudPorToken } = require('../../services/solicitudMovilService');
-            const solicitud = await getSolicitudPorToken(tokenSolicitud);
-
-            // 3. Normalizar correos para comparar
-            const emailUsuario = datosCompletos.usuario.correo.trim().toLowerCase();
-            const emailDispositivo = solicitud.correo.trim().toLowerCase();
-
-            // 4. Comparar
-            if (emailUsuario !== emailDispositivo) {
-              console.warn('⚠️ [Login] Mismatch dispositivo/usuario:', { emailUsuario, emailDispositivo });
-
-              // Cerrar sesión inmediatamente
-              const { logout } = require('../../services/authService');
-              await logout(token);
-
-              // Limpiar datos
-              await AsyncStorage.removeItem('userToken');
-              await AsyncStorage.removeItem('@user_data');
-
-              alert(`ACCESO DENEGADO\n\nEste dispositivo está registrado para:\n${emailDispositivo}\n\nNo puedes iniciar sesión con:\n${emailUsuario}`);
-
-              setIsLoading(false);
-              return; // ⛔ DETENER LOGIN
-            } else {
-              console.log('✅ [Login] Verificación dispositivo aprobada (Emails coinciden)');
+              if (emailUsuario !== emailDispositivo) {
+                // Cerrar sesión inmediatamente
+                const { logout } = require('../../services/authService');
+                await logout(token);
+                await AsyncStorage.removeItem('userToken');
+                await AsyncStorage.removeItem('@user_data');
+                alert(`ACCESO DENEGADO\n\nEste dispositivo está registrado para:\n${emailDispositivo}\n\nNo puedes iniciar sesión con:\n${emailUsuario}`);
+                return false; // Login bloqueado
+              }
             }
-          } else {
-            console.log('⚠️ [Login] No hay token de solicitud almacenado. Saltando verificación de dispositivo.');
+          } catch (verifyError) {
+            console.error('[Login] Error verificando dispositivo:', verifyError);
           }
-        } catch (verifyError) {
-          console.error('❌ [Login] Error verificando dispositivo:', verifyError);
-          // Opcional: ¿Bloquear si falla la verificación por red?
-        }
-        // ------------------------------------------------------------------
+          return true; // Login permitido
+        };
 
-        // Registrar evento de sesión online
+        // Ejecutar verificación y cacheo en paralelo
+        const [verificacionOk] = await Promise.all([
+          verificarDispositivo(),
+          cacheCredentials(usuario, password, datosCompletos),
+        ]);
+
+        if (!verificacionOk) {
+          setIsLoading(false);
+          return;
+        }
+
+        // Guardar sesión local (rápido) y configurar sync
+        if (token) {
+          syncManager.setAuthToken(token, datosCompletos.empleado_id?.toString());
+        }
+
         try {
-          const sessionData = {
+          await sqliteManager.saveOfflineSession({
             usuario_id: datosCompletos.id?.toString(),
             empleado_id: datosCompletos.empleado_id?.toString(),
             tipo: 'login',
             modo: 'online'
-          };
-          console.log('🔐 [Login] Guardando sesión en SQLite:', JSON.stringify(sessionData));
-          await sqliteManager.saveOfflineSession(sessionData);
-          console.log('🔐 [Login] ✅ Sesión guardada en SQLite correctamente');
-
-          // Configurar token en syncManager ANTES de pushSessions
-          if (token) {
-            syncManager.setAuthToken(token, datosCompletos.empleado_id?.toString());
-          }
-
-          // Intentar enviar inmediatamente la sesión al servidor
-          console.log('🔐 [Login] Enviando sesión al servidor...');
-          const pushResult = await syncManager.pushSessions();
-          console.log('🔐 [Login] 📡 Resultado pushSessions:', JSON.stringify(pushResult));
+          });
         } catch (e) {
-          console.error('🔐 [Login] ❌ Error guardando/enviando sesión online:', e.message || e);
+          console.error('[Login] Error guardando sesión:', e.message || e);
         }
+
+        // Push sesión al servidor en background (no bloquea el login)
+        syncManager.pushSessions().catch(e =>
+          console.warn('[Login] pushSessions background error:', e.message)
+        );
 
         onLoginSuccess(datosCompletos, false);
       }

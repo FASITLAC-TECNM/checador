@@ -1,15 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  SectionList,
   TouchableOpacity,
   StatusBar,
   ActivityIndicator,
   RefreshControl,
   Platform,
-  Animated
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getAsistenciasEmpleado } from '../../services/asistenciasService';
@@ -25,19 +24,18 @@ export const HistoryScreen = ({ darkMode, userData }) => {
   const [estadisticas, setEstadisticas] = useState({
     puntuales: 0,
     retardos: 0,
-    faltas: 0
+    faltas: 0,
+    total: 0,
   });
 
   const monthNames = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
   ];
-
   const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-
   const styles = darkMode ? historyStylesDark : historyStyles;
 
-  // Cargar asistencias del mes
+  // ── Cargar asistencias del mes ───────────────────────────────────────────
   const cargarAsistencias = useCallback(async () => {
     if (!userData?.empleado_id || !userData?.token) {
       setLoading(false);
@@ -49,54 +47,43 @@ export const HistoryScreen = ({ darkMode, userData }) => {
     try {
       const primerDia = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
       const ultimoDia = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
-
       const filtros = {
         fecha_inicio: primerDia.toISOString().split('T')[0],
-        fecha_fin: ultimoDia.toISOString().split('T')[0]
+        fecha_fin: ultimoDia.toISOString().split('T')[0],
       };
 
       let cargoOnline = false;
 
-      // Intentar online primero
       try {
         const response = await getAsistenciasEmpleado(userData.empleado_id, userData.token, filtros);
-
         if (response?.data && Array.isArray(response.data)) {
-          const asistenciasOrdenadas = response.data.sort((a, b) =>
-            new Date(b.fecha_registro) - new Date(a.fecha_registro)
+          const ordenadas = response.data.sort(
+            (a, b) => new Date(b.fecha_registro) - new Date(a.fecha_registro)
           );
-
-          setAsistencias(asistenciasOrdenadas);
-          calcularEstadisticas(asistenciasOrdenadas);
+          setAsistencias(ordenadas);
+          calcularEstadisticas(ordenadas);
           cargoOnline = true;
-
-          // Cachear en SQLite
-          await sqliteManager.upsertAsistenciasMes(userData.empleado_id, mesKey, response.data).catch(e =>
-            console.warn('⚠️ No se pudo cachear asistencias:', e.message)
-          );
+          await sqliteManager.upsertAsistenciasMes(userData.empleado_id, mesKey, response.data).catch(() => { });
         } else {
           setAsistencias([]);
-          setEstadisticas({ puntuales: 0, retardos: 0, faltas: 0 });
+          setEstadisticas({ puntuales: 0, retardos: 0, faltas: 0, total: 0 });
           cargoOnline = true;
         }
-      } catch (onlineErr) {
-        console.warn('⚠️ No se pudieron cargar asistencias online:', onlineErr.message);
+      } catch (_) {
+        // fallback offline
       }
 
-      // Fallback: cargar desde SQLite
       if (!cargoOnline) {
         try {
           const datosLocal = await sqliteManager.getAsistenciasMesLocal(userData.empleado_id, mesKey);
           if (datosLocal && datosLocal.length > 0) {
             setAsistencias(datosLocal);
             calcularEstadisticas(datosLocal);
-            console.log(`📦 [Offline] ${datosLocal.length} asistencias cargadas desde caché (${mesKey})`);
           } else {
             setAsistencias([]);
-            setEstadisticas({ puntuales: 0, retardos: 0, faltas: 0 });
+            setEstadisticas({ puntuales: 0, retardos: 0, faltas: 0, total: 0 });
           }
-        } catch (localErr) {
-          console.warn('⚠️ Error cargando asistencias desde SQLite:', localErr.message);
+        } catch (_) {
           setAsistencias([]);
         }
       }
@@ -106,142 +93,318 @@ export const HistoryScreen = ({ darkMode, userData }) => {
     }
   }, [userData, currentMonth]);
 
-  // Calcular estadísticas
+  // ── Estadísticas corregidas (cubre retardo_a, retardo_b, falta_por_retardo) ─
   const calcularEstadisticas = (data) => {
-    const stats = { puntuales: 0, retardos: 0, faltas: 0 };
-
-    data.forEach(registro => {
-      if (registro.tipo === 'entrada') {
-        if (registro.estado === 'puntual') stats.puntuales++;
-        if (registro.estado === 'retardo') stats.retardos++;
-        if (registro.estado === 'falta') stats.faltas++;
-      }
+    let puntuales = 0, retardos = 0, faltas = 0;
+    data.forEach(r => {
+      if (r.tipo !== 'entrada') return;
+      if (r.estado === 'puntual') puntuales++;
+      else if (r.estado === 'retardo_a' || r.estado === 'retardo_b' || r.estado === 'retardo') retardos++;
+      else if (r.estado === 'falta' || r.estado === 'falta_por_retardo') faltas++;
     });
-
-    setEstadisticas(stats);
+    setEstadisticas({ puntuales, retardos, faltas, total: puntuales + retardos + faltas });
   };
 
-  useEffect(() => {
-    cargarAsistencias();
-  }, [cargarAsistencias]);
+  useEffect(() => { cargarAsistencias(); }, [cargarAsistencias]);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    cargarAsistencias();
-  };
+  const onRefresh = () => { setRefreshing(true); cargarAsistencias(); };
 
-  const cambiarMes = (direccion) => {
-    const nuevoMes = new Date(currentMonth);
-    nuevoMes.setMonth(currentMonth.getMonth() + direccion);
-    setCurrentMonth(nuevoMes);
+  const cambiarMes = (dir) => {
+    const nuevo = new Date(currentMonth);
+    nuevo.setMonth(currentMonth.getMonth() + dir);
+    setCurrentMonth(nuevo);
     setSelectedDate(null);
   };
 
-  // Generar días del calendario
-  const generarDiasCalendario = () => {
+  // ── Calendario ────────────────────────────────────────────────────────────
+  const diasCalendario = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
-    const primerDia = new Date(year, month, 1);
-    const ultimoDia = new Date(year, month + 1, 0);
-    const diasEnMes = ultimoDia.getDate();
-    const primerDiaSemana = primerDia.getDay();
-
+    const primerDia = new Date(year, month, 1).getDay();
+    const diasEnMes = new Date(year, month + 1, 0).getDate();
     const dias = [];
-
-    // Días vacíos al inicio
-    for (let i = 0; i < primerDiaSemana; i++) {
-      dias.push(null);
-    }
-
-    // Días del mes
-    for (let dia = 1; dia <= diasEnMes; dia++) {
-      dias.push(dia);
-    }
-
+    for (let i = 0; i < primerDia; i++) dias.push(null);
+    for (let d = 1; d <= diasEnMes; d++) dias.push(d);
     return dias;
-  };
+  }, [currentMonth]);
 
-  // Verificar si un día tiene registros
-  const tienRegistros = (dia) => {
-    if (!dia) return false;
-    const fecha = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia);
-    return asistencias.some(registro => {
-      const registroFecha = new Date(registro.fecha_registro);
-      return registroFecha.toDateString() === fecha.toDateString();
+  // Estado por día para el calendario (prioridad: falta > retardo > puntual)
+  const estadosPorDia = useMemo(() => {
+    const mapa = {};
+    asistencias.forEach(r => {
+      if (r.tipo !== 'entrada') return;
+      const fecha = new Date(r.fecha_registro);
+      if (fecha.getMonth() !== currentMonth.getMonth() || fecha.getFullYear() !== currentMonth.getFullYear()) return;
+      const dia = fecha.getDate();
+      const esFalta = r.estado === 'falta' || r.estado === 'falta_por_retardo';
+      const esRetardo = r.estado === 'retardo_a' || r.estado === 'retardo_b' || r.estado === 'retardo';
+      if (esFalta) mapa[dia] = 'falta';
+      else if (esRetardo && mapa[dia] !== 'falta') mapa[dia] = 'retardo';
+      else if (r.estado === 'puntual' && !mapa[dia]) mapa[dia] = 'puntual';
     });
-  };
+    return mapa;
+  }, [asistencias, currentMonth]);
 
-  // Obtener estado del día (puntual, retardo, falta)
-  const getEstadoDia = (dia) => {
-    if (!dia) return null;
-    const fecha = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia);
-    const registrosDia = asistencias.filter(registro => {
-      const registroFecha = new Date(registro.fecha_registro);
-      return registroFecha.toDateString() === fecha.toDateString() && registro.tipo === 'entrada';
-    });
-
-    if (registrosDia.length === 0) return null;
-
-    // Prioridad: falta > retardo > puntual
-    if (registrosDia.some(r => r.estado === 'falta')) return 'falta';
-    if (registrosDia.some(r => r.estado === 'retardo')) return 'retardo';
-    if (registrosDia.some(r => r.estado === 'puntual')) return 'puntual';
-
-    return null;
-  };
-
-  // Seleccionar día
-  const seleccionarDia = (dia) => {
+  const seleccionarDia = useCallback((dia) => {
     if (!dia) return;
-    const fecha = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia);
-    setSelectedDate(fecha);
-  };
-
-  // Filtrar registros por día seleccionado
-  const getRegistrosDia = () => {
-    if (!selectedDate) return asistencias;
-
-    return asistencias.filter(registro => {
-      const registroFecha = new Date(registro.fecha_registro);
-      return registroFecha.toDateString() === selectedDate.toDateString();
+    setSelectedDate(prev => {
+      const fecha = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia);
+      if (prev && prev.toDateString() === fecha.toDateString()) return null;
+      return fecha;
     });
-  };
+  }, [currentMonth]);
 
-  const formatearFecha = (fechaStr) => {
-    const fecha = new Date(fechaStr);
-    const dia = fecha.getDate().toString().padStart(2, '0');
-    const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
-    return `${dia}/${mes}`;
-  };
+  // ── Agrupar registros por día en secciones ────────────────────────────────
+  const sections = useMemo(() => {
+    const filtrados = selectedDate
+      ? asistencias.filter(r => new Date(r.fecha_registro).toDateString() === selectedDate.toDateString())
+      : asistencias;
 
-  const formatearHora = (fechaStr) => {
-    const fecha = new Date(fechaStr);
-    return fecha.toLocaleTimeString('es-MX', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
+    // Agrupar por fecha local (YYYY-MM-DD)
+    const grupos = {};
+    filtrados.forEach(r => {
+      const fecha = new Date(r.fecha_registro);
+      const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
+      if (!grupos[key]) grupos[key] = { key, fecha, registros: [] };
+      grupos[key].registros.push(r);
     });
-  };
 
-  const obtenerColorEstado = (estado) => {
+    // Ordenar secciones DESC por fecha
+    return Object.values(grupos)
+      .sort((a, b) => b.fecha - a.fecha)
+      .map(g => ({ title: g.key, fecha: g.fecha, data: g.registros }));
+  }, [asistencias, selectedDate]);
+
+  // ── Helpers de formato ────────────────────────────────────────────────────
+  const formatearHora = useCallback((fechaStr) => {
+    return new Date(fechaStr).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
+  }, []);
+
+  const formatearTituloDia = useCallback((fecha) => {
+    const hoy = new Date();
+    const ayer = new Date(); ayer.setDate(hoy.getDate() - 1);
+    if (fecha.toDateString() === hoy.toDateString()) return 'Hoy';
+    if (fecha.toDateString() === ayer.toDateString()) return 'Ayer';
+    const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    return `${diasSemana[fecha.getDay()]} ${fecha.getDate()} de ${monthNames[fecha.getMonth()]}`;
+  }, [monthNames]);
+
+  const obtenerColorEstado = useCallback((estado) => {
     switch (estado) {
       case 'puntual': return '#10b981';
+      case 'retardo_a': return '#f59e0b';
+      case 'retardo_b': return '#f97316';
       case 'retardo': return '#f59e0b';
-      case 'falta': return '#ef4444';
+      case 'falta_por_retardo': return '#ef4444';
+      case 'falta': return '#dc2626';
+      case 'salida_puntual': return '#2563eb';
+      case 'salida_temprano': return '#7c3aed';
       default: return '#6b7280';
     }
-  };
+  }, []);
 
-  const registrosFiltrados = getRegistrosDia();
+  const obtenerLabelEstado = useCallback((estado) => {
+    switch (estado) {
+      case 'puntual': return 'Puntual';
+      case 'retardo_a': return 'Retardo A';
+      case 'retardo_b': return 'Retardo B';
+      case 'retardo': return 'Retardo';
+      case 'falta_por_retardo': return 'Falta (retardo)';
+      case 'falta': return 'Falta';
+      case 'salida_puntual': return 'Salida puntual';
+      case 'salida_temprano': return 'Salida temprana';
+      default: return estado || '';
+    }
+  }, []);
+
+  const hoyStr = useMemo(() => new Date().toDateString(), []);
+
+  // ── Render registro ───────────────────────────────────────────────────────
+  const renderRecord = useCallback(({ item: r }) => {
+    const color = r.tipo === 'entrada' ? obtenerColorEstado(r.estado) : '#2563eb';
+    return (
+      <View style={styles.recordItem}>
+        <View style={[styles.recordIconContainer, { backgroundColor: color + '18' }]}>
+          <Ionicons
+            name={r.tipo === 'entrada' ? 'log-in-outline' : 'log-out-outline'}
+            size={20}
+            color={color}
+          />
+        </View>
+
+        <View style={styles.recordContent}>
+          <Text style={styles.recordType}>
+            {r.tipo === 'entrada' ? 'Entrada' : 'Salida'}
+          </Text>
+          {r.tipo === 'entrada' && r.estado && (
+            <Text style={[styles.recordEstado, { color }]}>
+              {obtenerLabelEstado(r.estado)}
+            </Text>
+          )}
+        </View>
+
+        <Text style={styles.recordHora}>{formatearHora(r.fecha_registro)}</Text>
+      </View>
+    );
+  }, [styles, formatearHora, obtenerColorEstado, obtenerLabelEstado]);
+
+  // ── Render encabezado de sección (día) ───────────────────────────────────
+  const renderSectionHeader = useCallback(({ section }) => {
+    const entradas = section.data.filter(r => r.tipo === 'entrada');
+    const tieneProblema = entradas.some(r =>
+      r.estado === 'falta' || r.estado === 'falta_por_retardo'
+    );
+    const tieneRetardo = !tieneProblema && entradas.some(r =>
+      r.estado === 'retardo_a' || r.estado === 'retardo_b' || r.estado === 'retardo'
+    );
+
+    return (
+      <View style={styles.sectionHeader}>
+        <View style={[
+          styles.sectionDot,
+          {
+            backgroundColor: tieneProblema ? '#ef4444'
+              : tieneRetardo ? '#f59e0b'
+                : entradas.length > 0 ? '#10b981'
+                  : '#94a3b8',
+          }
+        ]} />
+        <Text style={styles.sectionTitle}>{formatearTituloDia(section.fecha)}</Text>
+        <Text style={styles.sectionCount}>
+          {section.data.length} {section.data.length === 1 ? 'registro' : 'registros'}
+        </Text>
+      </View>
+    );
+  }, [styles, formatearTituloDia]);
+
+  const keyExtractor = useCallback((item, index) => item.id?.toString() || index.toString(), []);
+
+  // ── ListHeaderComponent ───────────────────────────────────────────────────
+  const ListHeader = () => (
+    <>
+      {/* Navegación mes */}
+      <View style={styles.monthSelector}>
+        <TouchableOpacity style={styles.monthButton} onPress={() => cambiarMes(-1)}>
+          <Ionicons name="chevron-back" size={24} color={styles.monthButtonText.color} />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.monthLabel} onPress={() => setShowCalendar(v => !v)}>
+          <Text style={styles.monthText}>
+            {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+          </Text>
+          <Ionicons
+            name={showCalendar ? 'chevron-up' : 'chevron-down'}
+            size={18}
+            color={styles.monthText.color}
+            style={{ marginLeft: 6 }}
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.monthButton}
+          onPress={() => cambiarMes(1)}
+          disabled={currentMonth >= new Date()}
+        >
+          <Ionicons
+            name="chevron-forward"
+            size={24}
+            color={currentMonth >= new Date() ? '#9ca3af' : styles.monthButtonText.color}
+          />
+        </TouchableOpacity>
+      </View>
+
+      {/* Calendario */}
+      {showCalendar && (
+        <View style={styles.calendarContainer}>
+          <View style={styles.weekDays}>
+            {dayNames.map((d, i) => (
+              <View key={i} style={styles.weekDay}>
+                <Text style={styles.weekDayText}>{d}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.daysGrid}>
+            {diasCalendario.map((dia, index) => {
+              const estado = dia ? (estadosPorDia[dia] || null) : null;
+              const isSelected = selectedDate && dia === selectedDate.getDate()
+                && selectedDate.getMonth() === currentMonth.getMonth();
+              const isToday = dia &&
+                hoyStr === new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia).toDateString();
+              const dotColor = estado === 'falta' ? '#ef4444'
+                : estado === 'retardo' ? '#f59e0b'
+                  : estado === 'puntual' ? '#10b981' : null;
+
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.dayCell}
+                  onPress={() => seleccionarDia(dia)}
+                  disabled={!dia}
+                >
+                  {dia && (
+                    <View style={[
+                      styles.dayContent,
+                      isSelected && styles.dayContentSelected,
+                      isToday && !isSelected && styles.dayContentToday,
+                    ]}>
+                      <Text style={[
+                        styles.dayText,
+                        isSelected && styles.dayTextSelected,
+                        isToday && !isSelected && styles.dayTextToday,
+                      ]}>
+                        {dia}
+                      </Text>
+                      {dotColor && !isSelected && (
+                        <View style={[styles.dayIndicator, { backgroundColor: dotColor }]} />
+                      )}
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
+      {/* Título de lista */}
+      <View style={styles.recordsHeader}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={styles.recordsTitle}>
+            {selectedDate
+              ? `${selectedDate.getDate()} de ${monthNames[selectedDate.getMonth()]}`
+              : `${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`
+            }
+          </Text>
+          {selectedDate && (
+            <TouchableOpacity onPress={() => setSelectedDate(null)}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#2563eb' }}>Ver mes</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+        <Text style={styles.recordsCount}>
+          {asistencias.length} registros en el mes
+        </Text>
+      </View>
+    </>
+  );
+
+  const ListEmpty = () => (
+    <View style={styles.emptyState}>
+      <Ionicons name="calendar-outline" size={48} color="#cbd5e1" />
+      <Text style={styles.emptyText}>Sin registros</Text>
+      <Text style={styles.emptySubtext}>
+        {selectedDate ? 'No hay registros para este día' : 'No hay registros este mes'}
+      </Text>
+    </View>
+  );
 
   return (
     <View style={styles.container}>
       <StatusBar
         barStyle="light-content"
-        backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
+        backgroundColor={darkMode ? '#1e40af' : '#2563eb'}
       />
 
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Historial</Text>
         <Text style={styles.headerSubtitle}>Registro de asistencias</Text>
@@ -252,8 +415,20 @@ export const HistoryScreen = ({ darkMode, userData }) => {
           <ActivityIndicator size="large" color="#2563eb" />
         </View>
       ) : (
-        <ScrollView
+        <SectionList
+          sections={sections}
+          renderItem={renderRecord}
+          renderSectionHeader={renderSectionHeader}
+          keyExtractor={keyExtractor}
+          ListHeaderComponent={ListHeader}
+          ListEmptyComponent={ListEmpty}
+          ListFooterComponent={<View style={{ height: 100 }} />}
           showsVerticalScrollIndicator={false}
+          stickySectionHeadersEnabled={false}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -262,219 +437,31 @@ export const HistoryScreen = ({ darkMode, userData }) => {
               colors={['#2563eb']}
             />
           }
-        >
-          {/* Navegación de mes */}
-          <View style={styles.monthSelector}>
-            <TouchableOpacity
-              style={styles.monthButton}
-              onPress={() => cambiarMes(-1)}
-            >
-              <Ionicons name="chevron-back" size={24} color={styles.monthButtonText.color} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.monthLabel}
-              onPress={() => setShowCalendar(!showCalendar)}
-            >
-              <Text style={styles.monthText}>
-                {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-              </Text>
-              <Ionicons
-                name={showCalendar ? "chevron-up" : "chevron-down"}
-                size={20}
-                color={styles.monthText.color}
-                style={{ marginLeft: 8 }}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.monthButton}
-              onPress={() => cambiarMes(1)}
-              disabled={currentMonth >= new Date()}
-            >
-              <Ionicons
-                name="chevron-forward"
-                size={24}
-                color={currentMonth >= new Date() ? '#9ca3af' : styles.monthButtonText.color}
-              />
-            </TouchableOpacity>
-          </View>
-
-          {/* Calendario */}
-          {showCalendar && (
-            <View style={styles.calendarContainer}>
-              {/* Nombres de días */}
-              <View style={styles.weekDays}>
-                {dayNames.map((day, index) => (
-                  <View key={index} style={styles.weekDay}>
-                    <Text style={styles.weekDayText}>{day}</Text>
-                  </View>
-                ))}
-              </View>
-
-              {/* Días del mes */}
-              <View style={styles.daysGrid}>
-                {generarDiasCalendario().map((dia, index) => {
-                  const estado = getEstadoDia(dia);
-                  const isSelected = selectedDate && dia === selectedDate.getDate();
-                  const isToday = dia &&
-                    new Date().toDateString() === new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia).toDateString();
-
-                  return (
-                    <TouchableOpacity
-                      key={index}
-                      style={styles.dayCell}
-                      onPress={() => seleccionarDia(dia)}
-                      disabled={!dia}
-                    >
-                      {dia && (
-                        <View style={[
-                          styles.dayContent,
-                          isSelected && styles.dayContentSelected,
-                          isToday && !isSelected && styles.dayContentToday
-                        ]}>
-                          <Text style={[
-                            styles.dayText,
-                            isSelected && styles.dayTextSelected,
-                            isToday && !isSelected && styles.dayTextToday
-                          ]}>
-                            {dia}
-                          </Text>
-                          {estado && !isSelected && (
-                            <View style={[
-                              styles.dayIndicator,
-                              { backgroundColor: obtenerColorEstado(estado) }
-                            ]} />
-                          )}
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          )}
-
-          {/* Estadísticas compactas */}
-          <View style={styles.statsRow}>
-            <View style={styles.statBadge}>
-              <View style={[styles.statDot, { backgroundColor: '#10b981' }]} />
-              <Text style={styles.statText}>{estadisticas.puntuales} Puntual</Text>
-            </View>
-            <View style={styles.statBadge}>
-              <View style={[styles.statDot, { backgroundColor: '#f59e0b' }]} />
-              <Text style={styles.statText}>{estadisticas.retardos} Retardo</Text>
-            </View>
-            <View style={styles.statBadge}>
-              <View style={[styles.statDot, { backgroundColor: '#ef4444' }]} />
-              <Text style={styles.statText}>{estadisticas.faltas} Falta</Text>
-            </View>
-          </View>
-
-          {/* Encabezado de registros */}
-          <View style={styles.recordsHeader}>
-            <Text style={styles.recordsTitle}>
-              {selectedDate
-                ? `${selectedDate.getDate()} de ${monthNames[selectedDate.getMonth()]}`
-                : 'Todos los registros'
-              }
-            </Text>
-            <Text style={styles.recordsCount}>
-              {registrosFiltrados.length} {registrosFiltrados.length === 1 ? 'registro' : 'registros'}
-            </Text>
-          </View>
-
-          {/* Lista de registros */}
-          {registrosFiltrados.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="calendar-outline" size={48} color="#cbd5e1" />
-              <Text style={styles.emptyText}>Sin registros</Text>
-              <Text style={styles.emptySubtext}>
-                {selectedDate ? 'No hay registros para este día' : 'No hay registros este mes'}
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.recordsList}>
-              {registrosFiltrados.map((registro, index) => (
-                <View key={registro.id || index} style={styles.recordItem}>
-                  <View style={[
-                    styles.recordIconContainer,
-                    { backgroundColor: registro.tipo === 'entrada' ? '#ecfdf5' : '#eff6ff' }
-                  ]}>
-                    <Ionicons
-                      name={registro.tipo === 'entrada' ? 'arrow-down' : 'arrow-up'}
-                      size={18}
-                      color={registro.tipo === 'entrada' ? '#10b981' : '#2563eb'}
-                    />
-                  </View>
-
-                  <View style={styles.recordContent}>
-                    <Text style={styles.recordType}>
-                      {registro.tipo === 'entrada' ? 'Entrada' : 'Salida'}
-                    </Text>
-                    <View style={styles.recordMeta}>
-                      <Text style={styles.recordTime}>
-                        {formatearHora(registro.fecha_registro)}
-                      </Text>
-                      <Text style={styles.recordSeparator}>•</Text>
-                      <Text style={styles.recordDate}>
-                        {formatearFecha(registro.fecha_registro)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {registro.tipo === 'entrada' && registro.estado && (
-                    <View style={[
-                      styles.recordBadge,
-                      { backgroundColor: obtenerColorEstado(registro.estado) + '20' }
-                    ]}>
-                      <Text style={[
-                        styles.recordBadgeText,
-                        { color: obtenerColorEstado(registro.estado) }
-                      ]}>
-                        {registro.estado === 'puntual' ? '✓' : registro.estado === 'retardo' ? '⏱' : '✕'}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              ))}
-            </View>
-          )}
-
-          <View style={{ height: 100 }} />
-        </ScrollView>
+        />
       )}
     </View>
   );
 };
 
+// ── Estilos ────────────────────────────────────────────────────────────────
 const historyStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8fafc',
-  },
-  centerContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  container: { flex: 1, backgroundColor: '#f8fafc' },
+  centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
     backgroundColor: '#2563eb',
     paddingTop: Platform.OS === 'android' ? 16 : 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
+  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff' },
+  headerSubtitle: { fontSize: 12, color: '#e0f2fe', fontWeight: '500', marginTop: 2 },
+
   monthSelector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingVertical: 16,
     backgroundColor: '#fff',
     marginTop: 16,
     marginHorizontal: 16,
@@ -485,25 +472,11 @@ const historyStyles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
   },
-  monthButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  monthButtonText: {
-    color: '#2563eb',
-  },
-  monthLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  monthText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1f2937',
-  },
+  monthButton: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  monthButtonText: { color: '#2563eb' },
+  monthLabel: { flexDirection: 'row', alignItems: 'center' },
+  monthText: { fontSize: 18, fontWeight: '700', color: '#1f2937' },
+
   calendarContainer: {
     backgroundColor: '#fff',
     marginHorizontal: 16,
@@ -516,127 +489,68 @@ const historyStyles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
   },
-  weekDays: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
-  weekDay: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  weekDayText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6b7280',
-  },
-  daysGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  dayCell: {
-    width: '14.28%',
-    aspectRatio: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  weekDays: { flexDirection: 'row', marginBottom: 10 },
+  weekDay: { flex: 1, alignItems: 'center' },
+  weekDayText: { fontSize: 12, fontWeight: '600', color: '#6b7280' },
+  daysGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  dayCell: { width: '14.28%', aspectRatio: 1, justifyContent: 'center', alignItems: 'center' },
   dayContent: {
-    width: '80%',
-    height: '80%',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
+    width: '80%', height: '80%', borderRadius: 12,
+    justifyContent: 'center', alignItems: 'center', position: 'relative',
   },
-  dayCellActive: {
-    // Removed - not needed
-  },
-  dayContentSelected: {
-    backgroundColor: '#2563eb',
-  },
-  dayContentToday: {
-    borderWidth: 2,
-    borderColor: '#2563eb',
-  },
-  dayText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#1f2937',
-  },
-  dayTextSelected: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-  dayTextToday: {
-    color: '#2563eb',
-    fontWeight: '700',
-  },
-  dayIndicator: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 2,
-  },
+  dayContentSelected: { backgroundColor: '#2563eb' },
+  dayContentToday: { borderWidth: 2, borderColor: '#2563eb' },
+  dayText: { fontSize: 14, fontWeight: '500', color: '#1f2937' },
+  dayTextSelected: { color: '#fff', fontWeight: '700' },
+  dayTextToday: { color: '#2563eb', fontWeight: '700' },
+  dayIndicator: { width: 4, height: 4, borderRadius: 2, marginTop: 2 },
+
   statsRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
+    gap: 10,
     paddingHorizontal: 16,
-    marginTop: 16,
+    marginTop: 12,
   },
-  statBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  statCard: {
+    flex: 1,
     backgroundColor: '#fff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 12,
+    padding: 12,
+    borderLeftWidth: 4,
     elevation: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.06,
     shadowRadius: 2,
   },
-  statDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  statText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  recordsHeader: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 12,
-  },
-  recordsTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 4,
-  },
-  recordsCount: {
-    fontSize: 13,
-    color: '#64748b',
-  },
-  recordsList: {
+  statNumber: { fontSize: 22, fontWeight: '800', color: '#1f2937' },
+  statLabel: { fontSize: 11, color: '#64748b', marginTop: 2, fontWeight: '500' },
+
+  recordsHeader: { marginHorizontal: 16, paddingTop: 20, paddingBottom: 8 },
+  recordsTitle: { fontSize: 18, fontWeight: '700', color: '#1f2937', marginBottom: 3 },
+  recordsCount: { fontSize: 12, color: '#64748b' },
+
+  // Sección de día
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginTop: 4,
   },
-  headerSubtitle: {
-    fontSize: 12,
-    color: '#e0f2fe',
-    fontWeight: '500',
-  },
+  sectionDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
+  sectionTitle: { flex: 1, fontSize: 14, fontWeight: '700', color: '#374151' },
+  sectionCount: { fontSize: 12, color: '#9ca3af' },
+
+  // Registro individual
   recordItem: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
-    padding: 16,
+    padding: 14,
     borderRadius: 12,
-    marginBottom: 8,
+    marginBottom: 6,
+    marginHorizontal: 16,
     elevation: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -644,160 +558,45 @@ const historyStyles = StyleSheet.create({
     shadowRadius: 2,
   },
   recordIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
+    width: 40, height: 40, borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center', marginRight: 12,
   },
-  recordContent: {
-    flex: 1,
-  },
-  recordType: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 4,
-  },
-  recordMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  recordTime: {
-    fontSize: 13,
-    color: '#475569',
-    fontWeight: '500',
-  },
-  recordSeparator: {
-    fontSize: 13,
-    color: '#cbd5e1',
-    marginHorizontal: 6,
-  },
-  recordDate: {
-    fontSize: 13,
-    color: '#94a3b8',
-  },
-  recordBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  recordBadgeText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#475569',
-    marginTop: 12,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#94a3b8',
-    marginTop: 4,
-  },
+  recordContent: { flex: 1 },
+  recordType: { fontSize: 15, fontWeight: '600', color: '#1f2937' },
+  recordEstado: { fontSize: 12, fontWeight: '500', marginTop: 2 },
+  recordHora: { fontSize: 15, fontWeight: '700', color: '#374151' },
+
+  emptyState: { alignItems: 'center', paddingVertical: 60, marginHorizontal: 16 },
+  emptyText: { fontSize: 16, fontWeight: '600', color: '#475569', marginTop: 12 },
+  emptySubtext: { fontSize: 14, color: '#94a3b8', marginTop: 4 },
 });
 
 const historyStylesDark = StyleSheet.create({
   ...historyStyles,
-  container: {
-    ...historyStyles.container,
-    backgroundColor: '#0f172a',
-  },
-  header: {
-    ...historyStyles.header,
-    backgroundColor: '#1e40af',
-  },
-  monthSelector: {
-    ...historyStyles.monthSelector,
-    backgroundColor: '#1e293b',
-  },
-  monthButtonText: {
-    ...historyStyles.monthButtonText,
-    color: '#60a5fa',
-  },
-  monthText: {
-    ...historyStyles.monthText,
-    color: '#f1f5f9',
-  },
-  calendarContainer: {
-    ...historyStyles.calendarContainer,
-    backgroundColor: '#1e293b',
-  },
-  weekDayText: {
-    ...historyStyles.weekDayText,
-    color: '#94a3b8',
-  },
-  dayContent: {
-    ...historyStyles.dayContent,
-  },
-  dayContentSelected: {
-    ...historyStyles.dayContentSelected,
-    backgroundColor: '#3b82f6',
-  },
-  dayContentToday: {
-    ...historyStyles.dayContentToday,
-    borderColor: '#3b82f6',
-  },
-  dayText: {
-    ...historyStyles.dayText,
-    color: '#e2e8f0',
-  },
-  dayTextToday: {
-    ...historyStyles.dayTextToday,
-    color: '#60a5fa',
-  },
-  statBadge: {
-    ...historyStyles.statBadge,
-    backgroundColor: '#1e293b',
-  },
-  statText: {
-    ...historyStyles.statText,
-    color: '#cbd5e1',
-  },
-  recordsTitle: {
-    ...historyStyles.recordsTitle,
-    color: '#f1f5f9',
-  },
-  recordsCount: {
-    ...historyStyles.recordsCount,
-    color: '#94a3b8',
-  },
-  recordItem: {
-    ...historyStyles.recordItem,
-    backgroundColor: '#1e293b',
-  },
-  recordIconContainer: {
-    ...historyStyles.recordIconContainer,
-  },
-  recordType: {
-    ...historyStyles.recordType,
-    color: '#f1f5f9',
-  },
-  recordTime: {
-    ...historyStyles.recordTime,
-    color: '#cbd5e1',
-  },
-  recordDate: {
-    ...historyStyles.recordDate,
-    color: '#64748b',
-  },
-  emptyText: {
-    ...historyStyles.emptyText,
-    color: '#cbd5e1',
-  },
-  emptySubtext: {
-    ...historyStyles.emptySubtext,
-    color: '#64748b',
-  },
+  container: { ...historyStyles.container, backgroundColor: '#0f172a' },
+  header: { ...historyStyles.header, backgroundColor: '#1e40af' },
+  monthSelector: { ...historyStyles.monthSelector, backgroundColor: '#1e293b' },
+  monthButtonText: { color: '#60a5fa' },
+  monthText: { ...historyStyles.monthText, color: '#f1f5f9' },
+  calendarContainer: { ...historyStyles.calendarContainer, backgroundColor: '#1e293b' },
+  weekDayText: { ...historyStyles.weekDayText, color: '#94a3b8' },
+  dayContentSelected: { backgroundColor: '#3b82f6' },
+  dayContentToday: { ...historyStyles.dayContentToday, borderColor: '#3b82f6' },
+  dayText: { ...historyStyles.dayText, color: '#e2e8f0' },
+  dayTextToday: { ...historyStyles.dayTextToday, color: '#60a5fa' },
+  statCard: { ...historyStyles.statCard, backgroundColor: '#1e293b' },
+  statNumber: { ...historyStyles.statNumber, color: '#f1f5f9' },
+  statLabel: { ...historyStyles.statLabel, color: '#94a3b8' },
+  recordsTitle: { ...historyStyles.recordsTitle, color: '#f1f5f9' },
+  recordsCount: { ...historyStyles.recordsCount, color: '#94a3b8' },
+  sectionTitle: { ...historyStyles.sectionTitle, color: '#cbd5e1' },
+  sectionCount: { ...historyStyles.sectionCount, color: '#64748b' },
+  recordItem: { ...historyStyles.recordItem, backgroundColor: '#1e293b' },
+  recordType: { ...historyStyles.recordType, color: '#f1f5f9' },
+  recordEstado: { ...historyStyles.recordEstado },
+  recordHora: { ...historyStyles.recordHora, color: '#e2e8f0' },
+  emptyText: { ...historyStyles.emptyText, color: '#cbd5e1' },
+  emptySubtext: { ...historyStyles.emptySubtext, color: '#64748b' },
 });
 
 export default HistoryScreen;

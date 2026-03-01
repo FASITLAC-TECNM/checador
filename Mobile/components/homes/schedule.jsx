@@ -38,16 +38,6 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
   const insets = useSafeAreaInsets();
   const styles = darkMode ? scheduleStylesDark : scheduleStyles;
 
-  // ============================================================
-  // 🧠 FUNCIONES INTELIGENTES PARA HORARIOS
-  // ============================================================
-
-  /**
-   * Obtiene el turno más relevante según la hora actual
-   * - Si hay un turno activo (estamos dentro): lo retorna
-   * - Si no, retorna el siguiente turno del día
-   * - Si no hay más turnos hoy, retorna null
-   */
   const obtenerTurnoRelevante = (turnos) => {
     if (!turnos || turnos.length === 0) return null;
 
@@ -59,7 +49,6 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
       return h * 60 + m;
     };
 
-    // Buscar turno activo (estamos dentro del rango)
     for (const turno of turnos) {
       const inicio = convertirAMinutos(turno.entrada);
       const fin = convertirAMinutos(turno.salida);
@@ -77,14 +66,9 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
         return { ...turno, estado: 'proximo' };
       }
     }
-
-    // No hay más turnos hoy
     return null;
   };
 
-  /**
-   * Formatea el rango de tiempo de forma inteligente
-   */
   const formatearRangoTiempo = (turno) => {
     if (!turno) return '---';
     return `${turno.entrada} - ${turno.salida}`;
@@ -114,9 +98,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
     };
   };
 
-  // ============================================================
-  // 🔄 CARGA DE DATOS
-  // ============================================================
+  // ── Carga de datos ──────────────────────────────────────────
 
   const getEmpleadoId = () => {
     if (userData?.empleado_id) return userData.empleado_id;
@@ -223,9 +205,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
     }));
   };
 
-  // ============================================================
-  // 🎨 FUNCIONES DE UI
-  // ============================================================
+  // ── Funciones de UI ─────────────────────────────────────────
 
   const obtenerFechaSemana = () => {
     const hoy = new Date();
@@ -261,9 +241,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
     setModalVisible(true);
   };
 
-  // ============================================================
-  // 📱 RENDERIZADO
-  // ============================================================
+  // ── Renderizado ─────────────────────────────────────────────
 
   if (showIncidencias) {
     return (
@@ -326,7 +304,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
               <View style={styles.todayHeader}>
                 <View style={styles.todayBadge}>
                   <Text style={styles.todayBadgeText}>
-                    {infoHoy.turnoRelevante.estado === 'activo' ? '🔴 ACTIVO' : 'SIGUIENTE'}
+                    {infoHoy.turnoRelevante.estado === 'activo' ? 'ACTIVO' : 'SIGUIENTE'}
                   </Text>
                 </View>
                 <Text style={styles.todayDate}>
@@ -385,7 +363,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
                   {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
                 </Text>
               </View>
-              <Text style={styles.finishedText}>Todos los turnos de hoy han finalizado ✓</Text>
+              <Text style={styles.finishedText}>Todos los turnos de hoy han finalizado</Text>
             </View>
           ) : (
             <View style={styles.dayOffCard}>
@@ -502,11 +480,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
                     ]}>
                       {turnoMostrar}
                     </Text>
-                    {schedule.hours && schedule.active && (
-                      <View style={styles.hoursChip}>
-                        <Text style={styles.hoursChipText}>{schedule.hours}</Text>
-                      </View>
-                    )}
+
                     {schedule.active && (
                       <Ionicons name="chevron-forward" size={16} color="#9ca3af" style={{ marginTop: 4 }} />
                     )}
@@ -627,14 +601,12 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
   );
 };
 
-// ============================================================
-// 🎨 ESTILOS
-// ============================================================
+// ── Estilos ───────────────────────────────────────────────────
 
 const scheduleStyles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f1f5f9',
   },
   container: {
     flex: 1,
@@ -656,18 +628,19 @@ const scheduleStyles = StyleSheet.create({
   header: {
     backgroundColor: '#2563eb',
     paddingTop: Platform.OS === 'android' ? 16 : 50,
-    paddingBottom: 20,
+    paddingBottom: 22,
     paddingHorizontal: 20,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '700',
     color: '#fff',
+    letterSpacing: -0.3,
     marginBottom: 4,
   },
   headerSubtitle: {
-    fontSize: 12,
-    color: '#e0f2fe',
+    fontSize: 13,
+    color: '#bfdbfe',
     fontWeight: '500',
   },
   scrollView: {
@@ -675,73 +648,72 @@ const scheduleStyles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: 20,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   errorCard: {
-    backgroundColor: '#fee2e2',
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: '#fef2f2',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    padding: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   errorIcon: {
-    marginRight: 12,
+    marginRight: 10,
   },
   errorText: {
     flex: 1,
-    fontSize: 14,
-    color: '#991b1b',
+    fontSize: 13,
+    color: '#b91c1c',
     fontWeight: '500',
   },
 
-  // Tarjeta HOY renovada
+  // Tarjeta HOY
   todayCard: {
     backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 24,
-    marginBottom: 20,
-    shadowColor: '#6366f1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   todayHeader: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   todayBadge: {
     backgroundColor: '#ef4444',
     alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 20,
     marginBottom: 8,
   },
   todayBadgeText: {
     color: '#fff',
     fontSize: 11,
-    fontWeight: 'bold',
-    letterSpacing: 1,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
   todayDate: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1f2937',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e293b',
     textTransform: 'capitalize',
   },
   currentShiftContainer: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
   shiftTimeRow: {
-    marginBottom: 12,
+    marginBottom: 10,
   },
   shiftTimeBlock: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f3ff',
-    padding: 16,
-    borderRadius: 16,
+    backgroundColor: '#eef2ff',
+    padding: 14,
+    borderRadius: 14,
   },
   shiftTimeInfo: {
     marginLeft: 12,
@@ -749,264 +721,258 @@ const scheduleStyles = StyleSheet.create({
   },
   shiftLabel: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#64748b',
     fontWeight: '500',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   shiftTime: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1f2937',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1e293b',
+    letterSpacing: -0.3,
   },
   moreTurnsButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#eef2ff',
-    padding: 12,
-    borderRadius: 12,
-    gap: 8,
+    padding: 10,
+    borderRadius: 10,
+    gap: 6,
   },
   moreTurnsText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#6366f1',
     fontWeight: '600',
   },
   finishedText: {
-    fontSize: 16,
-    color: '#6b7280',
+    fontSize: 15,
+    color: '#64748b',
     textAlign: 'center',
-    paddingVertical: 20,
+    paddingVertical: 16,
+    fontWeight: '500',
   },
   todayLocation: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 16,
+    paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: '#f1f5f9',
   },
   todayLocationText: {
     marginLeft: 6,
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: 13,
+    color: '#64748b',
     fontWeight: '500',
   },
 
-  // Día de descanso
+  // Dia de descanso
   dayOffCard: {
     backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 40,
+    borderRadius: 20,
+    padding: 32,
     alignItems: 'center',
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   dayOffIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: '#eef2ff',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   dayOffTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 8,
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 6,
   },
   dayOffText: {
-    fontSize: 16,
-    color: '#6b7280',
+    fontSize: 14,
+    color: '#94a3b8',
+    fontWeight: '500',
   },
 
   // Resumen
   summarySection: {
     flexDirection: 'row',
-    gap: 16,
-    marginBottom: 20,
+    gap: 12,
+    marginBottom: 16,
   },
   summaryCard: {
     flex: 1,
-    borderRadius: 20,
+    borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
   },
   summaryContent: {
-    backgroundColor: '#6366f1',
-    padding: 20,
+    backgroundColor: '#2563eb',
+    padding: 18,
     alignItems: 'center',
   },
   summaryValue: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '700',
     color: '#fff',
-    marginTop: 12,
-    marginBottom: 4,
+    marginTop: 10,
+    marginBottom: 2,
   },
   summaryLabel: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#fff',
-    opacity: 0.9,
+    opacity: 0.85,
     fontWeight: '500',
   },
 
   // Lista semanal
   scheduleSection: {
     backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   scheduleSectionHeader: {
-    marginBottom: 20,
+    marginBottom: 14,
+    paddingHorizontal: 4,
   },
   scheduleSectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 4,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 2,
   },
   scheduleSectionSubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: 13,
+    color: '#94a3b8',
+    fontWeight: '500',
   },
   scheduleItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    marginBottom: 8,
-    backgroundColor: '#f9fafb',
-    minHeight: 76,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    marginBottom: 4,
+    backgroundColor: '#f8fafc',
+    minHeight: 68,
   },
   scheduleItemInactive: {
     backgroundColor: 'transparent',
   },
   scheduleItemToday: {
     backgroundColor: '#eef2ff',
-    borderWidth: 2,
-    borderColor: '#6366f1',
+    borderWidth: 1.5,
+    borderColor: '#818cf8',
   },
   scheduleLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 12,
+    marginRight: 10,
   },
   dayIconContainer: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   dayIconActive: {
-    backgroundColor: '#c7d2fe', // Indigo-200: más oscuro que el fondo del row today (#eef2ff)
+    backgroundColor: '#c7d2fe',
   },
   dayIconInactive: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#f1f5f9',
   },
   dayInitialText: {
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '700',
   },
   dayInitialActive: {
-    color: '#6366f1',
+    color: '#4f46e5',
   },
   dayInitialInactive: {
-    color: '#9ca3af',
+    color: '#94a3b8',
   },
   scheduleInfo: {
     flex: 1,
-    paddingRight: 8,
+    paddingRight: 6,
   },
   scheduleTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   scheduleDay: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#1f2937',
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1e293b',
   },
   scheduleDayInactive: {
-    color: '#9ca3af',
+    color: '#94a3b8',
   },
   todayDot: {
-    width: 8,
-    height: 8,
+    width: 7,
+    height: 7,
     borderRadius: 4,
-    backgroundColor: '#6366f1',
-    marginLeft: 8,
+    backgroundColor: '#818cf8',
+    marginLeft: 6,
   },
   scheduleLocation: {
-    fontSize: 12,
-    color: '#6b7280',
+    fontSize: 11,
+    color: '#94a3b8',
     marginTop: 2,
   },
   scheduleLocationInactive: {
-    color: '#9ca3af',
+    color: '#cbd5e1',
   },
   multipleTurnsBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ddd6fe', // Indigo-200: distinto del row today (#eef2ff)
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    backgroundColor: '#e0e7ff',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: 6,
     alignSelf: 'flex-start',
-    marginTop: 4,
-    gap: 4,
+    marginTop: 3,
+    gap: 3,
   },
   multipleTurnsText: {
-    fontSize: 11,
-    color: '#8b5cf6',
+    fontSize: 10,
+    color: '#6366f1',
     fontWeight: '600',
   },
   scheduleRight: {
     alignItems: 'flex-end',
-    minWidth: 100,
-    maxWidth: 120,
+    minWidth: 95,
+    maxWidth: 115,
   },
   scheduleTime: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#1f2937',
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1e293b',
     textAlign: 'right',
   },
   scheduleTimeInactive: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#9ca3af',
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#cbd5e1',
   },
   hoursChip: {
     backgroundColor: '#dbeafe',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     borderRadius: 6,
-    marginTop: 6,
+    marginTop: 4,
     alignSelf: 'flex-end',
   },
   hoursChipText: {
-    fontSize: 11,
-    color: '#1e40af',
+    fontSize: 10,
+    color: '#1d4ed8',
     fontWeight: '600',
   },
 
@@ -1017,130 +983,134 @@ const scheduleStyles = StyleSheet.create({
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
   },
   modalContent: {
     backgroundColor: '#fff',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '70%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 20,
-    paddingBottom: 16,
+    paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: '#f1f5f9',
   },
   modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1f2937',
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1e293b',
   },
   modalSubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4,
+    fontSize: 13,
+    color: '#94a3b8',
+    marginTop: 2,
+    fontWeight: '500',
   },
   modalCloseButton: {
-    padding: 4,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalScroll: {
     flexGrow: 0,
   },
   modalScrollContent: {
     paddingHorizontal: 24,
-    paddingVertical: 20,
+    paddingVertical: 18,
     paddingBottom: 24,
   },
   modalTurnoBlock: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: '#f8fafc',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   modalTurnoHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   modalTurnoNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#6366f1',
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#2563eb',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: 8,
   },
   modalTurnoNumberText: {
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '700',
     color: '#fff',
   },
   modalTurnoTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1f2937',
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1e293b',
   },
   modalTurnoDetails: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 10,
+    padding: 10,
   },
   modalTurnoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 7,
   },
   modalTurnoLabel: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: 13,
+    color: '#64748b',
     marginLeft: 8,
     flex: 1,
   },
   modalTurnoTime: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1f2937',
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1e293b',
   },
   modalTurnoDivider: {
     height: 1,
-    backgroundColor: '#f3f4f6',
-    marginVertical: 4,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 2,
   },
   modalEmptyState: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 36,
   },
   modalEmptyText: {
-    fontSize: 16,
-    color: '#9ca3af',
-    marginTop: 12,
+    fontSize: 15,
+    color: '#94a3b8',
+    marginTop: 10,
+    fontWeight: '500',
   },
   modalFooter: {
     paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: '#f1f5f9',
   },
   modalFooterInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
   },
   modalFooterText: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: 13,
+    color: '#64748b',
     fontWeight: '500',
   },
   incidenciasButton: {
@@ -1148,37 +1118,34 @@ const scheduleStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
-    marginTop: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   incidenciasLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
   },
   incidenciasIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     backgroundColor: '#f3e8ff',
     justifyContent: 'center',
     alignItems: 'center',
   },
   incidenciasTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginBottom: 2,
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 1,
   },
   incidenciasSubtitle: {
-    fontSize: 13,
-    color: '#6b7280',
+    fontSize: 12,
+    color: '#94a3b8',
   },
 });
 
@@ -1199,142 +1166,192 @@ const scheduleStylesDark = StyleSheet.create({
     ...scheduleStyles.header,
     backgroundColor: '#1e40af',
   },
+  headerSubtitle: {
+    ...scheduleStyles.headerSubtitle,
+    color: '#93c5fd',
+  },
+  errorCard: {
+    ...scheduleStyles.errorCard,
+    backgroundColor: '#451a1a',
+    borderColor: '#7f1d1d',
+  },
   todayCard: {
     ...scheduleStyles.todayCard,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#1e293b',
+    borderColor: '#334155',
   },
   todayDate: {
     ...scheduleStyles.todayDate,
-    color: '#f9fafb',
+    color: '#f1f5f9',
   },
   shiftTime: {
     ...scheduleStyles.shiftTime,
-    color: '#f9fafb',
+    color: '#f1f5f9',
+  },
+  shiftLabel: {
+    ...scheduleStyles.shiftLabel,
+    color: '#94a3b8',
   },
   shiftTimeBlock: {
     ...scheduleStyles.shiftTimeBlock,
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
+  },
+  finishedText: {
+    ...scheduleStyles.finishedText,
+    color: '#94a3b8',
   },
   moreTurnsButton: {
     ...scheduleStyles.moreTurnsButton,
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   moreTurnsText: {
     ...scheduleStyles.moreTurnsText,
-    color: '#3794fd',
+    color: '#60a5fa',
   },
   dayOffCard: {
     ...scheduleStyles.dayOffCard,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#1e293b',
+    borderColor: '#334155',
   },
   dayOffIcon: {
     ...scheduleStyles.dayOffIcon,
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   dayOffTitle: {
     ...scheduleStyles.dayOffTitle,
-    color: '#f9fafb',
+    color: '#f1f5f9',
   },
   dayOffText: {
     ...scheduleStyles.dayOffText,
-    color: '#9ca3af',
+    color: '#64748b',
   },
   summaryContent: {
     ...scheduleStyles.summaryContent,
-    backgroundColor: '#3794fd',
+    backgroundColor: '#1d4ed8',
   },
   scheduleSection: {
     ...scheduleStyles.scheduleSection,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#1e293b',
+    borderColor: '#334155',
   },
   scheduleSectionTitle: {
     ...scheduleStyles.scheduleSectionTitle,
-    color: '#f9fafb',
+    color: '#f1f5f9',
   },
   scheduleSectionSubtitle: {
     ...scheduleStyles.scheduleSectionSubtitle,
-    color: '#9ca3af',
+    color: '#64748b',
   },
   scheduleItem: {
     ...scheduleStyles.scheduleItem,
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
   },
   scheduleItemToday: {
     ...scheduleStyles.scheduleItemToday,
-    backgroundColor: '#1e3a8a',
-    borderColor: '#3794fd',
+    backgroundColor: '#172554',
+    borderColor: '#60a5fa',
   },
   dayIconActive: {
     ...scheduleStyles.dayIconActive,
-    backgroundColor: '#1e56a0', // Azul suave, contrasta sin ser intenso
+    backgroundColor: '#1e3a8a',
   },
   dayInitialActive: {
     ...scheduleStyles.dayInitialActive,
-    color: '#38bdf8', // Azul cielo (sky-400)
+    color: '#60a5fa',
   },
   todayDot: {
     ...scheduleStyles.todayDot,
-    backgroundColor: '#3794fd',
+    backgroundColor: '#60a5fa',
   },
   scheduleDay: {
     ...scheduleStyles.scheduleDay,
-    color: '#f9fafb',
+    color: '#f1f5f9',
   },
   scheduleTime: {
     ...scheduleStyles.scheduleTime,
-    color: '#f9fafb',
+    color: '#f1f5f9',
+  },
+  scheduleTimeInactive: {
+    ...scheduleStyles.scheduleTimeInactive,
+    color: '#475569',
   },
   multipleTurnsBadge: {
     ...scheduleStyles.multipleTurnsBadge,
-    backgroundColor: '#1e56a0', // Mismo tono que el icon, distinto al row today
+    backgroundColor: '#1e3a8a',
   },
   multipleTurnsText: {
     ...scheduleStyles.multipleTurnsText,
-    color: '#3794fd',
+    color: '#60a5fa',
+  },
+  hoursChip: {
+    ...scheduleStyles.hoursChip,
+    backgroundColor: '#1e3a8a',
+  },
+  hoursChipText: {
+    ...scheduleStyles.hoursChipText,
+    color: '#93c5fd',
   },
   modalContent: {
     ...scheduleStyles.modalContent,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#1e293b',
+  },
+  modalHeader: {
+    ...scheduleStyles.modalHeader,
+    borderBottomColor: '#334155',
   },
   modalTitle: {
     ...scheduleStyles.modalTitle,
-    color: '#f9fafb',
+    color: '#f1f5f9',
+  },
+  modalSubtitle: {
+    ...scheduleStyles.modalSubtitle,
+    color: '#64748b',
+  },
+  modalCloseButton: {
+    ...scheduleStyles.modalCloseButton,
+    backgroundColor: '#334155',
   },
   modalTurnoBlock: {
     ...scheduleStyles.modalTurnoBlock,
-    backgroundColor: '#374151',
+    backgroundColor: '#334155',
+    borderColor: '#475569',
   },
   modalTurnoDetails: {
     ...scheduleStyles.modalTurnoDetails,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#1e293b',
   },
   modalTurnoTitle: {
     ...scheduleStyles.modalTurnoTitle,
-    color: '#f9fafb',
+    color: '#f1f5f9',
   },
   modalTurnoTime: {
     ...scheduleStyles.modalTurnoTime,
-    color: '#f9fafb',
+    color: '#f1f5f9',
   },
   modalTurnoNumber: {
     ...scheduleStyles.modalTurnoNumber,
-    backgroundColor: '#3794fd',
+    backgroundColor: '#1d4ed8',
+  },
+  modalFooter: {
+    ...scheduleStyles.modalFooter,
+    borderTopColor: '#334155',
   },
   incidenciasButton: {
     ...scheduleStyles.incidenciasButton,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#1e293b',
+    borderColor: '#334155',
   },
   incidenciasIcon: {
     ...scheduleStyles.incidenciasIcon,
-    backgroundColor: '#581c87',
+    backgroundColor: '#3b0764',
   },
   incidenciasTitle: {
     ...scheduleStyles.incidenciasTitle,
-    color: '#f9fafb',
+    color: '#f1f5f9',
   },
   incidenciasSubtitle: {
     ...scheduleStyles.incidenciasSubtitle,
-    color: '#9ca3af',
+    color: '#64748b',
   },
 });
 

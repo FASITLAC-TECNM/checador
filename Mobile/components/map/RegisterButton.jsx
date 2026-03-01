@@ -26,7 +26,7 @@ import MapaZonasPermitidas from './MapScreen';
 import { notificarRegistro, notificarEstadoAsistencia } from '../../services/localNotificationService';
 
 // Offline Services
-import sqliteManager from '../../services/offline/sqliteManager.mjs';
+import sqliteManager, { saveOnlineAsistenciaToCache } from '../../services/offline/sqliteManager.mjs';
 import offlineAuthService from '../../services/offline/offlineAuthService.mjs';
 import syncManager from '../../services/offline/syncManager.mjs';
 import pushService from '../../services/offline/pushService.mjs';
@@ -40,14 +40,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [registrando, setRegistrando] = useState(false);
   const [mostrarMapa, setMostrarMapa] = useState(false);
   const [mostrarDepartamentos, setMostrarDepartamentos] = useState(false);
-
   const [mostrarAutenticacion, setMostrarAutenticacion] = useState(false);
   const [mostrarPinAuth, setMostrarPinAuth] = useState(false);
   const [mostrarCapturaFacial, setMostrarCapturaFacial] = useState(false);
   const [credencialesUsuario, setCredencialesUsuario] = useState(null);
   const [metodosDisponibles, setMetodosDisponibles] = useState([]);
   const [ordenCredenciales, setOrdenCredenciales] = useState([]);
-
   const [ubicacionActual, setUbicacionActual] = useState(null);
   const [departamentos, setDepartamentos] = useState([]);
   const [departamentosDisponibles, setDepartamentosDisponibles] = useState([]);
@@ -56,12 +54,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [toleranciaInfo, setToleranciaInfo] = useState(null);
   const [ultimoRegistroHoy, setUltimoRegistroHoy] = useState(null);
   const [registrosHoyTodos, setRegistrosHoyTodos] = useState([]);
-
   const [dentroDelArea, setDentroDelArea] = useState(false);
   const [puedeRegistrar, setPuedeRegistrar] = useState(false);
   const [tipoSiguienteRegistro, setTipoSiguienteRegistro] = useState('entrada');
   const [estadoHorario, setEstadoHorario] = useState(null);
-
+  const [jornadaCompletada, setJornadaCompletada] = useState(false);
   const [mensajeEspera, setMensajeEspera] = useState('');
   const [isOnline, setIsOnline] = useState(false);
   const [diaFestivo, setDiaFestivo] = useState(null); // { nombre, tipo } si hoy es festivo
@@ -78,21 +75,15 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const notifDiariaRef = useRef({ fecha: '', entrada: false, salida: false });
   // ────────────────────────────────────────────────────────────────────────────
 
-  // ─── refs para que procederConRegistro siempre lea valores frescos ───
   const horarioInfoRef = useRef(null);
   const toleranciaInfoRef = useRef(null);
   const ultimoRegistroHoyRef = useRef(null);
   const registrosHoyTodosRef = useRef([]);
   const tipoSiguienteRegistroRef = useRef('entrada');
   const isOnlineRef = useRef(false);
-  // Contador de ticks del intervalo de 1 s — usado para refrescar datos periódicamente
   const ticksRef = useRef(0);
-  // ──────────────────────────────────────────────────────────────────────────
-
   const styles = darkMode ? registerStylesDark : registerStyles;
   const [horaActual, setHoraActual] = useState(new Date());
-
-  // Mantener refs sincronizados con el estado
   useEffect(() => { horarioInfoRef.current = horarioInfo; }, [horarioInfo]);
   useEffect(() => { toleranciaInfoRef.current = toleranciaInfo; }, [toleranciaInfo]);
   useEffect(() => { ultimoRegistroHoyRef.current = ultimoRegistroHoy; }, [ultimoRegistroHoy]);
@@ -276,7 +267,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         setPuedeRegistrar(estado.puedeRegistrar);
         setTipoSiguienteRegistro(estado.tipoRegistro);
         setEstadoHorario(estado.estadoHorario);
-
+        setJornadaCompletada(estado.jornadaCompleta);
         setMensajeEspera(estado.mensajeEspera || '');
 
         // ── LÓGICA DE NOTIFICACIÓN: una sola vez por tipo (entrada/salida) por día ──
@@ -377,12 +368,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     };
   };
 
-  // ============================================================
-  // IDENTIFICAR BLOQUE ACTIVO POR VENTANA DE TIEMPO
-  // Espejo exacto de identificarBloqueHorario del backend
-  // (asistencias.controller.js). Usa la HORA ACTUAL, no el conteo
-  // de registros, para decidir qué bloque de turno está activo.
-  // ============================================================
   const identificarBloqueHorario = (gruposTurnos, horaActual, tolerancia) => {
     const margenAnticipado = tolerancia?.minutos_anticipado_max || 60;
     const margenFalta = tolerancia?.minutos_falta || 30;
@@ -396,13 +381,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         return { indice: i, entrada, salida, inicioBloque, finBloque };
       }
     }
-    return null; // No hay bloque activo en esta franja horaria
+    return null;
   };
 
   const obtenerUltimoRegistro = useCallback(async () => {
-    // Retorna { ultimo, todos } donde:
-    //   ultimo = último registro del día (o null si no hay)
-    //   todos  = todos los registros del día, ordenados ASC por fecha
     try {
       const empleadoId = userData?.empleado_id;
       if (!empleadoId) return { ultimo: null, todos: [] };
@@ -431,6 +413,19 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
               );
 
               if (registrosHoy.length > 0) {
+                // ── Espejo en SQLite (background): garantiza datos offline ──────
+                Promise.all(registrosHoy.map(r =>
+                  saveOnlineAsistenciaToCache({
+                    id: r.id,
+                    empleado_id: empleadoId,
+                    tipo: r.tipo,
+                    estado: r.estado,
+                    fecha_registro: r.fecha_registro,
+                    dispositivo_origen: r.dispositivo_origen,
+                    departamento_id: r.departamento_id,
+                  })
+                )).catch(() => { /* no crítico */ });
+
                 const ultimoRaw = registrosHoy[0]; // más reciente
                 const ultimo = {
                   tipo: ultimoRaw.tipo,
@@ -458,7 +453,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         }
       }
 
-      // Fallback: SQLite local (ordenado ASC por getRegistrosHoy)
+      // Fallback: SQLite local (offline_asistencias UNION cache_asistencias, ordenado ASC)
       const registrosOffline = await sqliteManager.getRegistrosHoy(empleadoId);
 
       if (registrosOffline && registrosOffline.length > 0) {
@@ -684,9 +679,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }
   }, [userData]);
 
-  // ============================================================
-  // VALIDACIÓN DE ENTRADA
-  // ============================================================
   const validarEntrada = (horario, tolerancia, minutosActuales, totalRegistrosHoy = 0) => {
     if (!horario?.gruposTurnos || !Array.isArray(horario.gruposTurnos) || horario.gruposTurnos.length === 0) {
       return {
@@ -699,7 +691,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }
 
     const numeroGrupo = Math.floor(totalRegistrosHoy / 2);
-
     if (numeroGrupo >= horario.gruposTurnos.length) {
       let hayTurnoFuturo = false;
       for (const grupo of horario.gruposTurnos) {
@@ -737,13 +728,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     const [hS, mS] = horaSalida.split(':').map(Number);
     const minEntrada = hE * 60 + mE;
     const minSalida = hS * 60 + mS;
-
     const ventanaInicio = minEntrada - (tolerancia.minutos_anticipado_max || 60);
-    // Umbrales sincronizados con backend (asistencias.controller.js)
-    const margenPuntual = minEntrada + 10;  // <= 10 min → puntual
-    const margenRetardoA = minEntrada + 20;  // 11-20 min → retardo_a
-    const margenRetardoB = minEntrada + 29;  // 21-29 min → retardo_b
-    // > 29 min hasta salida → falta_por_retardo
+    const margenPuntual = minEntrada + 10;
+    const margenRetardoA = minEntrada + 20;
+    const margenRetardoB = minEntrada + 29;
 
     if (minutosActuales < ventanaInicio) {
       return {
@@ -804,9 +792,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     };
   };
 
-  // ============================================================
-  // VALIDACIÓN DE SALIDA
-  // ============================================================
   const validarSalida = (horario, minutosActuales, ultimoRegistro, tolerancia, esOnline = false) => {
     if (!horario?.gruposTurnos || !Array.isArray(horario.gruposTurnos) || horario.gruposTurnos.length === 0) {
       return {
@@ -846,10 +831,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       if (minutosUltimaEntrada >= ventanaInicioTurno && minutosUltimaEntrada <= minSalida) {
         const diferenciaMinutos = (ahora - horaUltimoRegistro) / 1000 / 60;
-
-        // ⚡ Se usa la hora REAL de entrada (minutosUltimaEntrada), no la programada (minEntrada).
-        // Así, si alguien llegó tarde (ej. 9:28 en turno 9:00-12:00), el tiempo mínimo
-        // de permanencia se reduce proporcionalmente y no es injusto.
         const tiempoRestanteHastaFin = minSalida - minutosUltimaEntrada;
         const toleranciaSalidaAnticipada = tolerancia.aplica_tolerancia_salida === false
           ? 0
@@ -890,12 +871,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     };
   };
 
-  // ============================================================
-  // CALCULAR ESTADO DE REGISTRO
-  // Usa la lógica de ventana de tiempo del backend (identificarBloqueHorario)
-  // en lugar de contar registros. Así detecta turnos extra que el admin
-  // agregue en cualquier momento, sin bloquear el botón permanentemente.
-  // ============================================================
   const calcularEstadoRegistro = useCallback((registrosTodos, ultimo, horario, tolerancia, isOnlineNow = false) => {
     // Bloquear si es día festivo obligatorio
     if (diaFestivo) {
@@ -1461,6 +1436,19 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         }
 
         success = true;
+        try {
+          await saveOnlineAsistenciaToCache({
+            id: data?.data?.id || `local_online_${Date.now()}`,
+            empleado_id: payload.empleado_id,
+            tipo: payload.tipo,
+            estado: estadoCalculado,
+            fecha_registro: new Date().toISOString(),
+            dispositivo_origen: 'movil',
+            departamento_id: payload.departamento_id,
+          });
+        } catch (cacheErr) {
+          console.log('No crítico: no se pudo cachear registro online:', cacheErr.message);
+        }
 
       } catch (e) {
         const esErrorDeRed = (
@@ -1564,13 +1552,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
         setMensajeEspera(nuevoEstado.mensajeEspera || '');
       }
-
-      // ── Al registrar exitosamente, marcar el tipo como "ya notificado" para
-      //    que cuando se habilite el siguiente tipo (salida/entrada) se pueda notificar
-      //    sin interferir con el tipo que acaba de registrarse. ──────────────────────
-      // (No hace falta hacer nada aquí: el tipo cambiará y notifDiariaRef[nuevoTipo]
-      //  seguirá en false hasta que se habilite por primera vez)
-
       const tipoRegistrado = data.data?.tipo || tipoActual;
       const estadoRegistrado = data.data?.estado || 'puntual';
       const esOffline = data.data?._offline === true;
@@ -1607,9 +1588,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const tipoMayuscula = tipoRegistrado === 'entrada' ? 'Entrada' : 'Salida';
       const horaStr = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
       Vibration.vibrate(500);
-
       Alert.alert(
-        esOffline ? 'Guardado sin conexión' : '¡Éxito!',
+        esOffline ? 'Pendiente a revisar' : '¡Éxito!',
         [
           `${emoji} ${tipoMayuscula} registrada como ${estadoTexto}`,
           `Departamento: ${departamento.nombre}`,
@@ -1618,7 +1598,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         ].filter(Boolean).join('\n'),
         [{ text: 'OK' }]
       );
-
       notificarRegistro(tipoRegistrado, estadoRegistrado);
 
       if (onRegistroExitoso) {
@@ -1654,7 +1633,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         mensaje = 'Debes estar dentro de un área permitida';
       } else if (!departamentoSeleccionado) {
         mensaje = 'Selecciona un departamento para registrar';
-
+      } else if (jornadaCompletada) {
+        mensaje = 'Ya completaste tu jornada de hoy';
       } else if (estadoHorario === 'tiempo_insuficiente') {
         mensaje = `Aún no puedes salir.\n\n${mensajeEspera}`;
       } else if (estadoHorario === 'fuera_horario') {
@@ -1689,6 +1669,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   };
 
   const getButtonColor = () => {
+    if (jornadaCompletada) return '#6b7280';
     if (estadoHorario === 'dia_festivo') return '#8b5cf6'; // púrpura
     if (!dentroDelArea || !puedeRegistrar) return '#ef4444';
     if (tipoSiguienteRegistro === 'salida' && puedeRegistrar) return '#10b981';
@@ -1701,6 +1682,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   };
 
   const getIcon = () => {
+    if (jornadaCompletada) return 'checkmark-done-circle';
     if (estadoHorario === 'dia_festivo') return 'calendar-outline';
     if (!dentroDelArea) return 'location';
     if (estadoHorario === 'tiempo_insuficiente') return 'time-outline';
@@ -1715,6 +1697,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   };
 
   const getStatusText = () => {
+    if (jornadaCompletada) return 'Jornada completada';
     if (estadoHorario === 'dia_festivo') return diaFestivo ? `Día festivo: ${diaFestivo.nombre}` : 'Día festivo';
     if (!dentroDelArea) return 'Fuera del área';
     if (estadoHorario === 'tiempo_insuficiente' && tipoSiguienteRegistro === 'salida') {
@@ -1731,12 +1714,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   };
 
   const getButtonText = () => {
-
+    if (jornadaCompletada) return 'Jornada completada';
     if (!puedeRegistrar || !dentroDelArea) return 'No disponible';
     return `Registrar ${tipoSiguienteRegistro === 'entrada' ? 'Entrada' : 'Salida'}`;
   };
 
-  const puedePresionarBoton = puedeRegistrar && dentroDelArea && !registrando && departamentoSeleccionado;
+  const puedePresionarBoton = puedeRegistrar && dentroDelArea && !jornadaCompletada && !registrando && departamentoSeleccionado;
 
   if (mostrarCapturaFacial) {
     return (
@@ -1776,7 +1759,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             </Text>
           </View>
 
-          {!loading && (
+          {!loading && !jornadaCompletada && (
             <View style={styles.statusIndicators}>
               <View style={styles.indicator}>
                 <Ionicons
@@ -1902,7 +1885,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             ) : (
               <>
                 <Ionicons
-                  name={puedePresionarBoton ? 'finger-print' : 'lock-closed'}
+                  name={puedePresionarBoton ? 'finger-print' : jornadaCompletada ? 'checkmark-done' : 'lock-closed'}
                   size={20}
                   color="#fff"
                 />
@@ -2058,7 +2041,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                   );
                 })}
               </ScrollView>
-
               <View style={styles.modalFooter}>
                 <View style={styles.infoBox}>
                   <Ionicons name="information-circle" size={16} color="#3b82f6" />

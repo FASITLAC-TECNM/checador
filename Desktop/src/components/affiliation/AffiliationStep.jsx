@@ -14,22 +14,22 @@ export default function AffiliationStep({
   return (
     <div className="h-screen w-screen bg-bg-primary flex flex-col overflow-hidden">
       {/* Barra de progreso fija */}
-      <div className="bg-bg-secondary border-b border-border-subtle py-4 px-8 flex-shrink-0">
+      <div className="bg-bg-secondary border-b border-border-subtle py-3 sm:py-4 px-4 sm:px-8 flex-shrink-0">
         <StepIndicator currentStep={3} totalSteps={4} />
       </div>
 
       {/* Botón de información */}
       <button
         onClick={onShowWelcome}
-        className="fixed top-20 right-6 w-12 h-12 bg-[#1976D2] text-white rounded-full shadow-lg shadow-[#1976D2]/20 hover:bg-[#1565C0] transition-all hover:scale-110 flex items-center justify-center z-10"
+        className="fixed top-[58px] sm:top-20 right-3 sm:right-6 w-10 h-10 sm:w-12 sm:h-12 bg-[#1976D2] text-white rounded-full shadow-lg shadow-[#1976D2]/20 hover:bg-[#1565C0] transition-all hover:scale-110 flex items-center justify-center z-10"
         title="Ver información de bienvenida"
       >
-        <Info className="w-6 h-6" />
+        <Info className="w-5 h-5 sm:w-6 sm:h-6" />
       </button>
 
       {/* Contenido scrollable */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto p-6">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
           <div className="mb-4">
             <h1 className="text-xl font-bold text-text-primary mb-1">
               Paso 3: Afiliación a Empresa
@@ -79,8 +79,8 @@ export default function AffiliationStep({
       </div>
 
       {/* Footer fijo con botones */}
-      <div className="bg-bg-secondary border-t border-border-subtle px-6 py-4 flex-shrink-0">
-        <div className="max-w-4xl mx-auto flex justify-between">
+      <div className="bg-bg-secondary border-t border-border-subtle px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
+        <div className="max-w-4xl mx-auto flex justify-between gap-3">
           <button
             onClick={onPrevious}
             className="px-6 py-2.5 text-text-secondary hover:text-text-primary font-medium transition-all duration-200 flex items-center gap-2 rounded-xl hover:bg-bg-tertiary"
@@ -92,8 +92,8 @@ export default function AffiliationStep({
             onClick={onSubmit}
             disabled={!companyId.trim()}
             className={`group px-6 py-2.5 text-white rounded-xl font-medium transition-all duration-200 flex items-center gap-2 ${!companyId.trim()
-                ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed opacity-70"
-                : "bg-[#1976D2] hover:bg-[#1565C0] shadow-sm shadow-[#1976D2]/20 hover:shadow-lg hover:shadow-[#1976D2]/30 hover:-translate-y-0.5"
+              ? "bg-gray-400 dark:bg-gray-600 cursor-not-allowed opacity-70"
+              : "bg-[#1976D2] hover:bg-[#1565C0] shadow-sm shadow-[#1976D2]/20 hover:shadow-lg hover:shadow-[#1976D2]/30 hover:-translate-y-0.5"
               }`}
           >
             Solicitar Afiliación

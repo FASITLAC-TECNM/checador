@@ -51,19 +51,19 @@ export default function DevicesStep({
   return (
     <div className="h-screen w-screen bg-bg-primary flex flex-col overflow-hidden">
       {/* Barra de progreso fija */}
-      <div className="bg-bg-secondary border-b border-border-subtle py-3 px-8 flex-shrink-0">
+      <div className="bg-bg-secondary border-b border-border-subtle py-3 sm:py-3 px-4 sm:px-8 flex-shrink-0">
         <StepIndicator currentStep={2} totalSteps={4} />
       </div>
 
       {/* Contenido */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-6 py-4">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
           <button
             onClick={onShowWelcome}
-            className="absolute top-20 right-6 w-12 h-12 bg-[#1976D2] text-white rounded-full shadow-lg shadow-[#1976D2]/20 hover:bg-[#1565C0] transition-all hover:scale-110 flex items-center justify-center z-10"
+            className="absolute top-[58px] sm:top-20 right-3 sm:right-6 w-10 h-10 sm:w-12 sm:h-12 bg-[#1976D2] text-white rounded-full shadow-lg shadow-[#1976D2]/20 hover:bg-[#1565C0] transition-all hover:scale-110 flex items-center justify-center z-10"
             title="Ver información de bienvenida"
           >
-            <Info className="w-6 h-6" />
+            <Info className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
 
           <div className="mb-3">
@@ -157,8 +157,8 @@ export default function DevicesStep({
                         <span>Detectado automáticamente</span>
                       </div>
                     )}
-                    <div className="grid grid-cols-5 gap-3">
-                      <div className="col-span-2">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      <div className="col-span-2 md:col-span-2">
                         <label className="block text-xs font-medium text-text-secondary mb-1">
                           Nombre del Dispositivo
                         </label>
@@ -172,7 +172,7 @@ export default function DevicesStep({
                           className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-[#42A5F5]/50 focus:border-transparent transition-all duration-200"
                         />
                       </div>
-                      <div>
+                      <div className="col-span-1">
                         <label className="block text-xs font-medium text-text-secondary mb-1">
                           Tipo
                         </label>
@@ -206,7 +206,7 @@ export default function DevicesStep({
                           <option value="USB">USB</option>
                         </select>
                       </div>
-                      <div className="flex items-end">
+                      <div className="col-span-1 flex items-end">
                         <button
                           onClick={() => removeDevice(device.id)}
                           className="w-full px-3 py-2.5 bg-bg-secondary border border-red-400 dark:border-red-500 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 text-sm font-medium"
@@ -284,8 +284,8 @@ export default function DevicesStep({
       </div>
 
       {/* Footer fijo con botones */}
-      <div className="bg-bg-secondary border-t border-border-subtle px-6 py-3 flex-shrink-0">
-        <div className="max-w-5xl mx-auto flex justify-between">
+      <div className="bg-bg-secondary border-t border-border-subtle px-4 sm:px-6 py-2.5 sm:py-3 flex-shrink-0">
+        <div className="max-w-5xl mx-auto flex justify-between gap-3">
           <button
             onClick={onPrevious}
             className="px-5 py-2.5 text-text-secondary hover:text-text-primary font-medium transition-all duration-200 flex items-center gap-2 text-sm rounded-xl hover:bg-bg-tertiary"

@@ -14,17 +14,17 @@ export default function ApprovalStep({
     return (
       <div className="h-screen w-screen bg-bg-primary flex flex-col overflow-hidden">
         {/* Barra de progreso fija */}
-        <div className="bg-bg-secondary border-b border-border-subtle py-4 px-8 flex-shrink-0">
+        <div className="bg-bg-secondary border-b border-border-subtle py-3 sm:py-4 px-4 sm:px-8 flex-shrink-0">
           <StepIndicator currentStep={4} totalSteps={4} />
         </div>
 
         {/* Botón de información */}
         <button
           onClick={onShowWelcome}
-          className="fixed top-20 right-6 w-12 h-12 bg-[#1976D2] text-white rounded-full shadow-lg shadow-[#1976D2]/20 hover:bg-[#1565C0] transition-all hover:scale-110 flex items-center justify-center z-10"
+          className="fixed top-[58px] sm:top-20 right-3 sm:right-6 w-10 h-10 sm:w-12 sm:h-12 bg-[#1976D2] text-white rounded-full shadow-lg shadow-[#1976D2]/20 hover:bg-[#1565C0] transition-all hover:scale-110 flex items-center justify-center z-10"
           title="Ver información de bienvenida"
         >
-          <Info className="w-6 h-6" />
+          <Info className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
 
         {/* Contenido scrollable */}

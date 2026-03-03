@@ -6,12 +6,14 @@ import {
     TouchableOpacity,
     Platform,
     StatusBar,
+    Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { UsuariosCredencialesScreen } from './UsuariosCredencialesScreen';
+import { NetworkValidatorScreen } from './NetworkValidatorScreen';
 
 export const AdminScreen = ({ userData, darkMode }) => {
-    const [subScreen, setSubScreen] = useState(null); // null | 'credenciales'
+    const [subScreen, setSubScreen] = useState(null); // null | 'credenciales' | 'network-validator'
 
     const styles = darkMode ? adminStylesDark : adminStyles;
 
@@ -65,13 +67,45 @@ export const AdminScreen = ({ userData, darkMode }) => {
                             </Text>
                         </View>
                     </View>
-                    <Ionicons
-                        name="chevron-forward"
-                        size={20}
-                        color={darkMode ? '#6b7280' : '#9ca3af'}
-                    />
+                    <Ionicons name="chevron-forward" size={20} color={darkMode ? '#6b7280' : '#9ca3af'} />
+                </TouchableOpacity>
+
+                {/* Diagnóstico de Red */}
+                <TouchableOpacity
+                    style={[styles.card, { marginTop: 12 }]}
+                    activeOpacity={0.75}
+                    onPress={() => setSubScreen('network-validator')}
+                >
+                    <View style={styles.cardLeft}>
+                        <View style={[styles.iconWrap, { backgroundColor: darkMode ? '#1e2860' : '#eff6ff' }]}>
+                            <Ionicons name="wifi" size={28} color={darkMode ? '#818cf8' : '#4f46e5'} />
+                        </View>
+                        <View style={styles.cardText}>
+                            <Text style={styles.cardTitle}>Red / Diagnóstico</Text>
+                            <Text style={styles.cardDesc}>
+                                Verifica conectividad y segmentos de red configurados
+                            </Text>
+                        </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={darkMode ? '#6b7280' : '#9ca3af'} />
                 </TouchableOpacity>
             </View>
+
+            {/* Modal para Network Validator */}
+            <Modal
+                visible={subScreen === 'network-validator'}
+                animationType="slide"
+                transparent={false}
+                onRequestClose={() => setSubScreen(null)}
+            >
+                {subScreen === 'network-validator' && (
+                    <NetworkValidatorScreen
+                        userData={userData}
+                        darkMode={darkMode}
+                        onBack={() => setSubScreen(null)}
+                    />
+                )}
+            </Modal>
         </View>
     );
 };

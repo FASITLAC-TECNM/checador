@@ -62,21 +62,21 @@ export const obtenerHorarioSimplificado = async (empleadoId, token) => {
 };
 
 /**
- * Tolerancia por defecto alineada con el backend actualizado.
- * Incluye los nuevos campos de retardo A/B.
+ * DEFAULT_TOLERANCIA
+ * Fallback cuando el backend no devuelve datos.
+ * Incluye un array `reglas` equivalente al que maneja el backend.
  */
 const DEFAULT_TOLERANCIA = {
-    minutos_retardo: 10,
-    minutos_falta: 30,
     permite_registro_anticipado: true,
     minutos_anticipado_max: 60,
     aplica_tolerancia_entrada: true,
     aplica_tolerancia_salida: false,
-    // Nuevos campos — alineados con tolerancias.controller.js
-    minutos_retardo_a_max: 20,
-    minutos_retardo_b_max: 29,
-    equivalencia_retardo_a: 10,
-    equivalencia_retardo_b: 5,
+    // Array de reglas — misma estructura que usa srvEvaluarEstado en el backend
+    reglas: [
+        { id: 'retardo_a', limite_minutos: 20, penalizacion_tipo: 'acumulacion', penalizacion_valor: 3 },
+        { id: 'retardo_b', limite_minutos: 29, penalizacion_tipo: 'acumulacion', penalizacion_valor: 2 },
+        { id: 'falta_por_retardo', limite_minutos: 60, penalizacion_tipo: 'directa', penalizacion_valor: 1 },
+    ],
 };
 
 /**
@@ -98,8 +98,19 @@ export const obtenerTolerancia = async (token) => {
 
         const data = await response.json();
         if (data.data && data.data.length > 0) {
-            // Mezclar con defaults para garantizar que los campos nuevos existan
-            return { ...DEFAULT_TOLERANCIA, ...data.data[0] };
+            const t = data.data[0];
+            // Parsear `reglas` si viene como string JSON (así lo devuelve el backend)
+            if (typeof t.reglas === 'string') {
+                try { t.reglas = JSON.parse(t.reglas); } catch { t.reglas = DEFAULT_TOLERANCIA.reglas; }
+            }
+            if (!Array.isArray(t.reglas) || t.reglas.length === 0) {
+                t.reglas = DEFAULT_TOLERANCIA.reglas;
+            }
+            // Parsear dias_aplica si viene como string
+            if (typeof t.dias_aplica === 'string') {
+                try { t.dias_aplica = JSON.parse(t.dias_aplica); } catch { t.dias_aplica = {}; }
+            }
+            return { ...DEFAULT_TOLERANCIA, ...t };
         }
 
         return { ...DEFAULT_TOLERANCIA };
@@ -154,39 +165,41 @@ export const obtenerUltimoRegistro = async (empleadoId, token) => {
 };
 
 /**
- * Calcula el estado de entrada basado en la tolerancia del empleado.
- * Alineado con la lógica de calcularEstadoEntrada en asistencias.controller.js.
+ * calcularEstadoEntrada
+ * Replica exactamente la lógica de srvEvaluarEstado del backend.
+ * Usa el array `reglas` (ordenado por limite_minutos) para determinar el estado.
  *
- * @param {number} minutosActuales - Minutos desde medianoche de la hora actual
- * @param {number} minEntrada - Minutos desde medianoche de la hora de entrada del turno
- * @param {Object} tolerancia - Objeto de tolerancia del empleado
+ * @param {number} minutosActuales
+ * @param {number} minEntrada
+ * @param {Object} tolerancia - debe tener `reglas: [{id, limite_minutos}]`
  * @returns {'puntual'|'retardo_a'|'retardo_b'|'falta_por_retardo'|'falta'}
  */
 export const calcularEstadoEntrada = (minutosActuales, minEntrada, tolerancia) => {
     const tol = { ...DEFAULT_TOLERANCIA, ...tolerancia };
-    const anticipadoMax = tol.minutos_anticipado_max || 60;
-    const inicioVentana = minEntrada - anticipadoMax;
 
-    // Umbrales basados en el backend (con los nuevos campos de tolerancia)
-    const margenPuntual = minEntrada + (tol.minutos_retardo || 10);
-    const margenRetardoA = minEntrada + (tol.minutos_retardo_a_max || 20);
-    const margenRetardoB = minEntrada + (tol.minutos_retardo_b_max || 29);
+    // Verificar si aplica hoy (igual que el backend: dias_aplica[diaHoy] !== false)
+    const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+    const diaHoy = dias[new Date().getDay()];
+    const aplicaHoy = tol.dias_aplica?.[diaHoy] !== false;
 
-    if (minutosActuales >= inicioVentana && minutosActuales <= margenPuntual) {
-        return 'puntual';
+    const llegadaTarde = minutosActuales - minEntrada;
+
+    // Si llegó antes de tiempo → puntual
+    if (llegadaTarde <= 0) return 'puntual';
+
+    // Si no aplica tolerancia hoy → directo a falta
+    if (!aplicaHoy) return 'falta';
+
+    // Recorrer reglas ordenadas por limite_minutos (igual que srvEvaluarEstado)
+    const reglas = Array.isArray(tol.reglas) ? [...tol.reglas].sort((a, b) => a.limite_minutos - b.limite_minutos) : [];
+
+    for (const r of reglas) {
+        if (llegadaTarde <= r.limite_minutos) {
+            return r.id; // 'retardo_a', 'retardo_b', 'falta_por_retardo', etc.
+        }
     }
-    if (minutosActuales > margenPuntual && minutosActuales <= margenRetardoA) {
-        return 'retardo_a';
-    }
-    if (minutosActuales > margenRetardoA && minutosActuales <= margenRetardoB) {
-        return 'retardo_b';
-    }
-    // Si superó retardo_b pero sigue en período del turno
-    const margenFaltaPorRetardo = minEntrada + (tol.minutos_falta || 30);
-    if (minutosActuales > margenRetardoB && minutosActuales <= margenFaltaPorRetardo) {
-        return 'falta_por_retardo';
-    }
-    return 'falta';
+
+    return 'falta'; // Superó todas las reglas
 };
 
 /**

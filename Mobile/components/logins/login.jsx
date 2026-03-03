@@ -20,19 +20,16 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { login } from '../../services/authService';
 import { getEmpleadoById } from '../../services/empleadoServices';
-import { getEmpresaPublicaById } from '../../services/empresaService'; // Added this import
+import { getEmpresaPublicaById } from '../../services/empresaService';
 import syncManager from '../../services/offline/syncManager.mjs';
 import sqliteManager from '../../services/offline/sqliteManager.mjs';
 import { SeleccionEmpresaScreen } from './SeleccionEmpresaScreen';
-
-// Claves para SecureStore (credenciales cifradas en hardware del dispositivo)
 const SECURE_KEYS = {
   CACHED_USER: 'offline_cached_user',
   CACHED_PASS_HASH: 'offline_cached_pass_hash',
   CACHED_USER_DATA: 'offline_cached_user_data',
 };
 
-// Hash simple para comparar contraseñas offline (nunca se envía al servidor)
 const simpleHash = (str) => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -57,20 +54,16 @@ export const LoginScreen = ({ onLoginSuccess }) => {
   const [showEmpresaSelector, setShowEmpresaSelector] = useState(false);
   const [empresasList, setEmpresasList] = useState([]);
   const pulseAnim = useRef(new Animated.Value(1)).current;
-
-  // Monitor WiFi status en tiempo real
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener(state => {
       setIsWifiConnected(state.isConnected && state.isInternetReachable);
     });
-    // Check inicial
     NetInfo.fetch().then(state => {
       setIsWifiConnected(state.isConnected && state.isInternetReachable);
     });
     return () => unsubscribe();
   }, []);
 
-  // Check DB status
   useEffect(() => {
     const checkDb = async () => {
       try {
@@ -83,7 +76,6 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     checkDb();
   }, []);
 
-  // Animación de pulso para los dots
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
@@ -107,9 +99,6 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     setGeneralError('');
   };
 
-  /**
-   * Guarda credenciales en SecureStore para uso offline
-   */
   const cacheCredentials = async (user, pass, datosCompletos) => {
     try {
       await Promise.all([
@@ -122,9 +111,6 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     }
   };
 
-  /**
-   * Valida credenciales contra el caché local (SecureStore)
-   */
   const validateOffline = async (user, pass) => {
     try {
       const cachedUser = await SecureStore.getItemAsync(SECURE_KEYS.CACHED_USER);
@@ -141,17 +127,12 @@ export const LoginScreen = ({ onLoginSuccess }) => {
       if (inputUser !== cachedUser || inputHash !== cachedHash) {
         return { success: false, error: 'Usuario o contraseña incorrectos (modo offline)' };
       }
-
-      // Credenciales válidas → restaurar sesión
       const userData = JSON.parse(cachedData);
-
-      // Restaurar token y datos en AsyncStorage para que el resto de la app funcione
       if (userData.token) {
         await AsyncStorage.setItem('userToken', userData.token);
       }
       await AsyncStorage.setItem('@user_data', JSON.stringify(userData));
 
-      // Configurar syncManager con el token almacenado
       if (userData.token) {
         syncManager.setAuthToken(userData.token);
       }
@@ -188,11 +169,9 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     setIsLoading(true);
 
     try {
-      // ====== INTENTO 1: Login Online ======
       const response = await login(usuario, password, empresaId);
 
       if (response && response.isMultiCompany) {
-        // Fetch public company data to get the logos
         try {
           const empresasConLogo = await Promise.all(
             response.empresas.map(async (emp) => {
@@ -527,7 +506,6 @@ export const LoginScreen = ({ onLoginSuccess }) => {
                 </LinearGradient>
               </TouchableOpacity>
             </View>
-
             <Text style={styles.copyright}>© {new Date().getFullYear()} FASITLAC™</Text>
           </ScrollView>
         </KeyboardAvoidingView>

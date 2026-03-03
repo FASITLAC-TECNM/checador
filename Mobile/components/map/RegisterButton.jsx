@@ -1227,7 +1227,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const resultado = await capturarHuellaDigital(userData.empleado_id);
 
       if (resultado.success) {
-        await procederConRegistro();
+        setRegistrando(false); // Detenemos loader principal
+        Alert.alert(
+          'Doble Seguridad',
+          'Huella verificada localmente.\n\nPor favor, realiza el reconocimiento facial para completar tu registro.',
+          [{ text: 'Continuar a Cámara', onPress: () => setMostrarCapturaFacial(true) }]
+        );
       } else {
         throw new Error('Autenticación biométrica fallida');
       }

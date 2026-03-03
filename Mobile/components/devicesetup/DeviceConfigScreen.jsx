@@ -8,7 +8,10 @@ import {
   StatusBar,
   ActivityIndicator,
   Platform,
-  Alert
+  Alert,
+  Linking,
+  Modal,
+  ScrollView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -82,6 +85,7 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
   const [isLoading, setIsLoading] = useState(false);
   const [isDetecting, setIsDetecting] = useState(true);
   const [solicitudExistente, setSolicitudExistente] = useState(null);
+  const [showMacHelp, setShowMacHelp] = useState(false);
 
   // Estados para validación de correo
   const [isValidatingEmail, setIsValidatingEmail] = useState(false);
@@ -455,6 +459,18 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
         {field.helpText && !isEmailField && (
           <Text style={styles.helpText}>{field.helpText}</Text>
         )}
+
+        {/* Botón de ayuda para MAC Address debajo del campo */}
+        {isMacField && (
+          <TouchableOpacity
+            style={styles.macHelpButton}
+            onPress={() => setShowMacHelp(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="help-circle-outline" size={16} color="#4f46e5" />
+            <Text style={styles.macHelpButtonText}>¿Cómo encuentro mi dirección MAC Wi-Fi?</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
@@ -570,6 +586,98 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Modal de Ayuda para MAC Address */}
+      <Modal
+        visible={showMacHelp}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowMacHelp(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderIcon}>
+                <Ionicons name="hardware-chip" size={24} color="#2563eb" />
+              </View>
+              <Text style={styles.modalTitle}>Buscar MAC Wi-Fi</Text>
+              <TouchableOpacity onPress={() => setShowMacHelp(false)} style={styles.closeModalButton}>
+                <Ionicons name="close" size={24} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              {Platform.OS === 'android' ? (
+                <>
+                  <View style={styles.stepItem}>
+                    <Ionicons name="settings-outline" size={22} color="#4b5563" />
+                    <Text style={styles.stepText}>Abre la aplicación de Configuración o Ajustes</Text>
+                  </View>
+                  <View style={styles.stepItem}>
+                    <Ionicons name="information-circle-outline" size={22} color="#4b5563" />
+                    <Text style={styles.stepText}>Desplázate hacia abajo y toca en "Acerca del teléfono"</Text>
+                  </View>
+                  <View style={styles.stepItem}>
+                    <Ionicons name="list-outline" size={22} color="#4b5563" />
+                    <Text style={styles.stepText}>Busca "Estado", "Información de hardware" o "Dirección MAC de Wi-Fi"</Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={styles.stepItem}>
+                    <Ionicons name="settings-outline" size={22} color="#4b5563" />
+                    <Text style={styles.stepText}>Abre la aplicación de Configuración</Text>
+                  </View>
+                  <View style={styles.stepItem}>
+                    <Ionicons name="cog-outline" size={22} color="#4b5563" />
+                    <Text style={styles.stepText}>Toca en "General"</Text>
+                  </View>
+                  <View style={styles.stepItem}>
+                    <Ionicons name="information-circle-outline" size={22} color="#4b5563" />
+                    <Text style={styles.stepText}>Toca en "Información"</Text>
+                  </View>
+                  <View style={styles.stepItem}>
+                    <Ionicons name="wifi-outline" size={22} color="#4b5563" />
+                    <Text style={styles.stepText}>Busca la fila "Dirección Wi-Fi" (esa es tu MAC)</Text>
+                  </View>
+                </>
+              )}
+
+              <View style={styles.macFormatNote}>
+                <Ionicons name="alert-circle-outline" size={16} color="#047857" />
+                <Text style={styles.macFormatText}>El formato se ve como: A1:B2:C3:D4:E5:F6</Text>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              {Platform.OS === 'android' && (
+                <TouchableOpacity
+                  style={styles.modalPrimaryButton}
+                  onPress={() => {
+                    Linking.sendIntent('android.settings.DEVICE_INFO_SETTINGS').catch(() => {
+                      // Fallback a los ajustes generales si no existe "Acerca de"
+                      Linking.sendIntent('android.settings.SETTINGS').catch(() => {
+                        Alert.alert("Aviso", "No se pudo abrir la configuración automáticamente, por favor hazlo manualmente.");
+                      });
+                    });
+                  }}
+                >
+                  <Ionicons name="open-outline" size={16} color="#fff" />
+                  <Text style={styles.modalPrimaryButtonText}>Abrir Ajustes</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={[styles.modalSecondaryButton, Platform.OS !== 'android' && { width: '100%' }]}
+                onPress={() => setShowMacHelp(false)}
+              >
+                <Text style={styles.modalSecondaryButtonText}>Cerrar Ayuda</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 };
@@ -875,8 +983,129 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   nextButtonText: {
-    color: '#fff',
+    color: '#ffffff',
     fontSize: 14,
     fontWeight: 'bold',
+    marginRight: 6,
+  },
+  macHelpButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    backgroundColor: '#eff6ff',
+    alignSelf: 'flex-start',
+    borderRadius: 8,
+  },
+  macHelpButtonText: {
+    fontSize: 12,
+    color: '#4f46e5',
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 400,
+    padding: 20,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalHeaderIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#eff6ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    flex: 1,
+  },
+  closeModalButton: {
+    padding: 4,
+  },
+  modalScroll: {
+    maxHeight: 300,
+  },
+  stepItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
+  },
+  stepText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#4b5563',
+    lineHeight: 20,
+  },
+  macFormatNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ecfdf5',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 20,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+  },
+  macFormatText: {
+    fontSize: 13,
+    color: '#065f46',
+    fontWeight: '500',
+    flex: 1,
+  },
+  modalActions: {
+    gap: 10,
+    marginTop: 10,
+  },
+  modalPrimaryButton: {
+    backgroundColor: '#2563eb',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  modalPrimaryButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  modalSecondaryButton: {
+    backgroundColor: '#f3f4f6',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalSecondaryButtonText: {
+    color: '#4b5563',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

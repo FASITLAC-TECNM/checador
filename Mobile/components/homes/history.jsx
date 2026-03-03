@@ -93,14 +93,14 @@ export const HistoryScreen = ({ darkMode, userData }) => {
     }
   }, [userData, currentMonth]);
 
-  // ── Estadísticas corregidas (cubre retardo_a, retardo_b, falta_por_retardo) ─
+  // ── Estadísticas dinámicas de asistencias para N-Tolerancias ─
   const calcularEstadisticas = (data) => {
     let puntuales = 0, retardos = 0, faltas = 0;
     data.forEach(r => {
       if (r.tipo !== 'entrada') return;
       if (r.estado === 'puntual') puntuales++;
-      else if (r.estado === 'retardo_a' || r.estado === 'retardo_b' || r.estado === 'retardo') retardos++;
-      else if (r.estado === 'falta' || r.estado === 'falta_por_retardo') faltas++;
+      else if (r.estado.startsWith('retardo')) retardos++;
+      else if (r.estado.startsWith('falta')) faltas++;
     });
     setEstadisticas({ puntuales, retardos, faltas, total: puntuales + retardos + faltas });
   };
@@ -192,29 +192,25 @@ export const HistoryScreen = ({ darkMode, userData }) => {
   const obtenerColorEstado = useCallback((estado) => {
     switch (estado) {
       case 'puntual': return '#10b981';
-      case 'retardo_a': return '#f59e0b';
-      case 'retardo_b': return '#f97316';
-      case 'retardo': return '#f59e0b';
-      case 'falta_por_retardo': return '#ef4444';
-      case 'falta': return '#dc2626';
       case 'salida_puntual': return '#2563eb';
       case 'salida_temprano': return '#7c3aed';
-      default: return '#6b7280';
     }
+    if (estado?.startsWith('retardo')) return '#f59e0b';
+    if (estado?.startsWith('falta')) return '#ef4444';
+    return '#6b7280';
   }, []);
 
   const obtenerLabelEstado = useCallback((estado) => {
-    switch (estado) {
-      case 'puntual': return 'Puntual';
-      case 'retardo_a': return 'Retardo A';
-      case 'retardo_b': return 'Retardo B';
-      case 'retardo': return 'Retardo';
-      case 'falta_por_retardo': return 'Falta (retardo)';
-      case 'falta': return 'Falta';
-      case 'salida_puntual': return 'Salida puntual';
-      case 'salida_temprano': return 'Salida temprana';
-      default: return estado || '';
+    if (!estado) return '';
+    if (estado === 'puntual') return 'Puntual';
+    if (estado === 'salida_puntual') return 'Salida puntual';
+    if (estado === 'salida_temprano') return 'Salida temprana';
+    if (estado.startsWith('retardo')) {
+      const tipo = estado.split('_')[1];
+      return `Retardo ${tipo ? tipo.toUpperCase() : ''}`.trim();
     }
+    if (estado.startsWith('falta')) return 'Falta';
+    return estado;
   }, []);
 
   const hoyStr = useMemo(() => new Date().toDateString(), []);

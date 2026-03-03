@@ -68,19 +68,19 @@ export default function NodeConfigStep({
   return (
     <div className="h-screen w-screen bg-bg-primary flex flex-col overflow-hidden">
       {/* Barra de progreso fija */}
-      <div className="bg-bg-secondary border-b border-border-subtle py-4 px-8 flex-shrink-0">
+      <div className="bg-bg-secondary border-b border-border-subtle py-3 sm:py-4 px-4 sm:px-8 flex-shrink-0">
         <StepIndicator currentStep={1} totalSteps={4} />
       </div>
 
       {/* Contenido scrollable */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto p-6">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
           <button
             onClick={onShowWelcome}
-            className="absolute top-20 right-6 w-12 h-12 bg-[#1976D2] text-white rounded-full shadow-lg shadow-[#1976D2]/20 hover:bg-[#1565C0] transition-all hover:scale-110 flex items-center justify-center z-10"
+            className="absolute top-[60px] sm:top-20 right-3 sm:right-6 w-10 h-10 sm:w-12 sm:h-12 bg-[#1976D2] text-white rounded-full shadow-lg shadow-[#1976D2]/20 hover:bg-[#1565C0] transition-all hover:scale-110 flex items-center justify-center z-10"
             title="Ver información de bienvenida"
           >
-            <Info className="w-6 h-6" />
+            <Info className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
           <div className="mb-4">
             <h1 className="text-xl font-bold text-text-primary mb-1">
@@ -153,7 +153,7 @@ export default function NodeConfigStep({
                           {isDetecting ? "Detectando..." : "Redetectar"}
                         </button>
                       </div>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                         <div>
                           <label className="block text-xs font-medium text-text-secondary mb-1">
                             Dirección IP *
@@ -221,12 +221,12 @@ export default function NodeConfigStep({
       </div>
 
       {/* Footer fijo con botón */}
-      <div className="bg-bg-secondary border-t border-border-subtle px-6 py-4 flex-shrink-0">
+      <div className="bg-bg-secondary border-t border-border-subtle px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
         <div className="max-w-4xl mx-auto flex justify-end">
           <button
             onClick={onNext}
             disabled={!isFormValid()}
-            className={`group px-6 py-2.5 rounded-xl font-medium transition-all duration-200 shadow-sm flex items-center gap-2 ${isFormValid()
+            className={`group px-5 sm:px-6 py-2.5 rounded-xl font-medium transition-all duration-200 shadow-sm flex items-center gap-2 text-sm sm:text-base ${isFormValid()
               ? "bg-[#1976D2] text-white hover:bg-[#1565C0] hover:shadow-lg hover:shadow-[#1976D2]/20 hover:-translate-y-0.5 cursor-pointer"
               : "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
               }`}

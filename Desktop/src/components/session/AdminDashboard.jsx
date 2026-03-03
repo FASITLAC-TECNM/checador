@@ -72,11 +72,11 @@ export default function AdminDashboard({
         <>
             <div className="flex h-full rounded-2xl shadow-lg border border-border-subtle overflow-hidden">
                 {/* ===== SIDEBAR ===== */}
-                <aside className="w-[280px] bg-bg-secondary border-r border-border-subtle flex flex-col flex-shrink-0">
+                <aside className="w-14 lg:w-[240px] xl:w-[280px] bg-bg-secondary border-r border-border-subtle flex flex-col flex-shrink-0 transition-all duration-300">
 
                     {/* Profile Card - Compact */}
-                    <div className="p-4 border-b border-border-subtle">
-                        <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 lg:p-4 border-b border-border-subtle">
+                        <div className="flex items-center gap-3 mb-0 lg:mb-3">
                             <div className="relative flex-shrink-0">
                                 <div className="absolute inset-0 bg-[#1976D2] rounded-full p-[2px]">
                                     <div className="w-full h-full bg-bg-primary rounded-full" />
@@ -85,26 +85,26 @@ export default function AdminDashboard({
                                     <img
                                         src={datosCompletos.foto}
                                         alt={userName}
-                                        className="relative w-12 h-12 rounded-full object-cover border-[3px] border-transparent"
+                                        className="relative w-10 h-10 lg:w-12 lg:h-12 rounded-full object-cover border-[3px] border-transparent"
                                         style={{ background: "none" }}
                                     />
                                 ) : (
-                                    <div className="relative w-12 h-12 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-full flex items-center justify-center shadow-md border-2 border-[#1976D2]">
-                                        <User className="w-6 h-6 text-[#1976D2] dark:text-[#42A5F5]" />
+                                    <div className="relative w-10 h-10 lg:w-12 lg:h-12 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-full flex items-center justify-center shadow-md border-2 border-[#1976D2]">
+                                        <User className="w-5 h-5 lg:w-6 lg:h-6 text-[#1976D2] dark:text-[#42A5F5]" />
                                     </div>
                                 )}
                                 <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-bg-secondary" />
                             </div>
 
-                            <div className="flex flex-col overflow-hidden">
+                            <div className="flex-col overflow-hidden hidden lg:flex">
                                 <h2 className="text-sm font-bold text-text-primary truncate leading-tight">
                                     {userName}
                                 </h2>
                             </div>
                         </div>
 
-                        {/* Info rows - Compact 2-column grid */}
-                        <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 text-xs">
+                        {/* Info rows - hidden on small sidebar */}
+                        <div className="hidden lg:grid grid-cols-2 gap-x-2 gap-y-1.5 text-xs">
                             <div className="flex items-center gap-1.5 overflow-hidden">
                                 <User className="w-3 h-3 text-[#1976D2] flex-shrink-0" />
                                 <div className="overflow-hidden">
@@ -173,23 +173,24 @@ export default function AdminDashboard({
 
                     {/* Employee Menu Item - Above divider */}
                     {isEmployee && (
-                        <div className="p-3 pb-0">
+                        <div className="p-2 lg:p-3 pb-0">
                             {(() => {
                                 const Icon = Briefcase;
                                 const isActive = activeSection === "empleado";
                                 return (
                                     <button
                                         onClick={() => setActiveSection("empleado")}
-                                        className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-left ${isActive
+                                        className={`w-full flex items-center gap-3 px-2 lg:px-3 py-2.5 lg:py-3 rounded-xl transition-all text-left ${isActive
                                             ? "bg-[#1976D2] text-white shadow-md"
                                             : "text-text-secondary hover:bg-bg-primary"
-                                            }`}
+                                            } justify-center lg:justify-start`}
+                                        title="Información del Empleado"
                                     >
                                         <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-white" : "text-[#1976D2]"}`} />
-                                        <span className={`font-semibold text-sm ${isActive ? "text-white" : "text-text-primary"}`}>
+                                        <span className={`font-semibold text-sm hidden lg:inline ${isActive ? "text-white" : "text-text-primary"}`}>
                                             Información del Empleado
                                         </span>
-                                        {isActive && <ChevronRight className="w-4 h-4 ml-auto opacity-70" />}
+                                        {isActive && <ChevronRight className="w-4 h-4 ml-auto opacity-70 hidden lg:block" />}
                                     </button>
                                 );
                             })()}
@@ -198,8 +199,8 @@ export default function AdminDashboard({
 
                     {/* Config Menu Items - Below divider */}
                     {isAdmin && (
-                        <div className={`flex-1 p-3 space-y-1 overflow-y-auto ${isEmployee ? 'border-t border-border-subtle mt-2 pt-3' : ''}`}>
-                            <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider px-3 mb-2">
+                        <div className={`flex-1 p-2 lg:p-3 space-y-1 overflow-y-auto ${isEmployee ? 'border-t border-border-subtle mt-2 pt-3' : ''}`}>
+                            <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider px-2 lg:px-3 mb-2 hidden lg:block">
                                 Configuración del sistema
                             </p>
                             {configItems.map((item) => {
@@ -209,16 +210,17 @@ export default function AdminDashboard({
                                     <button
                                         key={item.id}
                                         onClick={() => setActiveSection(item.id)}
-                                        className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all text-left ${isActive
+                                        className={`w-full flex items-center gap-3 px-2 lg:px-3 py-2.5 lg:py-3 rounded-xl transition-all text-left justify-center lg:justify-start ${isActive
                                             ? "bg-[#1976D2] text-white shadow-md"
                                             : "text-text-secondary hover:bg-bg-primary"
                                             }`}
+                                        title={item.title}
                                     >
                                         <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-white" : "text-[#1976D2]"}`} />
-                                        <span className={`font-semibold text-sm ${isActive ? "text-white" : "text-text-primary"}`}>
+                                        <span className={`font-semibold text-sm hidden lg:inline ${isActive ? "text-white" : "text-text-primary"}`}>
                                             {item.title}
                                         </span>
-                                        {isActive && <ChevronRight className="w-4 h-4 ml-auto opacity-70" />}
+                                        {isActive && <ChevronRight className="w-4 h-4 ml-auto opacity-70 hidden lg:block" />}
                                     </button>
                                 );
                             })}
@@ -227,13 +229,13 @@ export default function AdminDashboard({
                     {!isAdmin && <div className="flex-1" />}
 
                     {/* Logout */}
-                    <div className="p-3 border-t border-border-subtle">
+                    <div className="p-2 lg:p-3 border-t border-border-subtle">
                         <button
                             onClick={onLogout}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg text-sm"
+                            className="w-full flex items-center justify-center gap-2 px-2 lg:px-4 py-2.5 lg:py-3 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg text-xs lg:text-sm"
                         >
                             <LogOut className="w-4 h-4" />
-                            Cerrar Sesión
+                            <span className="hidden lg:inline">Cerrar Sesión</span>
                         </button>
                     </div>
                 </aside>
@@ -242,11 +244,11 @@ export default function AdminDashboard({
                 <main className="flex-1 bg-bg-primary overflow-y-auto">
                     {/* Employee Info Section */}
                     {activeSection === "empleado" && isEmployee && (
-                        <div className="p-5 h-full flex flex-col gap-4 overflow-y-auto">
+                        <div className="p-3 sm:p-5 h-full flex flex-col gap-3 sm:gap-4 overflow-y-auto">
                             {/* Top Row - Schedule + Notices side by side */}
-                            <div className="grid grid-cols-12 gap-4 flex-1 min-h-0">
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 flex-1 min-h-0">
                                 {/* Left: Schedule Card + Stats */}
-                                <div className="col-span-7 flex flex-col gap-3 overflow-y-auto">
+                                <div className="col-span-1 lg:col-span-7 flex flex-col gap-3 overflow-y-auto">
                                     <EmployeeInfo
                                         time={time}
                                         empleado={datosCompletos}
@@ -256,7 +258,7 @@ export default function AdminDashboard({
                                 </div>
 
                                 {/* Right: Personal Notices */}
-                                <div className="col-span-5 bg-bg-secondary rounded-2xl shadow-lg p-4 border border-border-subtle flex flex-col min-h-0">
+                                <div className="col-span-1 lg:col-span-5 bg-bg-secondary rounded-2xl shadow-lg p-4 border border-border-subtle flex flex-col min-h-0">
                                     <div className="flex items-center gap-2 mb-3 flex-shrink-0">
                                         <Bell className="w-5 h-5 text-blue-600" />
                                         <h2 className="text-base font-bold text-text-primary">

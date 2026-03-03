@@ -14,10 +14,10 @@ export default function StepIndicator({ currentStep }) {
         {steps.map((stepItem, index) => (
           <div key={stepItem.number} className="flex items-center flex-1">
             {/* Step circle and label */}
-            <div className="flex flex-col items-center w-20">
+            <div className="flex flex-col items-center w-10 sm:w-20">
               <div
                 className={`
-                  w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm transition-all duration-500
+                  w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center font-bold text-xs sm:text-sm transition-all duration-500
                   ${currentStep > stepItem.number
                     ? "bg-[#1976D2] text-white shadow-md"
                     : currentStep === stepItem.number
@@ -27,14 +27,14 @@ export default function StepIndicator({ currentStep }) {
                 `}
               >
                 {currentStep > stepItem.number ? (
-                  <Check className="w-4 h-4" strokeWidth={3} />
+                  <Check className="w-3 h-3 sm:w-4 sm:h-4" strokeWidth={3} />
                 ) : (
                   <span>{stepItem.number}</span>
                 )}
               </div>
               <span
                 className={`
-                  mt-2.5 text-xs font-medium text-center whitespace-pre-line leading-tight transition-colors duration-300
+                  mt-1.5 sm:mt-2.5 text-[9px] sm:text-xs font-medium text-center whitespace-pre-line leading-tight transition-colors duration-300 hidden sm:block
                   ${currentStep >= stepItem.number
                     ? "text-text-primary font-semibold"
                     : "text-text-disabled"

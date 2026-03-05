@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Search, User, X, Briefcase, FileText } from "lucide-react";
 import { getAllEmpleados } from "../../services/empleadoService";
+import { getApiEndpoint } from "../../config/apiEndPoint";
+
+const API_URL = getApiEndpoint("/api");
 
 export default function EmployeeSelectionModal({ onClose, onSelect, biometriaTipo = 'huella' }) {
     const [empleados, setEmpleados] = useState([]);
@@ -14,16 +17,28 @@ export default function EmployeeSelectionModal({ onClose, onSelect, biometriaTip
         const fetchData = async () => {
             try {
                 setLoading(true);
-                // Run both fetches in parallel if possible
-                const [empleadosData, credencialesData] = await Promise.all([
+
+                const token = localStorage.getItem("auth_token");
+                const headers = {
+                    "Content-Type": "application/json",
+                    ...(token && { Authorization: `Bearer ${token}` }),
+                };
+
+                // Obtener empleados y credenciales desde el API en paralelo
+                const [empleadosData, credencialesRes] = await Promise.all([
                     getAllEmpleados(),
-                    window.electronAPI ? window.electronAPI.offlineDB.getAllCredenciales() : Promise.resolve([])
+                    fetch(`${API_URL}/credenciales`, { headers })
                 ]);
 
+                let credencialesData = [];
+                if (credencialesRes.ok) {
+                    const json = await credencialesRes.json();
+                    credencialesData = json.data || [];
+                }
+
                 setEmpleados(empleadosData);
-                setCredenciales(credencialesData || []);
-                // Initial sort and filter
-                applyFilterAndSort(empleadosData, credencialesData || [], searchTerm);
+                setCredenciales(credencialesData);
+                applyFilterAndSort(empleadosData, credencialesData, searchTerm);
             } catch (err) {
                 console.error("Error cargando datos:", err);
                 setError("No se pudieron cargar los empleados.");
@@ -39,9 +54,9 @@ export default function EmployeeSelectionModal({ onClose, onSelect, biometriaTip
         if (!cred) return false;
 
         if (type === 'huella') {
-            return !!cred.dactilar_template;
+            return !!cred.tiene_dactilar;
         } else if (type === 'rostro') {
-            return !!cred.facial_descriptor;
+            return !!cred.tiene_facial;
         }
         return false;
     };

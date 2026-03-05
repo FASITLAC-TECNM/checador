@@ -783,10 +783,11 @@ export const registrarAsistenciaEnServidor = async ({
     metodo_registro: metodoRegistro,
     departamento_id: departamentoId,
     ubicacion: null, // Siempre null para escritorio
-    tipo: tipoRegistro || 'entrada',
-    clasificacion: clasificacion || 'entrada',
-    estado: estadoHorario || 'puntual'
   };
+
+  if (tipoRegistro) payload.tipo = tipoRegistro;
+  if (clasificacion) payload.clasificacion = clasificacion;
+  if (estadoHorario) payload.estado = estadoHorario;
 
   console.log('[AsistenciaLogic] Enviando registro:', payload);
 
@@ -811,7 +812,9 @@ export const registrarAsistenciaEnServidor = async ({
 
     if (!response.ok) {
       const errorMsg = data.message || data.error || `Error del servidor (${response.status})`;
-      throw new Error(errorMsg);
+      const error = new Error(errorMsg);
+      error.responseData = data; // Attach response data for frontend processing
+      throw error;
     }
 
     return data;

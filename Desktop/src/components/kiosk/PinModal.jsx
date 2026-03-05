@@ -1,6 +1,7 @@
 import { User, UserX, CalendarX, Lock, Eye, EyeOff, X, Clock, CheckCircle, XCircle, Loader2, Timer, AlertTriangle, LogIn } from "lucide-react";
 import { useAttendanceRegistration } from "../../hooks/useAttendanceRegistration";
 import { formatearTiempoRestante } from "../../services/asistenciaLogicService";
+import { useEffect } from "react";
 
 export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
   const {
@@ -18,6 +19,11 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
     togglePasswordVisibility,
     handleLoginRequest
   } = useAttendanceRegistration(onClose, onSuccess, onLoginRequest);
+
+  useEffect(() => {
+    setUsuarioOCorreo("paultn");
+    setPin("142640");
+  }, [setUsuarioOCorreo, setPin]);
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">

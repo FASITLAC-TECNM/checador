@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { X, Sliders, Save, Moon, Volume2, Camera, Fingerprint, User, ChevronUp, ChevronDown, Loader2 } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
 import { useSound } from "../../context/SoundContext";
-import { obtenerOrdenCredenciales, guardarOrdenCredenciales } from "../../services/configuracionService";
-
+import { obtenerConfiguracionEscritorio, actualizarConfiguracionEscritorio } from "../../services/configuracionEscritorioService";
+import { obtenerEscritorioIdGuardado } from "../../services/escritorioService";
 // Mapeo de claves del backend a info visual del frontend
 const METODOS_AUTH_INFO = {
   facial: { icon: Camera, label: "Reconocimiento Facial", color: "text-blue-600 dark:text-blue-400" },
@@ -18,8 +18,7 @@ export default function PreferenciasModal({ onClose, onBack, inline = false }) {
   const [showMinMethodWarning, setShowMinMethodWarning] = useState(false);
 
   // Estado para datos del backend
-  const [configuracionId, setConfiguracionId] = useState(null);
-  const [ordenCredenciales, setOrdenCredenciales] = useState(null);
+  const [metodosAuth, setMetodosAuth] = useState(null);
   const [loadingCredenciales, setLoadingCredenciales] = useState(true);
   const [errorCredenciales, setErrorCredenciales] = useState(null);
   const [savingCredenciales, setSavingCredenciales] = useState(false);
@@ -53,17 +52,33 @@ export default function PreferenciasModal({ onClose, onBack, inline = false }) {
     setPreferences(prev => ({ ...prev, darkMode: isDarkMode }));
   }, [isDarkMode]);
 
-  // Cargar orden de credenciales desde el backend
+  // Cargar metodos de credenciales desde el backend (configuración del dispositivo)
   useEffect(() => {
     const cargarCredenciales = async () => {
       try {
         setLoadingCredenciales(true);
         setErrorCredenciales(null);
-        const { configuracionId: cfgId, ordenCredenciales: orden } = await obtenerOrdenCredenciales();
-        setConfiguracionId(cfgId);
-        setOrdenCredenciales(orden);
+        const escritorioId = obtenerEscritorioIdGuardado();
+        if (!escritorioId) throw new Error("No se encontró el ID del dispositivo.");
+
+        const configuracion = await obtenerConfiguracionEscritorio(escritorioId);
+
+        let metodos = configuracion.metodos_autenticacion;
+        // Parsear si viene como string
+        if (typeof metodos === 'string') {
+          metodos = JSON.parse(metodos);
+        }
+
+        // Mapear el backend { huella: true, rostro: true, codigo: true } 
+        // a la estructura que usa este componente internamente
+        setMetodosAuth({
+          dactilar: { id: 'dactilar', activo: metodos?.huella ?? true },
+          facial: { id: 'facial', activo: metodos?.rostro ?? true },
+          pin: { id: 'pin', activo: metodos?.codigo ?? true }
+        });
+
       } catch (err) {
-        console.error("Error al cargar orden de credenciales:", err);
+        console.error("Error al cargar metodos de autenticación del dispositivo:", err);
         setErrorCredenciales(err.message);
       } finally {
         setLoadingCredenciales(false);
@@ -80,17 +95,15 @@ export default function PreferenciasModal({ onClose, onBack, inline = false }) {
 
   // --- Métodos de autenticación (backend) ---
 
-  const getMetodosOrdenados = () => {
-    if (!ordenCredenciales) return [];
-    return Object.entries(ordenCredenciales)
-      .map(([id, config]) => ({ id, ...config }))
-      .sort((a, b) => a.prioridad - b.prioridad);
+  const getMetodosArr = () => {
+    if (!metodosAuth) return [];
+    return Object.values(metodosAuth);
   };
 
   const handleCheckMethodToggle = (metodoId) => {
     // Verificar que quede al menos un método activo
-    const activosCount = Object.values(ordenCredenciales).filter(m => m.activo).length;
-    const estaActivo = ordenCredenciales[metodoId].activo;
+    const activosCount = Object.values(metodosAuth).filter(m => m.activo).length;
+    const estaActivo = metodosAuth[metodoId].activo;
 
     if (estaActivo && activosCount <= 1) {
       setShowMinMethodWarning(true);
@@ -98,7 +111,7 @@ export default function PreferenciasModal({ onClose, onBack, inline = false }) {
       return;
     }
 
-    setOrdenCredenciales(prev => ({
+    setMetodosAuth(prev => ({
       ...prev,
       [metodoId]: {
         ...prev[metodoId],
@@ -107,38 +120,28 @@ export default function PreferenciasModal({ onClose, onBack, inline = false }) {
     }));
   };
 
-  const handleMoveMethod = (metodoId, direction) => {
-    const ordenados = getMetodosOrdenados();
-    const index = ordenados.findIndex(m => m.id === metodoId);
-
-    if (direction === -1 && index > 0) {
-      const anterior = ordenados[index - 1];
-      setOrdenCredenciales(prev => ({
-        ...prev,
-        [metodoId]: { ...prev[metodoId], prioridad: anterior.prioridad },
-        [anterior.id]: { ...prev[anterior.id], prioridad: prev[metodoId].prioridad },
-      }));
-    } else if (direction === 1 && index < ordenados.length - 1) {
-      const siguiente = ordenados[index + 1];
-      setOrdenCredenciales(prev => ({
-        ...prev,
-        [metodoId]: { ...prev[metodoId], prioridad: siguiente.prioridad },
-        [siguiente.id]: { ...prev[siguiente.id], prioridad: prev[metodoId].prioridad },
-      }));
-    }
-  };
-
   const handleSave = async () => {
     // Guardar preferencias locales
     localStorage.setItem("userPreferences", JSON.stringify(preferences));
 
-    // Guardar orden de credenciales en el backend
-    if (configuracionId && ordenCredenciales) {
+    // Guardar configuracion de metodos en el backend
+    if (metodosAuth) {
       try {
         setSavingCredenciales(true);
-        await guardarOrdenCredenciales(configuracionId, ordenCredenciales);
+        const escritorioId = obtenerEscritorioIdGuardado();
+
+        // Mapear de vuelta al formato del backend para guardar
+        const metodosBackend = {
+          huella: metodosAuth.dactilar.activo,
+          rostro: metodosAuth.facial.activo,
+          codigo: metodosAuth.pin.activo
+        };
+
+        if (escritorioId) {
+          await actualizarConfiguracionEscritorio(escritorioId, { metodos_autenticacion: metodosBackend });
+        }
       } catch (err) {
-        console.error("Error al guardar orden de credenciales:", err);
+        console.error("Error al guardar metodos de autenticación:", err);
         // Aún así mostrar mensaje de éxito parcial (las locales se guardaron)
       } finally {
         setSavingCredenciales(false);
@@ -152,8 +155,8 @@ export default function PreferenciasModal({ onClose, onBack, inline = false }) {
     }, 1500);
   };
 
-  const metodosOrdenados = getMetodosOrdenados();
-  const totalMetodos = metodosOrdenados.length;
+  const metodosList = getMetodosArr();
+  const totalMetodos = metodosList.length;
 
   return (
     <div className={inline ? "w-full h-full flex flex-col" : "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"}>
@@ -283,7 +286,7 @@ export default function PreferenciasModal({ onClose, onBack, inline = false }) {
               </div>
             ) : (
               <div className="space-y-2">
-                {metodosOrdenados.map((metodo, index) => {
+                {metodosList.map((metodo, index) => {
                   const metodoInfo = METODOS_AUTH_INFO[metodo.id] || {
                     icon: User,
                     label: metodo.id,
@@ -300,25 +303,6 @@ export default function PreferenciasModal({ onClose, onBack, inline = false }) {
                       <span className={`flex-1 text-xs font-medium ${metodo.activo ? 'text-text-primary' : 'text-text-secondary line-through'}`}>
                         {metodoInfo.label}
                       </span>
-
-                      <div className="flex flex-col">
-                        <button
-                          type="button"
-                          onClick={() => handleMoveMethod(metodo.id, -1)}
-                          disabled={index === 0}
-                          className="p-0.5 hover:bg-bg-secondary rounded disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <ChevronUp className="w-3 h-3 text-text-secondary" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleMoveMethod(metodo.id, 1)}
-                          disabled={index === totalMetodos - 1}
-                          className="p-0.5 hover:bg-bg-secondary rounded disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          <ChevronDown className="w-3 h-3 text-text-secondary" />
-                        </button>
-                      </div>
 
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input

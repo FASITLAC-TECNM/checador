@@ -175,28 +175,9 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
 
             console.log("👤 Empleado identificado:", empleadoData?.nombre || empleadoId);
 
-            // 3. Verificar horario
-            console.log("📅 Verificando horario...");
-            const datosAsistencia = await cargarDatosAsistencia(empleadoId, usuarioData.id);
-            const estadoActual = datosAsistencia.estado;
-
-            if (!datosAsistencia.horario) {
-                agregarEvento({
-                    user: empleadoData?.nombre || usuarioOCorreo,
-                    action: "Intento de registro - Empleado sin horario asignado",
-                    type: "warning",
-                });
-
-                setResult({
-                    success: false,
-                    sinHorario: true,
-                    message: "No tienes un horario asignado",
-                    empleado: empleadoData,
-                    usuario: usuarioData,
-                    token: token,
-                });
-                return;
-            }
+            // 3. Registrar asistencia (Validaciones ahora en Backend)
+            console.log("📝 Registrando asistencia...");
+            const departamentoId = await obtenerDepartamentoEmpleado(empleadoId);
 
             const now = new Date();
             const horaActual = now.toLocaleTimeString("es-MX", {
@@ -204,53 +185,15 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
                 minute: "2-digit",
             });
 
-            if (estadoActual && !estadoActual.puedeRegistrar) {
-                let mensaje = "No puedes registrar en este momento";
-                if (estadoActual.jornadaCompleta) {
-                    mensaje = estadoActual.mensaje || "Ya completaste tu jornada de hoy";
-                } else if (estadoActual.estadoHorario === 'fuera_horario') {
-                    mensaje = "Estás fuera del horario de registro";
-                } else if (estadoActual.estadoHorario === 'tiempo_insuficiente') {
-                    const tiempoRestante = formatearTiempoRestante(estadoActual.minutosRestantes);
-                    mensaje = estadoActual.mensajeEspera || `Faltan ${tiempoRestante} para habilitar tu salida`;
-                }
-
-                agregarEvento({
-                    user: empleadoData?.nombre || usuarioOCorreo,
-                    action: `Intento de registro - ${mensaje}`,
-                    type: "warning",
-                });
-
-                setResult({
-                    success: false,
-                    message: mensaje,
-                    empleado: empleadoData,
-                    usuario: usuarioData,
-                    token: token,
-                    estadoHorario: estadoActual?.estadoHorario,
-                    noPuedeRegistrar: true,
-                    minutosRestantes: estadoActual?.minutosRestantes,
-                });
-
-                return;
-            }
-
-            // 4. Registrar asistencia
-            console.log("📝 Registrando asistencia...");
-            const departamentoId = await obtenerDepartamentoEmpleado(empleadoId);
-
             const data = await registrarAsistenciaEnServidor({
                 empleadoId,
                 departamentoId,
-                tipoRegistro: estadoActual?.tipoRegistro || 'entrada',
-                clasificacion: estadoActual?.clasificacion || 'entrada',
-                estadoHorario: estadoActual?.estadoHorario || 'puntual',
                 metodoRegistro: 'PIN',
                 token
             });
 
-            const clasificacionFinal = data.data?.clasificacion || estadoActual?.clasificacion || 'entrada';
-            const tipoRegistro = data.data?.tipo || estadoActual?.tipoRegistro || 'entrada';
+            const clasificacionFinal = data.data?.estado || 'puntual';
+            const tipoRegistro = data.data?.tipo || 'entrada';
             const tipoMovimiento = tipoRegistro === 'salida' ? 'SALIDA' : 'ENTRADA';
 
             const { estadoTexto, tipoEvento } = obtenerInfoClasificacion(clasificacionFinal, tipoRegistro);
@@ -416,7 +359,8 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
                 type: "error",
             });
 
-            // Detectar errores de "bloque completado" para mostrar UI amarilla en lugar de roja
+            // Detectar errores devueltos por la API para mostrar UI amarilla
+            const responseData = error.responseData;
             const isBlockCompletedError = error.message && (
                 (error.message.includes('bloque') && error.message.includes('completado')) ||
                 (error.message.includes('jornada') && error.message.includes('completada'))
@@ -427,14 +371,12 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
             setResult({
                 success: false,
                 message: error.message || "Error al registrar asistencia",
-                // Pasar datos recuperados para permitir login
                 usuario: usuarioData,
                 token: token,
                 empleado: empleadoData,
-                // Si es error de bloque completado, marcar como noPuedeRegistrar (UI amarilla)
-                noPuedeRegistrar: isBlockCompletedError,
-                // Si es UI amarilla, pasamos estadoHorario genérico si no lo tenemos
-                estadoHorario: isBlockCompletedError ? 'completado' : undefined
+                noPuedeRegistrar: responseData?.noPuedeRegistrar || isBlockCompletedError,
+                estadoHorario: responseData?.estadoHorario || (isBlockCompletedError ? 'completado' : undefined),
+                minutosRestantes: responseData?.minutosRestantes
             });
         } finally {
             setLoading(false);

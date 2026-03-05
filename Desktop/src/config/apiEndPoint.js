@@ -15,6 +15,7 @@ export const API_CONFIG = {
     CONFIGURACION: "/api/configuracion",
     AUTH: "/api/auth",
     ESCRITORIO: "/api/escritorio",
+    CONFIGURACIONES_ESCRITORIO: "/api/configuraciones-escritorio",
     MOVIL: "/api/movil",
     BIOMETRICO: "/api/biometrico",
     SOLICITUDES: "/api/solicitudes",

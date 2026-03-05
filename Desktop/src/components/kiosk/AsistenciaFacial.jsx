@@ -31,7 +31,7 @@ export default function AsistenciaFacial({
 }) {
   const shouldMaintainConnection = isOpen || backgroundMode;
 
-  const [step, setStep] = useState("capturing"); // capturing, identifying, success, error
+  const [step, setStep] = useState("liveness"); // liveness, capturing, identifying, success, error
   const [showModal, setShowModal] = useState(!backgroundMode);
   const [errorMessage, setErrorMessage] = useState("");
   const [isClosing, setIsClosing] = useState(false);
@@ -39,6 +39,11 @@ export default function AsistenciaFacial({
   const [countdown, setCountdown] = useState(6);
   const [loginHabilitado, setLoginHabilitado] = useState(false);
   const [processingLogin, setProcessingLogin] = useState(false);
+
+  // Liveness detection state
+  const [blinkDone, setBlinkDone] = useState(false);
+  const [headTurnDone, setHeadTurnDone] = useState(false);
+  const [currentChallenge, setCurrentChallenge] = useState("blink"); // 'blink' | 'head'
 
   // Refs
   const countdownIntervalRef = useRef(null);
@@ -49,8 +54,128 @@ export default function AsistenciaFacial({
   const timeoutRef = useRef(null);
   const cropCanvasRef = useRef(null);
 
+  // Liveness refs (no re-render during loop)
+  const livenessIntervalRef = useRef(null);
+  const livenessTimeoutRef = useRef(null);
+  const eyesClosedRef = useRef(false);
+  const eyesClosedFramesRef = useRef(0);
+  const lastBlinkTimeRef = useRef(0);
+  const blinkDoneRef = useRef(false);
+  const headTurnDoneRef = useRef(false);
+
   // Hook de camara singleton
   const { initCamera, releaseCamera } = useCamera();
+
+  // ── Helpers de Liveness ──────────────────────────────────────────────────
+
+  // EAR: Eye Aspect Ratio para detectar parpadeo
+  const calculateEAR = (landmarks) => {
+    try {
+      const leftEye = landmarks.getLeftEye();
+      const rightEye = landmarks.getRightEye();
+      const dist = (a, b) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+      const leftEAR = (dist(leftEye[1], leftEye[5]) + dist(leftEye[2], leftEye[4])) / (2 * dist(leftEye[0], leftEye[3]));
+      const rightEAR = (dist(rightEye[1], rightEye[5]) + dist(rightEye[2], rightEye[4])) / (2 * dist(rightEye[0], rightEye[3]));
+      return (leftEAR + rightEAR) / 2;
+    } catch { return 0.3; }
+  };
+
+  // Head pose: ratio distancia mandíbula-nariz izq vs der
+  const calculateHeadPoseRatio = (landmarks) => {
+    try {
+      const jaw = landmarks.getJawOutline();
+      const nose = landmarks.getNose();
+      const noseTip = nose[3];
+      const dist = (a, b) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+      const distLeft = dist(jaw[0], noseTip);
+      const distRight = dist(jaw[16], noseTip);
+      return distLeft / (distRight || 1);
+    } catch { return 1; }
+  };
+
+  // Cleanup del loop de liveness
+  const stopLiveness = () => {
+    if (livenessIntervalRef.current) clearInterval(livenessIntervalRef.current);
+    if (livenessTimeoutRef.current) clearTimeout(livenessTimeoutRef.current);
+    livenessIntervalRef.current = null;
+    livenessTimeoutRef.current = null;
+  };
+
+  // Iniciar loop de liveness Detection (elige 1 desafío aleatorio)
+  const startLivenessLoop = (video) => {
+    stopLiveness();
+    eyesClosedRef.current = false;
+    eyesClosedFramesRef.current = 0;
+    lastBlinkTimeRef.current = 0;
+    blinkDoneRef.current = false;
+    headTurnDoneRef.current = false;
+    setBlinkDone(false);
+    setHeadTurnDone(false);
+
+    // Elegir desafío aleatorio: 'blink' o 'head'
+    const challenge = Math.random() < 0.5 ? "blink" : "head";
+    setCurrentChallenge(challenge);
+    console.log(`🎲 Desafío liveness seleccionado: ${challenge}`);
+
+    const advanceToCapture = () => {
+      stopLiveness();
+      setTimeout(() => setStep("capturing"), 600);
+    };
+
+    livenessIntervalRef.current = setInterval(async () => {
+      if (!video || video.paused || video.ended) return;
+      try {
+        const detections = await faceapi
+          .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 }))
+          .withFaceLandmarks();
+
+        if (!detections) return;
+
+        if (challenge === "blink") {
+          // ── Parpadeo (EAR) ──
+          const ear = calculateEAR(detections.landmarks);
+          if (ear < 0.22) {
+            eyesClosedFramesRef.current++;
+            eyesClosedRef.current = true;
+          } else if (eyesClosedRef.current && eyesClosedFramesRef.current >= 1) {
+            const now = Date.now();
+            if (now - lastBlinkTimeRef.current > 300) {
+              lastBlinkTimeRef.current = now;
+              blinkDoneRef.current = true;
+              setBlinkDone(true);
+              console.log("👁️ Parpadeo detectado");
+              advanceToCapture();
+            }
+            eyesClosedRef.current = false;
+            eyesClosedFramesRef.current = 0;
+          } else {
+            eyesClosedRef.current = false;
+            eyesClosedFramesRef.current = 0;
+          }
+        } else {
+          // ── Giro de cabeza ──
+          const ratio = calculateHeadPoseRatio(detections.landmarks);
+          if (ratio < 0.72 || ratio > 1.38) {
+            headTurnDoneRef.current = true;
+            setHeadTurnDone(true);
+            console.log("🔄 Giro de cabeza detectado");
+            advanceToCapture();
+          }
+        }
+      } catch (err) {
+        // silencioso — no detener liveness por error de frame
+      }
+    }, 200);
+
+    // Timeout de 20s para liveness
+    livenessTimeoutRef.current = setTimeout(() => {
+      stopLiveness();
+      setErrorMessage("Verificacion de vida fallida. Por favor intenta de nuevo.");
+      setStep("error");
+    }, 20000);
+  };
+
+  // ── Fin helpers de Liveness ──────────────────────────────────────────────
 
   // Recortar video al area del ovalo guia
   const getCroppedOvalFrame = (video) => {
@@ -127,6 +252,7 @@ export default function AsistenciaFacial({
       setLoginHabilitado(false);
       if (captureIntervalRef.current) clearInterval(captureIntervalRef.current);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      stopLiveness();
     };
   }, []);
 
@@ -158,6 +284,29 @@ export default function AsistenciaFacial({
       releaseCamera();
     };
   }, [releaseCamera]);
+
+  // Iniciar liveness detection cuando los modelos esten listos
+  useEffect(() => {
+    if (step !== "liveness" || !modelsLoaded || !shouldMaintainConnection) return;
+
+    const video = document.getElementById("facialAttendanceVideo");
+    if (!video) return;
+
+    const handleCanPlay = () => {
+      if (video.readyState >= 2) startLivenessLoop(video);
+    };
+
+    video.addEventListener("loadeddata", handleCanPlay);
+    video.addEventListener("canplay", handleCanPlay);
+
+    if (video.readyState >= 2) startLivenessLoop(video);
+
+    return () => {
+      video.removeEventListener("loadeddata", handleCanPlay);
+      video.removeEventListener("canplay", handleCanPlay);
+      stopLiveness();
+    };
+  }, [step, modelsLoaded, shouldMaintainConnection]);
 
   // Iniciar deteccion facial (patron identico a FacialAuthModal)
   useEffect(() => {
@@ -541,7 +690,7 @@ export default function AsistenciaFacial({
     if (backgroundMode) {
       setShowModal(false);
       setResult(null);
-      setStep("capturing");
+      setStep("liveness");
       setErrorMessage("");
     } else {
       setIsClosing(true);
@@ -552,12 +701,18 @@ export default function AsistenciaFacial({
     }
   };
 
-  // Reintentar (patron identico a FacialAuthModal)
+  // Reintentar (vuelve al paso de liveness)
   const handleRetry = () => {
-    setStep("capturing");
+    stopLiveness();
+    setStep("liveness");
     setResult(null);
     setErrorMessage("");
     isProcessingRef.current = false;
+    blinkDoneRef.current = false;
+    headTurnDoneRef.current = false;
+    setBlinkDone(false);
+    setHeadTurnDone(false);
+    // currentChallenge se re-elige aleatoriamente en startLivenessLoop
 
     // Reiniciar camara directamente
     initCamera()
@@ -631,8 +786,8 @@ export default function AsistenciaFacial({
 
         {/* Contenido */}
         <div className="p-6">
-          {/* Capturando */}
-          {step === "capturing" && (
+          {/* Liveness Detection */}
+          {(step === "liveness" || step === "capturing") && (
             <div className="space-y-4">
               <div className="relative bg-black rounded-xl overflow-hidden w-full" style={{ aspectRatio: "4/3", minHeight: "280px" }}>
                 <video
@@ -727,6 +882,40 @@ export default function AsistenciaFacial({
                       50% { opacity: 0.8; }
                     }
                   `}</style>
+
+                  {/* ── Guía visual de Liveness (desafío aleatorio) ── */}
+                  {step === "liveness" && modelsLoaded && (
+                    <div className="absolute bottom-3 left-3 right-3 pointer-events-none">
+                      <div style={{
+                        background: 'rgba(0,0,0,0.55)',
+                        backdropFilter: 'blur(6px)',
+                        borderRadius: '10px',
+                        padding: '8px 14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                      }}>
+                        <span style={{
+                          width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                          background: (currentChallenge === 'blink' ? blinkDone : headTurnDone) ? '#22c55e' : 'rgba(255,255,255,0.15)',
+                          border: (currentChallenge === 'blink' ? blinkDone : headTurnDone) ? 'none' : '2px solid rgba(255,255,255,0.6)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 13, color: 'white',
+                          transition: 'all 0.3s ease',
+                        }}>
+                          {(currentChallenge === 'blink' ? blinkDone : headTurnDone) ? '✓' : '!'}
+                        </span>
+                        <span style={{
+                          color: (currentChallenge === 'blink' ? blinkDone : headTurnDone) ? '#86efac' : 'white',
+                          fontSize: 13, fontWeight: 600,
+                          textDecoration: (currentChallenge === 'blink' ? blinkDone : headTurnDone) ? 'line-through' : 'none',
+                          transition: 'all 0.3s ease',
+                        }}>
+                          {currentChallenge === 'blink' ? '👁️ Parpadea una vez' : '🔄 Gira levemente la cabeza'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -734,7 +923,8 @@ export default function AsistenciaFacial({
               <div className="space-y-2">
                 <p className="text-center text-gray-700 dark:text-gray-300 text-sm font-medium">
                   {!modelsLoaded && "Cargando modelos de reconocimiento..."}
-                  {modelsLoaded && "Coloca tu rostro frente a la camara"}
+                  {modelsLoaded && step === "liveness" && "Verifica que eres una persona real"}
+                  {modelsLoaded && step === "capturing" && "Coloca tu rostro frente a la camara"}
                 </p>
 
                 {modelsLoaded && (

@@ -1204,7 +1204,7 @@ export default function AsistenciaHuella({
                       {result.estadoHorario === "completado"
                         ? "Jornada completada"
                         : result.estadoHorario === "tiempo_insuficiente"
-                          ? `Espera ${result.minutosRestantes || ''} min`
+                          ? `Aún no disponible`
                           : "Fuera de horario"}
                     </span>
 

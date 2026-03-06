@@ -9,25 +9,27 @@ const API_URL = API_CONFIG.BASE_URL;
  * Muestra los retardos A/B del mes actual, cuántos faltan para generar una falta
  * y las notas malas acumuladas.
  */
-const EquivalenciasPanel = ({ empleadoId }) => {
+const EquivalenciasPanel = ({ empleadoId, mesSeleccionado }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         if (!empleadoId) return;
-        
+
         const fetchEquivalencias = async () => {
             setLoading(true);
             try {
                 const token = localStorage.getItem('auth_token');
-                const hoy = new Date();
-                const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
-                const finMes = hoy.toISOString().split('T')[0];
+                const targetDate = mesSeleccionado || new Date();
+                const year = targetDate.getFullYear();
+                const month = targetDate.getMonth();
+                const inicioMes = new Date(year, month, 1).toISOString().split('T')[0];
+                const finMes = new Date(year, month + 1, 0).toISOString().split('T')[0];
 
                 const response = await fetch(`${API_URL}/api/asistencias/empleado/${empleadoId}/equivalencias?inicio=${inicioMes}&fin=${finMes}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                
+
                 const result = await response.json();
                 if (result.success) {
                     setData(result.data);
@@ -40,19 +42,15 @@ const EquivalenciasPanel = ({ empleadoId }) => {
         };
 
         fetchEquivalencias();
-    }, [empleadoId]);
+    }, [empleadoId, mesSeleccionado]);
 
     if (loading) return (
-        <div className="bg-bg-secondary rounded-2xl shadow-lg border border-border-subtle p-4 animate-pulse flex flex-col min-h-0">
-            <div className="flex items-center gap-2 mb-4">
-                <div className="w-5 h-5 bg-gray-200 dark:bg-gray-700 rounded-full" />
-                <div className="h-5 w-48 bg-gray-200 dark:bg-gray-700 rounded" />
-            </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                {[...Array(4)].map((_, i) => <div key={i} className="h-20 bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-50 dark:border-gray-700" />)}
+        <div className="animate-pulse flex flex-col gap-4 mt-auto">
+            <div className="grid grid-cols-2 gap-2">
+                {[...Array(4)].map((_, i) => <div key={i} className="h-16 bg-gray-100 dark:bg-gray-800 rounded-xl" />)}
             </div>
             <div className="space-y-3">
-                {[...Array(3)].map((_, i) => <div key={i} className="h-8 bg-gray-100 dark:bg-gray-800 rounded-lg" />)}
+                {[...Array(3)].map((_, i) => <div key={i} className="h-4 bg-gray-100 dark:bg-gray-800 rounded-lg" />)}
             </div>
         </div>
     );
@@ -69,26 +67,19 @@ const EquivalenciasPanel = ({ empleadoId }) => {
     const restantesB = data.desglose_equivalencias?.retardos_b_restantes || 0;
 
     const mesActual = new Date().toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
-
     return (
-        <div className="bg-bg-secondary rounded-2xl shadow-lg border border-border-subtle flex flex-col min-h-0 overflow-hidden">
-            {/* Header */}
-            <div className="px-4 py-3 border-b border-border-subtle bg-bg-primary/50 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5 text-amber-500" />
-                    <h2 className="text-base font-bold text-text-primary capitalize">
-                        Equivalencias — {mesActual}
-                    </h2>
-                </div>
-                <span className="text-[10px] font-bold text-text-secondary bg-bg-primary border border-border-subtle px-2 py-1 rounded-md uppercase tracking-wide">
-                    Art. 80
+        <div className="flex flex-col gap-4 mt-auto">
+            {/* Header / Titulo minimalista */}
+            <div className="flex items-center justify-between border-b border-border-subtle pb-2">
+                <span className="text-[10px] uppercase font-bold text-text-secondary tracking-widest flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    Art. 80 — Equivalencias
                 </span>
             </div>
 
-            <div className="p-4 space-y-5 overflow-y-auto">
-
+            <div className="space-y-4">
                 {/* Contadores principales */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                     {/* Retardo A */}
                     <div className="bg-bg-primary p-3 rounded-xl border border-border-subtle flex flex-col justify-between hover:shadow-md transition-shadow">
                         <div className="flex items-center justify-between mb-2">
@@ -145,7 +136,7 @@ const EquivalenciasPanel = ({ empleadoId }) => {
                 </div>
 
                 {/* Barras de progreso minimalistas */}
-                <div className="space-y-4 bg-bg-primary p-4 rounded-xl border border-border-subtle">
+                <div className="space-y-3">
                     {/* Progreso Retardo A */}
                     <div>
                         <div className="flex justify-between text-[11px] text-text-secondary mb-1.5 font-medium">
@@ -201,13 +192,12 @@ const EquivalenciasPanel = ({ empleadoId }) => {
                 </div>
 
                 {/* Footer Resumen */}
-                <div className="flex justify-between items-center text-[11px] text-text-secondary bg-bg-primary px-3 py-2 rounded-lg border border-border-subtle">
-                    <span className="flex items-center gap-1">
-                        Total faltas generadas =
-                        <strong className="text-text-primary font-bold ml-1">{data.total_faltas_mes}</strong>
+                <div className="flex justify-between items-center text-[10px] text-text-secondary bg-bg-secondary px-2 py-1.5 rounded-md border border-border-subtle">
+                    <span className="flex items-center gap-1 font-medium">
+                        Tot. Faltas
                     </span>
-                    <span className="text-text-tertiary">
-                        ({data.faltas_directas} directas + {data.faltas_equivalentes_por_retardos} por retardo)
+                    <span className="text-text-primary font-bold">
+                        {data.total_faltas_mes}
                     </span>
                 </div>
 

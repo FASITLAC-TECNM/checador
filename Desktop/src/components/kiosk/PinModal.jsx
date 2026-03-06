@@ -241,7 +241,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                     {result.estadoHorario === "completado"
                       ? "Jornada completada"
                       : result.estadoHorario === "tiempo_insuficiente"
-                        ? `Espera ${formatearTiempoRestante(result.minutosRestantes)}`
+                        ? `Aún no disponible`
                         : "Fuera de horario"}
                   </span>
 

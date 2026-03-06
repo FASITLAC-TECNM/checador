@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { X, Calendar, Clock, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, ArrowDown, ArrowUp, RefreshCw, CalendarDays, WifiOff } from "lucide-react";
 import { API_CONFIG, fetchApi } from "../../config/apiEndPoint";
+import EquivalenciasPanel from "./EquivalenciasPanel";
 
 export default function HistorialModal({ onClose, usuario }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -248,29 +249,11 @@ export default function HistorialModal({ onClose, usuario }) {
                 })}
               </div>
 
-              {/* Estadísticas: Diseño anterior (Píldoras) */}
-              <div className="flex flex-col gap-2 mt-auto">
-                <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 rounded-lg px-3 py-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                  <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 flex-1">Puntuales</span>
-                  <span className="text-xs font-black text-emerald-700 dark:text-emerald-400">{estadisticas.puntuales}</span>
-                </div>
-                <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800 rounded-lg px-3 py-2">
-                  <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-                  <span className="text-xs font-bold text-amber-700 dark:text-amber-400 flex-1">Retardo A</span>
-                  <span className="text-xs font-black text-amber-700 dark:text-amber-400">{estadisticas.retardos_a}</span>
-                </div>
-                <div className="flex items-center gap-3 bg-orange-50 dark:bg-orange-900/30 border border-orange-100 dark:border-orange-800 rounded-lg px-3 py-2">
-                  <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                  <span className="text-xs font-bold text-orange-700 dark:text-orange-400 flex-1">Retardo B</span>
-                  <span className="text-xs font-black text-orange-700 dark:text-orange-400">{estadisticas.retardos_b}</span>
-                </div>
-                <div className="flex items-center gap-3 bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-800 rounded-lg px-3 py-2">
-                  <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                  <span className="text-xs font-bold text-red-700 dark:text-red-400 flex-1">Faltas</span>
-                  <span className="text-xs font-black text-red-700 dark:text-red-400">{estadisticas.faltas}</span>
-                </div>
-              </div>
+              {/* EquivalenciasPanel Widget */}
+              <EquivalenciasPanel
+                empleadoId={usuario.empleado_id}
+                mesSeleccionado={currentMonth}
+              />
             </div>
 
             {/* Panel Derecho: Lista */}

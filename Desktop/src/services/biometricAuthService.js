@@ -207,7 +207,12 @@ export const registrarHuella = async (idEmpleado, templateBase64, userId) => {
  */
 export const getUsuarioById = async (id) => {
   try {
-    const response = await fetch(`${API_URL}/usuarios/${id}`);
+    const token = localStorage.getItem("auth_token");
+    const response = await fetch(`${API_URL}/usuarios/${id}`, {
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    });
 
     if (!response.ok) {
       throw new Error("Usuario no encontrado");
@@ -241,10 +246,12 @@ export const actualizarEstadoUsuario = async (id, nuevoEstado) => {
     };
 
     // Usar PUT con el objeto completo
+    const token = localStorage.getItem("auth_token");
     const response = await fetch(`${API_URL}/usuarios/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
       },
       body: JSON.stringify(usuarioActualizado),
     });

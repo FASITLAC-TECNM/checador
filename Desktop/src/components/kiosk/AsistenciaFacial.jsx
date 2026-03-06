@@ -506,11 +506,13 @@ export default function AsistenciaFacial({
       );
 
       setErrorMessage(error.message || "Error al registrar asistencia");
+      const empleadoIdLocal = empleadoData ? (empleadoData.id_empleado || empleadoData.id) : null;
       setResult({
         success: false,
         message: error.message || "Error al registrar asistencia",
         empleado: empleadoData,
-        empleadoId: empleadoData?.id || null,
+        usuario: empleadoData,
+        empleadoId: empleadoIdLocal,
         noPuedeRegistrar: responseData?.noPuedeRegistrar || isBlockCompletedError,
         estadoHorario: responseData?.estadoHorario || (isBlockCompletedError ? 'completado' : undefined),
         minutosRestantes: responseData?.minutosRestantes,

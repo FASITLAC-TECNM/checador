@@ -15,6 +15,7 @@ import { PersonalInfoScreen } from './personalinfo';
 import { TermsAndConditionsScreen } from './TermsAndConditionsScreen';
 import { SupportScreen } from './SupportScreen';
 import { SecurityScreen } from './SecurityScreen';
+import { NotificationsScreen } from './NotificationsScreen';
 
 const obtenerUrlFotoPerfil = (foto) => {
   if (!foto) {
@@ -43,6 +44,7 @@ export const SettingsScreen = ({
   const [showTerms, setShowTerms] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
   const [showSecurity, setShowSecurity] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const styles = darkMode ? settingsStylesDark : settingsStyles;
 
@@ -92,6 +94,15 @@ export const SettingsScreen = ({
         darkMode={darkMode}
         onBack={() => setShowSecurity(false)}
         userData={userData}
+      />
+    );
+  }
+
+  if (showNotifications) {
+    return (
+      <NotificationsScreen
+        darkMode={darkMode}
+        onBack={() => setShowNotifications(false)}
       />
     );
   }
@@ -227,8 +238,8 @@ export const SettingsScreen = ({
             activeOpacity={0.7}
           >
             <View style={styles.settingLeft}>
-              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#a0552a' : '#fef3c7' }]}>
-                <Ionicons name="lock-closed-outline" size={22} color={darkMode ? '#f5ce4f' : '#d97706'} />
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#4c1d95' : '#ede9fe' }]}>
+                <Ionicons name="lock-closed-outline" size={22} color={darkMode ? '#a78bfa' : '#7c3aed'} />
               </View>
               <View style={styles.settingTextContainer}>
                 <Text style={styles.settingTitle}>Seguridad</Text>
@@ -244,6 +255,22 @@ export const SettingsScreen = ({
             <Ionicons name="apps" size={18} color={darkMode ? '#3794fd' : '#6366f1'} />
             <Text style={styles.sectionTitle}>Aplicación</Text>
           </View>
+          <TouchableOpacity
+            style={styles.settingItem}
+            onPress={() => setShowNotifications(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.settingLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#a0552a' : '#fef3c7' }]}>
+                <Ionicons name="notifications-outline" size={22} color={darkMode ? '#f5ce4f' : '#d97706'} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Notificaciones</Text>
+                <Text style={styles.settingSubtitle}>Alertas y avisos</Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.settingItem}
             onPress={() => setShowSupport(true)}

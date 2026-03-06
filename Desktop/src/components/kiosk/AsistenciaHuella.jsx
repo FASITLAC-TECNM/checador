@@ -47,18 +47,7 @@ export default function AsistenciaHuella({
   const [countdown, setCountdown] = useState(6); // Contador de 6 segundos
   const [loginHabilitado, setLoginHabilitado] = useState(false); // Prevenir login automático
   const [identificando, setIdentificando] = useState(false); // Estado para mostrar pantalla de "Identificando..."
-
   const [messages, setMessages] = useState([]);
-
-  // Estados para lógica de asistencia real
-  const [horarioInfo, setHorarioInfo] = useState(null);
-  const [toleranciaInfo, setToleranciaInfo] = useState(null);
-  const [ultimoRegistroHoy, setUltimoRegistroHoy] = useState(null);
-  const [puedeRegistrar, setPuedeRegistrar] = useState(false);
-  const [tipoSiguienteRegistro, setTipoSiguienteRegistro] = useState('entrada');
-  const [estadoHorario, setEstadoHorario] = useState(null);
-  const [jornadaCompletada, setJornadaCompletada] = useState(false);
-  const [cargandoDatosHorario, setCargandoDatosHorario] = useState(false);
 
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
@@ -83,33 +72,7 @@ export default function AsistenciaHuella({
     }
   }, [readerConnected, onReaderStatusChange]);
 
-  // Cargar datos de horario para un empleado usando el servicio compartido
-  const cargarDatosHorario = async (empleadoId, usuarioId) => {
-    setCargandoDatosHorario(true);
 
-    try {
-      const datosAsistencia = await cargarDatosAsistencia(empleadoId, usuarioId);
-
-      setUltimoRegistroHoy(datosAsistencia.ultimo);
-      setHorarioInfo(datosAsistencia.horario);
-      setToleranciaInfo(datosAsistencia.tolerancia);
-
-      if (datosAsistencia.estado) {
-        setPuedeRegistrar(datosAsistencia.estado.puedeRegistrar);
-        setTipoSiguienteRegistro(datosAsistencia.estado.tipoRegistro);
-        setEstadoHorario(datosAsistencia.estado.estadoHorario);
-        setJornadaCompletada(datosAsistencia.estado.jornadaCompleta);
-        return datosAsistencia.estado;
-      }
-
-      return null;
-    } catch (err) {
-      console.error('Error cargando datos de horario:', err);
-      return null;
-    } finally {
-      setCargandoDatosHorario(false);
-    }
-  };
 
   // Reset de loginHabilitado al montar el componente (prevenir login automático)
   useEffect(() => {
@@ -359,61 +322,6 @@ export default function AsistenciaHuella({
       const empleadoIdNumerico = empleadoData.id;
       const usuarioId = empleadoData.usuario_id;
 
-      addMessage("📅 Verificando horario...", "info");
-
-      // Cargar datos de horario y tolerancia
-      const estadoActual = await cargarDatosHorario(empleadoIdNumerico, usuarioId);
-
-      // Obtener hora actual
-      const now = new Date();
-      const horaActual = now.toLocaleTimeString("es-MX", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-
-      // Verificar si puede registrar
-      if (estadoActual && !estadoActual.puedeRegistrar) {
-        let mensaje = "No puedes registrar en este momento";
-        if (estadoActual.jornadaCompleta) {
-          mensaje = estadoActual.mensaje || "Ya completaste tu jornada de hoy";
-        } else if (estadoActual.estadoHorario === 'fuera_horario') {
-          mensaje = "Estás fuera del horario de registro";
-        } else if (estadoActual.estadoHorario === 'tiempo_insuficiente') {
-          mensaje = estadoActual.mensajeEspera || `Debes esperar ${estadoActual.minutosRestantes || 'más'} minutos`;
-        }
-
-        addMessage(`⚠️ ${mensaje}`, "warning");
-
-        // Preparar el resultado ANTES de mostrar el modal
-        const resultadoNoPuedeRegistrar = {
-          success: false,
-          message: mensaje,
-          empleado: empleadoData,
-          empleadoId: empleadoId,
-          estadoHorario: estadoActual?.estadoHorario,
-          noPuedeRegistrar: true,
-          minutosRestantes: estadoActual?.minutosRestantes,
-        };
-
-        console.log("📋 No puede registrar:", resultadoNoPuedeRegistrar);
-
-        // Desactivar pantalla de identificando
-        setIdentificando(false);
-
-        // IMPORTANTE: Establecer el resultado PRIMERO, luego mostrar el modal
-        setResult(resultadoNoPuedeRegistrar);
-
-        // En modo background, mostrar modal ahora que tenemos resultado
-        if (backgroundMode) {
-          setTimeout(() => {
-            console.log("📋 Ejecutando setShowModal(true) - No puede registrar");
-            setShowModal(true);
-          }, 50);
-        }
-
-        return;
-      }
-
       addMessage("📝 Registrando asistencia...", "info");
 
       // Obtener departamento del empleado usando el servicio compartido
@@ -423,29 +331,20 @@ export default function AsistenciaHuella({
       const data = await registrarAsistenciaEnServidor({
         empleadoId: empleadoData.id,
         departamentoId,
-        tipoRegistro: estadoActual?.tipoRegistro || 'entrada',
-        clasificacion: estadoActual?.clasificacion || 'entrada',
-        estadoHorario: estadoActual?.estadoHorario || 'puntual',
         metodoRegistro: 'HUELLA',
         token: localStorage.getItem('auth_token') || ''
       });
 
-      // Actualizar último registro después de registrar
-      const nuevoUltimo = await obtenerUltimoRegistro(empleadoIdNumerico);
-      setUltimoRegistroHoy(nuevoUltimo);
+      // Obtener hora actual
+      const now = new Date();
+      const horaActual = now.toLocaleTimeString("es-MX", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
 
-      // Recalcular estado
-      if (horarioInfo && toleranciaInfo) {
-        const nuevoEstado = calcularEstadoRegistro(nuevoUltimo, horarioInfo, toleranciaInfo);
-        setPuedeRegistrar(nuevoEstado.puedeRegistrar);
-        setTipoSiguienteRegistro(nuevoEstado.tipoRegistro);
-        setEstadoHorario(nuevoEstado.estadoHorario);
-        setJornadaCompletada(nuevoEstado.jornadaCompleta);
-      }
-
-      // Usar la clasificación calculada localmente o la que devuelve el servidor
-      const clasificacionFinal = data.data?.clasificacion || estadoActual?.clasificacion || 'entrada';
-      const tipoRegistro = data.data?.tipo || estadoActual?.tipoRegistro || 'entrada';
+      // Usar la clasificación devuelta por el servidor
+      const clasificacionFinal = data.data?.clasificacion || data.data?.estado || 'puntual';
+      const tipoRegistro = data.data?.tipo || 'entrada';
       const tipoMovimiento = tipoRegistro === 'salida' ? 'SALIDA' : 'ENTRADA';
 
       // Obtener texto y emoji según la clasificación usando el servicio compartido
@@ -463,7 +362,7 @@ export default function AsistenciaHuella({
         hora: data.data?.fecha_registro
           ? new Date(data.data.fecha_registro).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
           : horaActual,
-        estado: data.data?.estado || estadoActual?.estadoHorario || 'puntual',
+        estado: clasificacionFinal,
         estadoTexto: estadoTexto,
         clasificacion: clasificacionFinal,
       };
@@ -625,12 +524,22 @@ export default function AsistenciaHuella({
       // Si no es error de red o falló el offline, mostrar error normal
       addMessage(`❌ Error: ${error.message}`, "error");
 
+      // Detectar errores devueltos por devueltos de API
+      const responseData = error.responseData;
+      const isBlockCompletedError = error.message && (
+        (error.message.includes('bloque') && error.message.includes('completado')) ||
+        (error.message.includes('jornada') && error.message.includes('completada'))
+      );
+
       // Preparar el resultado de error
       const resultadoError = {
         success: false,
         message: error.message,
         empleadoId: empleadoId,
         empleado: empleadoData,
+        noPuedeRegistrar: responseData?.noPuedeRegistrar || isBlockCompletedError,
+        estadoHorario: responseData?.estadoHorario || (isBlockCompletedError ? 'completado' : undefined),
+        minutosRestantes: responseData?.minutosRestantes
       };
 
       console.log("📋 Error en registro:", resultadoError);

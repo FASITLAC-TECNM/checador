@@ -3,9 +3,8 @@
 // y si está CONECTADO. Solo habilita el botón facial si ambas condiciones se cumplen.
 // Reutiliza el mismo patrón que isReaderConnected para huella dactilar.
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getApiEndpoint } from "../config/apiEndPoint";
+import { API_CONFIG, fetchApi } from "../config/apiEndPoint";
 
-const API_URL = getApiEndpoint("/api");
 const POLL_INTERVAL = 15000; // 15 segundos, igual que useDeviceStatus
 
 export const useCameraStatus = (enabled = true) => {
@@ -40,24 +39,14 @@ export const useCameraStatus = (enabled = true) => {
         return;
       }
 
-      const response = await fetch(`${API_URL}/biometrico/escritorio/${escritorioId}`, {
+      const response = await fetchApi(`${API_CONFIG.ENDPOINTS.BIOMETRICO}/escritorio/${escritorioId}`, {
         headers: {
           "Content-Type": "application/json",
           ...(token && { Authorization: `Bearer ${token}` }),
         },
       });
 
-      if (!response.ok) {
-        console.warn("[useCameraStatus] Error al consultar dispositivos:", response.status);
-        if (isMountedRef.current) {
-          setHasCameraRegistered(false);
-          setIsCameraConnected(false);
-        }
-        return;
-      }
-
-      const result = await response.json();
-      const devices = Array.isArray(result.data || result) ? (result.data || result) : [];
+      const devices = Array.isArray(response.data || response) ? (response.data || response) : [];
 
       // Buscar dispositivos de tipo "facial" (cámara)
       const cameraDevices = devices.filter(d => d.tipo === "facial");

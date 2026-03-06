@@ -21,6 +21,7 @@ import GeneralNodoModal from "./GeneralNodoModal";
 import DispositivosModal from "./DispositivosModal";
 import PreferenciasModal from "./PreferenciasModal";
 import EmployeeInfo from "./EmployeeInfo";
+import EquivalenciasPanel from "./EquivalenciasPanel";
 
 export default function AdminDashboard({
     escritorioId,
@@ -255,6 +256,11 @@ export default function AdminDashboard({
                                         horario={userHorario}
                                         loading={loadingEmpleado}
                                     />
+                                    {datosCompletos?.id && (
+                                        <div className="flex-1 mt-1">
+                                            <EquivalenciasPanel empleadoId={datosCompletos.id} />
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Right: Personal Notices */}

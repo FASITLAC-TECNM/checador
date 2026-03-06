@@ -14,7 +14,6 @@ import { identificarPorFacial, guardarSesion } from "../../services/biometricAut
 import { useCamera } from "../../context/CameraContext";
 import { API_CONFIG } from "../../config/apiEndPoint";
 import {
-  cargarDatosAsistencia,
   obtenerDepartamentoEmpleado,
   registrarAsistenciaEnServidor,
   obtenerInfoClasificacion
@@ -422,65 +421,26 @@ export default function AsistenciaFacial({
 
       console.log("Empleado identificado:", empleadoData?.nombre || empleadoId);
 
-      // 2. Verificar horario usando asistenciaLogicService
-      const datosAsistencia = await cargarDatosAsistencia(empleadoId, usuarioId);
-      const estadoActual = datosAsistencia.estado;
-
-      const now = new Date();
-      const horaActual = now.toLocaleTimeString("es-MX", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-
-      // Verificar si puede registrar
-      if (estadoActual && !estadoActual.puedeRegistrar) {
-        let mensaje = "No puedes registrar en este momento";
-        if (estadoActual.jornadaCompleta) {
-          mensaje = estadoActual.mensaje || "Ya completaste tu jornada de hoy";
-        } else if (estadoActual.estadoHorario === 'fuera_horario') {
-          mensaje = "Estas fuera del horario de registro";
-        } else if (estadoActual.estadoHorario === 'tiempo_insuficiente') {
-          mensaje = estadoActual.mensajeEspera || `Debes esperar ${estadoActual.minutosRestantes || 'mas'} minutos`;
-        }
-
-        agregarEvento({
-          user: empleadoData?.nombre || 'Usuario',
-          action: `Intento de registro facial - ${mensaje}`,
-          type: "warning",
-        });
-
-        setResult({
-          success: false,
-          message: mensaje,
-          empleado: empleadoData,
-          usuario: empleadoData,
-          empleadoId: empleadoId,
-          estadoHorario: estadoActual?.estadoHorario,
-          noPuedeRegistrar: true,
-          minutosRestantes: estadoActual?.minutosRestantes,
-        });
-
-        setStep("error");
-        return;
-      }
-
-      // 3. Registrar asistencia
+      // 2. Registrar asistencia
       console.log("Registrando asistencia...");
       const departamentoId = await obtenerDepartamentoEmpleado(empleadoId);
 
       const data = await registrarAsistenciaEnServidor({
         empleadoId: empleadoId,
         departamentoId,
-        tipoRegistro: estadoActual?.tipoRegistro || 'entrada',
-        clasificacion: estadoActual?.clasificacion || 'entrada',
-        estadoHorario: estadoActual?.estadoHorario || 'puntual',
         metodoRegistro: 'FACIAL',
         token: localStorage.getItem('auth_token') || ''
       });
 
-      // 4. Procesar resultado exitoso
-      const clasificacionFinal = data.data?.clasificacion || estadoActual?.clasificacion || 'entrada';
-      const tipoRegistro = data.data?.tipo || estadoActual?.tipoRegistro || 'entrada';
+      // 3. Procesar resultado exitoso
+      const now = new Date();
+      const horaActual = now.toLocaleTimeString("es-MX", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      const clasificacionFinal = data.data?.clasificacion || data.data?.estado || 'puntual';
+      const tipoRegistro = data.data?.tipo || 'entrada';
       const tipoMovimiento = tipoRegistro === 'salida' ? 'SALIDA' : 'ENTRADA';
 
       const { estadoTexto, tipoEvento } = obtenerInfoClasificacion(clasificacionFinal, tipoRegistro);
@@ -510,7 +470,7 @@ export default function AsistenciaFacial({
         hora: data.data?.fecha_registro
           ? new Date(data.data.fecha_registro).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
           : horaActual,
-        estado: data.data?.estado || estadoActual?.estadoHorario || 'puntual',
+        estado: clasificacionFinal,
         estadoTexto: estadoTexto,
         clasificacion: clasificacionFinal,
       });
@@ -538,12 +498,22 @@ export default function AsistenciaFacial({
         type: "error",
       });
 
+      // Detectar errores devueltos por la API para mostrar UI amarilla
+      const responseData = error.responseData;
+      const isBlockCompletedError = error.message && (
+        (error.message.includes('bloque') && error.message.includes('completado')) ||
+        (error.message.includes('jornada') && error.message.includes('completada'))
+      );
+
       setErrorMessage(error.message || "Error al registrar asistencia");
       setResult({
         success: false,
         message: error.message || "Error al registrar asistencia",
         empleado: empleadoData,
         empleadoId: empleadoData?.id || null,
+        noPuedeRegistrar: responseData?.noPuedeRegistrar || isBlockCompletedError,
+        estadoHorario: responseData?.estadoHorario || (isBlockCompletedError ? 'completado' : undefined),
+        minutosRestantes: responseData?.minutosRestantes,
         noReconocida: error.message?.includes("no reconocido") || error.message?.includes("No se encontr"),
       });
 

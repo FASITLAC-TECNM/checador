@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Platform,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -60,6 +61,16 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
   const [isOffline, setIsOffline] = useState(false);
 
   const styles = darkMode ? securityStylesDark : securityStyles;
+
+  // ─── Eliminación de datos biométricos (Ley ARCO) ──────────────────────
+  const handleEliminarDatos = () => {
+    Alert.alert(
+      'Eliminación de datos biométricos',
+      'Conforme a la Ley Federal de Protección de Datos Personales en Posesión de los Particulares (LFPDPPP) y los derechos ARCO (Acceso, Rectificación, Cancelación y Oposición), tienes todo el derecho de solicitar la eliminación de tus datos biométricos registrados en el sistema.\n\nPara ejercer este derecho, comunícate con el área de Recursos Humanos o con el administrador del sistema, quien procesará tu solicitud conforme a los plazos y procedimientos establecidos por la ley.',
+      [{ text: 'Entendido', style: 'default' }],
+      { cancelable: true }
+    );
+  };
 
   useEffect(() => {
     initializeSecurity();
@@ -280,6 +291,29 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
             );
           })}
         </View>
+
+        {/* Separador */}
+        <View style={styles.separador}>
+          <View style={styles.separadorLinea} />
+          <Text style={styles.separadorTexto}>Privacidad</Text>
+          <View style={styles.separadorLinea} />
+        </View>
+
+        {/* Botón eliminación de datos biométricos */}
+        <TouchableOpacity
+          style={styles.eliminarBoton}
+          onPress={handleEliminarDatos}
+          activeOpacity={0.75}
+        >
+          <View style={styles.eliminarIconContainer}>
+            <Ionicons name="trash-outline" size={22} color="#dc2626" />
+          </View>
+          <View style={styles.eliminarTextoContainer}>
+            <Text style={styles.eliminarTitulo}>Eliminación de datos biométricos</Text>
+            <Text style={styles.eliminarSubtitulo}>Conoce tus derechos · Ley ARCO</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={darkMode ? '#6b7280' : '#9ca3af'} />
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -293,8 +327,8 @@ const securityStyles = StyleSheet.create({
   },
   header: {
     backgroundColor: '#2563eb',
-    paddingTop: Platform.OS === 'android' ? 16 : 50,
-    paddingBottom: 20,
+    paddingTop: Platform.OS === 'android' ? 14 : 46,
+    paddingBottom: 16,
     paddingHorizontal: 16,
   },
   headerContent: {
@@ -315,12 +349,12 @@ const securityStyles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: '#fff',
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#bfdbfe',
     marginTop: 2,
   },
@@ -338,86 +372,122 @@ const securityStyles = StyleSheet.create({
     color: '#6b7280',
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: Platform.OS === 'ios' ? 100 : 60,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 90,
   },
   infoCard: {
     backgroundColor: '#dbeafe',
-    borderRadius: 18,
-    padding: 22,
+    borderRadius: 16,
+    padding: 18,
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   infoTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#1f2937',
-    marginTop: 10,
-    marginBottom: 6,
+    marginTop: 8,
+    marginBottom: 5,
   },
   infoText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#4b5563',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 19,
   },
   metodosContainer: {
-    gap: 12,
-    marginBottom: 24,
+    gap: 10,
+    marginBottom: 16,
   },
   tarjetaMetodo: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 18,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
     elevation: 3,
   },
   botonIconContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 14,
   },
   textoContainer: {
     flex: 1,
     gap: 2,
   },
   botonNombre: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: '600',
   },
   etiquetaEstado: {
-    fontSize: 13,
+    fontSize: 12,
     opacity: 0.85,
   },
   botonIndicador: {},
-  leyendaContainer: {
-    gap: 6,
-    marginBottom: 24,
-    paddingLeft: 2,
-  },
-  leyendaFila: {
+  separador: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    marginBottom: 14,
+    gap: 10,
   },
-  leyendaPunto: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  separadorLinea: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e2e8f0',
   },
-  leyendaTexto: {
+  separadorTexto: {
     fontSize: 12,
-    color: '#6b7280',
+    fontWeight: '600',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  eliminarBoton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderWidth: 1.5,
+    borderColor: '#fca5a5',
+    shadowColor: '#dc2626',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  eliminarIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fee2e2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  eliminarTextoContainer: {
+    flex: 1,
+    gap: 2,
+  },
+  eliminarTitulo: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#dc2626',
+  },
+  eliminarSubtitulo: {
+    fontSize: 11,
+    color: '#9ca3af',
   },
 });
 
@@ -448,8 +518,29 @@ const securityStylesDark = StyleSheet.create({
     ...securityStyles.loadingText,
     color: '#9ca3af',
   },
-  leyendaTexto: {
-    ...securityStyles.leyendaTexto,
-    color: '#9ca3af',
+  separadorLinea: {
+    ...securityStyles.separadorLinea,
+    backgroundColor: '#334155',
+  },
+  separadorTexto: {
+    ...securityStyles.separadorTexto,
+    color: '#64748b',
+  },
+  eliminarBoton: {
+    ...securityStyles.eliminarBoton,
+    backgroundColor: '#1e293b',
+    borderColor: '#7f1d1d',
+  },
+  eliminarIconContainer: {
+    ...securityStyles.eliminarIconContainer,
+    backgroundColor: '#450a0a',
+  },
+  eliminarTitulo: {
+    ...securityStyles.eliminarTitulo,
+    color: '#f87171',
+  },
+  eliminarSubtitulo: {
+    ...securityStyles.eliminarSubtitulo,
+    color: '#6b7280',
   },
 });

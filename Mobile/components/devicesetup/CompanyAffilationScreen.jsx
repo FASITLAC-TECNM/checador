@@ -16,6 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { verificarEmpresa } from '../../services/solicitudMovilService';
+import * as Network from 'expo-network';
 
 const AFFILIATION_CONFIG = {
   title: "Afiliación a la Empresa",
@@ -46,9 +47,19 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
     try {
       console.log('🔍 Verificando empresa:', trimmedCode);
 
-      const empresaInfo = await verificarEmpresa(trimmedCode);
+      let currentIp = '127.0.0.1';
+      try {
+        currentIp = await Network.getIpAddressAsync();
+      } catch (e) {
+        console.warn('No se pudo obtener la IP local', e);
+      }
 
-      console.log('📊 Resultado verificación:', empresaInfo);
+      const empresaInfo = await verificarEmpresa(trimmedCode, currentIp);
+
+      console.log('📊 Resultado verificación:', {
+        ...empresaInfo,
+        ipDetectada: currentIp
+      });
 
       if (!empresaInfo.existe) {
         Alert.alert(
@@ -68,7 +79,21 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
         return;
       }
 
-      console.log('✅ Empresa válida, continuando...');
+      if (empresaInfo.fueraDeRed) {
+        console.warn('⚠️ Dispositivo bloqueado: IP fuera de red permitida', {
+          ipLocal: currentIp,
+          alertasRed: empresaInfo.alertasRed
+        });
+
+        Alert.alert(
+          'Fuera de Red',
+          'Tu dispositivo no se encuentra en una red permitida por la empresa. Conéctate a la red Wi-Fi autorizada e inténtalo de nuevo.'
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('✅ Empresa y red válidas, continuando...');
 
       // ✅ Todo bien, continuar al siguiente paso con una animación de verificación
       setIsVerified(true);

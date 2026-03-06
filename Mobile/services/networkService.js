@@ -1,17 +1,20 @@
 /**
  * networkService.js
  *
- * Servicio de diagnóstico de red del lado del móvil.
+ * Utilidades de red del lado del móvil:
  *
- * Obtiene los segmentos de red configurados desde la API (/api/configuracion)
- * y muestra información de diagnóstico en la pantalla admin secreta.
+ * 1. verificarRedDispositivo — Diagnóstico completo (para admin).
+ *    Consulta GET /api/configuracion y usa IP pública para auditoría.
  *
- * NOTA: La validación definitiva de IP se realiza en el servidor durante
- * el registro de asistencia. Este servicio solo sirve para diagnóstico
- * visual del administrador.
+ * La validación definitiva de IP siempre la hace el servidor.
  */
 
+import NetInfo from '@react-native-community/netinfo';
 import { getApiEndpoint } from '../config/api.js';
+
+// ---------------------------------------------------------------------------
+// API URL
+// ---------------------------------------------------------------------------
 
 const API_URL = getApiEndpoint('/api');
 
@@ -99,43 +102,13 @@ export const verificarRedDispositivo = async (token) => {
             }
         } catch (e) { }
 
-        // Validar si la IP está dentro de algún segmento
-        let is_ip_valida = true;
-        let advertencia = null;
-
-        if (segmentos.length > 0 && ip_cliente) {
-            const ipToInt = (ip) => ip.split('.').reduce((acc, oct) => (acc << 8) + parseInt(oct, 10), 0) >>> 0;
-            const ipEnCIDR = (ip, cidr) => {
-                try {
-                    const [red, bits] = cidr.split('/');
-                    const mascara = bits === '0' ? 0 : (~0 << (32 - parseInt(bits, 10))) >>> 0;
-                    return (ipToInt(ip) & mascara) === (ipToInt(red) & mascara);
-                } catch { return false; }
-            };
-
-            is_ip_valida = segmentos.some(cidr => ipEnCIDR(ip_cliente, cidr));
-
-            if (!is_ip_valida) {
-                advertencia = {
-                    mensaje: `La IP ${ip_cliente} no pertenece a ningún segmento autorizado`
-                };
-            }
-        } else if (segmentos.length > 0 && !ip_cliente) {
-            is_ip_valida = false;
-            advertencia = { mensaje: 'No se pudo detectar la IP del dispositivo' };
-        }
-
         return {
             conectado: true,
             segmentos_configurados: segmentos,
             latencia_ms: latencia,
             ip_cliente,
-            is_ip_valida,
-            advertencia,
-            message: is_ip_valida
-                ? (segmentos.length === 0 ? 'Conectado — sin restricción de red' : `Conectado y Autorizado en segmento`)
-                : 'Conectado pero IP no autorizada',
-            nota: 'Validación en modo diagnóstico (simulada en frontend).'
+            message: segmentos.length === 0 ? 'Conectado — sin restricción de red' : `Conectado — red configurada`,
+            nota: 'Validación en modo diagnóstico. La validación real se ejecuta en el backend.'
         };
     } catch (error) {
         return {

@@ -213,7 +213,7 @@ export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
  * ✅ Verificar si una empresa existe por su ID
  * ACTUALIZADO: Usa el endpoint público /solicitudes/empresa/:id/verificar
  */
-export const verificarEmpresa = async (empresaId) => {
+export const verificarEmpresa = async (empresaId, ip) => {
   try {
     // Validación básica del formato
     if (!empresaId || empresaId.trim().length < 3) {
@@ -224,15 +224,21 @@ export const verificarEmpresa = async (empresaId) => {
     }
 
     try {
-      // ✅ CAMBIO PRINCIPAL: Usar el endpoint de identificador en lugar del de ID público
-      const response = await api.get(`/empresas/identificador/${empresaId}`);
+      // ✅ Usar el nuevo endpoint de validación que revisa red y empresa
+      const response = await api.post(`/solicitudes/validar-afiliacion`, {
+        identificador: empresaId,
+        ip: ip
+      });
 
       if (response.data.success && response.data.data) {
+        const { empresa, validacionRed } = response.data.data;
         return {
-          existe: true,  // ✅ Si llegó aquí con éxito, la empresa existe
-          id: response.data.data.id,
-          nombre: response.data.data.nombre,
-          activa: response.data.data.es_activo
+          existe: true,
+          id: empresa.id,
+          nombre: empresa.nombre,
+          activa: empresa.es_activo,
+          fueraDeRed: validacionRed?.fueraDeRed || false,
+          alertasRed: validacionRed?.alertas || []
         };
       }
 
@@ -248,6 +254,15 @@ export const verificarEmpresa = async (empresaId) => {
           existe: false,
           mensaje: 'Empresa no encontrada'
         };
+      }
+
+      // Si el equipo está deshabilitado
+      if (error.response?.status === 403) {
+        return {
+          existe: true,
+          activa: false,
+          mensaje: error.response?.data?.message || 'La empresa no está activa'
+        }
       }
 
       // Si hay error de red, lanzar excepción

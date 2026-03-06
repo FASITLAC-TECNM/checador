@@ -94,18 +94,46 @@ export async function postEvent(titulo, tipo, descripcion, empleadoId, prioridad
  * @returns {Object} { success, sincronizados, rechazados }
  */
 async function pushBatch(records) {
-    const registros = records.map(record => ({
-        id: record.idempotency_key || record.local_id.toString(),
-        empleado_id: record.empleado_id,
-        tipo: record.tipo,
-        estado: record.estado,
-        clasificacion: record.estado,
-        departamento_id: record.departamento_id || null,
-        metodo_registro: record.metodo_registro,
-        dispositivo_origen: record.dispositivo_origen || 'movil',
-        ubicacion: null,
-        fecha_registro: new Date(record.fecha_registro).getTime(),
-    }));
+    const registros = records.map(record => {
+        // Parsear ubicacion: puede estar como string JSON '[lat, lng]' o null
+        let ubicacion = null;
+        if (record.ubicacion) {
+            try {
+                ubicacion = typeof record.ubicacion === 'string'
+                    ? JSON.parse(record.ubicacion)
+                    : record.ubicacion;
+            } catch {
+                ubicacion = null;
+            }
+        }
+
+        // Parsear wifi: puede estar como string JSON '{bssid, ssid}' o null
+        let wifi = null;
+        if (record.wifi) {
+            try {
+                wifi = typeof record.wifi === 'string'
+                    ? JSON.parse(record.wifi)
+                    : record.wifi;
+            } catch {
+                wifi = null;
+            }
+        }
+
+        return {
+            id: record.idempotency_key || record.local_id.toString(),
+            empleado_id: record.empleado_id,
+            tipo: record.tipo,
+            estado: record.estado,
+            clasificacion: record.estado,
+            departamento_id: record.departamento_id || null,
+            metodo_registro: record.metodo_registro,
+            dispositivo_origen: record.dispositivo_origen || 'movil',
+            ubicacion,
+            ip: record.ip || null,
+            wifi,
+            fecha_registro: new Date(record.fecha_registro).getTime(),
+        };
+    });
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);

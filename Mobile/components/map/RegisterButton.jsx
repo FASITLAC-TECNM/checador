@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -32,7 +32,6 @@ import syncManager from '../../services/offline/syncManager.mjs';
 import pushService from '../../services/offline/pushService.mjs';
 
 const API_URL = getApiEndpoint('/api');
-const MINUTOS_SEPARACION_TURNOS = 120;
 const NOTIF_DIARIA_KEY = '@notif_asistencia_disponible';
 
 export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
@@ -51,7 +50,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [departamentosDisponibles, setDepartamentosDisponibles] = useState([]);
   const [departamentoSeleccionado, setDepartamentoSeleccionado] = useState(null);
   const [horarioInfo, setHorarioInfo] = useState(null);
-  const [toleranciaInfo, setToleranciaInfo] = useState(null);
   const [ultimoRegistroHoy, setUltimoRegistroHoy] = useState(null);
   const [registrosHoyTodos, setRegistrosHoyTodos] = useState([]);
   const [dentroDelArea, setDentroDelArea] = useState(false);
@@ -76,7 +74,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   // ────────────────────────────────────────────────────────────────────────────
 
   const horarioInfoRef = useRef(null);
-  const toleranciaInfoRef = useRef(null);
   const ultimoRegistroHoyRef = useRef(null);
   const registrosHoyTodosRef = useRef([]);
   const tipoSiguienteRegistroRef = useRef('entrada');
@@ -85,7 +82,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const styles = darkMode ? registerStylesDark : registerStyles;
   const [horaActual, setHoraActual] = useState(new Date());
   useEffect(() => { horarioInfoRef.current = horarioInfo; }, [horarioInfo]);
-  useEffect(() => { toleranciaInfoRef.current = toleranciaInfo; }, [toleranciaInfo]);
   useEffect(() => { ultimoRegistroHoyRef.current = ultimoRegistroHoy; }, [ultimoRegistroHoy]);
   useEffect(() => { registrosHoyTodosRef.current = registrosHoyTodos; }, [registrosHoyTodos]);
   useEffect(() => { tipoSiguienteRegistroRef.current = tipoSiguienteRegistro; }, [tipoSiguienteRegistro]);
@@ -224,16 +220,19 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }, 150);
   }, []);
 
-  // ─── Intervalo de 1 segundo — lógica de estado y notificaciones ─────────────
+  // ─── Intervalo de 1 segundo — solo actualiza el reloj + refresco periódico ───
   useEffect(() => {
     const intervalo = setInterval(async () => {
       setHoraActual(new Date());
       ticksRef.current += 1;
 
       // ── Cada 60 segundos refrescar horario y últimos registros ───────────────
-      // Detecta turnos extra que el admin asigne después del último registro.
       if (ticksRef.current % 60 === 0) {
         try {
+          let onlineNow = false;
+          try { onlineNow = await syncManager.isOnline(); } catch (e) { /* offline */ }
+          setIsOnline(onlineNow);
+
           const [nuevoHorario, resultadoRegistro] = await Promise.all([
             obtenerHorario(),
             obtenerUltimoRegistro()
@@ -251,138 +250,113 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           }
         } catch (_e) { /* fallo silencioso, se reintenta al siguiente minuto */ }
       }
-      // ─────────────────────────────────────────────────────────────────────────
-
-      if (horarioInfoRef.current && toleranciaInfoRef.current) {
-        let onlineNow = false;
-        try { onlineNow = await syncManager.isOnline(); } catch (e) { /* offline */ }
-        setIsOnline(onlineNow);
-        const estado = calcularEstadoRegistro(
-          registrosHoyTodosRef.current,
-          ultimoRegistroHoyRef.current,
-          horarioInfoRef.current,
-          toleranciaInfoRef.current,
-          onlineNow
-        );
-        setPuedeRegistrar(estado.puedeRegistrar);
-        setTipoSiguienteRegistro(estado.tipoRegistro);
-        setEstadoHorario(estado.estadoHorario);
-        setJornadaCompletada(estado.jornadaCompleta);
-        setMensajeEspera(estado.mensajeEspera || '');
-
-        // ── LÓGICA DE NOTIFICACIÓN: una sola vez por tipo (entrada/salida) por día ──
-        if (estado.puedeRegistrar) {
-          const hoy = new Date().toISOString().split('T')[0];
-          const tipo = estado.tipoRegistro; // 'entrada' | 'salida'
-
-          // Si cambió el día (medianoche), resetear el ref y AsyncStorage
-          if (notifDiariaRef.current.fecha !== hoy) {
-            const nuevoEstado = { fecha: hoy, entrada: false, salida: false };
-            notifDiariaRef.current = nuevoEstado;
-            AsyncStorage.setItem(NOTIF_DIARIA_KEY, JSON.stringify(nuevoEstado)).catch(() => { });
-          }
-
-          // Solo notificar si NO se ha enviado todavía hoy para este tipo
-          const yaNotificado = notifDiariaRef.current[tipo] === true;
-
-          if (!yaNotificado) {
-            // Marcar como enviado ANTES de llamar (evita doble disparo por async)
-            notifDiariaRef.current = {
-              ...notifDiariaRef.current,
-              [tipo]: true,
-            };
-            // Persistir para sobrevivir desmontajes del componente
-            AsyncStorage.setItem(
-              NOTIF_DIARIA_KEY,
-              JSON.stringify(notifDiariaRef.current)
-            ).catch(() => { });
-
-            notificarEstadoAsistencia(tipo);
-          }
-        }
-        // ── FIN LÓGICA DE NOTIFICACIÓN ──
-      }
     }, 1000);
 
     return () => clearInterval(intervalo);
-  }, [calcularEstadoRegistro, obtenerHorario, obtenerUltimoRegistro]);
+  }, [obtenerHorario, obtenerUltimoRegistro]);
   // ────────────────────────────────────────────────────────────────────────────
 
-  const getDiaSemana = () => {
-    const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-    return dias[new Date().getDay()];
-  };
+  // ─── Derivar estado de registro — 100% desde valores de la DB ────────────────
+  // No se hace ningún cálculo propio. Solo se leen los campos que el backend ya
+  // devuelve en ultimoRegistroHoy (tipo, estado) que provienen directamente de la DB.
+  // El backend (srvVerificarLongitudYTipo, srvValidarVentanaDeRegistro) es quien decide
+  // todo al momento de registrar; aquí solo actualizamos la UI para reflejarlo.
+  useEffect(() => {
+    if (!horarioInfo && !diaFestivo) return;
 
-  const getMinutosDelDia = (fecha = new Date()) => {
-    return fecha.getHours() * 60 + fecha.getMinutes();
-  };
-
-  const agruparTurnosConcatenados = (turnos) => {
-    if (!turnos || !Array.isArray(turnos) || turnos.length === 0) {
-      return [];
+    if (diaFestivo) {
+      setPuedeRegistrar(false);
+      setTipoSiguienteRegistro('entrada');
+      setEstadoHorario('dia_festivo');
+      setJornadaCompletada(false);
+      setMensajeEspera('');
+      return;
     }
 
-    if (turnos.length === 1) {
-      return [turnos];
+    if (!horarioInfo?.trabaja) {
+      setPuedeRegistrar(false);
+      setTipoSiguienteRegistro('entrada');
+      setEstadoHorario('fuera_horario');
+      setJornadaCompletada(false);
+      setMensajeEspera('');
+      return;
     }
 
-    const grupos = [];
-    let grupoActual = [turnos[0]];
+    // ── Sin registros hoy → siguiente es entrada ─────────────────────────────
+    if (!ultimoRegistroHoy) {
+      setPuedeRegistrar(true);
+      setTipoSiguienteRegistro('entrada');
+      setEstadoHorario(null);
+      setJornadaCompletada(false);
+      setMensajeEspera('');
 
-    for (let i = 1; i < turnos.length; i++) {
-      const turnoAnterior = grupoActual[grupoActual.length - 1];
-      const turnoActual = turnos[i];
-
-      if (!turnoAnterior?.salida || !turnoActual?.entrada) {
-        continue;
+      const hoy = new Date().toISOString().split('T')[0];
+      if (notifDiariaRef.current.fecha !== hoy) {
+        const nuevoEstado = { fecha: hoy, entrada: false, salida: false };
+        notifDiariaRef.current = nuevoEstado;
+        AsyncStorage.setItem(NOTIF_DIARIA_KEY, JSON.stringify(nuevoEstado)).catch(() => { });
       }
-
-      const [hSalida, mSalida] = turnoAnterior.salida.split(':').map(Number);
-      const minutosSalida = hSalida * 60 + mSalida;
-
-      const [hEntrada, mEntrada] = turnoActual.entrada.split(':').map(Number);
-      const minutosEntrada = hEntrada * 60 + mEntrada;
-
-      const diferencia = minutosEntrada - minutosSalida;
-
-      if (diferencia <= MINUTOS_SEPARACION_TURNOS) {
-        grupoActual.push(turnoActual);
-      } else {
-        grupos.push(grupoActual);
-        grupoActual = [turnoActual];
+      if (!notifDiariaRef.current.entrada) {
+        notifDiariaRef.current = { ...notifDiariaRef.current, entrada: true };
+        AsyncStorage.setItem(NOTIF_DIARIA_KEY, JSON.stringify(notifDiariaRef.current)).catch(() => { });
+        notificarEstadoAsistencia('entrada');
       }
+      return;
     }
 
-    grupos.push(grupoActual);
-    return grupos;
-  };
+    // ── Leer estado y tipo directamente de la DB (sin recalcular) ────────────
+    const ultimoEstado = ultimoRegistroHoy.estado; // viene del campo `estado` en DB
+    const ultimoTipo = ultimoRegistroHoy.tipo;   // viene del campo `tipo` en DB
 
-  const getEntradaSalidaGrupo = (grupo) => {
-    if (!grupo || !Array.isArray(grupo) || grupo.length === 0) {
-      return { entrada: '00:00', salida: '00:00' };
+    // El backend marca la entrada como falta cuando el empleado llegó demasiado tarde.
+    // srvVerificarLongitudYTipo cierra el bloque con motivoCierre='falta_previa' en ese caso,
+    // lo que significa que NO se debe registrar salida — el bloque ya quedó cerrado.
+    // Leemos el estado de la DB para reflejar esto en la UI sin recalcular nada.
+    const ESTADOS_FALTA = ['falta', 'falta_directa', 'falta_automatica'];
+    if (ultimoTipo === 'entrada' && ESTADOS_FALTA.includes(ultimoEstado)) {
+      setPuedeRegistrar(false);
+      setTipoSiguienteRegistro('entrada');
+      setEstadoHorario('falta_previa');
+      setJornadaCompletada(false);
+      setMensajeEspera('Tu entrada fue registrada como falta. No es necesario registrar salida.');
+      return;
     }
 
-    return {
-      entrada: grupo[0]?.entrada || '00:00',
-      salida: grupo[grupo.length - 1]?.salida || '00:00'
-    };
-  };
-
-  const identificarBloqueHorario = (gruposTurnos, horaActual, tolerancia) => {
-    const margenAnticipado = tolerancia?.minutos_anticipado_max || 60;
-    const margenFalta = tolerancia?.minutos_falta || 30;
-    for (let i = 0; i < gruposTurnos.length; i++) {
-      const { entrada, salida } = getEntradaSalidaGrupo(gruposTurnos[i]);
-      const [hE, mE] = entrada.split(':').map(Number);
-      const [hS, mS] = salida.split(':').map(Number);
-      const inicioBloque = hE * 60 + mE - margenAnticipado;
-      const finBloque = hS * 60 + mS + margenFalta;
-      if (horaActual >= inicioBloque && horaActual <= finBloque) {
-        return { indice: i, entrada, salida, inicioBloque, finBloque };
-      }
+    // ── Último registro fue salida → jornada del bloque completa ─────────────
+    if (ultimoTipo === 'salida') {
+      setPuedeRegistrar(false);
+      setTipoSiguienteRegistro('entrada');
+      setEstadoHorario('bloque_completo');
+      setJornadaCompletada(true);
+      setMensajeEspera('');
+      return;
     }
-    return null;
-  };
+
+    // ── Último registro fue entrada válida → siguiente es salida ─────────────
+    // (La ventana de salida la valida el backend al intentar registrar)
+    setPuedeRegistrar(true);
+    setTipoSiguienteRegistro('salida');
+    setEstadoHorario(ultimoEstado || null);
+    setJornadaCompletada(false);
+    setMensajeEspera('');
+
+    // ── Notificación diaria (una sola vez por tipo por día) ──────────────────
+    const hoy = new Date().toISOString().split('T')[0];
+    if (notifDiariaRef.current.fecha !== hoy) {
+      const nuevoEstado = { fecha: hoy, entrada: false, salida: false };
+      notifDiariaRef.current = nuevoEstado;
+      AsyncStorage.setItem(NOTIF_DIARIA_KEY, JSON.stringify(nuevoEstado)).catch(() => { });
+    }
+    if (!notifDiariaRef.current.salida) {
+      notifDiariaRef.current = { ...notifDiariaRef.current, salida: true };
+      AsyncStorage.setItem(NOTIF_DIARIA_KEY, JSON.stringify(notifDiariaRef.current)).catch(() => { });
+      notificarEstadoAsistencia('salida');
+    }
+    // ────────────────────────────────────────────────────────────────────────
+  }, [horarioInfo, ultimoRegistroHoy, diaFestivo]);
+  // ──────────────────────────────────────────────────────────────────────────────
+
+
 
   const obtenerUltimoRegistro = useCallback(async () => {
     try {
@@ -509,122 +483,82 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       if (!horario) {
         const hLocal = await sqliteManager.getHorario(empleadoId);
-        if (hLocal) {
-          horario = hLocal;
-        }
+        if (hLocal) horario = hLocal;
       }
 
-      if (!horario?.configuracion) return null;
+      if (!horario?.configuracion) return { trabaja: false, numTurnos: 0, entrada: null, salida: null };
 
       let config = typeof horario.configuracion === 'string'
         ? JSON.parse(horario.configuracion)
         : horario.configuracion;
 
-      const diaHoy = getDiaSemana();
+      const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+      // Igual que srvObtenerTurnosDeHoy: buscar clave insensible a mayúsculas
+      const diaHoy = dias[new Date().getDay()];
       let turnosHoy = [];
 
-      if (config.configuracion_semanal?.[diaHoy]) {
-        turnosHoy = config.configuracion_semanal[diaHoy].map(t => ({
-          entrada: t.inicio,
-          salida: t.fin
+      if (config.configuracion_semanal) {
+        // Buscar coincidencia case-insensitive (igual que el backend con .toLowerCase())
+        const keyEncontrada = Object.keys(config.configuracion_semanal).find(
+          k => k.toLowerCase() === diaHoy
+        );
+        if (keyEncontrada) {
+          turnosHoy = config.configuracion_semanal[keyEncontrada].map(t => ({
+            entrada: t.inicio || t.entrada,
+            salida: t.fin || t.salida
+          }));
+        }
+      }
+      if (turnosHoy.length === 0 && config.dias) {
+        const tieneHoy = config.dias.some(d => d.toLowerCase() === diaHoy);
+        if (tieneHoy) turnosHoy = (config.turnos || []).map(t => ({
+          entrada: t.inicio || t.entrada,
+          salida: t.fin || t.salida
         }));
-      } else if (config.dias?.includes(diaHoy)) {
-        turnosHoy = config.turnos || [];
       }
 
-      if (!turnosHoy || !Array.isArray(turnosHoy) || turnosHoy.length === 0) {
-        return {
-          trabaja: false,
-          turnos: [],
-          gruposTurnos: [],
-          entrada: null,
-          salida: null,
-          tipo: 'continuo'
-        };
+      if (!turnosHoy || turnosHoy.length === 0) {
+        return { trabaja: false, numBloques: 0, entrada: null, salida: null };
       }
 
-      const gruposTurnos = agruparTurnosConcatenados(turnosHoy);
+      // Fusionar turnos en bloques igual que srvBuscarBloqueActual (intervalo de 60 min por defecto)
+      // El backend fusiona turnos separados por ≤ intervaloBloquesMinutos en un solo bloque
+      const INTERVALO_FUSION = 60; // default del backend cuando no hay config
+      const rangos = turnosHoy
+        .map(t => {
+          const [he, me] = (t.entrada || '00:00').split(':').map(Number);
+          const [hs, ms] = (t.salida || '00:00').split(':').map(Number);
+          return { entrada: he * 60 + me, salida: hs * 60 + ms };
+        })
+        .sort((a, b) => a.entrada - b.entrada);
 
+      const bloques = [];
+      let bActual = { ...rangos[0] };
+      for (let i = 1; i < rangos.length; i++) {
+        const sep = rangos[i].entrada - bActual.salida;
+        if (sep <= INTERVALO_FUSION) {
+          bActual.salida = Math.max(bActual.salida, rangos[i].salida);
+        } else {
+          bloques.push({ ...bActual });
+          bActual = { ...rangos[i] };
+        }
+      }
+      bloques.push(bActual);
+
+      // Devuelve solo info estructural — el backend decide ventanas y tolerancias
+      const minToHHMM = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
       return {
         trabaja: true,
-        turnos: turnosHoy,
-        gruposTurnos: gruposTurnos,
-        entrada: turnosHoy[0]?.entrada || null,
-        salida: turnosHoy[turnosHoy.length - 1]?.salida || null,
-        tipo: gruposTurnos.length > 1 ? 'quebrado' : 'continuo'
+        numBloques: bloques.length, // bloques reales fusionados (igual que el backend)
+        entrada: minToHHMM(bloques[0].entrada),
+        salida: minToHHMM(bloques[bloques.length - 1].salida),
       };
     } catch (err) {
       return null;
     }
   }, [userData]);
 
-  const obtenerTolerancia = useCallback(async () => {
-    const defaultTolerancia = {
-      minutos_retardo: 10,
-      minutos_falta: 30,
-      permite_registro_anticipado: true,
-      minutos_anticipado_max: 60,
-      aplica_tolerancia_salida: false,
-      minutos_anticipado_salida: 10
-    };
 
-    try {
-      let tolerancia = null;
-      const online = await syncManager.isOnline();
-
-      if (online) {
-        try {
-          const rolesResponse = await fetch(
-            `${API_URL}/usuarios/${userData.id}/roles`,
-            {
-              headers: {
-                'Authorization': `Bearer ${userData.token}`,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-
-          if (rolesResponse.ok) {
-            const rolesData = await rolesResponse.json();
-            const roles = rolesData.data || [];
-            const rolConTolerancia = roles
-              .filter(r => r.tolerancia_id)
-              .sort((a, b) => b.posicion - a.posicion)[0];
-
-            if (rolConTolerancia) {
-              const toleranciaResponse = await fetch(
-                `${API_URL}/tolerancias/${rolConTolerancia.tolerancia_id}`,
-                {
-                  headers: {
-                    'Authorization': `Bearer ${userData.token}`,
-                    'Content-Type': 'application/json'
-                  }
-                }
-              );
-              if (toleranciaResponse.ok) {
-                const toleranciaData = await toleranciaResponse.json();
-                tolerancia = toleranciaData.data || toleranciaData;
-              }
-            }
-          }
-        } catch (e) { console.log('Online tolerancia failed'); }
-      }
-
-      if (!tolerancia) {
-        tolerancia = await sqliteManager.getTolerancia(userData.empleado_id);
-      }
-
-      if (!tolerancia) return defaultTolerancia;
-
-      return {
-        ...defaultTolerancia,
-        ...tolerancia,
-        minutos_anticipado_salida: tolerancia.minutos_anticipado_salida || tolerancia.minutos_retardo || 10
-      };
-    } catch (err) {
-      return defaultTolerancia;
-    }
-  }, [userData]);
 
   const obtenerDepartamentos = useCallback(async () => {
     try {
@@ -679,349 +613,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }
   }, [userData]);
 
-  const validarEntrada = (horario, tolerancia, minutosActuales, totalRegistrosHoy = 0) => {
-    if (!horario?.gruposTurnos || !Array.isArray(horario.gruposTurnos) || horario.gruposTurnos.length === 0) {
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'fuera_horario',
-        hayTurnoFuturo: false,
-        mensaje: 'No hay turnos configurados'
-      };
-    }
-
-    const numeroGrupo = Math.floor(totalRegistrosHoy / 2);
-    if (numeroGrupo >= horario.gruposTurnos.length) {
-      let hayTurnoFuturo = false;
-      for (const grupo of horario.gruposTurnos) {
-        const { entrada: horaEntrada } = getEntradaSalidaGrupo(grupo);
-        const [hE, mE] = horaEntrada.split(':').map(Number);
-        const ventanaInicio = hE * 60 + mE - (tolerancia.minutos_anticipado_max || 60);
-        if (minutosActuales < ventanaInicio) {
-          hayTurnoFuturo = true;
-          break;
-        }
-      }
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'fuera_horario',
-        hayTurnoFuturo,
-        mensaje: hayTurnoFuturo ? 'Aún no es hora de entrada' : 'Fuera de horario'
-      };
-    }
-
-    const grupoActual = horario.gruposTurnos[numeroGrupo];
-    const { entrada: horaEntrada, salida: horaSalida } = getEntradaSalidaGrupo(grupoActual);
-
-    if (!horaEntrada || !horaSalida) {
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'fuera_horario',
-        hayTurnoFuturo: false,
-        mensaje: 'Configuración de turno inválida'
-      };
-    }
-
-    const [hE, mE] = horaEntrada.split(':').map(Number);
-    const [hS, mS] = horaSalida.split(':').map(Number);
-    const minEntrada = hE * 60 + mE;
-    const minSalida = hS * 60 + mS;
-    const ventanaInicio = minEntrada - (tolerancia.minutos_anticipado_max || 60);
-    const margenPuntual = minEntrada + 10;
-    const margenRetardoA = minEntrada + 20;
-    const margenRetardoB = minEntrada + 29;
-
-    if (minutosActuales < ventanaInicio) {
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'fuera_horario',
-        hayTurnoFuturo: true,
-        mensaje: 'Aún no es hora de entrada'
-      };
-    }
-
-    if (minutosActuales >= ventanaInicio && minutosActuales <= margenPuntual) {
-      return {
-        puedeRegistrar: true,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'puntual',
-        hayTurnoFuturo: false,
-        mensaje: 'Puedes registrar tu entrada'
-      };
-    }
-
-    if (minutosActuales > margenPuntual && minutosActuales <= margenRetardoA) {
-      return {
-        puedeRegistrar: true,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'retardo_a',
-        hayTurnoFuturo: false,
-        mensaje: 'Retardo tipo A (hasta 20 min)'
-      };
-    }
-
-    if (minutosActuales > margenRetardoA && minutosActuales <= margenRetardoB) {
-      return {
-        puedeRegistrar: true,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'retardo_b',
-        hayTurnoFuturo: false,
-        mensaje: 'Retardo tipo B (hasta 29 min)'
-      };
-    }
-
-    if (minutosActuales > margenRetardoB && minutosActuales <= minSalida) {
-      return {
-        puedeRegistrar: true,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'falta_por_retardo',
-        hayTurnoFuturo: false,
-        mensaje: 'Falta por retardo mayor'
-      };
-    }
-
-    return {
-      puedeRegistrar: false,
-      tipoRegistro: 'entrada',
-      estadoHorario: 'fuera_horario',
-      hayTurnoFuturo: false,
-      mensaje: 'Fuera de horario'
-    };
-  };
-
-  const validarSalida = (horario, minutosActuales, ultimoRegistro, tolerancia, esOnline = false) => {
-    if (!horario?.gruposTurnos || !Array.isArray(horario.gruposTurnos) || horario.gruposTurnos.length === 0) {
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'salida',
-        estadoHorario: 'fuera_horario',
-        mensaje: 'No hay turnos configurados'
-      };
-    }
-
-    const totalRegistros = ultimoRegistro?.totalRegistrosHoy || 1;
-    const numeroGrupo = Math.floor((totalRegistros - 1) / 2);
-
-    if (numeroGrupo < 0 || numeroGrupo >= horario.gruposTurnos.length) {
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'salida',
-        estadoHorario: 'fuera_horario',
-        mensaje: 'Fuera de horario'
-      };
-    }
-
-    const grupoActual = horario.gruposTurnos[numeroGrupo];
-    const { entrada: horaEntrada, salida: horaSalida } = getEntradaSalidaGrupo(grupoActual);
-    const [hS, mS] = horaSalida.split(':').map(Number);
-    const minSalida = hS * 60 + mS;
-
-    if (ultimoRegistro && ultimoRegistro.tipo === 'entrada' && ultimoRegistro.fecha_registro && tolerancia) {
-      const ahora = new Date();
-      const horaUltimoRegistro = new Date(ultimoRegistro.fecha_registro);
-      const minutosUltimaEntrada = horaUltimoRegistro.getHours() * 60 + horaUltimoRegistro.getMinutes();
-
-      const [hE, mE] = horaEntrada.split(':').map(Number);
-      const minEntrada = hE * 60 + mE;
-      const toleranciaEntrada = tolerancia?.minutos_anticipado_max || 60;
-      const ventanaInicioTurno = minEntrada - toleranciaEntrada;
-
-      if (minutosUltimaEntrada >= ventanaInicioTurno && minutosUltimaEntrada <= minSalida) {
-        const diferenciaMinutos = (ahora - horaUltimoRegistro) / 1000 / 60;
-        const tiempoRestanteHastaFin = minSalida - minutosUltimaEntrada;
-        const toleranciaSalidaAnticipada = tolerancia.aplica_tolerancia_salida === false
-          ? 0
-          : (tolerancia.minutos_anticipado_salida || tolerancia.minutos_retardo || 10);
-
-        const tiempoMinimoRequerido = Math.max(5, tiempoRestanteHastaFin - toleranciaSalidaAnticipada);
-
-        if (diferenciaMinutos < tiempoMinimoRequerido) {
-          const minutosRestantes = Math.ceil(tiempoMinimoRequerido - diferenciaMinutos);
-          return {
-            puedeRegistrar: false,
-            tipoRegistro: 'salida',
-            estadoHorario: 'tiempo_insuficiente',
-            mensaje: 'Tiempo insuficiente trabajado',
-            mensajeEspera: `Espera ${minutosRestantes} min más`,
-            minutosRestantes
-          };
-        }
-      }
-    }
-
-    const toleranciaMinutos = tolerancia?.aplica_tolerancia_salida
-      ? (tolerancia.minutos_retardo || 10)
-      : 10;
-    const inicioVentanaSalida = minSalida - toleranciaMinutos;
-
-    let estadoSalida = 'salida_puntual';
-    if (minutosActuales < inicioVentanaSalida) {
-      estadoSalida = 'salida_temprano';
-    }
-
-    return {
-      puedeRegistrar: true,
-      tipoRegistro: 'salida',
-      estadoHorario: estadoSalida === 'salida_puntual' ? 'puntual' : 'salida_temprano',
-      estadoAsistencia: estadoSalida,
-      mensaje: estadoSalida === 'salida_puntual' ? 'Puedes registrar tu salida' : 'Salida anticipada'
-    };
-  };
-
-  const calcularEstadoRegistro = useCallback((registrosTodos, ultimo, horario, tolerancia, isOnlineNow = false) => {
-    // Bloquear si es día festivo obligatorio
-    if (diaFestivo) {
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'dia_festivo',
-        mensaje: `Hoy es día festivo: ${diaFestivo.nombre}`
-      };
-    }
-
-    if (!horario?.trabaja) {
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'fuera_horario',
-        mensaje: 'No tienes horario configurado para hoy'
-      };
-    }
-
-    if (!horario.gruposTurnos || !Array.isArray(horario.gruposTurnos) || horario.gruposTurnos.length === 0) {
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'fuera_horario',
-        mensaje: 'No hay turnos configurados'
-      };
-    }
-
-    const ahora = getMinutosDelDia();
-    const todos = Array.isArray(registrosTodos) ? registrosTodos : [];
-
-    // ── 1. Identificar el bloque activo por ventana de tiempo ────────────────
-    const bloque = identificarBloqueHorario(horario.gruposTurnos, ahora, tolerancia);
-
-    if (!bloque) {
-      // No hay bloque activo ahora. ¿Hay alguno en el futuro?
-      const hayTurnoFuturo = horario.gruposTurnos.some(grupo => {
-        const { entrada } = getEntradaSalidaGrupo(grupo);
-        const [hE, mE] = entrada.split(':').map(Number);
-        return ahora < hE * 60 + mE - (tolerancia.minutos_anticipado_max || 60);
-      });
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'fuera_horario',
-        hayTurnoFuturo,
-        mensaje: hayTurnoFuturo ? 'Aún no es hora de entrada' : 'Fuera de horario'
-      };
-    }
-
-    // ── 2. Filtrar registros dentro de la ventana del bloque activo ──────────
-    const registrosBloque = todos.filter(r => {
-      const fecha = r.fecha_registro instanceof Date ? r.fecha_registro : new Date(r.fecha_registro);
-      const min = fecha.getHours() * 60 + fecha.getMinutes();
-      return min >= bloque.inicioBloque && min <= bloque.finBloque;
-    });
-
-    const entradaBloque = registrosBloque.find(r => r.tipo === 'entrada');
-    const salidaBloque = registrosBloque.find(r => r.tipo === 'salida');
-
-    // ── 3. Bloque completado (entrada + salida ya registradas) ───────────────
-    if (entradaBloque && salidaBloque) {
-      return {
-        puedeRegistrar: false,
-        tipoRegistro: 'entrada',
-        estadoHorario: 'fuera_horario',
-        mensaje: 'Bloque de turno completado'
-      };
-    }
-
-    // ── 4. Sin entrada → validar entrada para este bloque ───────────────────
-    if (!entradaBloque) {
-      const [hE, mE] = bloque.entrada.split(':').map(Number);
-      const [hS, mS] = bloque.salida.split(':').map(Number);
-      const minEntrada = hE * 60 + mE;
-      const minSalida = hS * 60 + mS;
-      const ventanaInicio = minEntrada - (tolerancia.minutos_anticipado_max || 60);
-      const margenPuntual = minEntrada + 10;
-      const margenRetardoA = minEntrada + 20;
-      const margenRetardoB = minEntrada + 29;
-
-      if (ahora < ventanaInicio) {
-        return { puedeRegistrar: false, tipoRegistro: 'entrada', estadoHorario: 'fuera_horario', hayTurnoFuturo: true, mensaje: 'Aún no es hora de entrada' };
-      }
-      if (ahora <= margenPuntual) {
-        return { puedeRegistrar: true, tipoRegistro: 'entrada', estadoHorario: 'puntual', mensaje: 'Puedes registrar tu entrada' };
-      }
-      if (ahora <= margenRetardoA) {
-        return { puedeRegistrar: true, tipoRegistro: 'entrada', estadoHorario: 'retardo_a', mensaje: 'Retardo tipo A (hasta 20 min)' };
-      }
-      if (ahora <= margenRetardoB) {
-        return { puedeRegistrar: true, tipoRegistro: 'entrada', estadoHorario: 'retardo_b', mensaje: 'Retardo tipo B (hasta 29 min)' };
-      }
-      if (ahora <= minSalida) {
-        return { puedeRegistrar: true, tipoRegistro: 'entrada', estadoHorario: 'falta_por_retardo', mensaje: 'Falta por retardo mayor' };
-      }
-      return { puedeRegistrar: false, tipoRegistro: 'entrada', estadoHorario: 'fuera_horario', mensaje: 'Fuera de horario' };
-    }
-
-    // ── 5. Hay entrada pero no salida → validar salida ───────────────────────
-    {
-      const [hE, mE] = bloque.entrada.split(':').map(Number);
-      const [hS, mS] = bloque.salida.split(':').map(Number);
-      const minEntrada = hE * 60 + mE;
-      const minSalida = hS * 60 + mS;
-
-      // Tiempo mínimo de permanencia (igual que validarSalida)
-      const ahora2 = new Date();
-      const horaEntrada = entradaBloque.fecha_registro instanceof Date
-        ? entradaBloque.fecha_registro
-        : new Date(entradaBloque.fecha_registro);
-      const minutosUltimaEntrada = horaEntrada.getHours() * 60 + horaEntrada.getMinutes();
-      const toleranciaEntrada = tolerancia?.minutos_anticipado_max || 60;
-      const ventanaInicioTurno = minEntrada - toleranciaEntrada;
-
-      if (minutosUltimaEntrada >= ventanaInicioTurno && minutosUltimaEntrada <= minSalida) {
-        const diferenciaMinutos = (ahora2 - horaEntrada) / 1000 / 60;
-        const tiempoRestante = minSalida - minutosUltimaEntrada;
-        const tolSalida = tolerancia.aplica_tolerancia_salida === false
-          ? 0
-          : (tolerancia.minutos_anticipado_salida || tolerancia.minutos_retardo || 10);
-        const tiempoMinimo = Math.max(5, tiempoRestante - tolSalida);
-
-        if (diferenciaMinutos < tiempoMinimo) {
-          const minutosRestantes = Math.ceil(tiempoMinimo - diferenciaMinutos);
-          return {
-            puedeRegistrar: false,
-            tipoRegistro: 'salida',
-            estadoHorario: 'tiempo_insuficiente',
-            mensaje: 'Tiempo insuficiente trabajado',
-            mensajeEspera: `Espera ${minutosRestantes} min más`,
-            minutosRestantes
-          };
-        }
-      }
-
-      const tolMinutos = tolerancia?.aplica_tolerancia_salida ? (tolerancia.minutos_retardo || 10) : 10;
-      const inicioVentanaSalida = minSalida - tolMinutos;
-      const estadoSalida = ahora >= inicioVentanaSalida ? 'salida_puntual' : 'salida_temprano';
-
-      return {
-        puedeRegistrar: true,
-        tipoRegistro: 'salida',
-        estadoHorario: estadoSalida === 'salida_puntual' ? 'puntual' : 'salida_temprano',
-        estadoAsistencia: estadoSalida,
-        mensaje: estadoSalida === 'salida_puntual' ? 'Puedes registrar tu salida' : 'Salida anticipada'
-      };
-    }
-  }, [diaFestivo]);
-
   useEffect(() => {
     const cargarDatos = async () => {
       setLoading(true);
@@ -1054,10 +645,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           } catch (_e) { /* Si falla, no bloqueamos — el backend validará */ }
         }
 
-        const [resultadoRegistro, horario, tolerancia, deptos] = await Promise.all([
+        // Tolerancia ya NO se carga aquí — el backend la aplica en cada registro
+        const [resultadoRegistro, horario, deptos] = await Promise.all([
           obtenerUltimoRegistro(),
           obtenerHorario(),
-          obtenerTolerancia(),
           obtenerDepartamentos()
         ]);
 
@@ -1065,17 +656,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         setUltimoRegistroHoy(ultimo);
         setRegistrosHoyTodos(todos);
         setHorarioInfo(horario);
-        setToleranciaInfo(tolerancia);
         setDepartamentos(deptos);
 
-        if (horario && tolerancia) {
-          const estado = calcularEstadoRegistro(todos, ultimo, horario, tolerancia, onlineNow);
-          setPuedeRegistrar(estado.puedeRegistrar);
-          setTipoSiguienteRegistro(estado.tipoRegistro);
-          setEstadoHorario(estado.estadoHorario);
-
-          setMensajeEspera(estado.mensajeEspera || '');
-        }
+        // El estado (puedeRegistrar, tipoSiguienteRegistro, etc.) se deriva
+        // automáticamente vía el useEffect que observa horarioInfo y ultimoRegistroHoy
       } catch (err) {
       } finally {
         setLoading(false);
@@ -1083,7 +667,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     };
 
     cargarDatos();
-  }, [obtenerUltimoRegistro, obtenerHorario, obtenerTolerancia, obtenerDepartamentos, calcularEstadoRegistro]);
+  }, [obtenerUltimoRegistro, obtenerHorario, obtenerDepartamentos]);
+
+
 
   useEffect(() => {
     let locationSubscription = null;
@@ -1340,24 +926,20 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const departamento = datosRegistroRef.current.departamento;
       let ubicacionFinal = datosRegistroRef.current.ubicacion;
 
-      const horarioActual = horarioInfoRef.current;
-      const toleranciaActual = toleranciaInfoRef.current;
-      const ultimoActual = ultimoRegistroHoyRef.current;
+      // tipoActual se usa SOLO para el fallback offline y el update optimista de UI
+      // El backend calcula el tipo real con srvVerificarLongitudYTipo
       const tipoActual = tipoSiguienteRegistroRef.current;
-      const onlineActual = isOnlineRef.current;
 
       try {
         const location = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.High,
           maximumAge: 3000,
         });
-
         ubicacionFinal = {
           lat: location.coords.latitude,
           lng: location.coords.longitude
         };
-      } catch (locationError) {
-      }
+      } catch (locationError) { }
 
       if (!ubicacionFinal || !ubicacionFinal.lat || !ubicacionFinal.lng) {
         throw new Error('No se pudo obtener la ubicación');
@@ -1379,35 +961,15 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       setRegistrando(true);
 
-      // Calcular estado para enviar al backend (mantiene sincronía visual)
-      let estadoCalculado = tipoActual === 'entrada' ? 'puntual' : 'salida_puntual';
-      if (horarioActual && toleranciaActual) {
-        const minutosAhora = new Date().getHours() * 60 + new Date().getMinutes();
-        const totalRegs = ultimoActual?.totalRegistrosHoy || 0;
-        if (tipoActual === 'entrada') {
-          const r = validarEntrada(horarioActual, toleranciaActual, minutosAhora, totalRegs);
-          estadoCalculado = r.estadoHorario || 'puntual';
-          // Mapear estadoHorario a los estados válidos del backend
-          if (estadoCalculado === 'puntual' || estadoCalculado === 'retardo_a' ||
-            estadoCalculado === 'retardo_b' || estadoCalculado === 'falta_por_retardo' ||
-            estadoCalculado === 'falta') {
-            // ya es válido
-          } else {
-            estadoCalculado = 'puntual';
-          }
-        } else {
-          const r = validarSalida(horarioActual, minutosAhora, ultimoActual, toleranciaActual, onlineActual);
-          estadoCalculado = r.estadoAsistencia || 'salida_puntual';
-        }
-      }
-
+      // ── Payload: el backend calcula tipo y estado con sus propias reglas ─────
+      // NO se envía "estado" ni se calcula nada aquí. El controlador usa:
+      //   srvVerificarLongitudYTipo → tipo (entrada/salida)
+      //   srvEvaluarEstado          → estado según reglas configuradas por el admin
       const payload = {
         empleado_id: userData.empleado_id,
         dispositivo_origen: 'movil',
         ubicacion: [ubicacionFinal.lat, ubicacionFinal.lng],
         departamento_id: departamento.id,
-        tipo: tipoActual,
-        estado: estadoCalculado,
       };
 
       let success = false;
@@ -1437,16 +999,23 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
         if (!response.ok) {
           const errorMsg = data.message || data.error || `Error del servidor (${response.status})`;
+          // Si el backend indica que no puede registrar (ventana cerrada, bloque completo, etc.)
+          // actualizar el estado del cliente para reflejar la realidad del servidor
+          if (data.noPuedeRegistrar === true) {
+            setPuedeRegistrar(false);
+            if (data.estadoHorario) setEstadoHorario(data.estadoHorario);
+          }
           throw new Error(errorMsg);
         }
 
         success = true;
+        // Cachear en SQLite para garantía offline (type y estado vienen del backend)
         try {
           await saveOnlineAsistenciaToCache({
             id: data?.data?.id || `local_online_${Date.now()}`,
             empleado_id: payload.empleado_id,
-            tipo: payload.tipo,
-            estado: estadoCalculado,
+            tipo: data?.data?.tipo || tipoActual,
+            estado: data?.data?.estado || 'puntual',
             fecha_registro: new Date().toISOString(),
             dispositivo_origen: 'movil',
             departamento_id: payload.departamento_id,
@@ -1474,32 +1043,24 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       if (!success) {
         console.log('Saving offline attendance...');
 
-        let estadoOffline = 'puntual';
-        if (horarioActual && toleranciaActual) {
-          const minutosAhora = new Date().getHours() * 60 + new Date().getMinutes();
-          const totalRegs = ultimoActual?.totalRegistrosHoy || 0;
-          if (tipoActual === 'entrada') {
-            const r = validarEntrada(horarioActual, toleranciaActual, minutosAhora, totalRegs);
-            if (r.estadoHorario === 'retardo_a') estadoOffline = 'retardo_a';
-            else if (r.estadoHorario === 'retardo_b') estadoOffline = 'retardo_b';
-            else if (r.estadoHorario === 'falta_por_retardo') estadoOffline = 'falta_por_retardo';
-            else if (r.estadoHorario === 'falta') estadoOffline = 'falta';
-          } else {
-            const r = validarSalida(horarioActual, minutosAhora, ultimoActual, toleranciaActual, onlineActual);
-            estadoOffline = r.estadoAsistencia || 'salida_puntual';
-          }
-        }
-
+        // El estado es 'pendiente' — el backend recalculará con sus reglas al sincronizar
+        // ubicacion viene del payload (ya es [lat, lng])
+        // ip: null porque el servidor la detecta de req.ip al sincronizar
+        // wifi: null por ahora (pendiente de implementar react-native-network-info)
         await sqliteManager.saveOfflineAsistencia({
           ...payload,
-          estado: estadoOffline,
+          tipo: tipoActual,
+          estado: 'pendiente',
           metodo_registro: 'PIN',
-          fecha_registro: new Date().toISOString()
+          fecha_registro: new Date().toISOString(),
+          ubicacion: payload.ubicacion || [ubicacionFinal.lat, ubicacionFinal.lng],
+          ip: null,
+          wifi: null,
         });
 
         try {
           await pushService.postEvent(
-            `Registro de ${tipoActual} - ${estadoOffline}`,
+            `Registro de ${tipoActual} - pendiente`,
             'asistencia',
             `${userData.nombre || 'Empleado'} registró ${tipoActual}`,
             userData.empleado_id,
@@ -1512,35 +1073,32 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         data = {
           data: {
             tipo: tipoActual,
-            estado: estadoOffline,
+            estado: 'pendiente',
             _offline: true
           }
         };
       }
 
-      // ── Optimistic update: actualizar los refs INMEDIATAMENTE con el registro
-      // recién hecho, para que el intervalo de 1 s no vea datos viejos entre
-      // ahora y cuando obtenerUltimoRegistro() termine de cargar (evita el flash).
+      // ── Optimistic update inmediato (evita flash visual de estado incorrecto) ──
+      const tipoRegistrado = data?.data?.tipo || tipoActual;
+      const estadoRegistrado = data?.data?.estado || 'puntual';
+
       const registroOptimista = {
-        tipo: tipoActual,
-        estado: data?.data?.estado || 'puntual',
+        tipo: tipoRegistrado,
+        estado: estadoRegistrado,
         fecha_registro: new Date()
       };
-      const todosOptimistas = [
-        ...(registrosHoyTodosRef.current || []),
-        registroOptimista
-      ];
+      const todosOptimistas = [...(registrosHoyTodosRef.current || []), registroOptimista];
       const ultimoOptimista = {
-        tipo: tipoActual,
-        estado: registroOptimista.estado,
+        tipo: tipoRegistrado,
+        estado: estadoRegistrado,
         fecha_registro: registroOptimista.fecha_registro,
         hora: registroOptimista.fecha_registro.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
         totalRegistrosHoy: todosOptimistas.length
       };
-      // Actualizar refs síncronamente → el interval siguiente ya ve datos correctos
       registrosHoyTodosRef.current = todosOptimistas;
       ultimoRegistroHoyRef.current = ultimoOptimista;
-      // ──────────────────────────────────────────────────────────────────────────
+      // ─────────────────────────────────────────────────────────────────────────
 
       const resultadoNuevo = await obtenerUltimoRegistro();
       const { ultimo: nuevoUltimo, todos: nuevosTodos } = resultadoNuevo || { ultimo: null, todos: [] };
@@ -1549,47 +1107,35 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       ultimoRegistroHoyRef.current = nuevoUltimo;
       registrosHoyTodosRef.current = nuevosTodos;
 
-      if (horarioActual && toleranciaActual) {
-        const nuevoEstado = calcularEstadoRegistro(nuevosTodos, nuevoUltimo, horarioActual, toleranciaActual);
-        setPuedeRegistrar(nuevoEstado.puedeRegistrar);
-        setTipoSiguienteRegistro(nuevoEstado.tipoRegistro);
-        setEstadoHorario(nuevoEstado.estadoHorario);
-
-        setMensajeEspera(nuevoEstado.mensajeEspera || '');
-      }
-      const tipoRegistrado = data.data?.tipo || tipoActual;
-      const estadoRegistrado = data.data?.estado || 'puntual';
-      const esOffline = data.data?._offline === true;
-
+      // ── Mostrar resultado usando estado REAL del backend ──────────────────────
+      const esOffline = data?.data?._offline === true;
       let estadoTexto = estadoRegistrado;
       let emoji = '✅';
 
       if (tipoRegistrado === 'salida') {
-        if (estadoRegistrado === 'salida_temprano') {
-          estadoTexto = 'salida anticipada';
-          emoji = '⚠️';
+        if (estadoRegistrado === 'salida_temprana' || estadoRegistrado === 'salida_temprano') {
+          estadoTexto = 'salida anticipada'; emoji = '⚠️';
         } else {
-          estadoTexto = 'salida registrada';
-          emoji = '✅';
+          estadoTexto = 'salida registrada'; emoji = '✅';
         }
       } else {
-        if (estadoRegistrado === 'retardo_a') {
-          estadoTexto = 'retardo tipo A';
-          emoji = '⚠️';
-        } else if (estadoRegistrado === 'retardo_b') {
-          estadoTexto = 'retardo tipo B';
-          emoji = '⚠️';
-        } else if (estadoRegistrado === 'falta_por_retardo') {
-          estadoTexto = 'falta por retardo';
-          emoji = '❌';
+        if (estadoRegistrado === 'pendiente') {
+          estadoTexto = 'pendiente (sin conexión)'; emoji = '🔄';
+        } else if (estadoRegistrado === 'entrada_temprana') {
+          estadoTexto = 'entrada anticipada'; emoji = '✅';
+        } else if (estadoRegistrado === 'puntual') {
+          estadoTexto = 'puntual'; emoji = '✅';
         } else if (estadoRegistrado === 'falta') {
-          estadoTexto = 'falta';
-          emoji = '❌';
+          estadoTexto = 'falta'; emoji = '❌';
+        } else if (estadoRegistrado === 'falta_por_retardo') {
+          estadoTexto = 'falta por retardo'; emoji = '❌';
         } else {
-          estadoTexto = 'puntual';
-          emoji = '✅';
+          // Manejo genérico para retardos tipo A, B y cualquier tipo N configurado por el admin
+          estadoTexto = estadoRegistrado.replace(/_/g, ' ');
+          emoji = estadoRegistrado.startsWith('retardo') ? '⚠️' : estadoRegistrado.startsWith('falta') ? '❌' : '✅';
         }
       }
+
       const tipoMayuscula = tipoRegistrado === 'entrada' ? 'Entrada' : 'Salida';
       const horaStr = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
       Vibration.vibrate(500);
@@ -1615,6 +1161,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }
   };
 
+
   const handleRegistro = async () => {
     if (!userData || !userData.empleado_id || !userData.token) {
       Alert.alert('Error', 'No se pudo identificar tu información de usuario. Intenta cerrar sesión y volver a iniciar.');
@@ -1638,11 +1185,13 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         mensaje = 'Debes estar dentro de un área permitida';
       } else if (!departamentoSeleccionado) {
         mensaje = 'Selecciona un departamento para registrar';
-      } else if (jornadaCompletada) {
+      } else if (estadoHorario === 'falta_previa') {
+        mensaje = 'Tu entrada fue marcada como falta en este turno. No es necesario registrar salida.';
+      } else if (jornadaCompletada || estadoHorario === 'bloque_completo') {
         mensaje = 'Ya completaste tu jornada de hoy';
       } else if (estadoHorario === 'tiempo_insuficiente') {
         mensaje = `Aún no puedes salir.\n\n${mensajeEspera}`;
-      } else if (estadoHorario === 'fuera_horario') {
+      } else if (estadoHorario === 'fuera_horario' || estadoHorario === 'sin_horario') {
         mensaje = 'Estás fuera de tu horario laboral';
       } else if (!horarioInfo.trabaja) {
         mensaje = 'No tienes horario configurado para hoy';
@@ -1676,50 +1225,37 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const getButtonColor = () => {
     if (jornadaCompletada) return '#6b7280';
     if (estadoHorario === 'dia_festivo') return '#8b5cf6'; // púrpura
+    if (estadoHorario === 'falta_previa') return '#6b7280'; // gris — bloque cerrado por falta
     if (!dentroDelArea || !puedeRegistrar) return '#ef4444';
-    if (tipoSiguienteRegistro === 'salida' && puedeRegistrar) return '#10b981';
-    if (estadoHorario === 'puntual') return '#10b981';
-    if (estadoHorario === 'retardo_a') return '#f59e0b';   // ámbar
-    if (estadoHorario === 'retardo_b') return '#f97316';   // naranja
-    if (estadoHorario === 'falta_por_retardo') return '#ef4444';
-    if (estadoHorario === 'falta') return '#ef4444';
-    return '#6b7280';
+    // El color refleja el próximo tipo a registrar — el backend asignará el estado real
+    if (tipoSiguienteRegistro === 'salida') return '#10b981'; // verde para salida
+    return '#3b82f6'; // azul para entrada
   };
 
   const getIcon = () => {
     if (jornadaCompletada) return 'checkmark-done-circle';
     if (estadoHorario === 'dia_festivo') return 'calendar-outline';
+    if (estadoHorario === 'falta_previa') return 'alert-circle-outline';
     if (!dentroDelArea) return 'location';
-    if (estadoHorario === 'tiempo_insuficiente') return 'time-outline';
     if (!puedeRegistrar) return 'time';
     if (tipoSiguienteRegistro === 'salida') return 'log-out';
-    if (estadoHorario === 'puntual') return 'checkmark-circle';
-    if (estadoHorario === 'retardo_a') return 'time';
-    if (estadoHorario === 'retardo_b') return 'time';
-    if (estadoHorario === 'falta_por_retardo') return 'alert-circle';
-    if (estadoHorario === 'falta') return 'alert-circle';
-    return 'time';
+    return 'log-in';
   };
 
   const getStatusText = () => {
     if (jornadaCompletada) return 'Jornada completada';
     if (estadoHorario === 'dia_festivo') return diaFestivo ? `Día festivo: ${diaFestivo.nombre}` : 'Día festivo';
+    if (estadoHorario === 'falta_previa') return 'Falta registrada — turno cerrado';
+    if (estadoHorario === 'bloque_completo') return 'Bloque completado';
     if (!dentroDelArea) return 'Fuera del área';
-    if (estadoHorario === 'tiempo_insuficiente' && tipoSiguienteRegistro === 'salida') {
-      return mensajeEspera || 'Tiempo insuficiente';
-    }
     if (!puedeRegistrar) return 'Fuera de horario';
-    if (tipoSiguienteRegistro === 'salida' && puedeRegistrar) return 'Listo para salida';
-    if (estadoHorario === 'puntual') return 'Listo para registrar';
-    if (estadoHorario === 'retardo_a') return 'Retardo tipo A';
-    if (estadoHorario === 'retardo_b') return 'Retardo tipo B';
-    if (estadoHorario === 'falta_por_retardo') return 'Falta por retardo';
-    if (estadoHorario === 'falta') return 'Fuera de tolerancia';
-    return 'Verificando...';
+    if (tipoSiguienteRegistro === 'salida') return 'Listo para salida';
+    return 'Listo para entrada';
   };
 
   const getButtonText = () => {
-    if (jornadaCompletada) return 'Jornada completada';
+    if (jornadaCompletada || estadoHorario === 'bloque_completo') return 'Jornada completada';
+    if (estadoHorario === 'falta_previa') return 'Turno cerrado por falta';
     if (!puedeRegistrar || !dentroDelArea) return 'No disponible';
     return `Registrar ${tipoSiguienteRegistro === 'entrada' ? 'Entrada' : 'Salida'}`;
   };
@@ -1780,47 +1316,32 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
               <View style={styles.indicator}>
                 <Ionicons
                   name={
-                    estadoHorario === 'tiempo_insuficiente' ? 'time-outline' :
-                      tipoSiguienteRegistro === 'salida' ? 'checkmark-circle' :
-                        estadoHorario === 'puntual' ? 'checkmark-circle' :
-                          (estadoHorario === 'retardo_a' || estadoHorario === 'retardo_b' || estadoHorario === 'retardo') ? 'time' :
-                            (estadoHorario === 'falta_por_retardo' || estadoHorario === 'falta') ? 'alert-circle' :
-                              'close-circle'
+                    !puedeRegistrar ? 'time-outline' :
+                      tipoSiguienteRegistro === 'salida' ? 'log-out' : 'log-in'
                   }
                   size={16}
                   color={
-                    estadoHorario === 'tiempo_insuficiente' ? '#f59e0b' :
-                      tipoSiguienteRegistro === 'salida' && puedeRegistrar ? '#10b981' :
-                        estadoHorario === 'puntual' ? '#10b981' :
-                          estadoHorario === 'retardo_a' ? '#f59e0b' :
-                            estadoHorario === 'retardo_b' ? '#f97316' :
-                              estadoHorario === 'retardo' ? '#f59e0b' :
-                                (estadoHorario === 'falta_por_retardo' || estadoHorario === 'falta') ? '#ef4444' :
-                                  '#ef4444'
+                    !puedeRegistrar ? '#ef4444' :
+                      tipoSiguienteRegistro === 'salida' ? '#10b981' : '#3b82f6'
                   }
                 />
                 <Text style={[
                   styles.indicatorText,
                   {
-                    color: estadoHorario === 'tiempo_insuficiente' ? '#f59e0b' :
-                      tipoSiguienteRegistro === 'salida' && puedeRegistrar ? '#10b981' :
-                        estadoHorario === 'puntual' ? '#10b981' :
-                          estadoHorario === 'retardo_a' ? '#f59e0b' :
-                            estadoHorario === 'retardo_b' ? '#f97316' :
-                              estadoHorario === 'retardo' ? '#f59e0b' :
-                                (estadoHorario === 'falta_por_retardo' || estadoHorario === 'falta') ? '#ef4444' :
-                                  '#ef4444'
+                    color: !puedeRegistrar ? '#ef4444' :
+                      tipoSiguienteRegistro === 'salida' ? '#10b981' : '#3b82f6'
                   }
                 ]}>
-                  {estadoHorario === 'tiempo_insuficiente' ? 'Trabajando...' :
-                    tipoSiguienteRegistro === 'salida' && puedeRegistrar ? 'Hora de salida' :
-                      estadoHorario === 'puntual' ? 'A tiempo' :
-                        estadoHorario === 'retardo_a' ? 'Retardo A' :
-                          estadoHorario === 'retardo_b' ? 'Retardo B' :
-                            (estadoHorario === 'retardo') ? 'Con retardo' :
-                              estadoHorario === 'falta_por_retardo' ? 'Falta por retardo' :
-                                estadoHorario === 'falta' ? 'Fuera tolerancia' :
-                                  'Fuera de horario'}
+                  {estadoHorario === 'falta_previa'
+                    ? 'Turno cerrado (falta)'
+                    : estadoHorario === 'bloque_completo'
+                      ? 'Bloque completado'
+                      : !puedeRegistrar
+                        ? 'Fuera de horario'
+                        : tipoSiguienteRegistro === 'salida'
+                          ? 'Siguiente: Salida'
+                          : 'Siguiente: Entrada'
+                  }
                 </Text>
               </View>
             </View>

@@ -75,33 +75,53 @@ export const notificarRegistro = async (tipo, estado) => {
     let emoji = '';
 
     if (esSalida) {
-      emoji = '👋';
-      cuerpo = 'Tu salida ha sido registrada correctamente';
-    } else {
+      // Estado de salida viene del backend (salida_puntual, salida_temprana, salida_tarde)
       switch (estado) {
+        case 'salida_temprana':
+          emoji = '⚠️';
+          cuerpo = 'Salida anticipada registrada';
+          break;
+        case 'salida_tarde':
+          emoji = '⚠️';
+          cuerpo = 'Salida tardía registrada';
+          break;
+        case 'salida_puntual':
+        default:
+          emoji = '👋';
+          cuerpo = 'Salida registrada correctamente';
+      }
+    } else {
+      // Estado de entrada viene del backend — no asumimos límites de minutos
+      switch (estado) {
+        case 'entrada_temprana':
+          emoji = '⏰';
+          cuerpo = 'Entrada anticipada registrada';
+          break;
         case 'puntual':
           emoji = '✅';
           cuerpo = 'Entrada registrada - Puntual';
           break;
-        case 'retardo_a':
-          emoji = '⚠️';
-          cuerpo = 'Entrada registrada - Retardo tipo A (hasta 20 min)';
-          break;
-        case 'retardo_b':
-          emoji = '⚠️';
-          cuerpo = 'Entrada registrada - Retardo tipo B (hasta 29 min)';
-          break;
         case 'falta_por_retardo':
           emoji = '❌';
-          cuerpo = 'Entrada registrada - Falta por retardo mayor';
+          cuerpo = 'Entrada registrada - Falta por retardo';
           break;
         case 'falta':
           emoji = '❌';
           cuerpo = 'Entrada registrada - Fuera de tolerancia';
           break;
+        case 'pendiente':
+          emoji = '🔄';
+          cuerpo = 'Registro pendiente de sincronización';
+          break;
         default:
-          emoji = '📋';
-          cuerpo = `Entrada registrada - ${estado}`;
+          // Abarca retardo_a, retardo_b y cualquier retardo_N configurado por el admin
+          if (estado?.startsWith('retardo')) {
+            emoji = '⚠️';
+            cuerpo = `Entrada con retardo registrada (${estado.replace('_', ' ')})`;
+          } else {
+            emoji = '📋';
+            cuerpo = `Registro: ${estado?.replace(/_/g, ' ') || 'completado'}`;
+          }
       }
     }
 

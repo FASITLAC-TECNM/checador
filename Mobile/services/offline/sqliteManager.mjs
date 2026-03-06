@@ -80,6 +80,9 @@ async function runMigrations() {
       departamento_id TEXT,
       fecha_registro TEXT NOT NULL,
       payload_biometrico TEXT,
+      ubicacion TEXT,
+      ip TEXT,
+      wifi TEXT,
       is_synced INTEGER DEFAULT 0,
       sync_attempts INTEGER DEFAULT 0,
       last_sync_error TEXT,
@@ -271,6 +274,15 @@ async function runMigrations() {
         // La columna ya existe — ignorar
     }
 
+    // Migración segura: columnas de red para offline_asistencias
+    for (const col of [
+        'ALTER TABLE offline_asistencias ADD COLUMN ubicacion TEXT',
+        'ALTER TABLE offline_asistencias ADD COLUMN ip TEXT',
+        'ALTER TABLE offline_asistencias ADD COLUMN wifi TEXT',
+    ]) {
+        try { await db.execAsync(col); } catch (e) { /* columna ya existe */ }
+    }
+
     // Inicializar sync_metadata si están vacías
     const tables = ['cache_empleados', 'cache_credenciales', 'cache_horarios', 'cache_tolerancias', 'cache_departamentos'];
     for (const t of tables) {
@@ -291,12 +303,28 @@ export async function saveOfflineAsistencia(data) {
 
     const idempotencyKey = uuidv4();
 
+    // Normalizar ubicacion a JSON string si viene como objeto o array
+    let ubicacionStr = null;
+    if (data.ubicacion) {
+        ubicacionStr = typeof data.ubicacion === 'string'
+            ? data.ubicacion
+            : JSON.stringify(data.ubicacion);
+    }
+
+    // Normalizar wifi a JSON string si viene como objeto
+    let wifiStr = null;
+    if (data.wifi) {
+        wifiStr = typeof data.wifi === 'string'
+            ? data.wifi
+            : JSON.stringify(data.wifi);
+    }
+
     try {
         const result = await db.runAsync(
             `INSERT INTO offline_asistencias
         (idempotency_key, empleado_id, tipo, estado, dispositivo_origen, metodo_registro,
-         departamento_id, fecha_registro, payload_biometrico)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         departamento_id, fecha_registro, payload_biometrico, ubicacion, ip, wifi)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 idempotencyKey,
                 data.empleado_id,
@@ -306,7 +334,10 @@ export async function saveOfflineAsistencia(data) {
                 data.metodo_registro,
                 data.departamento_id || null,
                 data.fecha_registro || new Date().toISOString(),
-                data.payload_biometrico ? JSON.stringify(data.payload_biometrico) : null
+                data.payload_biometrico ? JSON.stringify(data.payload_biometrico) : null,
+                ubicacionStr,
+                data.ip || null,
+                wifiStr
             ]
         );
 

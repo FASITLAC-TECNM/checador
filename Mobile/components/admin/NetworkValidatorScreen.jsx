@@ -66,7 +66,7 @@ export const NetworkValidatorScreen = ({ userData, darkMode, onBack }) => {
     };
     const getStatusText = () => {
         if (resultado === null) return 'Sin verificar';
-        return resultado.is_ip_valida ? 'Conectado y Autorizado' : 'Conectado — IP Fuera de Red';
+        return resultado.conectado ? 'Conectado al servidor' : 'Sin conexión al servidor';
     };
 
     return (

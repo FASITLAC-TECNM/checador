@@ -81,4 +81,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeAllListeners('sync-status-update');
     },
   },
+
+  // ===== New Raw Offline System =====
+  rawOfflineDB: {
+    savePunch: (data) => ipcRenderer.invoke('raw-offline-save-punch', data),
+    getPendingCount: () => ipcRenderer.invoke('raw-offline-pending-count'),
+    pushNow: () => ipcRenderer.invoke('raw-sync-push-now'),
+  }
 });

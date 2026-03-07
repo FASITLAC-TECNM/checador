@@ -9,6 +9,7 @@ import { fileURLToPath } from "url";
 
 // Offline-First modules
 import syncManager from "./offline/syncManager.mjs";
+import rawSyncService from "./offline/rawSyncService.mjs";
 
 // Services & Managers
 import * as biometricService from "./services/biometricService.mjs";
@@ -82,6 +83,11 @@ app.whenReady().then(() => {
     // Asumir online inicialmente, el renderer confirmará
     syncManager.setOnlineStatus(true);
     syncManager.startPeriodicSync();
+
+    // Inicializar servidor de Raw Sync
+    rawSyncService.configureSync(apiBaseUrl, '');
+    rawSyncService.startAutoSync(30000); // 30 segundos
+
     console.log('[Main] Status: Sistema Offline-First inicializado');
   } catch (error) {
     console.error('[Main] Error: Error inicializando sistema offline:', error);
@@ -108,4 +114,5 @@ app.on("will-quit", () => {
   biometricService.stopBiometricMiddleware();
   networkService.stopMonitoring();
   syncManager.destroy();
+  rawSyncService.stopAutoSync();
 });

@@ -76,7 +76,6 @@ export async function fullPull() {
     empleados: { success: false, count: 0 },
     credenciales: { success: false, count: 0 },
     horarios: { success: false, count: 0 },
-    tolerancias: { success: false, count: 0 },
     duration: 0,
   };
 
@@ -191,86 +190,7 @@ export async function fullPull() {
       results.horarios = { success: false, error: horError.message };
     }
 
-    // ========== TOLERANCIAS ==========
-    try {
-      const tolerancias = data.tolerancias || [];
-      if (tolerancias.length > 0) {
-        sqliteManager.upsertToleranciasBulk(tolerancias);
-        sqliteManager.setLastFullSync('cache_tolerancias');
-        results.tolerancias = { success: true, count: tolerancias.length };
-        console.log(`[PullService] Status: ${tolerancias.length} tolerancias sincronizadas`);
-      } else {
-        console.warn('[PullService] Warning: El servidor no devolvio tolerancias');
-        results.tolerancias = { success: true, count: 0 };
-      }
-    } catch (tolError) {
-      console.error('[PullService] Error: Error procesando tolerancias:', tolError.message);
-      results.tolerancias = { success: false, error: tolError.message };
-    }
-
-    // ========== ROLES + USUARIOS_ROLES ==========
-    try {
-      const usuarios_roles = data.usuarios_roles || [];
-
-      if (usuarios_roles.length > 0) {
-        // Extraer roles únicos de los datos joinados del servidor
-        // El backend envía: {usuario_id, rol_id, tolerancia_id, posicion}
-        const rolesMap = new Map();
-        for (const ur of usuarios_roles) {
-          if (!rolesMap.has(ur.rol_id)) {
-            rolesMap.set(ur.rol_id, {
-              id: ur.rol_id,
-              nombre: null,
-              tolerancia_id: ur.tolerancia_id || null,
-              posicion: ur.posicion ?? 0,
-            });
-          }
-        }
-        const roles = Array.from(rolesMap.values());
-        sqliteManager.upsertRoles(roles);
-        sqliteManager.setLastFullSync('cache_roles');
-        console.log(`[PullService] Status: ${roles.length} roles sincronizados`);
-
-        // Insertar usuarios_roles
-        const urMapped = usuarios_roles.map(ur => ({
-          usuario_id: ur.usuario_id,
-          rol_id: ur.rol_id,
-          es_activo: true,
-        }));
-        sqliteManager.upsertUsuariosRoles(urMapped);
-        sqliteManager.setLastFullSync('cache_usuarios_roles');
-        console.log(`[PullService] Status: ${urMapped.length} usuarios_roles sincronizados`);
-      }
-    } catch (urError) {
-      console.error('[PullService] Error: Error procesando roles/usuarios_roles:', urError.message);
-    }
-
-    // ========== DEPARTAMENTOS ==========
-    try {
-      const empDeptos = data.empleados_departamentos || [];
-      if (empDeptos.length > 0) {
-        // Agrupar por empleado
-        const byEmpleado = {};
-        for (const ed of empDeptos) {
-          if (!byEmpleado[ed.empleado_id]) byEmpleado[ed.empleado_id] = [];
-          byEmpleado[ed.empleado_id].push({
-            id: ed.departamento_id,
-            departamento_id: ed.departamento_id,
-            nombre: null,
-            es_activo: ed.es_activo,
-          });
-        }
-
-        for (const [empId, deptos] of Object.entries(byEmpleado)) {
-          sqliteManager.upsertDepartamentos(empId, deptos);
-        }
-
-        sqliteManager.setLastFullSync('cache_departamentos');
-        console.log(`[PullService] Status: Departamentos sincronizados para ${Object.keys(byEmpleado).length} empleados`);
-      }
-    } catch (deptError) {
-      console.error('[PullService] Error: Error procesando departamentos:', deptError.message);
-    }
+    // Eliminadas las llamadas y tablas de Tolerancias, Roles y Departamentos
 
   } catch (error) {
     console.error('[PullService] Error: Error en Pull completo:', error.message);

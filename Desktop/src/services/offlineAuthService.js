@@ -3,6 +3,13 @@
  * Valida PIN, huella y facial cuando no hay conexión al servidor.
  */
 
+import {
+  calcularEstadoRegistro,
+  getDiaSemana,
+  agruparTurnosConcatenados,
+  getEntradaSalidaGrupo
+} from './asistenciaLogicService';
+
 // ============================================================
 // HELPERS
 // ============================================================
@@ -287,20 +294,67 @@ export async function identificarPorFacialOffline(descriptorCapturado, umbral = 
 }
 
 // ============================================================
-// CÁLCULO DE ESTADO OFFLINE
+// GUARDADO DE ASISTENCIA OFFLINE (NUEVO MÉTODO CIEGO)
 // ============================================================
-
-import {
-  calcularEstadoRegistro,
-  getDiaSemana,
-  agruparTurnosConcatenados,
-  getEntradaSalidaGrupo
-} from './asistenciaLogicService';
 
 // Variables para control de duplicados (en memoria)
 let lastRequestTimestamp = 0;
 let lastRequestEmpleadoId = null;
 const MIN_REQUEST_INTERVAL_MS = 5000; // 5 segundos
+
+/**
+ * Guarda un registro de asistencia "en bruto" en la nueva cola offline
+ * @param {Object} data - { empleadoId, metodoRegistro }
+ * @returns {Promise<Object>}
+ */
+export async function guardarAsistenciaOffline(data) {
+  if (!window.electronAPI || !window.electronAPI.rawOfflineDB) {
+    throw new Error('Sistema offline de asistencias crudas no disponible');
+  }
+
+  const empleadoId = data.empleadoId || data.empleado_id;
+
+  // 1. Validación Anti-Spam Básica
+  const now = Date.now();
+  if (
+    lastRequestEmpleadoId === empleadoId &&
+    now - lastRequestTimestamp < MIN_REQUEST_INTERVAL_MS
+  ) {
+    const segundosRestantes = Math.ceil((MIN_REQUEST_INTERVAL_MS - (now - lastRequestTimestamp)) / 1000);
+    console.warn(`⚠️ [Offline] Solicitud duplicada bloqueada. Espera ${segundosRestantes}s`);
+    throw new Error(`Por favor espera ${segundosRestantes} segundos antes de intentar nuevamente`);
+  }
+
+  // ACTUALIZACIÓN INMEDIATA
+  lastRequestTimestamp = now;
+  lastRequestEmpleadoId = empleadoId;
+
+  // 2. Guardar en nueva SQLite Cruda
+  try {
+    const result = await window.electronAPI.rawOfflineDB.savePunch({
+      empleado_id: empleadoId,
+      metodo: data.metodoRegistro || data.metodo_registro || 'PIN',
+      fecha_captura: new Date().toISOString()
+    });
+
+    if (!result.success) {
+      throw new Error(result.error || 'Error guardando asistencia cruda offline');
+    }
+
+    console.log('📝 [OfflineAuth] Asistencia cruda guardada:', result.data);
+    return result.data;
+
+  } catch (err) {
+    lastRequestTimestamp = 0;
+    lastRequestEmpleadoId = null;
+    console.error('[OfflineAuth] Error en guardarAsistenciaOffline:', err);
+    throw err;
+  }
+}
+
+// ============================================================
+// FUNCIONES LEGACY (RETENIDAS SOLO PARA LECTURA / HORARIO)
+// ============================================================
 
 /**
  * Normaliza un registro offline para que coincida con el formato esperado por asistenciaLogicService
@@ -428,100 +482,15 @@ export async function cargarDatosOffline(empleadoId) {
     }
 
     return {
-      horario: horarioProcesado, // Devolvemos el procesado
+      horario: horarioProcesado,
       tolerancia: tolerancia,
       registrosHoy: registrosOrdenados,
-      ultimo: ultimo,
-      estado: estado,
+      ultimo: ultimoRaw, // Solo devolvemos raw, ya no usamos el estado calculado
       departamento: null,
     };
   } catch (error) {
     console.error('[OfflineAuth] Error cargando datos offline:', error);
-    return { horario: null, tolerancia: null, registrosHoy: [], departamento: null, estado: null };
-  }
-}
-
-/**
- * Guarda un registro de asistencia en la cola offline con validaciones estrictas
- * @param {Object} data - { empleadoId, metodo_registro, payload_biometrico, ... }
- * @returns {Promise<Object>}
- */
-export async function guardarAsistenciaOffline(data) {
-  if (!hasOfflineDB()) {
-    throw new Error('Sistema offline no disponible');
-  }
-
-  const empleadoId = data.empleadoId || data.empleado_id;
-
-  // 1. Validación Anti-Duplicados (Memoria)
-  const now = Date.now();
-  if (
-    lastRequestEmpleadoId === empleadoId &&
-    now - lastRequestTimestamp < MIN_REQUEST_INTERVAL_MS
-  ) {
-    const segundosRestantes = Math.ceil((MIN_REQUEST_INTERVAL_MS - (now - lastRequestTimestamp)) / 1000);
-    console.warn(`⚠️ [Offline] Solicitud duplicada bloqueada. Espera ${segundosRestantes}s`);
-    throw new Error(`Por favor espera ${segundosRestantes} segundos antes de intentar nuevamente`);
-  }
-
-  // ACTUALIZACIÓN INMEDIATA para prevenir condiciones de carrera
-  lastRequestTimestamp = now;
-  lastRequestEmpleadoId = empleadoId;
-
-  // 2. Validación de Reglas de Negocio (Horario, Tolerancia)
-  console.log(`[OfflineAuth] Validando reglas de asistencia para ${empleadoId}...`);
-  let datosValidacion;
-  try {
-    datosValidacion = await cargarDatosOffline(empleadoId);
-  } catch (error) {
-    // Si falla la validación, resetear el timestamp para permitir reintento
-    lastRequestTimestamp = 0;
-    lastRequestEmpleadoId = null;
-    throw error;
-  }
-
-  const estadoCalculado = datosValidacion.estado;
-
-  if (!estadoCalculado) {
-    // Si falla el cálculo, resetear para permitir reintento inmediato
-    lastRequestTimestamp = 0;
-    lastRequestEmpleadoId = null;
-    throw new Error('No se pudo validar el horario del empleado');
-  }
-
-  // Si no puede registrar (fuera de horario, muy temprano, etc.), bloquear
-  if (!estadoCalculado.puedeRegistrar) {
-    console.warn(`❌ [OfflineAuth] Registro bloqueado: ${estadoCalculado.mensaje}`);
-    // MANTENER el bloqueo de tiempo si es un rechazo válido de negocio?
-    // Generalmente sí, para evitar spam de intentos fallidos.
-    throw new Error(estadoCalculado.mensaje || 'No puedes registrar asistencia en este momento');
-  }
-
-  // 3. Guardar en SQLite usando los datos CALCULADOS para integridad
-  try {
-    const result = await window.electronAPI.offlineDB.saveAsistencia({
-      empleado_id: empleadoId,
-      tipo: estadoCalculado.tipoRegistro || 'entrada',
-      estado: estadoCalculado.clasificacion || estadoCalculado.estadoHorario || 'puntual',
-      dispositivo_origen: 'escritorio',
-      metodo_registro: data.metodoRegistro || data.metodo_registro || 'PIN',
-      departamento_id: data.departamentoId || data.departamento_id || datosValidacion.departamento?.id || null, // Intentar obtener depto
-      fecha_registro: new Date().toISOString(),
-      payload_biometrico: data.payload_biometrico || null,
-    });
-
-    if (!result.success) {
-      throw new Error(result.error || 'Error guardando asistencia offline');
-    }
-
-    console.log('📝 [OfflineAuth] Asistencia guardada en cola offline:', result.data);
-    return {
-      ...result.data,
-      ...estadoCalculado // Devolver info calculada para la UI
-    };
-  } catch (err) {
-    console.error('[OfflineAuth] Error en guardarAsistenciaOffline:', err);
-    throw err;
+    return { horario: null, tolerancia: null, registrosHoy: [], departamento: null };
   }
 }
 

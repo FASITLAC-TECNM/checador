@@ -826,25 +826,25 @@ export const registrarAsistenciaEnServidor = async ({
       || fetchError.message.includes('NetworkError')
       || fetchError.message.includes('ERR_INTERNET_DISCONNECTED');
 
-    if (isNetworkError && window.electronAPI && window.electronAPI.offlineDB) {
-      console.log('📴 [AsistenciaLogic] Sin conexión — guardando en cola offline');
+    if (isNetworkError && window.electronAPI && window.electronAPI.rawOfflineDB) {
+      console.log('📴 [AsistenciaLogic] Sin conexión — guardando en cola offline cruda');
 
-      const offlineResult = await window.electronAPI.offlineDB.saveAsistencia({
+      const offlineResult = await window.electronAPI.rawOfflineDB.savePunch({
         empleado_id: empleadoId,
-        tipo: tipoRegistro || 'entrada',
-        estado: estadoHorario || 'puntual',
-        dispositivo_origen: 'escritorio',
-        metodo_registro: metodoRegistro,
-        departamento_id: departamentoId || null,
-        fecha_registro: new Date().toISOString(),
+        metodo: metodoRegistro || 'PIN',
+        fecha_captura: new Date().toISOString(),
       });
 
       if (offlineResult && offlineResult.success) {
         return {
           success: true,
           offline: true,
-          message: 'Asistencia registrada localmente. Se sincronizará al reconectar.',
+          message: 'Asistencia guardada en dispositivo (Offline). Se sincronizará en automático',
           data: offlineResult.data,
+          tipoMovimiento: "OFFLINE",
+          estado: "Pendiente",
+          estadoTexto: '📴 Modo Offline',
+          clasificacion: 'guardado local',
         };
       }
     }

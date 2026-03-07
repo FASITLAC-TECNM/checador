@@ -852,6 +852,7 @@ export default {
   markSyncError,
   getPendingCount,
   getRegistrosHoy,
+  getRegistrosByRange,
   getErrorRecords,
   // Caché de datos maestros
   upsertEmpleados,

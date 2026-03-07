@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { ThemeProvider } from "./context/ThemeContext";
 import { SoundProvider } from "./context/SoundContext";
 import { AuthProvider } from "./context/AuthContext";
@@ -39,6 +39,22 @@ function App() {
     setIsNodeDisabled(false);
     setNodeInfo(null);
   };
+
+  // Atajo de teclado para reiniciar afiliación (Ctrl + Shift + A)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey && e.shiftKey && (e.key === 'a' || e.key === 'A')) {
+        e.preventDefault();
+        if (window.confirm("¿Estás seguro de que deseas reiniciar el sistema a la pantalla de afiliación?")) {
+          handleNewAffiliation();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  });
+
 
   // Mostrar pantalla de carga mientras se verifica la configuración inicial
   if (isLoading) {

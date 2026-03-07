@@ -11,6 +11,8 @@ import * as windowManager from "./windowManager.mjs";
 import * as configHelper from "../utils/configHelper.mjs";
 import sqliteManager from "../offline/sqliteManager.mjs";
 import syncManager from "../offline/syncManager.mjs";
+import rawQueueManager from "../offline/rawQueueManager.mjs";
+import rawSyncService from "../offline/rawSyncService.mjs";
 import * as networkService from "../services/networkService.mjs";
 
 const exec = util.promisify(execCallback);
@@ -444,5 +446,23 @@ export function registerIpcHandlers() {
     ipcMain.handle("sync-pull-now", async () => syncManager.forcePull());
     ipcMain.handle("sync-push-now", async () => syncManager.forcePush());
     ipcMain.handle("sync-set-online", async (event, online) => { syncManager.setOnlineStatus(online); return { success: true }; });
-    ipcMain.handle("sync-update-token", async (event, token) => { syncManager.updateAuthToken(token); return { success: true }; });
+    ipcMain.handle("sync-update-token", async (event, token) => {
+        syncManager.updateAuthToken(token);
+        rawSyncService.updateSyncToken(token);
+        return { success: true };
+    });
+
+    // ==========================================
+    // Raw Offline Handlers (New Method)
+    // ==========================================
+    ipcMain.handle("raw-offline-save-punch", async (event, data) => {
+        try {
+            const result = rawQueueManager.saveRawPunch(data);
+            return { success: true, data: result };
+        } catch (error) { return { success: false, error: error.message }; }
+    });
+
+    ipcMain.handle("raw-sync-push-now", async () => rawSyncService.pushPendingRawPunches());
+    ipcMain.handle("raw-offline-pending-count", async () => rawQueueManager.getPendingRawCount());
+
 }

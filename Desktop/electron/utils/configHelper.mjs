@@ -31,3 +31,20 @@ export function getBackendUrl() {
     // Eliminar barra final si existe
     return backendUrl.replace(/\/$/, "");
 }
+
+/**
+ * Función auxiliar para obtener un valor de configuración específico
+ */
+export function getConfigValue(key) {
+    const configPath = getConfigPath();
+    try {
+        if (fs.existsSync(configPath)) {
+            const data = fs.readFileSync(configPath, "utf8");
+            const config = JSON.parse(data);
+            return config[key];
+        }
+    } catch (error) {
+        console.error(`Error leyendo configuración [${key}]:`, error);
+    }
+    return null;
+}

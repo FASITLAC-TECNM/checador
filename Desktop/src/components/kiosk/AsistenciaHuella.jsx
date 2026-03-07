@@ -423,62 +423,15 @@ export default function AsistenciaHuella({
             throw new Error("Empleado no encontrado en base de datos local");
           }
 
-          // 3. Cargar estado de asistencia (Horario, Tolerancias, etc.)
-          const datosOffline = await cargarDatosOffline(empleadoId);
-          const estadoActual = datosOffline.estado;
-
-          // 4. Verificar si puede registrar
-          if (estadoActual && !estadoActual.puedeRegistrar) {
-            console.warn(`⚠️ [AsistenciaHuella] Bloqueo offline: ${estadoActual.mensaje}`);
-
-            // Construir resultado de bloqueo
-            const resultadoOfflineBloqueo = {
-              success: false,
-              message: estadoActual.mensaje,
-              empleado: empleadoFull,
-              empleadoId: empleadoId,
-              token: null, // Sin token en offline
-              estadoHorario: estadoActual.estadoHorario,
-              noPuedeRegistrar: true,
-              minutosRestantes: estadoActual.minutosRestantes,
-              mensajeEspera: estadoActual.mensajeEspera,
-              offline: true
-            };
-
-            setIdentificando(false);
-            setResult(resultadoOfflineBloqueo);
-
-            if (backgroundMode) {
-              setTimeout(() => {
-                setShowModal(true);
-              }, 50);
-            }
-            return;
-          }
-
-          // 5. Si puede registrar, guardar en cola offline
+          // Cola Inmediata (Asistencia Cruda / Raw Punch)
           await guardarAsistenciaOffline({
             empleadoId,
-            tipo: estadoActual?.tipoRegistro || 'entrada',
-            // Usar el estado calculado para consistencia
-            estado: estadoActual?.clasificacion || 'puntual',
             metodoRegistro: 'HUELLA',
-            departamentoId: datosOffline.departamento?.id || null,
           });
 
-          const now = new Date();
-          const horaActual = now.toLocaleTimeString("es-MX", {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-
-          // Obtener tipo movimiento basado en lo que se guardó o calculó
-          const tipoMovimiento = (estadoActual?.tipoRegistro || 'entrada') === 'salida' ? 'SALIDA' : 'ENTRADA';
-
-          // Mensaje de voz estandarizado
-          const tipoVoz = (estadoActual?.tipoRegistro || 'entrada') === 'salida' ? 'salida' : 'entrada';
+          // Mensaje de voz estandarizado offline neutral
           const utterance = new SpeechSynthesisUtterance(
-            `Registro ${tipoVoz} exitoso`
+            `Asistencia guardada localmente`
           );
           utterance.lang = "es-MX";
           utterance.rate = 0.9;
@@ -487,14 +440,14 @@ export default function AsistenciaHuella({
           const resultadoOfflineExito = {
             success: true,
             offline: true,
-            message: "Asistencia registrada (modo offline)",
+            message: "Asistencia guardada en dispositivo (Offline). Se sincronizará en automático",
             empleado: empleadoFull,
             empleadoId: empleadoId,
-            tipoMovimiento,
-            hora: horaActual,
-            estado: estadoActual?.clasificacion || 'puntual',
+            tipoMovimiento: "OFFLINE",
+            hora: new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }),
+            estado: "Pendiente",
             estadoTexto: '📴 Modo Offline',
-            clasificacion: estadoActual?.clasificacion || 'puntual',
+            clasificacion: 'guardado local',
             // Permitir login también en éxito offline
             usuario: {
               id: empleadoFull.usuario_id,

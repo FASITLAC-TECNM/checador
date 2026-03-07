@@ -492,6 +492,91 @@ export default function AsistenciaFacial({
     } catch (error) {
       console.error("Error:", error);
 
+      // === FALLBACK OFFLINE ===
+      const isNetworkError = error.name === 'TypeError'
+        || error.message.includes('Failed to fetch')
+        || error.message.includes('NetworkError')
+        || error.message.includes('ERR_INTERNET_DISCONNECTED');
+
+      if (isNetworkError && window.electronAPI && window.electronAPI.offlineDB) {
+        console.log('📴 [AsistenciaFacial] Sin conexión — intentando autenticación offline...');
+
+        try {
+          // 1. Importar servicios offline
+          const {
+            identificarPorFacialOffline,
+            guardarAsistenciaOffline
+          } = await import('../../services/offlineAuthService');
+
+          // Convertir Base64 a array de float para identificar
+          const base64ToFloat32Array = (base64) => {
+            const binary_string = window.atob(base64);
+            const len = binary_string.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+              bytes[i] = binary_string.charCodeAt(i);
+            }
+            return new Float32Array(bytes.buffer);
+          };
+
+          let floatDescriptor;
+          try {
+            floatDescriptor = base64ToFloat32Array(descriptorBase64);
+          } catch (e) {
+            throw new Error("No se pudo parsear descriptor facial para login offline");
+          }
+
+          const resultadoOffline = await identificarPorFacialOffline(floatDescriptor);
+
+          if (!resultadoOffline) {
+            throw new Error("Rostro no reconocido en base de datos local");
+          }
+
+          const empleadoId = resultadoOffline.empleado_id;
+          const empleadoFull = await window.electronAPI.offlineDB.getEmpleado(empleadoId);
+
+          if (!empleadoFull) {
+            throw new Error("Empleado no encontrado en base de datos local");
+          }
+
+          // Cola Inmediata (Asistencia Cruda / Raw Punch)
+          await guardarAsistenciaOffline({
+            empleadoId,
+            metodoRegistro: 'FACIAL',
+          });
+
+          // Mensaje de voz estandarizado offline neutral
+          const utterance = new SpeechSynthesisUtterance(
+            `Asistencia guardada localmente`
+          );
+          utterance.lang = "es-MX";
+          utterance.rate = 0.9;
+          window.speechSynthesis.speak(utterance);
+
+          const resultadoOfflineExito = {
+            success: true,
+            offline: true,
+            message: "Asistencia guardada en dispositivo (Offline). Se sincronizará en automático",
+            empleado: empleadoFull,
+            empleadoId: empleadoId,
+            tipoMovimiento: "OFFLINE",
+            hora: new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }),
+            estado: "Pendiente",
+            estadoTexto: '📴 Modo Offline',
+            clasificacion: 'guardado local',
+            usuario: empleadoFull
+          };
+
+          setResult(resultadoOfflineExito);
+          setStep("success");
+          return;
+
+        } catch (offlineError) {
+          console.error('❌ [AsistenciaFacial] Error en flujo offline:', offlineError);
+          setErrorMessage(`Error Offline: ${offlineError.message}`);
+        }
+      }
+
       agregarEvento({
         user: empleadoData?.nombre || 'Usuario',
         action: `Error en registro facial - ${error.message}`,

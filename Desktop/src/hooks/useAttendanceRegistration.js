@@ -268,55 +268,18 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
                     const empleadoId = empleadoIdentificado.empleado_id;
 
                     const empleadoFull = await window.electronAPI.offlineDB.getEmpleado(empleadoId);
-                    const datosOffline = await cargarDatosOffline(empleadoId);
-                    const estadoActual = datosOffline.estado;
 
-                    if (estadoActual && !estadoActual.puedeRegistrar) {
-                        console.warn(`⚠️ [PinModal] Bloqueo offline: ${estadoActual.mensaje}`);
-
-                        const usuarioSimulado = {
-                            id: empleadoIdentificado.usuario_id,
-                            username: usuarioOCorreo,
-                            nombre: empleadoIdentificado.nombre,
-                            es_empleado: true,
-                            empleado_id: empleadoId,
-                            offline: true
-                        };
-
-                        setResult({
-                            success: false,
-                            message: estadoActual.mensaje,
-                            empleado: empleadoFull || empleadoIdentificado,
-                            usuario: usuarioSimulado,
-                            token: null,
-                            estadoHorario: estadoActual.estadoHorario,
-                            noPuedeRegistrar: true,
-                            minutosRestantes: estadoActual.minutosRestantes,
-                            mensajeEspera: estadoActual.mensajeEspera
-                        });
-                        return;
-                    }
-
+                    // 1. LOGIN OFFLINE SILENCIOSO (Solo identificamos)
+                    // Si viene desde un flujo de login a sesión, esto proveerá el context.
+                    // 2. Si es registro de asistencia directa (sin UI intermedio), se va por la cola cruda:
                     await guardarAsistenciaOffline({
                         empleadoId,
-                        tipo: estadoActual?.tipoRegistro || 'entrada',
-                        estado: estadoActual?.clasificacion || 'puntual',
                         metodoRegistro: 'PIN',
-                        departamentoId: datosOffline.departamento?.id || null,
                     });
 
-                    const now = new Date();
-                    const horaActual = now.toLocaleTimeString("es-MX", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                    });
-
-                    const tipoMovimiento = (estadoActual?.tipoRegistro || 'entrada') === 'salida' ? 'SALIDA' : 'ENTRADA';
-
-                    // Mensaje de voz offline estandarizado
-                    const tipoVozOffline = tipoMovimiento === 'SALIDA' ? 'salida' : 'entrada';
+                    // Mensaje de voz offline neutral genérico
                     const utterance = new SpeechSynthesisUtterance(
-                        `Registro ${tipoVozOffline} exitoso`
+                        `Asistencia guardada localmente`
                     );
                     utterance.lang = "es-MX";
                     utterance.rate = 0.9;
@@ -325,13 +288,13 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
                     setResult({
                         success: true,
                         offline: true,
-                        message: "Asistencia registrada (modo offline)",
+                        message: "Asistencia guardada en dispositivo (Offline). Se sincronizará en automático",
                         empleado: empleadoFull || empleadoIdentificado,
-                        tipoMovimiento,
-                        hora: horaActual,
-                        estado: estadoActual?.clasificacion || 'puntual',
+                        tipoMovimiento: "OFFLINE", // No sabemos si es entrada/salida
+                        hora: new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }),
+                        estado: "Pendiente",
                         estadoTexto: '📴 Modo Offline',
-                        clasificacion: estadoActual?.clasificacion || 'puntual',
+                        clasificacion: 'guardado local',
                         usuario: {
                             id: empleadoIdentificado.usuario_id,
                             nombre: empleadoIdentificado.nombre,

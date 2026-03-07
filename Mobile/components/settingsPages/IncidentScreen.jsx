@@ -464,8 +464,8 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
                       ]}>
                         {dia}
                       </Text>
-                      {/* MODIFICADO: Solo un indicador */}
-                      {incidenciasDia.length > 0 && (
+                      {/* MODIFICADO: Solo un indicador (oculto si está seleccionado) */}
+                      {incidenciasDia.length > 0 && !isSelected && (
                         <View style={styles.dayIndicators}>
                           <View style={styles.dayIndicator} />
                         </View>

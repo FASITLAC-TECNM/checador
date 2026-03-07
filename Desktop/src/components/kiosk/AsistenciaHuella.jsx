@@ -1054,7 +1054,7 @@ export default function AsistenciaHuella({
                         ? "text-yellow-800 dark:text-yellow-300"
                         : "text-green-800 dark:text-green-300"
                       }`}>
-                      Asistencia Registrada
+                      {result.offline ? "Asistencia Pendiente" : "Asistencia Registrada"}
                     </p>
                     {result.empleado?.nombre && (
                       <p className="text-gray-700 dark:text-gray-300 text-lg">

@@ -102,10 +102,11 @@ function bufferToFloat32Array(data) {
  *
  * Alternativa práctica: almacenar un hash SHA-256 del PIN localmente como fallback offline.
  *
+ * @param {string} usuarioIngresado - Usuario o correo ingresado
  * @param {string} pinIngresado - PIN de 6 dígitos
  * @returns {Promise<Object|null>} empleado identificado o null
  */
-export async function identificarPorPinOffline(pinIngresado) {
+export async function identificarPorPinOffline(usuarioIngresado, pinIngresado) {
   if (!hasOfflineDB()) {
     console.warn('[OfflineAuth] offlineDB no disponible');
     return null;
@@ -119,30 +120,29 @@ export async function identificarPorPinOffline(pinIngresado) {
       return null;
     }
 
-    // Buscar por PIN
-    // NOTA: El PIN en el servidor está hasheado con Argon2id
-    // Para validación offline, tenemos dos opciones:
-    // 1. Almacenar un hash SHA-256 adicional del PIN durante el Pull
-    // 2. Hacer matching directo si el PIN se almacena como hash verificable localmente
-    // La implementación actual usa el pin_hash tal cual viene del servidor
-
+    // Buscar por PIN y usuario
     for (const cred of credenciales) {
       if (!cred.pin_hash) continue;
 
-      // Comparación simple: Si el pin_hash coincide con el PIN ingresado
-      // En producción, usar argon2.verify() via IPC al main process
-      // Por ahora, verificamos si el hash contiene el PIN (formato Argon2id)
+      // Obtenemos el empleado para validar si es el usuario o correo correcto
+      const empleado = await window.electronAPI.offlineDB.getEmpleado(cred.empleado_id);
+      if (!empleado || empleado.estado_cuenta !== 'activo') continue;
+
+      // El usuarioIngresado puede ser el username o el correo
+      const matchesUsuario = (empleado.usuario && empleado.usuario.toLowerCase() === usuarioIngresado.toLowerCase()) || 
+                             (empleado.correo && empleado.correo.toLowerCase() === usuarioIngresado.toLowerCase());
+
+      if (!matchesUsuario) continue;
+
+      // Si el hash coincide con el PIN (ya sea hash salteado o texto plano)
       if (cred.pin_hash === pinIngresado || await verificarPinLocal(pinIngresado, cred.pin_hash)) {
-        const empleado = await window.electronAPI.offlineDB.getEmpleado(cred.empleado_id);
-        if (empleado && empleado.estado_cuenta === 'activo') {
-          console.log(`✅ [OfflineAuth] PIN match → empleado ${cred.empleado_id}`);
-          return {
-            empleado_id: cred.empleado_id,
-            nombre: empleado.nombre || cred.nombre,
-            usuario_id: empleado.usuario_id,
-            metodo: 'PIN',
-          };
-        }
+        console.log(`✅ [OfflineAuth] PIN match → empleado ${cred.empleado_id}`);
+        return {
+          empleado_id: cred.empleado_id,
+          nombre: empleado.nombre || cred.nombre,
+          usuario_id: empleado.usuario_id,
+          metodo: 'PIN',
+        };
       }
     }
 
@@ -163,16 +163,61 @@ export async function identificarPorPinOffline(pinIngresado) {
  * @returns {Promise<boolean>}
  */
 async function verificarPinLocal(pin, hash) {
-  // Si el hash parece ser Argon2id (comienza con $argon2id$)
+  // Si comienza con un prefijo local como $localhash$ que hemos definido
+  if (hash && hash.startsWith('$localhash$')) {
+    try {
+      // Formato: $localhash$salt$hashHex
+      const parts = hash.split('$');
+      if (parts.length === 4) {
+        const saltHex = parts[2];
+        const storedHashHex = parts[3];
+
+        // Usamos crypto a través de una función asíncrona IPC si es necesario
+        // Pero OfflineAuthService está en el renderer, así que NO podemos usar crypto nativo directamente.
+        // Pero SÍ tenemos la Web Crypto API.
+        
+        // Convertir salt hex a Uint8Array
+        const saltBytes = new Uint8Array(saltHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+        
+        // Encode pin
+        const encoder = new TextEncoder();
+        const pinBytes = encoder.encode(pin);
+        
+        // Import pin as base key
+        const baseKey = await window.crypto.subtle.importKey(
+          'raw', pinBytes, 'PBKDF2', false, ['deriveBits']
+        );
+        
+        // Derive key using PBKDF2
+        const derivedBits = await window.crypto.subtle.deriveBits(
+          {
+            name: 'PBKDF2',
+            salt: saltBytes,
+            iterations: 100000,
+            hash: 'SHA-256'
+          },
+          baseKey,
+          256
+        );
+        
+        // Convert to hex
+        const derivedHex = Array.from(new Uint8Array(derivedBits))
+          .map(b => b.toString(16).padStart(2, '0'))
+          .join('');
+          
+        return derivedHex === storedHashHex;
+      }
+    } catch (err) {
+      console.error('[OfflineAuth] Error verificando hash local', err);
+      return false;
+    }
+  }
+
   if (hash && hash.startsWith('$argon2id$')) {
-    // Necesita el módulo argon2 nativo
-    // TODO: Implementar verificación Argon2id via IPC al main process
-    // Por ahora retornamos false y el PIN solo funciona con conexión
     console.warn('[OfflineAuth] Verificación Argon2id offline requiere módulo nativo');
     return false;
   }
 
-  // Hash simple (fallback): comparación directa
   return pin === hash;
 }
 

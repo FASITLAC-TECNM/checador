@@ -257,8 +257,7 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
                         cargarDatosOffline,
                         guardarAsistenciaOffline
                     } = await import('../services/offlineAuthService');
-
-                    const empleadoIdentificado = await identificarPorPinOffline(pin.trim());
+                    const empleadoIdentificado = await identificarPorPinOffline(usuarioOCorreo.trim(), pin.trim());
 
                     if (!empleadoIdentificado) {
                         throw new Error('Credenciales inválidas (Offline)');

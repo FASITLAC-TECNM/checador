@@ -4,6 +4,7 @@
  */
 
 import sqliteManager from './sqliteManager.mjs';
+import crypto from 'crypto';
 
 // Configuración — se inyectará desde SyncManager
 let apiBaseUrl = '';
@@ -133,6 +134,21 @@ export async function fullPull() {
           let dactilar = cred.dactilar || null;
           let facial = cred.facial || null;
           let pin = cred.pin || null;
+
+          // Si el pin existe y no es ya un hash de argon2
+          if (pin && typeof pin === 'string' && !pin.startsWith('$argon2')) {
+            try {
+              const salt = crypto.randomBytes(16).toString('hex');
+              // Pbkdf2 iteraciones: 100000, keylen: 32 bytes (256 bits), digest: sha256
+              const derivedKey = crypto.pbkdf2Sync(pin, Buffer.from(salt, 'hex'), 100000, 32, 'sha256');
+              const hashHex = derivedKey.toString('hex');
+              pin = `$localhash$${salt}$${hashHex}`;
+            } catch (err) {
+              console.error('[PullService] Error hasheando PIN para offline:', err);
+              // Si falla el hash por alguna razón inusual, lo dejamos null para evitar texto plano
+              pin = null; 
+            }
+          }
 
           // Si son objetos, serializarlos a JSON string
           if (dactilar && typeof dactilar === 'object') {

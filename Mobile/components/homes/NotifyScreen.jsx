@@ -64,7 +64,7 @@ export const NotifyScreen = ({
           cargoOnline = true;
           // Cachear en SQLite
           await sqliteManager.upsertAvisosGlobales(datosGlobales).catch(e =>
- console.warn('️ No se pudo cachear avisos globales:', e.message) 
+            console.warn('️ No se pudo cachear avisos globales:', e.message)
           );
         }
 
@@ -75,12 +75,12 @@ export const NotifyScreen = ({
             setAvisosEmpleado(datosEmpleado);
             // Cachear en SQLite
             await sqliteManager.upsertAvisosEmpleado(empleadoId, datosEmpleado).catch(e =>
- console.warn('️ No se pudo cachear avisos empleado:', e.message) 
+              console.warn('️ No se pudo cachear avisos empleado:', e.message)
             );
           }
         }
       } catch (onlineErr) {
- console.warn('️ No se pudieron cargar avisos online:', onlineErr.message); 
+        console.warn('️ No se pudieron cargar avisos online:', onlineErr.message);
       }
 
       // Detectar avisos nuevos y notificar
@@ -100,10 +100,10 @@ export const NotifyScreen = ({
           }
 
           if ((globalesLocal && globalesLocal.length > 0)) {
- console.log(' [Offline] Avisos cargados desde caché local'); 
+            console.log(' [Offline] Avisos cargados desde caché local');
           }
         } catch (localErr) {
- console.warn('️ Error cargando avisos desde SQLite:', localErr.message); 
+          console.warn('️ Error cargando avisos desde SQLite:', localErr.message);
           setError('No se pudieron cargar los avisos');
         }
       }
@@ -115,6 +115,13 @@ export const NotifyScreen = ({
 
   useEffect(() => {
     cargarAvisos();
+
+    // Polling interval para mantener los avisos actualizados "en vivo" 
+    const intervalId = setInterval(() => {
+      cargarAvisos(true); // Recarga silenciosa
+    }, 15000); // 15 segundos
+
+    return () => clearInterval(intervalId);
   }, [cargarAvisos]);
 
   useEffect(() => {

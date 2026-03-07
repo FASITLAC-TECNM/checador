@@ -62,6 +62,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [jornadaCompletada, setJornadaCompletada] = useState(false);
   const [mensajeEspera, setMensajeEspera] = useState('');
   const [isOnline, setIsOnline] = useState(false);
+  const [usandoEstadoBackend, setUsandoEstadoBackend] = useState(false);
   const [diaFestivo, setDiaFestivo] = useState(null); // { nombre, tipo } si hoy es festivo
 
   const datosRegistroRef = useRef({
@@ -223,11 +224,66 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }, 150);
   }, []);
 
+  const actualizarEstadoPreflight = useCallback(async () => {
+    try {
+      const empleadoId = userData?.empleado_id;
+      if (!empleadoId) return false;
+
+      let onlineNow = false;
+      try { onlineNow = await syncManager.isOnline(); } catch (e) { }
+
+      if (!onlineNow) {
+        setUsandoEstadoBackend(false);
+        return false;
+      }
+
+      const response = await fetch(
+        `${API_URL}/asistencias/estado/${empleadoId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${userData.token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.ok) {
+        const json = await response.json();
+        const data = json.data;
+        if (data) {
+          setPuedeRegistrar(data.puedeRegistrar);
+          if (data.estadoHorario) setEstadoHorario(data.estadoHorario);
+          if (data.tipoSiguienteRegistro) setTipoSiguienteRegistro(data.tipoSiguienteRegistro);
+          if (data.motivo) setMensajeEspera(data.motivo);
+
+          if (data.estadoHorario === 'bloque_completo') {
+            setJornadaCompletada(true);
+          } else {
+            setJornadaCompletada(false);
+          }
+
+          setUsandoEstadoBackend(true);
+          return true;
+        }
+      }
+      setUsandoEstadoBackend(false);
+      return false;
+    } catch (err) {
+      setUsandoEstadoBackend(false);
+      return false;
+    }
+  }, [userData]);
+
   // ─── Intervalo de 1 segundo — solo actualiza el reloj + refresco periódico ───
   useEffect(() => {
     const intervalo = setInterval(async () => {
       setHoraActual(new Date());
       ticksRef.current += 1;
+
+      // Cada 15 segundos refrescar el estado de preflight si estamos online
+      if (ticksRef.current % 15 === 0) {
+        await actualizarEstadoPreflight();
+      }
 
       // ── Cada 60 segundos refrescar horario y últimos registros ───────────────
       if (ticksRef.current % 60 === 0) {
@@ -256,7 +312,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }, 1000);
 
     return () => clearInterval(intervalo);
-  }, [obtenerHorario, obtenerUltimoRegistro]);
+  }, [obtenerHorario, obtenerUltimoRegistro, actualizarEstadoPreflight]);
   // ────────────────────────────────────────────────────────────────────────────
 
   // ─── Derivar estado de registro — 100% desde valores de la DB ────────────────
@@ -265,6 +321,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   // El backend (srvVerificarLongitudYTipo, srvValidarVentanaDeRegistro) es quien decide
   // todo al momento de registrar; aquí solo actualizamos la UI para reflejarlo.
   useEffect(() => {
+    if (usandoEstadoBackend) return; // Si el backend dicta las reglas, omitimos esta derivación offline
     if (!horarioInfo && !diaFestivo) return;
 
     if (diaFestivo) {
@@ -356,7 +413,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       notificarEstadoAsistencia('salida');
     }
     // ────────────────────────────────────────────────────────────────────────
-  }, [horarioInfo, ultimoRegistroHoy, diaFestivo]);
+    // ────────────────────────────────────────────────────────────────────────
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [horarioInfo, ultimoRegistroHoy, diaFestivo, usandoEstadoBackend]);
   // ──────────────────────────────────────────────────────────────────────────────
 
 
@@ -661,8 +720,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         setHorarioInfo(horario);
         setDepartamentos(deptos);
 
+        // Primero intentamos estado preflight
+        await actualizarEstadoPreflight();
+
         // El estado (puedeRegistrar, tipoSiguienteRegistro, etc.) se deriva
-        // automáticamente vía el useEffect que observa horarioInfo y ultimoRegistroHoy
+        // automáticamente vía el useEffect si actualizaEstadoPreflight falló y pasa a SQLite
       } catch (err) {
       } finally {
         setLoading(false);
@@ -1123,6 +1185,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       ultimoRegistroHoyRef.current = nuevoUltimo;
       registrosHoyTodosRef.current = nuevosTodos;
 
+      // Update backend state directly after registering
+      await actualizarEstadoPreflight();
+
       // ── Mostrar resultado usando estado REAL del backend ──────────────────────
       const esOffline = data?.data?._offline === true;
       let estadoTexto = estadoRegistrado;
@@ -1242,6 +1307,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   };
 
   const getButtonColor = () => {
+    if (estadoHorario === 'espera') return '#f59e0b'; // amber
     if (jornadaCompletada) return '#6b7280';
     if (estadoHorario === 'dia_festivo') return '#8b5cf6'; // púrpura
     if (estadoHorario === 'falta_previa') return '#6b7280'; // gris — bloque cerrado por falta
@@ -1252,6 +1318,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   };
 
   const getIcon = () => {
+    if (estadoHorario === 'espera') return 'hourglass-outline';
     if (jornadaCompletada) return 'checkmark-done-circle';
     if (estadoHorario === 'dia_festivo') return 'calendar-outline';
     if (estadoHorario === 'falta_previa') return 'alert-circle-outline';
@@ -1262,6 +1329,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   };
 
   const getStatusText = () => {
+    if (estadoHorario === 'espera') return 'Espera requerida';
     if (jornadaCompletada) return 'Jornada completada';
     if (estadoHorario === 'dia_festivo') return diaFestivo ? `Día festivo: ${diaFestivo.nombre}` : 'Día festivo';
     if (estadoHorario === 'falta_previa') return 'Falta registrada — turno cerrado';
@@ -1273,6 +1341,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   };
 
   const getButtonText = () => {
+    if (estadoHorario === 'espera') return 'Espera temporal activa';
     if (jornadaCompletada || estadoHorario === 'bloque_completo') return 'Jornada completada';
     if (estadoHorario === 'falta_previa') return 'Turno cerrado por falta';
     if (!puedeRegistrar || !dentroDelArea) return 'No disponible';
@@ -1335,31 +1404,36 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
               <View style={styles.indicator}>
                 <Ionicons
                   name={
-                    !puedeRegistrar ? 'time-outline' :
-                      tipoSiguienteRegistro === 'salida' ? 'log-out' : 'log-in'
+                    estadoHorario === 'espera' ? 'hourglass-outline' :
+                      !puedeRegistrar ? 'time-outline' :
+                        tipoSiguienteRegistro === 'salida' ? 'log-out' : 'log-in'
                   }
                   size={16}
                   color={
-                    !puedeRegistrar ? '#ef4444' :
-                      tipoSiguienteRegistro === 'salida' ? '#10b981' : '#3b82f6'
+                    estadoHorario === 'espera' ? '#f59e0b' :
+                      !puedeRegistrar ? '#ef4444' :
+                        tipoSiguienteRegistro === 'salida' ? '#10b981' : '#3b82f6'
                   }
                 />
                 <Text style={[
                   styles.indicatorText,
                   {
-                    color: !puedeRegistrar ? '#ef4444' :
-                      tipoSiguienteRegistro === 'salida' ? '#10b981' : '#3b82f6'
+                    color: estadoHorario === 'espera' ? '#f59e0b' :
+                      !puedeRegistrar ? '#ef4444' :
+                        tipoSiguienteRegistro === 'salida' ? '#10b981' : '#3b82f6'
                   }
                 ]}>
-                  {estadoHorario === 'falta_previa'
-                    ? 'Turno cerrado (falta)'
-                    : estadoHorario === 'bloque_completo'
-                      ? 'Bloque completado'
-                      : !puedeRegistrar
-                        ? 'Fuera de horario'
-                        : tipoSiguienteRegistro === 'salida'
-                          ? 'Siguiente: Salida'
-                          : 'Siguiente: Entrada'
+                  {estadoHorario === 'espera'
+                    ? '1 min. entre registros'
+                    : estadoHorario === 'falta_previa'
+                      ? 'Turno cerrado (falta)'
+                      : estadoHorario === 'bloque_completo'
+                        ? 'Bloque completado'
+                        : !puedeRegistrar
+                          ? 'Fuera de horario'
+                          : tipoSiguienteRegistro === 'salida'
+                            ? 'Siguiente: Salida'
+                            : 'Siguiente: Entrada'
                   }
                 </Text>
               </View>
@@ -1430,7 +1504,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             ) : (
               <>
                 <Ionicons
-                  name={puedePresionarBoton ? 'finger-print' : jornadaCompletada ? 'checkmark-done' : 'lock-closed'}
+                  name={estadoHorario === 'espera' ? 'hourglass-outline' : puedePresionarBoton ? 'finger-print' : jornadaCompletada ? 'checkmark-done' : 'lock-closed'}
                   size={20}
                   color="#fff"
                 />

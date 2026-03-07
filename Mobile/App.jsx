@@ -22,7 +22,15 @@ import { getUsuarioCompleto } from './services/empleadoServices';
 import { useNavigationBarColor } from './services/useNavigationBarColor';
 import sqliteManager from './services/offline/sqliteManager.mjs';
 import syncManager from './services/offline/syncManager.mjs';
-import { initNotifications } from './services/localNotificationService';
+import {
+  initNotifications,
+  notificarEstadoAsistencia,
+  notificarRegistro,
+  detectarCambiosIncidencias,
+  detectarAvisosNuevos
+} from './services/localNotificationService';
+import { scheduleAttendanceNotifications } from './services/backgroundNotificationService';
+import { getApiEndpoint } from './config/api';
 
 const STORAGE_KEYS = {
   DARK_MODE: '@dark_mode',
@@ -35,6 +43,9 @@ const STORAGE_KEYS = {
 
 const USER_DATA_REFRESH_INTERVAL = 60000;
 const DEVICE_VERIFICATION_INTERVAL = 120000;
+const NOTIF_POLL_INTERVAL = 60000;      // cada 60s revó estados para notificar
+const NOTIF_DIARIA_KEY = '@notif_asistencia_disponible';
+const API_URL_BASE = getApiEndpoint('/api');
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -50,6 +61,8 @@ export default function App() {
   const appState = useRef(AppState.currentState);
   const verificationInterval = useRef(null);
   const userDataRefreshInterval = useRef(null);
+  const notifPollInterval = useRef(null);
+  const notifDiariaRef = useRef({ fecha: '', entrada: false, salida: false });
 
   // Configurar barra de navegación de Android según el tema
   useNavigationBarColor(darkMode);
@@ -88,14 +101,17 @@ export default function App() {
     if (isLoggedIn && deviceRegistered) {
       startDeviceVerification();
       startUserDataRefresh();
+      startNotifPoll();
     } else {
       stopDeviceVerification();
       stopUserDataRefresh();
+      stopNotifPoll();
     }
 
     return () => {
       stopDeviceVerification();
       stopUserDataRefresh();
+      stopNotifPoll();
     };
   }, [isLoggedIn, deviceRegistered]);
 
@@ -132,6 +148,127 @@ export default function App() {
     if (userDataRefreshInterval.current) {
       clearInterval(userDataRefreshInterval.current);
       userDataRefreshInterval.current = null;
+    }
+  };
+
+  // ────────────────────────────────────────────────────────────────────────────
+  //  N O T I F I C A C I O N E S   C E N T R A L I Z A D A S
+  // ────────────────────────────────────────────────────────────────────────────
+
+  const startNotifPoll = () => {
+    notifPoll();  // Inmediato al login
+    notifPollInterval.current = setInterval(notifPoll, NOTIF_POLL_INTERVAL);
+  };
+
+  const stopNotifPoll = () => {
+    if (notifPollInterval.current) {
+      clearInterval(notifPollInterval.current);
+      notifPollInterval.current = null;
+    }
+  };
+
+  const notifPoll = async () => {
+    try {
+      const [storedUserData, token] = await Promise.all([
+        AsyncStorage.getItem('@user_data'),
+        AsyncStorage.getItem('userToken'),
+      ]);
+      if (!storedUserData || !token) return;
+      const user = JSON.parse(storedUserData);
+      const empleadoId = user.empleado_id;
+      if (!empleadoId) return;
+
+      const online = await syncManager.isOnline();
+      const hoy = new Date().toISOString().split('T')[0];
+
+      // ── Restaurar guard diario desde AsyncStorage ────────────────────────
+      const guardRaw = await AsyncStorage.getItem(NOTIF_DIARIA_KEY).catch(() => null);
+      const guard = guardRaw ? JSON.parse(guardRaw) : { fecha: '', entrada: false, salida: false };
+      if (guard.fecha !== hoy) {
+        // Nuevo día → resetear guard
+        notifDiariaRef.current = { fecha: hoy, entrada: false, salida: false };
+        await AsyncStorage.setItem(NOTIF_DIARIA_KEY, JSON.stringify(notifDiariaRef.current)).catch(() => { });
+      } else {
+        notifDiariaRef.current = guard;
+      }
+
+      // ── ESTADO DE ASISTENCIA (notif "listo para registrar entrada/salida") ──
+      if (online) {
+        try {
+          const preflightRes = await fetch(
+            `${API_URL_BASE}/asistencias/movil/estado-boton/${empleadoId}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          if (preflightRes.ok) {
+            const pf = await preflightRes.json();
+            if (pf.success && pf.habilitado) {
+              const tipo = pf.tipo; // 'entrada' | 'salida'
+              if (tipo === 'entrada' && !notifDiariaRef.current.entrada) {
+                notifDiariaRef.current = { ...notifDiariaRef.current, entrada: true };
+                await AsyncStorage.setItem(NOTIF_DIARIA_KEY, JSON.stringify(notifDiariaRef.current)).catch(() => { });
+                await notificarEstadoAsistencia('entrada');
+              } else if (tipo === 'salida' && !notifDiariaRef.current.salida) {
+                notifDiariaRef.current = { ...notifDiariaRef.current, salida: true };
+                await AsyncStorage.setItem(NOTIF_DIARIA_KEY, JSON.stringify(notifDiariaRef.current)).catch(() => { });
+                await notificarEstadoAsistencia('salida');
+              }
+            }
+          }
+        } catch (_) { /* red inestable, no crítico */ }
+
+        // ── INCIDENCIAS (detectar cambios de estado) ────────────────────────
+        try {
+          const incRes = await fetch(
+            `${API_URL_BASE}/incidencias?empleado_id=${empleadoId}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          if (incRes.ok) {
+            const incData = await incRes.json();
+            await detectarCambiosIncidencias(incData.data || []);
+          }
+        } catch (_) { }
+
+        // ── AVISOS (detectar nuevos) ───────────────────────────────────
+        try {
+          const avisosRes = await fetch(
+            `${API_URL_BASE}/avisos`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          if (avisosRes.ok) {
+            const avisosData = await avisosRes.json();
+            await detectarAvisosNuevos(avisosData.data || []);
+          }
+        } catch (_) { }
+
+        // ── NOTIFICACIONES DE FONDO (horario del día) ───────────────────
+        try {
+          const horRes = await fetch(
+            `${API_URL_BASE}/empleados/${empleadoId}/horario`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          if (horRes.ok) {
+            const horData = await horRes.json();
+            const horario = horData.data || horData.horario || horData;
+            if (horario?.configuracion) {
+              let cfg = typeof horario.configuracion === 'string'
+                ? JSON.parse(horario.configuracion)
+                : horario.configuracion;
+              const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+              const diaHoy = dias[new Date().getDay()];
+              const key = Object.keys(cfg.configuracion_semanal || {}).find(k => k.toLowerCase() === diaHoy);
+              const turnos = key ? cfg.configuracion_semanal[key].map(t => ({
+                entrada: t.inicio || t.entrada,
+                salida: t.fin || t.salida
+              })) : [];
+              if (turnos.length > 0) {
+                await scheduleAttendanceNotifications(empleadoId, {}, { turnos });
+              }
+            }
+          }
+        } catch (_) { }
+      }
+    } catch (e) {
+      // Silencioso — no crítico
     }
   };
 
@@ -175,51 +312,52 @@ export default function App() {
       console.log('🔍 [App] isOnline:', online);
 
       if (!online) {
-        console.log('🔍 [App] Offline -> Saltando verificación de servidor');
+        console.log('🔍 [App] Offline -> Saltando verificación periódica de servidor');
         return;
       }
 
-      const [solicitudId, tokenSolicitud, onboardingCompleted] = await Promise.all([
-        AsyncStorage.getItem(STORAGE_KEYS.SOLICITUD_ID),
-        AsyncStorage.getItem(STORAGE_KEYS.TOKEN_SOLICITUD),
+      const [storedUserData, storedToken, onboardingCompleted] = await Promise.all([
+        AsyncStorage.getItem(STORAGE_KEYS.USER_DATA),
+        AsyncStorage.getItem(STORAGE_KEYS.USER_TOKEN),
         AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETED)
       ]);
-
-      console.log('🔍 [App] Datos Storage:', { solicitudId, tokenSolicitud, onboardingCompleted });
 
       if (onboardingCompleted !== 'true') {
         console.log('🔍 [App] Onboarding no completado.');
         return;
       }
 
-      if (!solicitudId || !tokenSolicitud) {
-        console.log('🔍 [App] IDs de solicitud faltantes, saltando verificación de servidor');
+      if (!storedUserData || !storedToken) {
+        console.log('🔍 [App] Faltan datos de sesión para verificar estado del servidor');
         return;
       }
 
-      console.log('🔍 [App] Consultando getSolicitudPorToken...');
-      const response = await getSolicitudPorToken(tokenSolicitud);
-      console.log('🔍 [App] Respuesta Servidor:', JSON.stringify(response));
+      const parsedUser = JSON.parse(storedUserData);
+      const empleadoId = parsedUser.empleado_id || parsedUser.empleadoInfo?.id || (parsedUser.es_empleado ? parsedUser.id : null);
 
-      const estadoLower = response.estado?.toLowerCase();
-
-      if (estadoLower === 'aceptado') {
-        console.log('🔍 [App] Estado es ACEPTADO. Todo bien.');
+      if (!empleadoId) {
+        // Administradores y RRHH no requieren validación estricta de dispositivo
         return;
       }
 
-      const mensajes = {
-        pendiente: 'Tu dispositivo está pendiente de aprobación nuevamente',
-        rechazado: 'Tu dispositivo fue rechazado por el administrador'
-      };
+      console.log('🔍 [App] Verificando dispositivo periódicamente por empleado en servidor...');
+      const dispositivoEnBD = await verificarDispositivoPorEmpleado(empleadoId, storedToken);
 
-      // Estado rechazado/pendiente: volver al onboarding (sin pantalla disabled)
-      await handleDeviceInvalidated(mensajes[estadoLower] || 'El estado de tu dispositivo ha cambiado', false);
+      if (dispositivoEnBD.existe && dispositivoEnBD.activo) {
+        console.log('✅ [App] Dispositivo verificado periódicamente en nube: ACTIVO');
+        return;
+      } else if (dispositivoEnBD.existe && !dispositivoEnBD.activo) {
+        console.warn('⛔ [App] Dispositivo periódico: INACTIVO en nube.');
+        await handleDeviceInvalidated('Tu dispositivo fue desactivado por el administrador', true);
+      } else {
+        console.warn('ℹ️ [App] Dispositivo periódico: No encontrado en nube.');
+        await handleDeviceInvalidated('Tu registro de dispositivo fue eliminado del servidor', false);
+      }
 
     } catch (error) {
-      if (error.code === 'SOLICITUD_NOT_FOUND' || error.status === 404) {
-        await handleDeviceInvalidated('Tu registro de dispositivo fue eliminado', false);
-      }
+      console.error('❌ [App] Error consultando estado periódico del servidor:', error);
+      // No bloqueamos (logout) en errores de red periódicos. 
+      // El dispositivo queda invalidado UNICAMENTE cuando la base de datos confirma que ya no es válido.
     }
   };
 

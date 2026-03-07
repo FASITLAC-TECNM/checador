@@ -239,11 +239,14 @@ export async function pushPendingRecords() {
 
                 console.log(`[DEBUG PUSH] Firing postEvent for record: ${record.local_id}`);
 
-                // Crear evento de sistema (Restaurado para asegurar bitácora)
+                // Formato igual al que genera el backend en asistencias.controller.js
+                const estadoSincronizado = record.estado && record.estado !== 'pendiente'
+                    ? record.estado
+                    : 'sincronizado';
                 await postEvent(
-                    `Registro de Asistencia (${record.tipo})`,
+                    `Registro de ${record.tipo} - ${estadoSincronizado}`,
                     'ASISTENCIA',
-                    `${nombreGuardado} registró ${record.tipo} (Sincronizado desde móvil vía ${record.metodo_registro})`,
+                    `${nombreGuardado} registró ${record.tipo}`,
                     record.empleado_id,
                     'alta'
                 );

@@ -104,7 +104,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
       await Promise.all([
         SecureStore.setItemAsync(SECURE_KEYS.CACHED_USER, user.trim().toLowerCase()),
         SecureStore.setItemAsync(SECURE_KEYS.CACHED_PASS_HASH, simpleHash(pass)),
-        SecureStore.setItemAsync(SECURE_KEYS.CACHED_USER_DATA, JSON.stringify(datosCompletos)),
+        AsyncStorage.setItem(SECURE_KEYS.CACHED_USER_DATA, JSON.stringify(datosCompletos)),
       ]);
     } catch (e) {
       console.error('Error cacheando credenciales:', e);
@@ -115,7 +115,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     try {
       const cachedUser = await SecureStore.getItemAsync(SECURE_KEYS.CACHED_USER);
       const cachedHash = await SecureStore.getItemAsync(SECURE_KEYS.CACHED_PASS_HASH);
-      const cachedData = await SecureStore.getItemAsync(SECURE_KEYS.CACHED_USER_DATA);
+      const cachedData = await AsyncStorage.getItem(SECURE_KEYS.CACHED_USER_DATA);
 
       if (!cachedUser || !cachedHash || !cachedData) {
         return { success: false, error: 'No hay sesión guardada. Inicia sesión con internet al menos una vez.' };
@@ -137,7 +137,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
         syncManager.setAuthToken(userData.token);
       }
 
- console.log(' [Login] Login offline exitoso para:', inputUser); 
+      console.log(' [Login] Login offline exitoso para:', inputUser);
       return { success: true, data: userData };
     } catch (e) {
       console.error('Error en validación offline:', e);
@@ -296,7 +296,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
 
       if (isNetworkError || isServerError) {
         // ====== INTENTO 2: Login Offline (red caída o servidor/BD caída) ======
- console.log(` [Login] Intentando login offline... (${isNetworkError ? 'red' : 'servidor'} no disponible)`); 
+        console.log(` [Login] Intentando login offline... (${isNetworkError ? 'red' : 'servidor'} no disponible)`);
         setIsOfflineLogin(true);
         const offlineResult = await validateOffline(usuario, password);
 
@@ -308,9 +308,9 @@ export const LoginScreen = ({ onLoginSuccess }) => {
               tipo: 'login',
               modo: 'offline'
             };
- console.log(' [Login] Guardando sesión OFFLINE en SQLite:', JSON.stringify(sessionData)); 
+            console.log(' [Login] Guardando sesión OFFLINE en SQLite:', JSON.stringify(sessionData));
             await sqliteManager.saveOfflineSession(sessionData);
- console.log(' [Login] Sesión offline guardada en SQLite'); 
+            console.log(' [Login] Sesión offline guardada en SQLite');
 
             // Configurar token cacheado en syncManager antes de push
             if (offlineResult.data.token) {
@@ -318,11 +318,11 @@ export const LoginScreen = ({ onLoginSuccess }) => {
             }
 
             // Intentar enviar inmediatamente
- console.log(' [Login] Intentando push de sesión offline...'); 
+            console.log(' [Login] Intentando push de sesión offline...');
             const pushResult = await syncManager.pushSessions();
- console.log(' [Login] Resultado pushSessions (offline):', JSON.stringify(pushResult)); 
+            console.log(' [Login] Resultado pushSessions (offline):', JSON.stringify(pushResult));
           } catch (e) {
- console.error(' [Login] Error guardando sesión offline:', e); 
+            console.error(' [Login] Error guardando sesión offline:', e);
           }
           // Login offline OK -> isOffline = true
           onLoginSuccess(offlineResult.data, true);

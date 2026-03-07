@@ -10,29 +10,29 @@ import { Platform } from 'react-native';
 // Verificar compatibilidad del dispositivo
 export const checkBiometricSupport = async () => {
     try {
-        
+
         const hasHardware = await LocalAuthentication.hasHardwareAsync();
-        
+
         if (!hasHardware) {
-            return { 
-                supported: false, 
-                message: 'Tu dispositivo no tiene sensor biométrico' 
+            return {
+                supported: false,
+                message: 'Tu dispositivo no tiene sensor biométrico'
             };
         }
 
         const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-        
+
         if (!isEnrolled) {
-            return { 
-                supported: false, 
-                message: 'No tienes huellas registradas en tu dispositivo. Ve a Ajustes > Seguridad para registrarlas.' 
+            return {
+                supported: false,
+                message: 'No tienes huellas registradas en tu dispositivo. Ve a Ajustes > Seguridad para registrarlas.'
             };
         }
 
         const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
 
-        return { 
-            supported: true, 
+        return {
+            supported: true,
             types: supportedTypes,
             hasFingerprint: supportedTypes.includes(LocalAuthentication.AuthenticationType.FINGERPRINT),
             hasFaceId: supportedTypes.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)
@@ -45,7 +45,7 @@ export const checkBiometricSupport = async () => {
 // Capturar huella dactilar
 export const capturarHuellaDigital = async (empleadoId) => {
     try {
-        
+
         // Verificar soporte
         const support = await checkBiometricSupport();
         if (!support.supported) {
@@ -58,7 +58,7 @@ export const capturarHuellaDigital = async (empleadoId) => {
 
         // Autenticar con huella
         const result = await LocalAuthentication.authenticateAsync({
-            promptMessage: '🔐 Coloca tu dedo en el sensor',
+            promptMessage: 'Coloca tu dedo en el sensor',
             fallbackLabel: 'Usar código',
             disableDeviceFallback: false,
             cancelLabel: 'Cancelar',
@@ -123,7 +123,7 @@ export const capturarReconocimientoFacial = async (empleadoId) => {
 
         // 3. Solicitar autenticación facial
         const result = await LocalAuthentication.authenticateAsync({
-            promptMessage: '🔐 Reconocimiento Facial',
+            promptMessage: 'Reconocimiento Facial',
             fallbackLabel: 'Usar PIN del dispositivo',
             disableDeviceFallback: false,
             cancelLabel: 'Cancelar',
@@ -184,12 +184,12 @@ export const capturarReconocimientoFacial = async (empleadoId) => {
 export const verificarHuellaLocal = async (empleadoId) => {
     try {
         const data = await SecureStore.getItemAsync(`fingerprint_${empleadoId}`);
-        
+
         if (data) {
             const parsed = JSON.parse(data);
             return { exists: true, data: parsed };
         }
-        
+
         return { exists: false };
     } catch (error) {
         return { exists: false };
@@ -201,7 +201,7 @@ const generateBiometricTemplate = async (data) => {
     try {
         // Crear un hash único basado en múltiples factores
         const dataString = JSON.stringify(data);
-        
+
         // Generar un hash simulado usando algoritmo simple pero único
         // En producción esto vendría del SDK del sensor biométrico
         let hash = 0;
@@ -210,15 +210,15 @@ const generateBiometricTemplate = async (data) => {
             hash = ((hash << 5) - hash) + char;
             hash = hash & hash; // Convertir a 32bit integer
         }
-        
+
         // Convertir hash a hexadecimal
         const hashHex = Math.abs(hash).toString(16).padStart(8, '0');
-        
+
         // Agregar datos adicionales para mayor unicidad
         const salt = Math.random().toString(36).substring(2, 15);
         const timestamp = data.timestamp.toString(36);
         const devicePart = data.deviceId.substring(0, 10);
-        
+
         // Crear template único combinando varios factores
         const templateParts = [
             hashHex,
@@ -227,20 +227,20 @@ const generateBiometricTemplate = async (data) => {
             devicePart,
             data.type.substring(0, 4)
         ].join('_');
-        
+
         // Generar más entropía
-        const extraEntropy = Array.from({ length: 32 }, () => 
+        const extraEntropy = Array.from({ length: 32 }, () =>
             Math.floor(Math.random() * 16).toString(16)
         ).join('');
-        
+
         const finalTemplate = `${templateParts}_${extraEntropy}`;
-        
+
         // Convertir a base64 para transmisión
         const base64Template = btoa(unescape(encodeURIComponent(finalTemplate)));
-        
-        
+
+
         return base64Template;
-        
+
     } catch (error) {
         throw new Error('Error al generar template biométrico');
     }
@@ -250,13 +250,13 @@ const generateBiometricTemplate = async (data) => {
 const getDeviceId = async () => {
     try {
         let deviceId = await SecureStore.getItemAsync('deviceId');
-        
+
         if (!deviceId) {
             // Generar nuevo ID único para el dispositivo
             deviceId = `device_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
             await SecureStore.setItemAsync('deviceId', deviceId);
         }
-        
+
         return deviceId;
     } catch (error) {
         return `device_fallback_${Date.now()}`;

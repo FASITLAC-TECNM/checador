@@ -10,6 +10,25 @@ const STORAGE_KEYS = {
   LAST_AVISOS_IDS: '@notif_avisos_ids',
 };
 
+const NOTIF_CONFIG_KEY = '@notificaciones_config';
+const NOTIF_DEFAULTS = {
+  incidencias: true,
+  asistencia_entrada: true,
+  asistencia_salida: true,
+  asistencia_proxima: true,
+  avisos: true,
+};
+
+// Helper: lee las preferencias guardadas por NotificationsScreen
+const getNotifConfig = async () => {
+  try {
+    const raw = await AsyncStorage.getItem(NOTIF_CONFIG_KEY);
+    return raw ? { ...NOTIF_DEFAULTS, ...JSON.parse(raw) } : NOTIF_DEFAULTS;
+  } catch {
+    return NOTIF_DEFAULTS;
+  }
+};
+
 // Configurar comportamiento cuando la app está en primer plano
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -69,6 +88,10 @@ export const initNotifications = async () => {
 // Notificar registro de asistencia exitoso
 export const notificarRegistro = async (tipo, estado) => {
   try {
+    const cfg = await getNotifConfig();
+    const key = tipo === 'salida' ? 'asistencia_salida' : 'asistencia_entrada';
+    if (!cfg[key]) return; // el usuario deshabilitó esta notificación
+
     const esSalida = tipo === 'salida';
     let titulo = esSalida ? 'Salida Registrada' : 'Entrada Registrada';
     let cuerpo = '';
@@ -142,6 +165,9 @@ export const notificarRegistro = async (tipo, estado) => {
 // Notificar estado de asistencia ("Listo para registrar entrada/salida")
 export const notificarEstadoAsistencia = async (tipoRegistro) => {
   try {
+    const cfg = await getNotifConfig();
+    if (!cfg.asistencia_proxima) return;
+
     const esEntrada = tipoRegistro === 'entrada';
     const titulo = esEntrada
       ? '🕐 Listo para registrar entrada'
@@ -167,6 +193,9 @@ export const notificarEstadoAsistencia = async (tipoRegistro) => {
 // Notificar cambio de estado de incidencia
 export const notificarIncidencia = async (tipoIncidencia, estado) => {
   try {
+    const cfg = await getNotifConfig();
+    if (!cfg.incidencias) return;
+
     let titulo = '';
     let cuerpo = '';
 
@@ -205,6 +234,9 @@ export const notificarIncidencia = async (tipoIncidencia, estado) => {
 // Notificar nuevo aviso
 export const notificarAviso = async (titulo) => {
   try {
+    const cfg = await getNotifConfig();
+    if (!cfg.avisos) return;
+
     await Notifications.scheduleNotificationAsync({
       content: {
         title: '📢 Nuevo Aviso',

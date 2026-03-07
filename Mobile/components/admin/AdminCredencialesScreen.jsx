@@ -25,10 +25,8 @@ import {
 } from '../../services/credencialesService';
 import {
     checkBiometricSupport,
-    capturarHuellaDigital,
 } from '../../services/biometricservice';
-import { FacialCaptureScreen } from '../../services/FacialCaptureScreen';
-import { captureAndRegister } from '../../services/faceRecognitionService';
+import { PinInputModal } from '../settingsPages/PinModal';
 
 // ─── Estado visual ─────────────────────────────────────────────────────────────
 const ESTADOS = {
@@ -38,102 +36,6 @@ const ESTADOS = {
     inactivo: {
         bg: '#6b7280', texto: '#fff', etiqueta: 'Sin registrar', icono: 'ellipse-outline',
     },
-};
-
-// ─── Modal PIN ─────────────────────────────────────────────────────────────────
-const PinModal = ({ visible, onClose, onConfirm, darkMode }) => {
-    const [pin, setPin] = useState('');
-    const [confirmPin, setConfirmPin] = useState('');
-    const [step, setStep] = useState(1); // 1 = ingreso, 2 = confirmación
-
-    const reset = () => { setPin(''); setConfirmPin(''); setStep(1); };
-
-    const handleClose = () => { reset(); onClose(); };
-
-    const handleDigit = (d) => {
-        if (step === 1) {
-            const val = pin + d;
-            if (val.length <= 6) {
-                setPin(val);
-                if (val.length === 6) setStep(2);
-            }
-        } else {
-            const val = confirmPin + d;
-            if (val.length <= 6) {
-                setConfirmPin(val);
-                if (val.length === 6) {
-                    if (val !== pin) {
-                        Alert.alert('Error', 'Los PINs no coinciden. Intenta de nuevo.');
-                        reset();
-                    } else {
-                        onConfirm(val);
-                        reset();
-                    }
-                }
-            }
-        }
-    };
-
-    const handleBack = () => {
-        if (step === 1) setPin(pin.slice(0, -1));
-        else setConfirmPin(confirmPin.slice(0, -1));
-    };
-
-    const bg = darkMode ? '#1f2937' : '#fff';
-    const textColor = darkMode ? '#f9fafb' : '#111827';
-
-    return (
-        <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-            <View style={pinStyles.overlay}>
-                <View style={[pinStyles.sheet, { backgroundColor: bg }]}>
-                    <View style={pinStyles.sheetHeader}>
-                        <Text style={[pinStyles.sheetTitle, { color: textColor }]}>
-                            {step === 1 ? 'Ingresa el nuevo PIN' : 'Confirma el PIN'}
-                        </Text>
-                        <TouchableOpacity onPress={handleClose}>
-                            <Ionicons name="close" size={22} color={textColor} />
-                        </TouchableOpacity>
-                    </View>
-                    <Text style={[pinStyles.sheetSubtitle, { color: darkMode ? '#9ca3af' : '#6b7280' }]}>
-                        {step === 1 ? 'PIN de 6 dígitos' : 'Repite el mismo PIN'}
-                    </Text>
-
-                    {/* Puntos */}
-                    <View style={pinStyles.dots}>
-                        {Array.from({ length: 6 }).map((_, i) => (
-                            <View
-                                key={i}
-                                style={[
-                                    pinStyles.dot,
-                                    {
-                                        backgroundColor:
-                                            i < (step === 1 ? pin.length : confirmPin.length)
-                                                ? '#2563eb'
-                                                : (darkMode ? '#374151' : '#e5e7eb'),
-                                    },
-                                ]}
-                            />
-                        ))}
-                    </View>
-
-                    {/* Teclado */}
-                    <View style={pinStyles.keyboard}>
-                        {['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'].map((d, i) => (
-                            <TouchableOpacity
-                                key={i}
-                                style={[pinStyles.key, { backgroundColor: d === '' ? 'transparent' : (darkMode ? '#374151' : '#f3f4f6') }]}
-                                onPress={() => d === '⌫' ? handleBack() : d !== '' ? handleDigit(d) : null}
-                                activeOpacity={0.7}
-                                disabled={d === ''}
-                            >
-                                <Text style={[pinStyles.keyText, { color: d === '⌫' ? '#ef4444' : textColor }]}>{d}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </View>
-            </View>
-        </Modal>
-    );
 };
 
 // ─── Componente principal ──────────────────────────────────────────────────────
@@ -184,51 +86,17 @@ export const AdminCredencialesScreen = ({ empleado, userData, darkMode, onBack }
     // ─── Acciones ──────────────────────────────────────────────────────────────
 
     const handleRegistrarHuella = async () => {
-        if (!biometricSupport?.supported) {
-            Alert.alert('No disponible', biometricSupport?.message || 'Este dispositivo no soporta huella dactilar.');
-            return;
-        }
-        if (!biometricSupport?.hasFingerprint) {
-            Alert.alert('No disponible', 'El dispositivo no tiene sensor de huella dactilar habilitado.');
-            return;
-        }
-        setProcesandoHuella(true);
-        try {
-            const token = await AsyncStorage.getItem('userToken');
-            // Paso 1: capturar template del sensor del dispositivo
-            const capturaResult = await capturarHuellaDigital(empleado.id);
-            // Paso 2: enviar template al backend vinculado al empleado seleccionado
-            await guardarDactilar(empleado.id, capturaResult.template, token);
-            Alert.alert('Éxito', 'Huella dactilar registrada correctamente.');
-            await cargarCredenciales();
-        } catch (e) {
-            Alert.alert('Error', e.message || 'No se pudo registrar la huella.');
-        } finally {
-            setProcesandoHuella(false);
-        }
+        Alert.alert(
+            hasFingerprint ? 'Actualizar Huella' : 'Registro de Huella',
+            'Las huellas dactilares únicamente se administran de forma segura desde la aplicación de Computadora (Desktop).\n\nEn la aplicación móvil solo se utiliza para validación biométrica local.'
+        );
     };
 
     const handleRegistrarFacial = () => {
-        setShowFacialCapture(true);
-    };
-
-    const handleFacialCapture = async (captureData) => {
-        setShowFacialCapture(false);
-        setProcesandoFacial(true);
-        try {
-            const token = await AsyncStorage.getItem('userToken');
-            const res = await captureAndRegister(captureData.faceData, empleado.id, token);
-            if (res.success) {
-                Alert.alert('Éxito', 'Reconocimiento facial registrado correctamente.');
-                await cargarCredenciales();
-            } else {
-                throw new Error(res.error || 'Error desconocido.');
-            }
-        } catch (e) {
-            Alert.alert('Error', e.message || 'No se pudo registrar el reconocimiento facial.');
-        } finally {
-            setProcesandoFacial(false);
-        }
+        Alert.alert(
+            hasFacial ? 'Actualizar Facial' : 'Registro Facial',
+            'El registro o actualización facial únicamente puede realizarse de forma segura desde la aplicación de Escritorio/Computadora o Web.\n\nEn la aplicación móvil solo se utiliza para validación biométrica local al checar.'
+        );
     };
 
     const handleRegistrarPin = () => {
@@ -388,7 +256,7 @@ export const AdminCredencialesScreen = ({ empleado, userData, darkMode, onBack }
             )}
 
             {/* Modal PIN */}
-            <PinModal
+            <PinInputModal
                 visible={showPinModal}
                 onClose={() => setShowPinModal(false)}
                 onConfirm={handleConfirmarPin}
@@ -406,32 +274,6 @@ export const AdminCredencialesScreen = ({ empleado, userData, darkMode, onBack }
         </View>
     );
 };
-
-// ─── PIN Modal Styles ─────────────────────────────────────────────────────────
-const pinStyles = StyleSheet.create({
-    overlay: {
-        flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'flex-end',
-    },
-    sheet: {
-        borderTopLeftRadius: 24, borderTopRightRadius: 24,
-        paddingTop: 20, paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-        paddingHorizontal: 24,
-    },
-    sheetHeader: {
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4,
-    },
-    sheetTitle: { fontSize: 17, fontWeight: '700' },
-    sheetSubtitle: { fontSize: 13, marginBottom: 24 },
-    dots: { flexDirection: 'row', justifyContent: 'center', gap: 14, marginBottom: 28 },
-    dot: { width: 14, height: 14, borderRadius: 7 },
-    keyboard: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center' },
-    key: {
-        width: 72, height: 56, borderRadius: 14,
-        justifyContent: 'center', alignItems: 'center',
-    },
-    keyText: { fontSize: 22, fontWeight: '600' },
-});
 
 // ─── Component Styles ─────────────────────────────────────────────────────────
 const baseStyles = StyleSheet.create({

@@ -54,7 +54,8 @@ export {
     getAsistencias,
     getAsistenciasEmpleado,
     getUltimoRegistroHoy,
-    getAsistenciasHoy
+    getAsistenciasHoy,
+    obtenerEstadoPreflight
 } from './asistenciasService.js';
 
 // ============================================

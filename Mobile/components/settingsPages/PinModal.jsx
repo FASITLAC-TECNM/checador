@@ -89,7 +89,7 @@ export const PinInputModal = ({
       animatePress(newPin.length - 1);
       
       if (newPin.length === 6) {
-        // ⚡ REDUCIDO de 200ms a 100ms
+ // REDUCIDO de 200ms a 100ms 
         setTimeout(() => {
           if (requireConfirmation) {
             setStep(2);
@@ -103,7 +103,7 @@ export const PinInputModal = ({
       animatePress(newPin.length - 1);
       
       if (newPin.length === 6) {
-        // ⚡ REDUCIDO de 200ms a 100ms
+ // REDUCIDO de 200ms a 100ms 
         setTimeout(() => handleConfirmPin(newPin), 100);
       }
     }
@@ -247,7 +247,7 @@ export const PinInputModal = ({
             showsVerticalScrollIndicator={false}
             bounces={false}
             contentContainerStyle={styles.scrollContent}
-            // ⚡ OPTIMIZACIÓN: Desactiva scroll cuando no es necesario
+ // OPTIMIZACIÓN: Desactiva scroll cuando no es necesario 
             scrollEnabled={false}
           >
             {/* Header */}

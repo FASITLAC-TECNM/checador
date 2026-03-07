@@ -1,34 +1,56 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
-  Text,
   TouchableOpacity,
   StyleSheet,
   Platform,
-  Animated
+  Animated,
+  Easing
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const NavItem = ({ item, isActive, onPress, darkMode, navStyles }) => {
-  const scaleAnim = React.useRef(new Animated.Value(1)).current;
+  const customAnim = useRef(new Animated.Value(isActive ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(customAnim, {
+      toValue: isActive ? 1 : 0,
+      duration: 250,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false, // width/backgroundColor requires false
+    }).start();
+  }, [isActive]);
 
   const handlePressIn = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 0.85,
-      useNativeDriver: true,
-      friction: 3,
-    }).start();
+    if (!isActive) {
+      Animated.timing(customAnim, {
+        toValue: 0.3,
+        duration: 100,
+        useNativeDriver: false,
+      }).start();
+    }
   };
 
   const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      friction: 3,
-      tension: 40,
-    }).start();
+    if (!isActive) {
+      Animated.timing(customAnim, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: false,
+      }).start();
+    }
   };
+
+  const indicatorWidth = customAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '50%']
+  });
+
+  const indicatorOpacity = customAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1]
+  });
 
   return (
     <TouchableOpacity
@@ -38,32 +60,23 @@ const NavItem = ({ item, isActive, onPress, darkMode, navStyles }) => {
       onPressOut={handlePressOut}
       activeOpacity={1}
     >
-      {/* Active Indicator - Línea superior */}
-      {isActive && <View style={navStyles.activeIndicator} />}
+      {/* Top Line Indicator */}
+      <View style={navStyles.indicatorContainer}>
+        <Animated.View
+          style={[
+            navStyles.activeIndicator,
+            { width: indicatorWidth, opacity: indicatorOpacity }
+          ]}
+        />
+      </View>
 
-      {/* Icon con animación */}
-      <Animated.View
-        style={[
-          navStyles.iconWrapper,
-          isActive && navStyles.iconWrapperActive,
-          { transform: [{ scale: scaleAnim }] }
-        ]}
-      >
+      <View style={navStyles.iconWrapper}>
         <Ionicons
-          name={item.icon}
-          size={20}
+          name={isActive ? item.icon : `${item.icon}-outline`}
+          size={26} // Ligeramente más grande ya que no hay texto
           color={isActive ? '#2563eb' : (darkMode ? '#9ca3af' : '#6b7280')}
         />
-      </Animated.View>
-
-      {/* Label */}
-      <Text style={[
-        navStyles.label,
-        isActive && navStyles.labelActive,
-        darkMode && !isActive && navStyles.labelDark
-      ]}>
-        {item.label}
-      </Text>
+      </View>
     </TouchableOpacity>
   );
 };
@@ -89,11 +102,10 @@ export const BottomNavigation = ({ currentScreen, onScreenChange, darkMode, user
       style={[
         styles.container,
         {
-          paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 6) : insets.bottom,
+          paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 12) : insets.bottom + 8,
         }
       ]}
     >
-      {/* Sombra superior sutil */}
       <View style={styles.shadow} />
 
       <View style={styles.navBar}>
@@ -123,7 +135,7 @@ const navStyles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: '#fff',
-    borderTopWidth: 0, // ⭐ Sin borde
+    borderTopWidth: 0,
   },
   shadow: {
     position: 'absolute',
@@ -136,49 +148,39 @@ const navStyles = StyleSheet.create({
   navBar: {
     flexDirection: 'row',
     backgroundColor: '#fff',
-    paddingHorizontal: 4,
-    paddingTop: 8,
-    paddingBottom: 4,
+    paddingHorizontal: 8,
+    paddingTop: 10,
+    paddingBottom: 10,
+    height: 60,
   },
   navItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    paddingVertical: 2,
+    height: '100%',
+  },
+  indicatorContainer: {
+    position: 'absolute',
+    top: -10, // Se alinea con la parte superior del navBar
+    left: 0,
+    right: 0,
+    height: 3,
+    alignItems: 'center',
   },
   activeIndicator: {
-    position: 'absolute',
-    top: -4,
-    width: 24,
     height: 3,
     backgroundColor: '#2563eb',
-    borderRadius: 2,
+    borderBottomLeftRadius: 3,
+    borderBottomRightRadius: 3,
   },
   iconWrapper: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
-    marginBottom: 1,
-  },
-  iconWrapperActive: {
-    backgroundColor: '#eff6ff',
-  },
-  label: {
-    fontSize: 9.5,
-    fontWeight: '500',
-    color: '#6b7280',
-  },
-  labelActive: {
-    color: '#2563eb',
-    fontWeight: '600',
-  },
-  labelDark: {
-    color: '#9ca3af',
-  },
+  }
 });
 
 const navStylesDark = StyleSheet.create({
@@ -195,19 +197,10 @@ const navStylesDark = StyleSheet.create({
     backgroundColor: '#1f2937',
   },
   navItem: navStyles.navItem,
+  indicatorContainer: navStyles.indicatorContainer,
   activeIndicator: {
     ...navStyles.activeIndicator,
     backgroundColor: '#60a5fa',
   },
   iconWrapper: navStyles.iconWrapper,
-  iconWrapperActive: {
-    ...navStyles.iconWrapperActive,
-    backgroundColor: '#1e3a5f',
-  },
-  label: navStyles.label,
-  labelActive: {
-    ...navStyles.labelActive,
-    color: '#60a5fa',
-  },
-  labelDark: navStyles.labelDark,
 });

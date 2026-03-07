@@ -45,7 +45,7 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
     setIsLoading(true);
 
     try {
-      console.log('🔍 Verificando empresa:', trimmedCode);
+ console.log(' Verificando empresa:', trimmedCode); 
 
       let currentIp = '127.0.0.1';
       try {
@@ -56,7 +56,7 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
 
       const empresaInfo = await verificarEmpresa(trimmedCode, currentIp);
 
-      console.log('📊 Resultado verificación:', {
+ console.log(' Resultado verificación:', { 
         ...empresaInfo,
         ipDetectada: currentIp
       });
@@ -80,7 +80,7 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
       }
 
       if (empresaInfo.fueraDeRed) {
-        console.warn('⚠️ Dispositivo bloqueado: IP fuera de red permitida', {
+ console.warn('️ Dispositivo bloqueado: IP fuera de red permitida', { 
           ipLocal: currentIp,
           alertasRed: empresaInfo.alertasRed
         });
@@ -93,9 +93,9 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
         return;
       }
 
-      console.log('✅ Empresa y red válidas, continuando...');
+ console.log(' Empresa y red válidas, continuando...'); 
 
-      // ✅ Todo bien, continuar al siguiente paso con una animación de verificación
+ // Todo bien, continuar al siguiente paso con una animación de verificación 
       setIsVerified(true);
       setVerifiedCompanyName(empresaInfo.nombre);
       setIsLoading(false);
@@ -109,7 +109,7 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
       }, 1500);
 
     } catch (error) {
-      console.error('❌ Error al verificar empresa:', error);
+ console.error(' Error al verificar empresa:', error); 
 
       Alert.alert(
         'Error de Conexión',

@@ -191,7 +191,7 @@ export const NetworkValidatorScreen = ({ userData, darkMode, onBack }) => {
 
                 <View style={s.notePrivate}>
                     <Text style={s.notePrivateText}>
-                        🔒 Pantalla de diagnóstico interno. Acceso por 7 taps en el ícono del adminestrador.
+                        <Icon name="lock-closed" size={14} color={darkMode ? '#c4b5fd' : '#5b21b6'} /> Pantalla de diagnóstico interno. Acceso por 7 taps en el ícono del administrador.
                     </Text>
                 </View>
             </ScrollView>

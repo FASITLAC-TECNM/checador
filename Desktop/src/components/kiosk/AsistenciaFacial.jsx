@@ -1053,9 +1053,12 @@ export default function AsistenciaFacial({
 
               {result.tipoMovimiento && (
                 <div className="mt-2">
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">
-                    {result.tipoMovimiento === "ENTRADA" ? "Entrada" : "Salida"}{" "}
-                    registrada {result.hora && `a las ${result.hora}`}
+                  <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">
+                    {result.offline ? (
+                      <>Pendiente de validación {result.hora && `a las ${result.hora}`}</>
+                    ) : (
+                      <>{result.tipoMovimiento === "ENTRADA" ? "Entrada" : "Salida"} registrada {result.hora && `a las ${result.hora}`}</>
+                    )}
                   </p>
                   <span
                     className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${result.clasificacion === "entrada" || result.clasificacion === "salida_puntual"

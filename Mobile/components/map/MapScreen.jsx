@@ -36,7 +36,7 @@ const MapaZonasPermitidas = ({
 
   const styles = darkMode ? mapStylesDark : mapStyles;
 
-  // ⭐ Usar el hook para configurar la barra de navegación
+  // Usar el hook para configurar la barra de navegación 
   useNavigationBarColor(darkMode);
 
   // Usar departamentos array o crear array con departamento único
@@ -90,7 +90,7 @@ const MapaZonasPermitidas = ({
     }
   }, [listaDepartamentos]);
 
-  // ⭐ Enviar ubicación GPS en tiempo real al WebView cuando cambia
+  // Enviar ubicación GPS en tiempo real al WebView cuando cambia 
   useEffect(() => {
     if (webViewRef.current && ubicacionActual) {
       const message = JSON.stringify({
@@ -273,7 +273,7 @@ const MapaZonasPermitidas = ({
         polygons[zona.id] = polygon;
 
         var popupContent = isSelected
-          ? '<b>' + zona.nombre + '</b><br>📍 Departamento seleccionado<br>Zona permitida para registro'
+          ? '<b>' + zona.nombre + '</b><br>Departamento seleccionado<br>Zona permitida para registro'
           : '<b>' + zona.nombre + '</b><br>Zona permitida para registro';
         polygon.bindPopup(popupContent);
 
@@ -313,7 +313,7 @@ const MapaZonasPermitidas = ({
               if (userMarker) userMarker.openPopup();
             }
           } else if (data.action === 'updateUserLocation') {
-            // ⭐ Actualización en tiempo real del marcador GPS
+ // Actualización en tiempo real del marcador GPS 
             userLocation = data.location;
             if (userMarker) {
               userMarker.setLatLng(data.location);

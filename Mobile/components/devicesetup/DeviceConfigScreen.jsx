@@ -221,7 +221,7 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
       if (esValido) {
         let mensaje = result.usuario
           ? `✓ Correo verificado: ${result.usuario.nombre}`
-          : `⚠️ ${result.mensaje || 'Correo pendiente de verificación'}`;
+          : `[Atención] ${result.mensaje || 'Correo pendiente de verificación'}`;
 
         setEmailValidation({
           isValid: true,
@@ -251,7 +251,7 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
 
       setEmailValidation({
         isValid: false,
-        message: '⚠️ No se pudo verificar el correo. Verifica tu conexión a internet.',
+        message: 'No se pudo verificar el correo. Verifica tu conexión a internet.',
         checked: true,
         usuario: null,
         empleadoId: null
@@ -382,8 +382,8 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
     const isEmailField = field.id === 'email';
     const isMacField = field.id === 'macAddress';
 
-    // ✅ El campo de email SIEMPRE es readonly (auto-detectado desde userData)
-    // ✅ El campo de MAC es editable para que el usuario ingrese la MAC real
+    // El campo de email SIEMPRE es readonly (auto-detectado desde userData) 
+    // El campo de MAC es editable para que el usuario ingrese la MAC real 
     const fieldIsReadonly = isReadonly || isEmailField;
 
     return (

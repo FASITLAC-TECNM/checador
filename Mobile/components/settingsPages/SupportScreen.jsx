@@ -68,11 +68,11 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
             cargoOnline = true;
             // Guardar en caché local
             await sqliteManager.upsertEmpresa(response.data).catch(e =>
-              console.warn('⚠️ No se pudo cachear empresa:', e.message)
+ console.warn('️ No se pudo cachear empresa:', e.message) 
             );
           }
         } catch (e) {
-          console.warn('⚠️ No se pudo cargar empresa online:', e.message);
+ console.warn('️ No se pudo cargar empresa online:', e.message); 
         }
       }
 
@@ -82,10 +82,10 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
           const empresaLocal = await sqliteManager.getEmpresaLocal(empresaId);
           if (empresaLocal) {
             setEmpresaData(empresaLocal);
-            console.log('📦 [Offline] Empresa cargada desde caché local');
+ console.log(' [Offline] Empresa cargada desde caché local'); 
           }
         } catch (e) {
-          console.warn('⚠️ Error cargando empresa desde SQLite:', e.message);
+ console.warn('️ Error cargando empresa desde SQLite:', e.message); 
         }
       }
 

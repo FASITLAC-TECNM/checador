@@ -257,7 +257,7 @@ export const MetodoAutenticacionModal = ({
       const empleadoId =
         userData?.empleado?.id || userData?.empleado_id || userData?.id;
 
-      console.log('📸 Captura facial completada para login');
+ console.log(' Captura facial completada para login'); 
 
       // Verificar que viene con detección facial
       if (!captureData.faceDetectionUsed || !captureData.validated) {
@@ -269,7 +269,7 @@ export const MetodoAutenticacionModal = ({
       const validation = validateFaceQuality(faceFeatures);
 
       if (!validation.isValid) {
-        console.warn('⚠️ Validación de calidad falló:', validation.errors);
+ console.warn('️ Validación de calidad falló:', validation.errors); 
         Alert.alert(
           '⚠️ Calidad insuficiente',
           validation.errors.join('\n') + '\n\n¿Deseas intentar de nuevo?',
@@ -282,7 +282,7 @@ export const MetodoAutenticacionModal = ({
         return;
       }
 
-      console.log('✅ Validación facial exitosa, generando template...');
+ console.log(' Validación facial exitosa, generando template...'); 
 
       // Generar template facial
       const resultado = await generateFacialTemplate(
@@ -291,7 +291,7 @@ export const MetodoAutenticacionModal = ({
         empleadoId
       );
 
-      console.log('📤 Guardando en el servidor...');
+ console.log(' Guardando en el servidor...'); 
 
       // Guardar en el backend
       await guardarFacial(
@@ -313,7 +313,7 @@ export const MetodoAutenticacionModal = ({
         },
       ]);
     } catch (error) {
-      console.error('❌ Error en registro facial:', error);
+ console.error(' Error en registro facial:', error); 
       Alert.alert(
         'Error',
         error.message || 'No se pudo registrar el reconocimiento facial'

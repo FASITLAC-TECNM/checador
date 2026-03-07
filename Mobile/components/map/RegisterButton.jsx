@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
+import * as Network from 'expo-network';
 import { isPointInPolygon, extraerCoordenadas } from '../../services/ubicacionService';
 import { getApiEndpoint } from '../../config/api';
 import { getCredencialesByEmpleado, verificarPin } from '../../services/credencialesService';
@@ -30,6 +31,8 @@ import sqliteManager, { saveOnlineAsistenciaToCache } from '../../services/offli
 import offlineAuthService from '../../services/offline/offlineAuthService.mjs';
 import syncManager from '../../services/offline/syncManager.mjs';
 import pushService from '../../services/offline/pushService.mjs';
+
+import { registerStyles, registerStylesDark } from './RegisterButtonStyles';
 
 const API_URL = getApiEndpoint('/api');
 const NOTIF_DIARIA_KEY = '@notif_asistencia_disponible';
@@ -774,7 +777,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         throw new Error('PIN incorrecto');
       }
     } catch (e) {
-      if (e.message === 'PIN incorrecto') throw e;
+      if (e.message === 'PIN incorrecto') {
+        setRegistrando(false);
+        throw e;
+      }
 
       const esErrorDeRed = (
         e.message.includes('Network request failed') ||
@@ -785,6 +791,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       );
 
       if (!esErrorDeRed) {
+        setRegistrando(false);
         throw e;
       }
 
@@ -794,6 +801,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       if (identified && String(identified.empleado_id) === String(userData.empleado_id)) {
         pinVerificado = true;
       } else {
+        setRegistrando(false);
         throw new Error('PIN incorrecto');
       }
     }
@@ -860,7 +868,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     setRegistrando(true);
 
     try {
-      console.log('📸 Captura facial completada para autenticación de registro');
+      console.log(' Captura facial completada para autenticación de registro');
 
       if (!captureData.faceDetectionUsed || !captureData.validated) {
         throw new Error('No se detectó un rostro válido en la captura');
@@ -870,7 +878,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const validation = validateFaceQuality(faceFeatures);
 
       if (!validation.isValid) {
-        console.warn('⚠️ Validación de calidad falló:', validation.errors);
+        console.warn('️ Validación de calidad falló:', validation.errors);
         Alert.alert(
           '⚠️ Calidad insuficiente',
           validation.errors.join('\n') + '\n\n¿Deseas intentar de nuevo?',
@@ -883,13 +891,13 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         return;
       }
 
-      console.log('✅ Validación facial exitosa, verificando identidad...');
+      console.log(' Validación facial exitosa, verificando identidad...');
 
       const empleadoId = userData?.empleado?.id || userData?.empleado_id || userData?.id;
       const verification = await verifyFace(empleadoId, captureData.faceData);
 
       if (!verification.verified) {
-        console.warn('❌ Verificación facial falló:', verification);
+        console.warn(' Verificación facial falló:', verification);
         Alert.alert(
           'Identidad no verificada',
           `No se pudo confirmar tu identidad.\nSimilitud: ${verification.similarity?.toFixed(1) || 0}% (mínimo 65%)\n\nAsegúrate de que eres la persona registrada e intenta de nuevo.`,
@@ -902,11 +910,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         return;
       }
 
-      console.log(`✅ Identidad verificada (${verification.similarity.toFixed(1)}% similitud), procediendo con el registro`);
+      console.log(` Identidad verificada (${verification.similarity.toFixed(1)}% similitud), procediendo con el registro`);
 
       await procederConRegistro();
     } catch (error) {
-      console.error('❌ Error en autenticación facial:', error);
+      console.error(' Error en autenticación facial:', error);
       Alert.alert(
         'Error de Autenticación',
         error.message || 'No se pudo verificar tu identidad',
@@ -961,6 +969,22 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       setRegistrando(true);
 
+      // ── Obtener Información de Red (IP y WiFi) ─────────────────────────────
+      let networkIp = null;
+      let networkWifi = null;
+      try {
+        const netState = await Network.getNetworkStateAsync();
+        networkIp = await Network.getIpAddressAsync();
+
+        // El wifi BSSID normalmente requiere permisos especiales
+        // pero podemos mandar el tipo de red para diagnosticar
+        if (netState.type === Network.NetworkStateType.WIFI) {
+          networkWifi = { tipo: netState.type, isConnected: netState.isConnected };
+        }
+      } catch (netErr) {
+        console.log('No se pudo obtener la IP local:', netErr);
+      }
+
       // ── Payload: el backend calcula tipo y estado con sus propias reglas ─────
       // NO se envía "estado" ni se calcula nada aquí. El controlador usa:
       //   srvVerificarLongitudYTipo → tipo (entrada/salida)
@@ -970,6 +994,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         dispositivo_origen: 'movil',
         ubicacion: [ubicacionFinal.lat, ubicacionFinal.lng],
         departamento_id: departamento.id,
+        ip: networkIp,
+        wifi: networkWifi,
+        fecha_captura: new Date().toISOString()
       };
 
       let success = false;
@@ -1045,8 +1072,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
         // El estado es 'pendiente' — el backend recalculará con sus reglas al sincronizar
         // ubicacion viene del payload (ya es [lat, lng])
-        // ip: null porque el servidor la detecta de req.ip al sincronizar
-        // wifi: null por ahora (pendiente de implementar react-native-network-info)
+        // ip y wifi se capturan para la validación de segmentación
         await sqliteManager.saveOfflineAsistencia({
           ...payload,
           tipo: tipoActual,
@@ -1054,21 +1080,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           metodo_registro: 'PIN',
           fecha_registro: new Date().toISOString(),
           ubicacion: payload.ubicacion || [ubicacionFinal.lat, ubicacionFinal.lng],
-          ip: null,
-          wifi: null,
+          ip: payload.ip,
+          wifi: payload.wifi,
         });
 
-        try {
-          await pushService.postEvent(
-            `Registro de ${tipoActual} - pendiente`,
-            'asistencia',
-            `${userData.nombre || 'Empleado'} registró ${tipoActual}`,
-            userData.empleado_id,
-            'baja'
-          );
-        } catch (evtErr) {
-          console.log('⚠️ Error guardando evento offline:', evtErr.message);
-        }
+        // Removed the `- pendiente` pushService.postEvent call to prevent duplicate offline telemetry log events.
 
         data = {
           data: {
@@ -1110,29 +1126,29 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       // ── Mostrar resultado usando estado REAL del backend ──────────────────────
       const esOffline = data?.data?._offline === true;
       let estadoTexto = estadoRegistrado;
-      let emoji = '✅';
+
 
       if (tipoRegistrado === 'salida') {
         if (estadoRegistrado === 'salida_temprana' || estadoRegistrado === 'salida_temprano') {
-          estadoTexto = 'salida anticipada'; emoji = '⚠️';
+          estadoTexto = 'salida anticipada';
         } else {
-          estadoTexto = 'salida registrada'; emoji = '✅';
+          estadoTexto = 'salida registrada';
         }
       } else {
         if (estadoRegistrado === 'pendiente') {
-          estadoTexto = 'pendiente (sin conexión)'; emoji = '🔄';
+          estadoTexto = 'pendiente (sin conexión)';
         } else if (estadoRegistrado === 'entrada_temprana') {
-          estadoTexto = 'entrada anticipada'; emoji = '✅';
+          estadoTexto = 'entrada anticipada';
         } else if (estadoRegistrado === 'puntual') {
-          estadoTexto = 'puntual'; emoji = '✅';
+          estadoTexto = 'puntual';
         } else if (estadoRegistrado === 'falta') {
-          estadoTexto = 'falta'; emoji = '❌';
+          estadoTexto = 'falta';
         } else if (estadoRegistrado === 'falta_por_retardo') {
-          estadoTexto = 'falta por retardo'; emoji = '❌';
+          estadoTexto = 'falta por retardo';
         } else {
           // Manejo genérico para retardos tipo A, B y cualquier tipo N configurado por el admin
           estadoTexto = estadoRegistrado.replace(/_/g, ' ');
-          emoji = estadoRegistrado.startsWith('retardo') ? '⚠️' : estadoRegistrado.startsWith('falta') ? '❌' : '✅';
+
         }
       }
 
@@ -1142,7 +1158,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       Alert.alert(
         esOffline ? 'Pendiente a revisar' : '¡Éxito!',
         [
-          `${emoji} ${tipoMayuscula} registrada como ${estadoTexto}`,
+          `${tipoMayuscula} registrada como ${estadoTexto}`,
           `Departamento: ${departamento.nombre}`,
           `Hora: ${horaStr}`,
           esOffline ? '\nSe sincronizará automáticamente cuando haya conexión.' : ''
@@ -1163,6 +1179,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
 
   const handleRegistro = async () => {
+    if (registrando) return; // Prevent double taps
+
     if (!userData || !userData.empleado_id || !userData.token) {
       Alert.alert('Error', 'No se pudo identificar tu información de usuario. Intenta cerrar sesión y volver a iniciar.');
       return;
@@ -1219,6 +1237,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       departamento: departamentoSeleccionado
     };
 
+    setRegistrando(true);
     setMostrarAutenticacion(true);
   };
 
@@ -1444,7 +1463,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         visible={mostrarAutenticacion}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setMostrarAutenticacion(false)}
+        onRequestClose={() => {
+          setRegistrando(false);
+          setMostrarAutenticacion(false);
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.authModalContent}>
@@ -1477,7 +1499,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
             <TouchableOpacity
               style={styles.authCancelButton}
-              onPress={() => setMostrarAutenticacion(false)}
+              onPress={() => {
+                setRegistrando(false);
+                setMostrarAutenticacion(false);
+              }}
             >
               <Text style={styles.authCancelText}>Cancelar</Text>
             </TouchableOpacity>
@@ -1487,7 +1512,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       <PinInputModal
         visible={mostrarPinAuth}
-        onClose={() => setMostrarPinAuth(false)}
+        onClose={() => {
+          setRegistrando(false);
+          setMostrarPinAuth(false);
+        }}
         onConfirm={handleVerificarPin}
         title="Verificar PIN"
         subtitle="Ingresa tu PIN de seguridad"
@@ -1604,589 +1632,5 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     </>
   );
 };
-
-const registerStyles = StyleSheet.create({
-  container: {
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginTop: 12,
-    borderRadius: 16,
-    padding: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  statusContainer: {
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    gap: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  content: {
-    gap: 8,
-  },
-  timeContainer: {
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  timeLabel: {
-    fontSize: 11,
-    color: '#9ca3af',
-    marginBottom: 2,
-  },
-  timeValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1f2937',
-    letterSpacing: -1,
-  },
-  statusIndicators: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
-    paddingVertical: 4,
-  },
-  indicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  indicatorText: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  locationInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    backgroundColor: '#f9fafb',
-    borderRadius: 8,
-  },
-  locationText: {
-    fontSize: 12,
-    color: '#6b7280',
-    fontWeight: '500',
-  },
-  registerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 6,
-    marginTop: 2,
-  },
-  registerButtonDisabled: {
-    opacity: 0.5,
-  },
-  registerButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  lastRegisterContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
-    marginTop: 2,
-  },
-  lastRegisterIcon: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#f3f4f6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lastRegisterText: {
-    fontSize: 11,
-    color: '#9ca3af',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '70%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1f2937',
-  },
-  modalCloseButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#f3f4f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  departamentosList: {
-    padding: 16,
-  },
-  departamentoItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 14,
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
-    marginBottom: 10,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  departamentoItemActivo: {
-    backgroundColor: '#ecfdf5',
-    borderColor: '#10b981',
-  },
-  departamentoInfo: {
-    flex: 1,
-    gap: 6,
-  },
-  departamentoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  departamentoNombre: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1f2937',
-    flex: 1,
-  },
-  departamentoNombreActivo: {
-    color: '#059669',
-  },
-  departamentoBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingLeft: 28,
-  },
-  departamentoBadgeText: {
-    fontSize: 12,
-    color: '#10b981',
-    fontWeight: '500',
-  },
-  modalFooter: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
-  },
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 12,
-    backgroundColor: '#eff6ff',
-    borderRadius: 8,
-  },
-  infoBoxText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#3b82f6',
-    lineHeight: 16,
-  },
-  viewMapButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#eff6ff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#dbeafe',
-  },
-  viewMapText: {
-    fontSize: 13,
-    color: '#3b82f6',
-    fontWeight: '600',
-  },
-  authModalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 32,
-    paddingBottom: 24,
-    paddingHorizontal: 24,
-  },
-  authHeader: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  authTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1f2937',
-    marginTop: 12,
-  },
-  authSubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4,
-  },
-  authMethodsContainer: {
-    gap: 12,
-    marginBottom: 20,
-  },
-  authMethodCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#f9fafb',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  authMethodIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#eff6ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  authMethodName: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-  },
-  authCancelButton: {
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  authCancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6b7280',
-  },
-});
-
-const registerStylesDark = StyleSheet.create({
-  container: {
-    backgroundColor: '#1f2937',
-    marginHorizontal: 20,
-    marginTop: 12,
-    borderRadius: 16,
-    padding: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-  statusContainer: {
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    gap: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  content: {
-    gap: 8,
-  },
-  timeContainer: {
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  timeLabel: {
-    fontSize: 11,
-    color: '#9ca3af',
-    marginBottom: 2,
-  },
-  timeValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#f9fafb',
-    letterSpacing: -1,
-  },
-  statusIndicators: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
-    paddingVertical: 4,
-  },
-  indicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  indicatorText: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  locationInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    backgroundColor: '#374151',
-    borderRadius: 8,
-  },
-  locationText: {
-    fontSize: 12,
-    color: '#9ca3af',
-    fontWeight: '500',
-  },
-  registerButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 6,
-    marginTop: 2,
-  },
-  registerButtonDisabled: {
-    opacity: 0.5,
-  },
-  registerButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  lastRegisterContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: '#374151',
-    marginTop: 2,
-  },
-  lastRegisterIcon: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#374151',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lastRegisterText: {
-    fontSize: 11,
-    color: '#9ca3af',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#1f2937',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '70%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#374151',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#f9fafb',
-  },
-  modalCloseButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#374151',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  departamentosList: {
-    padding: 16,
-  },
-  departamentoItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 14,
-    backgroundColor: '#374151',
-    borderRadius: 12,
-    marginBottom: 10,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  departamentoItemActivo: {
-    backgroundColor: '#065f46',
-    borderColor: '#10b981',
-  },
-  departamentoInfo: {
-    flex: 1,
-    gap: 6,
-  },
-  departamentoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  departamentoNombre: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#f9fafb',
-    flex: 1,
-  },
-  departamentoNombreActivo: {
-    color: '#10b981',
-  },
-  departamentoBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingLeft: 28,
-  },
-  departamentoBadgeText: {
-    fontSize: 12,
-    color: '#10b981',
-    fontWeight: '500',
-  },
-  modalFooter: {
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#374151',
-  },
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 12,
-    backgroundColor: '#1e3a8a',
-    borderRadius: 8,
-  },
-  infoBoxText: {
-    flex: 1,
-    fontSize: 12,
-    color: '#93c5fd',
-    lineHeight: 16,
-  },
-  viewMapButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#1e3a8a',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#1e40af',
-  },
-  viewMapText: {
-    fontSize: 13,
-    color: '#93c5fd',
-    fontWeight: '600',
-  },
-  authModalContent: {
-    backgroundColor: '#1f2937',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 32,
-    paddingBottom: 24,
-    paddingHorizontal: 24,
-  },
-  authHeader: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  authTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#f9fafb',
-    marginTop: 12,
-  },
-  authSubtitle: {
-    fontSize: 14,
-    color: '#9ca3af',
-    marginTop: 4,
-  },
-  authMethodsContainer: {
-    gap: 12,
-    marginBottom: 20,
-  },
-  authMethodCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#374151',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#4b5563',
-  },
-  authMethodIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#1e3a8a',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  authMethodName: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#f9fafb',
-  },
-  authCancelButton: {
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  authCancelText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#9ca3af',
-  },
-});
 
 export default RegisterButton;

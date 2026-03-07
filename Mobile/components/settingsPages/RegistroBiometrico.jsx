@@ -17,7 +17,7 @@ const BiometricRegistration = () => {
   // Obtener datos del usuario autenticado
   useEffect(() => {
     const fetchUsuarioActual = async () => {
-      
+
       try {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -35,7 +35,7 @@ const BiometricRegistration = () => {
 
         if (data.success && data.data) {
           setUsuarioId(data.data.id);
-          
+
           if (data.data.empleado_id) {
             setEmpleadoId(data.data.empleado_id);
             await loadCredenciales(data.data.empleado_id);
@@ -49,13 +49,13 @@ const BiometricRegistration = () => {
         setMessage({ type: 'error', text: 'Error de conexión' });
       }
     };
-    
+
     fetchUsuarioActual();
   }, []);
 
   // Cargar credenciales existentes
   const loadCredenciales = async (empId) => {
-    
+
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE}/api/credenciales/empleado/${empId}`, {
@@ -92,16 +92,16 @@ const BiometricRegistration = () => {
     try {
       // Simular conexión con lector biométrico
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       // Simular template de huella (en producción vendría del SDK del lector)
       const huellaTemplate = btoa(JSON.stringify({
         template: 'FINGERPRINT_MINUTIAE_' + Date.now(),
         quality: 95,
         timestamp: new Date().toISOString()
       }));
-      
+
 
       // Enviar a la API
       const token = localStorage.getItem('token');
@@ -120,7 +120,7 @@ const BiometricRegistration = () => {
       const data = await response.json();
 
       if (data.success) {
-        setMessage({ type: 'success', text: '✅ Huella dactilar registrada correctamente' });
+        setMessage({ type: 'success', text: 'Huella dactilar registrada correctamente' });
         await loadCredenciales(empleadoId);
       } else {
         setMessage({ type: 'error', text: data.message || 'Error al guardar huella' });
@@ -144,8 +144,8 @@ const BiometricRegistration = () => {
 
     try {
       // Solicitar permiso de cámara
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
           facingMode: 'user',
           width: { ideal: 640 },
           height: { ideal: 480 }
@@ -167,14 +167,14 @@ const BiometricRegistration = () => {
       // Esperar 2 segundos para estabilizar la imagen
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      
+
       // Capturar frame
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0);
-      
+
       // Convertir a base64
       const fotoBase64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
@@ -200,17 +200,17 @@ const BiometricRegistration = () => {
       const data = await response.json();
 
       if (data.success) {
-        setMessage({ type: 'success', text: '✅ Reconocimiento facial registrado correctamente' });
+        setMessage({ type: 'success', text: 'Reconocimiento facial registrado correctamente' });
         await loadCredenciales(empleadoId);
       } else {
         setMessage({ type: 'error', text: data.message || 'Error al guardar datos faciales' });
       }
     } catch (error) {
-      setMessage({ 
-        type: 'error', 
-        text: error.name === 'NotAllowedError' 
-          ? 'Permiso de cámara denegado' 
-          : 'Error al acceder a la cámara' 
+      setMessage({
+        type: 'error',
+        text: error.name === 'NotAllowedError'
+          ? 'Permiso de cámara denegado'
+          : 'Error al acceder a la cámara'
       });
     } finally {
       setLoading(false);
@@ -226,12 +226,12 @@ const BiometricRegistration = () => {
 
 
     const pin = prompt('Ingresa un PIN de 6 dígitos numéricos:');
-    
+
     if (!pin) {
       return;
     }
-    
-    
+
+
     if (!/^\d{6}$/.test(pin)) {
       setMessage({ type: 'error', text: 'El PIN debe ser de 6 dígitos numéricos' });
       return;
@@ -257,7 +257,7 @@ const BiometricRegistration = () => {
       const data = await response.json();
 
       if (data.success) {
-        setMessage({ type: 'success', text: '✅ PIN registrado correctamente' });
+        setMessage({ type: 'success', text: 'PIN registrado correctamente' });
         await loadCredenciales(empleadoId);
       } else {
         setMessage({ type: 'error', text: data.message || 'Error al guardar PIN' });
@@ -289,7 +289,7 @@ const BiometricRegistration = () => {
       const data = await response.json();
 
       if (data.success) {
-        setMessage({ type: 'success', text: `✅ Credencial eliminada correctamente` });
+        setMessage({ type: 'success', text: `Credencial eliminada correctamente` });
         await loadCredenciales(empleadoId);
       }
     } catch (error) {
@@ -312,9 +312,8 @@ const BiometricRegistration = () => {
 
           {/* Mensajes */}
           {message.text && (
-            <div className={`p-4 rounded-lg mb-6 flex items-center gap-3 ${
-              message.type === 'success' ? 'bg-green-50 text-green-800 border-2 border-green-200' : 'bg-red-50 text-red-800 border-2 border-red-200'
-            }`}>
+            <div className={`p-4 rounded-lg mb-6 flex items-center gap-3 ${message.type === 'success' ? 'bg-green-50 text-green-800 border-2 border-green-200' : 'bg-red-50 text-red-800 border-2 border-red-200'
+              }`}>
               {message.type === 'success' ? (
                 <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
               ) : (

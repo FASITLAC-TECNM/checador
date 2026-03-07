@@ -39,6 +39,7 @@ export function updateToken(token) {
  * Si no hay conexión, guarda el evento en la cola offline de SQLite.
  */
 export async function postEvent(titulo, tipo, descripcion, empleadoId, prioridad = 'media') {
+    console.log(`[DEBUG PUSH] postEvent Called: ${titulo}`);
     try {
         // Si no hay token, guardar en cola offline
         if (!authToken) {
@@ -132,6 +133,7 @@ async function pushBatch(records) {
             ip: record.ip || null,
             wifi,
             fecha_registro: new Date(record.fecha_registro).getTime(),
+            fecha_captura: new Date(record.fecha_registro).toISOString(),
         };
     });
 
@@ -229,11 +231,19 @@ export async function pushPendingRecords() {
             if (record) {
                 await sqliteManager.markAsSynced(record.local_id, sync.id_servidor);
 
+                let nombreGuardado = 'El empleado';
+                try {
+                    const emp = await sqliteManager.getEmpleado(record.empleado_id);
+                    if (emp && emp.nombre) nombreGuardado = emp.nombre;
+                } catch (e) { }
+
+                console.log(`[DEBUG PUSH] Firing postEvent for record: ${record.local_id}`);
+
                 // Crear evento de sistema (Restaurado para asegurar bitácora)
                 await postEvent(
                     `Registro de Asistencia (${record.tipo})`,
                     'ASISTENCIA',
-                    `Registro de ${record.tipo} sincronizado desde móvil. Método: ${record.metodo_registro}`,
+                    `${nombreGuardado} registró ${record.tipo} (Sincronizado desde móvil vía ${record.metodo_registro})`,
                     record.empleado_id,
                     'alta'
                 );

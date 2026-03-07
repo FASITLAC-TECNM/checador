@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
@@ -325,76 +326,76 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
     });
   };
 
-  const calcularDiasDiferencia = (inicio, fin) => {
+  const calcularDiasDiferencia = useCallback((inicio, fin) => {
     if (!fin) return 1;
     const diff = new Date(fin) - new Date(inicio);
     return Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1;
-  };
+  }, []);
 
-  const getIncidenciasFiltradas = () => {
+  const incidenciasFiltradas = useMemo(() => {
     let filtradas = incidencias;
 
-    // Filtro de estado (solo en vista lista)
     if (filtroEstado !== 'todos' && vistaActual === 'lista') {
       filtradas = filtradas.filter(i => i.estado?.toLowerCase() === filtroEstado);
     }
 
-    // NUEVO: Filtro de tipo
     if (filtroTipo !== 'todos') {
       filtradas = filtradas.filter(i => i.tipo === filtroTipo);
     }
 
-    // Filtro de fecha (solo en calendario)
     if (selectedDate && vistaActual === 'calendario') {
       filtradas = filtradas.filter(i => {
         const inicioDate = new Date(i.fecha_inicio);
         const finDate = i.fecha_fin ? new Date(i.fecha_fin) : inicioDate;
-        return selectedDate >= inicioDate && selectedDate <= finDate;
+        return selectedDate >= new Date(inicioDate.setHours(0, 0, 0, 0)) &&
+          selectedDate <= new Date(finDate.setHours(23, 59, 59, 999));
       });
     }
 
     return filtradas;
-  };
+  }, [incidencias, filtroEstado, filtroTipo, selectedDate, vistaActual]);
 
-  const cambiarMes = (direccion) => {
+  const cambiarMes = useCallback((direccion) => {
     const nuevoMes = new Date(currentMonth);
     nuevoMes.setMonth(currentMonth.getMonth() + direccion);
     setCurrentMonth(nuevoMes);
     setSelectedDate(null);
-  };
+  }, [currentMonth]);
 
-  const generarDiasCalendario = () => {
+  const diasCalendario = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
-    const primerDia = new Date(year, month, 1);
-    const ultimoDia = new Date(year, month + 1, 0);
-    const diasEnMes = ultimoDia.getDate();
-    const primerDiaSemana = primerDia.getDay();
+    const primerDiaSemana = new Date(year, month, 1).getDay();
+    const diasEnMes = new Date(year, month + 1, 0).getDate();
 
     const dias = [];
-
-    for (let i = 0; i < primerDiaSemana; i++) {
-      dias.push(null);
-    }
-
-    for (let dia = 1; dia <= diasEnMes; dia++) {
-      dias.push(dia);
-    }
-
+    for (let i = 0; i < primerDiaSemana; i++) dias.push(null);
+    for (let dia = 1; dia <= diasEnMes; dia++) dias.push(dia);
     return dias;
-  };
+  }, [currentMonth]);
 
-  const getIncidenciasDia = (dia) => {
-    if (!dia) return [];
-    const fecha = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia);
+  const incidenciasPorDia = useMemo(() => {
+    const mapa = {};
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    return incidencias.filter(i => {
-      const inicioDate = new Date(i.fecha_inicio);
-      const finDate = i.fecha_fin ? new Date(i.fecha_fin) : inicioDate;
-      return fecha >= new Date(inicioDate.setHours(0, 0, 0, 0)) &&
-        fecha <= new Date(finDate.setHours(23, 59, 59, 999));
-    });
-  };
+    for (let dia = 1; dia <= daysInMonth; dia++) {
+      const fecha = new Date(year, month, dia);
+
+      const incidenciasDia = incidencias.filter(i => {
+        const inicioDate = new Date(i.fecha_inicio);
+        const finDate = i.fecha_fin ? new Date(i.fecha_fin) : inicioDate;
+        return fecha >= new Date(inicioDate.setHours(0, 0, 0, 0)) &&
+          fecha <= new Date(finDate.setHours(23, 59, 59, 999));
+      });
+
+      if (incidenciasDia.length > 0) {
+        mapa[dia] = incidenciasDia;
+      }
+    }
+    return mapa;
+  }, [incidencias, currentMonth]);
 
   const renderCalendario = () => {
     const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -427,8 +428,8 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
           </View>
 
           <View style={styles.daysGrid}>
-            {generarDiasCalendario().map((dia, index) => {
-              const incidenciasDia = getIncidenciasDia(dia);
+            {diasCalendario.map((dia, index) => {
+              const incidenciasDia = dia ? (incidenciasPorDia[dia] || []) : [];
               const isSelected = selectedDate && dia === selectedDate.getDate() &&
                 selectedDate.getMonth() === currentMonth.getMonth();
               const isToday = dia &&
@@ -438,7 +439,16 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
                 <TouchableOpacity
                   key={index}
                   style={styles.dayCell}
-                  onPress={() => dia && setSelectedDate(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia))}
+                  onPress={() => {
+                    if (dia) {
+                      const newDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia);
+                      if (selectedDate && selectedDate.getTime() === newDate.getTime()) {
+                        setSelectedDate(null);
+                      } else {
+                        setSelectedDate(newDate);
+                      }
+                    }
+                  }}
                   disabled={!dia}
                 >
                   {dia && (
@@ -589,7 +599,85 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
     );
   };
 
-  const incidenciasFiltradas = getIncidenciasFiltradas();
+  const keyExtractor = useCallback((item) => item.id.toString(), []);
+
+  const ListHeader = () => (
+    <>
+      <View style={styles.viewToggle}>
+        <TouchableOpacity
+          style={[styles.viewButton, vistaActual === 'lista' && styles.viewButtonActive]}
+          onPress={() => {
+            setVistaActual('lista');
+            setSelectedDate(null);
+          }}
+        >
+          <Ionicons name="list" size={20} color={vistaActual === 'lista' ? '#2563eb' : '#6b7280'} />
+          <Text style={[styles.viewButtonText, vistaActual === 'lista' && styles.viewButtonTextActive]}>Lista</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.viewButton, vistaActual === 'calendario' && styles.viewButtonActive]}
+          onPress={() => setVistaActual('calendario')}
+        >
+          <Ionicons name="calendar" size={20} color={vistaActual === 'calendario' ? '#2563eb' : '#6b7280'} />
+          <Text style={[styles.viewButtonText, vistaActual === 'calendario' && styles.viewButtonTextActive]}>Calendario</Text>
+        </TouchableOpacity>
+      </View>
+
+      {vistaActual === 'lista' && (
+        <View style={styles.filtrosContainer}>
+          <TouchableOpacity style={styles.filtroChip} onPress={() => setModalFiltroVisible(true)}>
+            <Ionicons name={filtrosEstado.find(f => f.value === filtroEstado)?.icon || 'list'} size={16} color="#2563eb" />
+            <Text style={styles.filtroChipText}>{filtrosEstado.find(f => f.value === filtroEstado)?.label || 'Todos'}</Text>
+            <View style={styles.filtroChipBadge}>
+              <Text style={styles.filtroChipBadgeText}>
+                {filtroEstado === 'todos' ? incidencias.length : incidencias.filter(i => i.estado === filtroEstado).length}
+              </Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.filtroChip, { flex: 1 }]} onPress={() => setModalFiltroTipoVisible(true)}>
+            <Ionicons name={filtrosTipo.find(f => f.value === filtroTipo)?.icon || 'apps'} size={16} color={getTipoColor(filtroTipo)} />
+            <Text style={styles.filtroChipText}>{filtroTipo === 'todos' ? 'Tipo' : filtrosTipo.find(f => f.value === filtroTipo)?.label}</Text>
+            <View style={[styles.filtroChipBadge, { backgroundColor: `${getTipoColor(filtroTipo)}20` }]}>
+              <Text style={[styles.filtroChipBadgeText, { color: getTipoColor(filtroTipo) }]}>
+                {filtroTipo === 'todos' ? incidencias.length : incidencias.filter(i => i.tipo === filtroTipo).length}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {vistaActual === 'calendario' && renderCalendario()}
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>
+          {selectedDate
+            ? `${selectedDate.getDate()} de ${monthNames[selectedDate.getMonth()]}`
+            : vistaActual === 'calendario'
+              ? 'Todas las incidencias'
+              : 'Incidencias'
+          }
+        </Text>
+        <Text style={styles.sectionCount}>
+          {incidenciasFiltradas.length} {incidenciasFiltradas.length === 1 ? 'registro' : 'registros'}
+        </Text>
+      </View>
+    </>
+  );
+
+  const ListEmpty = () => (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="document-text-outline" size={64} color="#cbd5e1" />
+      <Text style={styles.emptyTitle}>No hay incidencias</Text>
+      <Text style={styles.emptyText}>
+        {filtroEstado === 'todos' && filtroTipo === 'todos'
+          ? 'Toca el botón + para crear tu primera incidencia'
+          : 'Cambia los filtros para ver otras incidencias'
+        }
+      </Text>
+    </View>
+  );
 
   if (loading) {
     return (
@@ -626,8 +714,20 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
         </View>
       </View>
 
-      <ScrollView
+      <FlatList
+        data={incidenciasFiltradas}
+        extraData={expandedCard}
+        keyExtractor={keyExtractor}
+        renderItem={({ item }) => renderIncidenciaCard(item)}
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={ListEmpty}
+        ListFooterComponent={<View style={{ height: 100 }} />}
+        contentContainerStyle={incidenciasFiltradas.length === 0 ? { flexGrow: 1 } : undefined}
         showsVerticalScrollIndicator={false}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS !== 'ios'}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -636,136 +736,7 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
             colors={['#3b82f6']}
           />
         }
-      >
-        {/* Toggle Vista */}
-        <View style={styles.viewToggle}>
-          <TouchableOpacity
-            style={[styles.viewButton, vistaActual === 'lista' && styles.viewButtonActive]}
-            onPress={() => {
-              setVistaActual('lista');
-              setSelectedDate(null);
-            }}
-          >
-            <Ionicons
-              name="list"
-              size={20}
-              color={vistaActual === 'lista' ? '#2563eb' : '#6b7280'}
-            />
-            <Text style={[
-              styles.viewButtonText,
-              vistaActual === 'lista' && styles.viewButtonTextActive
-            ]}>
-              Lista
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.viewButton, vistaActual === 'calendario' && styles.viewButtonActive]}
-            onPress={() => setVistaActual('calendario')}
-          >
-            <Ionicons
-              name="calendar"
-              size={20}
-              color={vistaActual === 'calendario' ? '#2563eb' : '#6b7280'}
-            />
-            <Text style={[
-              styles.viewButtonText,
-              vistaActual === 'calendario' && styles.viewButtonTextActive
-            ]}>
-              Calendario
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* NUEVO: Filtros (solo en vista lista) */}
-        {vistaActual === 'lista' && (
-          <View style={styles.filtrosContainer}>
-            {/* Filtro de Estado */}
-            <TouchableOpacity
-              style={styles.filtroChip}
-              onPress={() => setModalFiltroVisible(true)}
-            >
-              <Ionicons
-                name={filtrosEstado.find(f => f.value === filtroEstado)?.icon || 'list'}
-                size={16}
-                color="#2563eb"
-              />
-              <Text style={styles.filtroChipText}>
-                {filtrosEstado.find(f => f.value === filtroEstado)?.label || 'Todos'}
-              </Text>
-              <View style={styles.filtroChipBadge}>
-                <Text style={styles.filtroChipBadgeText}>
-                  {filtroEstado === 'todos'
-                    ? incidencias.length
-                    : incidencias.filter(i => i.estado === filtroEstado).length
-                  }
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* NUEVO: Filtro de Tipo */}
-            <TouchableOpacity
-              style={[styles.filtroChip, { flex: 1 }]}
-              onPress={() => setModalFiltroTipoVisible(true)}
-            >
-              <Ionicons
-                name={filtrosTipo.find(f => f.value === filtroTipo)?.icon || 'apps'}
-                size={16}
-                color={getTipoColor(filtroTipo)}
-              />
-              <Text style={styles.filtroChipText}>
-                {filtroTipo === 'todos' ? 'Tipo' : filtrosTipo.find(f => f.value === filtroTipo)?.label}
-              </Text>
-              <View style={[styles.filtroChipBadge, { backgroundColor: `${getTipoColor(filtroTipo)}20` }]}>
-                <Text style={[styles.filtroChipBadgeText, { color: getTipoColor(filtroTipo) }]}>
-                  {filtroTipo === 'todos'
-                    ? incidencias.length
-                    : incidencias.filter(i => i.tipo === filtroTipo).length
-                  }
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Vista Calendario */}
-        {vistaActual === 'calendario' && renderCalendario()}
-
-        {/* Título de sección */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            {selectedDate
-              ? `${selectedDate.getDate()} de ${monthNames[selectedDate.getMonth()]}`
-              : vistaActual === 'calendario'
-                ? 'Todas las incidencias'
-                : 'Incidencias'
-            }
-          </Text>
-          <Text style={styles.sectionCount}>
-            {incidenciasFiltradas.length} {incidenciasFiltradas.length === 1 ? 'registro' : 'registros'}
-          </Text>
-        </View>
-
-        {/* Lista de incidencias */}
-        {incidenciasFiltradas.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="document-text-outline" size={64} color="#cbd5e1" />
-            <Text style={styles.emptyTitle}>No hay incidencias</Text>
-            <Text style={styles.emptyText}>
-              {filtroEstado === 'todos' && filtroTipo === 'todos'
-                ? 'Toca el botón + para crear tu primera incidencia'
-                : 'Cambia los filtros para ver otras incidencias'
-              }
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.incidenciasList}>
-            {incidenciasFiltradas.map(renderIncidenciaCard)}
-          </View>
-        )}
-
-        <View style={{ height: 100 }} />
-      </ScrollView>
+      />
 
       {/* NUEVO: Modal Filtro de Tipo */}
       <Modal

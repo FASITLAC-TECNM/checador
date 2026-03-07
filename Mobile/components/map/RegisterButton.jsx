@@ -996,6 +996,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         departamento_id: departamento.id,
         ip: networkIp,
         wifi: networkWifi,
+        fecha_captura: new Date().toISOString()
       };
 
       let success = false;

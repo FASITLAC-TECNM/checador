@@ -133,6 +133,7 @@ async function pushBatch(records) {
             ip: record.ip || null,
             wifi,
             fecha_registro: new Date(record.fecha_registro).getTime(),
+            fecha_captura: new Date(record.fecha_registro).toISOString(),
         };
     });
 

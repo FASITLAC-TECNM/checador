@@ -237,6 +237,8 @@ const baseStyles = {
         backgroundColor: '#fff',
         borderRadius: 16,
         padding: 16,
+        marginBottom: 12,
+        marginHorizontal: 16,
         elevation: 2,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },

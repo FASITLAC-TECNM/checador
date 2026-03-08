@@ -14,6 +14,7 @@ import { useSound } from "../context/SoundContext";
 import { ConnectionStatusPanel } from "../components/common/ConnectionStatus";
 import AsistenciaHuella from "../components/kiosk/AsistenciaHuella";
 import AsistenciaFacial from "../components/kiosk/AsistenciaFacial";
+import DynamicLoader from "../components/common/DynamicLoader";
 
 // Hooks
 import { useKioskConfiguration } from "../hooks/useKioskConfiguration";
@@ -290,9 +291,7 @@ export default function KioskScreen() {
         <div className="flex-[7] min-h-0">
           {loadingCredenciales ? (
             <div className="bg-bg-primary rounded-3xl shadow-2xl h-full flex flex-col items-center justify-center p-8 border border-border-subtle">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#1976D2] mb-4"></div>
-
-              <p className="text-text-secondary">Cargando configuración...</p>
+              <DynamicLoader text="Cargando configuración..." size="large" />
             </div>
           ) : activeMethods.length === 0 ? (
             /* Sin métodos activos */

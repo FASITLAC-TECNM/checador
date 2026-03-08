@@ -6,6 +6,7 @@ import {
   calcularResumenSemanal
 } from "../../services/horariosService";
 import { obtenerTolerancia } from "../../services/asistenciaLogicService";
+import DynamicLoader from "../common/DynamicLoader";
 
 export default function HorarioModal({ onClose, usuario }) {
   const [horarioRaw, setHorarioRaw] = useState(null);
@@ -149,8 +150,8 @@ export default function HorarioModal({ onClose, usuario }) {
         {/* Body */}
         <div className="p-4 bg-bg-primary">
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="w-8 h-8 border-2 border-[#1976D2] border-t-transparent rounded-full animate-spin"></div>
+            <div className="flex items-center justify-center py-20">
+              <DynamicLoader text="Cargando horario..." size="medium" />
             </div>
           ) : error ? (
             <div className="text-center py-16">

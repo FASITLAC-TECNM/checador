@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import { obtenerBitacora } from "../../services/bitacoraService";
 import { useState, useEffect } from "react";
+import DynamicLoader from "../common/DynamicLoader";
 
 const getRowColor = (type) => {
   switch (type) {
@@ -48,27 +49,33 @@ const getStatusIcon = (type) => {
 
 export default function BitacoraModal({ onClose }) {
   const [eventos, setEventos] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Función para cargar eventos
     const cargarEventos = () => {
       const eventosDinamicos = obtenerBitacora();
-      console.log("Bitácora Modal - Cargando eventos:", eventosDinamicos.length);
-
       setEventos(eventosDinamicos);
-      // console.log("Eventos cargados desde localStorage");
+      setLoading(false);
     };
 
-    // Cargar eventos inicialmente
-    cargarEventos();
+    // Retardo simulado inicial para mostrar el loading
+    const initialLoadTimer = setTimeout(() => {
+      cargarEventos();
+    }, 500);
 
     // Actualizar cada 1 segundo para reflejar nuevos eventos más rápidamente
     const interval = setInterval(() => {
-      cargarEventos();
+      if (!loading) {
+        cargarEventos();
+      }
     }, 1000);
 
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      clearTimeout(initialLoadTimer);
+      clearInterval(interval);
+    };
+  }, [loading]);
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -93,47 +100,53 @@ export default function BitacoraModal({ onClose }) {
         </div>
 
         <div className="p-4 overflow-y-auto flex-1">
-          <div className="border border-border-subtle rounded-xl overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-bg-secondary border-b-2 border-border-subtle">
-                <tr>
-                  <th className="text-center py-2 px-3 font-bold text-text-secondary text-xs">
-                    Hora
-                  </th>
-                  <th className="text-left py-2 px-3 font-bold text-text-secondary text-xs">
-                    Usuario
-                  </th>
-                  <th className="text-left py-2 px-3 font-bold text-text-secondary text-xs">
-                    Acción
-                  </th>
-                  <th className="text-center py-2 px-3 font-bold text-text-secondary text-xs">
-                    Estado
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {eventos.map((event, idx) => (
-                  <tr
-                    key={idx}
-                    className={`border-b border-border-subtle transition-colors ${getRowColor(
-                      event.type
-                    )}`}
-                  >
-                    <td className="py-2 px-3 text-text-secondary font-mono text-center font-semibold text-xs">
-                      {event.timestamp}
-                    </td>
-                    <td className="py-2 px-3 text-text-primary font-semibold text-xs">
-                      {event.user}
-                    </td>
-                    <td className="py-2 px-3 text-text-secondary text-xs">
-                      {event.action}
-                    </td>
-                    <td className="py-2 px-3">{getStatusIcon(event.type)}</td>
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <DynamicLoader text="Cargando bitácora..." size="medium" />
+            </div>
+          ) : (
+            <div className="border border-border-subtle rounded-xl overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-bg-secondary border-b-2 border-border-subtle">
+                  <tr>
+                    <th className="text-center py-2 px-3 font-bold text-text-secondary text-xs">
+                      Hora
+                    </th>
+                    <th className="text-left py-2 px-3 font-bold text-text-secondary text-xs">
+                      Usuario
+                    </th>
+                    <th className="text-left py-2 px-3 font-bold text-text-secondary text-xs">
+                      Acción
+                    </th>
+                    <th className="text-center py-2 px-3 font-bold text-text-secondary text-xs">
+                      Estado
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {eventos.map((event, idx) => (
+                    <tr
+                      key={idx}
+                      className={`border-b border-border-subtle transition-colors ${getRowColor(
+                        event.type
+                      )}`}
+                    >
+                      <td className="py-2 px-3 text-text-secondary font-mono text-center font-semibold text-xs">
+                        {event.timestamp}
+                      </td>
+                      <td className="py-2 px-3 text-text-primary font-semibold text-xs">
+                        {event.user}
+                      </td>
+                      <td className="py-2 px-3 text-text-secondary text-xs">
+                        {event.action}
+                      </td>
+                      <td className="py-2 px-3">{getStatusIcon(event.type)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
 

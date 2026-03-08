@@ -23,6 +23,7 @@ import {
   getInfoDiaActual,
   obtenerTurnoRelevante
 } from "../../services/horariosService";
+import DynamicLoader from "../common/DynamicLoader";
 
 export default function EmployeeInfo({ time, empleado, horario: horarioProp, loading: loadingProp }) {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -175,8 +176,7 @@ export default function EmployeeInfo({ time, empleado, horario: horarioProp, loa
       <>
         <div className="bg-bg-primary rounded-2xl shadow-lg p-4 flex-shrink-0">
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-            <span className="ml-3 text-text-secondary">Cargando horario...</span>
+            <DynamicLoader text="Cargando horario..." size="medium" />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3 flex-shrink-0">

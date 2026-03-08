@@ -3,6 +3,7 @@ import { X, Smartphone, Plus, Trash2, Save, Loader2, AlertCircle, RefreshCw, Sea
 import { getApiEndpoint } from "../../config/apiEndPoint";
 import { deviceDetectionService } from "../../services/deviceDetectionService";
 import { useDeviceStatus } from "../../hooks/useDeviceStatus";
+import DynamicLoader from "../common/DynamicLoader";
 
 const API_URL = getApiEndpoint("/api");
 
@@ -324,9 +325,8 @@ export default function DispositivosModal({ onClose, onBack, escritorioId, inlin
             </div>
           )}
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <Loader2 className="w-8 h-8 text-green-600 animate-spin mb-4" />
-              <p className="text-text-secondary">Cargando dispositivos...</p>
+            <div className="flex items-center justify-center py-12">
+              <DynamicLoader text="Cargando dispositivos..." size="medium" />
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-12">

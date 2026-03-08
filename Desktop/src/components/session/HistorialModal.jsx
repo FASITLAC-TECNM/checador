@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { X, Calendar, Clock, CheckCircle, AlertCircle, ChevronLeft, ChevronRight, ArrowDown, ArrowUp, RefreshCw, CalendarDays, WifiOff } from "lucide-react";
 import { API_CONFIG, fetchApi } from "../../config/apiEndPoint";
 import EquivalenciasPanel from "./EquivalenciasPanel";
+import DynamicLoader from "../common/DynamicLoader";
 
 export default function HistorialModal({ onClose, usuario }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -201,8 +202,8 @@ export default function HistorialModal({ onClose, usuario }) {
         </div>
 
         {loading ? (
-          <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-800 py-20">
-            <div className="w-8 h-8 border-2 border-[#1976D2] dark:border-slate-200 border-t-transparent rounded-full animate-spin"></div>
+          <div className="flex-1 flex items-center justify-center bg-slate-50 dark:bg-slate-800 py-20">
+            <DynamicLoader text="Cargando historial..." size="medium" />
           </div>
         ) : (
           <div className="flex-1 flex flex-col md:flex-row overflow-hidden">

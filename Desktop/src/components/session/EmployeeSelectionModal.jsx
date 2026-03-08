@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Search, User, X, Briefcase, FileText } from "lucide-react";
 import { getAllEmpleados } from "../../services/empleadoService";
 import { getApiEndpoint } from "../../config/apiEndPoint";
+import DynamicLoader from "../common/DynamicLoader";
 
 const API_URL = getApiEndpoint("/api");
 
@@ -131,9 +132,8 @@ export default function EmployeeSelectionModal({ onClose, onSelect, biometriaTip
                 {/* Lista de Empleados */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
                     {loading ? (
-                        <div className="flex flex-col items-center justify-center h-full text-center">
-                            <div className="w-8 h-8 border-4 border-[#1976D2] border-t-transparent rounded-full animate-spin mb-4" />
-                            <p className="text-text-secondary">Cargando empleados...</p>
+                        <div className="flex items-center justify-center h-full">
+                            <DynamicLoader text="Cargando empleados..." size="medium" />
                         </div>
                     ) : error ? (
                         <div className="flex flex-col items-center justify-center h-full text-center text-red-500">

@@ -8,6 +8,7 @@ import {
   desactivarEscritorio,
 } from "../../services/escritorioService";
 import { useAuth } from "../../context/AuthContext";
+import DynamicLoader from "../common/DynamicLoader";
 
 export default function GeneralNodoModal({ onClose, onBack, inline = false }) {
   const { user } = useAuth();
@@ -27,7 +28,6 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false }) {
     ipAddress: "",
     macAddress: "",
     operatingSystem: "",
-    dispositivosBiometricos: [],
     esActivo: true,
   });
 
@@ -114,7 +114,6 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false }) {
         ipAddress: datos.ip || "",
         macAddress: datos.mac || "",
         operatingSystem: datos.sistema_operativo || "",
-        dispositivosBiometricos: datos.dispositivos_biometricos || [],
         esActivo: datos.es_activo === true || datos.es_activo === 1,
       });
 
@@ -182,19 +181,15 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false }) {
   if (isLoading) {
     if (inline) {
       return (
-        <div className="flex flex-col items-center justify-center gap-4 py-20">
-          <Loader2 className="w-10 h-10 text-[#1976D2] animate-spin" />
-          <p className="text-text-primary text-sm font-medium">Cargando datos del escritorio...</p>
+        <div className="flex flex-col items-center justify-center py-20">
+          <DynamicLoader text="Cargando datos del escritorio..." size="medium" />
         </div>
       );
     }
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden p-8">
-          <div className="flex flex-col items-center justify-center gap-4">
-            <Loader2 className="w-12 h-12 text-[#1976D2] animate-spin" />
-            <p className="text-text-primary font-medium">Cargando datos del escritorio...</p>
-          </div>
+        <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden p-8 flex justify-center py-12">
+          <DynamicLoader text="Cargando datos del escritorio..." size="large" />
         </div>
       </div>
     );
@@ -478,29 +473,7 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false }) {
                 />
               </div>
 
-              {/* Dispositivos Biométricos */}
-              {nodeConfig.dispositivosBiometricos && nodeConfig.dispositivosBiometricos.length > 0 && (
-                <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                    Dispositivos Biométricos Asociados
-                  </label>
-                  <div className="bg-bg-primary border border-border-subtle rounded-lg p-2 space-y-1">
-                    {nodeConfig.dispositivosBiometricos.map((dispositivo, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between px-2 py-1 bg-bg-secondary rounded text-xs"
-                      >
-                        <span className="text-text-primary font-medium">
-                          {dispositivo.nombre || `Dispositivo ${index + 1}`}
-                        </span>
-                        <span className="text-text-secondary">
-                          {dispositivo.tipo || "biométrico"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+
             </div>
           </div>
 

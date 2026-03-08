@@ -4,6 +4,7 @@ import { useTheme } from "../../context/ThemeContext";
 import { useSound } from "../../context/SoundContext";
 import { obtenerConfiguracionEscritorio, actualizarConfiguracionEscritorio } from "../../services/configuracionEscritorioService";
 import { obtenerEscritorioIdGuardado } from "../../services/escritorioService";
+import DynamicLoader from "../common/DynamicLoader";
 // Mapeo de claves del backend a info visual del frontend
 const METODOS_AUTH_INFO = {
   facial: { icon: Camera, label: "Reconocimiento Facial", color: "text-blue-600 dark:text-blue-400" },
@@ -207,120 +208,121 @@ export default function PreferenciasModal({ onClose, onBack, inline = false }) {
         </div>
 
         {/* Body - Scrollable */}
-        <div className="p-3 space-y-2 flex-1 overflow-y-auto">
+        {loadingCredenciales ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-20">
+            <DynamicLoader text="Cargando preferencias..." size="medium" />
+          </div>
+        ) : (
+          <div className="p-3 space-y-2 flex-1 overflow-y-auto">
 
-          {/* Modo Oscuro */}
-          <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Moon className="w-4 h-4 text-[#1976D2]" />
-                <div>
-                  <h4 className="font-semibold text-text-primary text-sm">Modo Oscuro</h4>
-                  <p className="text-xs text-text-secondary">
-                    Cambiar la apariencia de todo el sistema
-                  </p>
+            {/* Modo Oscuro */}
+            <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Moon className="w-4 h-4 text-[#1976D2]" />
+                  <div>
+                    <h4 className="font-semibold text-text-primary text-sm">Modo Oscuro</h4>
+                    <p className="text-xs text-text-secondary">
+                      Cambiar la apariencia de todo el sistema
+                    </p>
+                  </div>
                 </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={preferences.darkMode}
+                    onChange={(e) => handleDarkModeToggle(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-bg-tertiary peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-bg-primary after:border-border-subtle after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1976D2]"></div>
+                </label>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={preferences.darkMode}
-                  onChange={(e) => handleDarkModeToggle(e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-bg-tertiary peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-bg-primary after:border-border-subtle after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1976D2]"></div>
-              </label>
             </div>
-          </div>
 
-          {/* Sonido */}
-          <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Volume2 className="w-4 h-4 text-[#1976D2]" />
-                <div>
-                  <h4 className="font-semibold text-text-primary text-sm">Sonidos del Sistema</h4>
-                  <p className="text-xs text-text-secondary">
-                    Activar alertas sonoras y notificaciones
-                  </p>
+            {/* Sonido */}
+            <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Volume2 className="w-4 h-4 text-[#1976D2]" />
+                  <div>
+                    <h4 className="font-semibold text-text-primary text-sm">Sonidos del Sistema</h4>
+                    <p className="text-xs text-text-secondary">
+                      Activar alertas sonoras y notificaciones
+                    </p>
+                  </div>
                 </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={preferences.soundEnabled}
+                    onChange={(e) => {
+                      const enabled = e.target.checked;
+                      setPreferences({
+                        ...preferences,
+                        soundEnabled: enabled,
+                      });
+                      setSoundEnabled(enabled);
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-bg-tertiary peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-bg-primary after:border-border-subtle after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1976D2]"></div>
+                </label>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={preferences.soundEnabled}
-                  onChange={(e) => {
-                    const enabled = e.target.checked;
-                    setPreferences({
-                      ...preferences,
-                      soundEnabled: enabled,
-                    });
-                    setSoundEnabled(enabled);
-                  }}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-bg-tertiary peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-bg-primary after:border-border-subtle after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1976D2]"></div>
-              </label>
             </div>
+
+            {/* Métodos de Checado */}
+            <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3">
+              <h4 className="font-semibold text-text-primary mb-3 text-sm flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-[#1976D2]" />
+                Métodos de Checado de Asistencia
+              </h4>
+              <p className="text-xs text-text-secondary mb-3">
+                Configura qué métodos estarán disponibles en la pantalla de checado y su orden de aparición
+              </p>
+
+              {errorCredenciales ? (
+                <div className="text-center py-4 text-red-500 text-sm">
+                  <p>Error al cargar los métodos de autenticación</p>
+                  <p className="text-xs mt-1 text-text-secondary">{errorCredenciales}</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {metodosList.map((metodo, index) => {
+                    const metodoInfo = METODOS_AUTH_INFO[metodo.id] || {
+                      icon: User,
+                      label: metodo.id,
+                      color: "text-gray-600 dark:text-gray-400",
+                    };
+                    const Icon = metodoInfo.icon;
+
+                    return (
+                      <div
+                        key={metodo.id}
+                        className="flex items-center gap-2 bg-bg-primary rounded-lg p-2 border border-border-subtle"
+                      >
+                        <Icon className={`w-4 h-4 ${metodoInfo.color}`} />
+                        <span className={`flex-1 text-xs font-medium ${metodo.activo ? 'text-text-primary' : 'text-text-secondary line-through'}`}>
+                          {metodoInfo.label}
+                        </span>
+
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={metodo.activo}
+                            onChange={() => handleCheckMethodToggle(metodo.id)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-bg-tertiary peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-bg-primary after:border-border-subtle after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#1976D2]"></div>
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
           </div>
-
-          {/* Métodos de Checado */}
-          <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3">
-            <h4 className="font-semibold text-text-primary mb-3 text-sm flex items-center gap-2">
-              <Sliders className="w-4 h-4 text-[#1976D2]" />
-              Métodos de Checado de Asistencia
-            </h4>
-            <p className="text-xs text-text-secondary mb-3">
-              Configura qué métodos estarán disponibles en la pantalla de checado y su orden de aparición
-            </p>
-
-            {loadingCredenciales ? (
-              <div className="flex items-center justify-center py-6 gap-2 text-text-secondary">
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span className="text-sm">Cargando métodos...</span>
-              </div>
-            ) : errorCredenciales ? (
-              <div className="text-center py-4 text-red-500 text-sm">
-                <p>Error al cargar los métodos de autenticación</p>
-                <p className="text-xs mt-1 text-text-secondary">{errorCredenciales}</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {metodosList.map((metodo, index) => {
-                  const metodoInfo = METODOS_AUTH_INFO[metodo.id] || {
-                    icon: User,
-                    label: metodo.id,
-                    color: "text-gray-600 dark:text-gray-400",
-                  };
-                  const Icon = metodoInfo.icon;
-
-                  return (
-                    <div
-                      key={metodo.id}
-                      className="flex items-center gap-2 bg-bg-primary rounded-lg p-2 border border-border-subtle"
-                    >
-                      <Icon className={`w-4 h-4 ${metodoInfo.color}`} />
-                      <span className={`flex-1 text-xs font-medium ${metodo.activo ? 'text-text-primary' : 'text-text-secondary line-through'}`}>
-                        {metodoInfo.label}
-                      </span>
-
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={metodo.activo}
-                          onChange={() => handleCheckMethodToggle(metodo.id)}
-                          className="sr-only peer"
-                        />
-                        <div className="w-9 h-5 bg-bg-tertiary peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-bg-primary after:border-border-subtle after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#1976D2]"></div>
-                      </label>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-        </div>
+        )}
 
         {/* Footer */}
         {!inline && (

@@ -229,15 +229,37 @@ export default function App() {
         } catch (_) { }
 
         // ── AVISOS (detectar nuevos) ───────────────────────────────────
+        // BUGFIX: Solo notificar avisos globales + avisos personales del empleado actual.
+        // Antes se consultaba /api/avisos (todos los avisos de la empresa) lo que causaba
+        // notificaciones incorrectas cuando un aviso personal era enviado a otro empleado.
         try {
-          const avisosRes = await fetch(
-            `${API_URL_BASE}/avisos`,
+          const avisosParaNotificar = [];
+
+          // 1. Avisos globales (para todos)
+          const globalesRes = await fetch(
+            `${API_URL_BASE}/avisos/globales`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
-          if (avisosRes.ok) {
-            const avisosData = await avisosRes.json();
-            await detectarAvisosNuevos(avisosData.data || []);
+          if (globalesRes.ok) {
+            const globalesData = await globalesRes.json();
+            if (globalesData.success && globalesData.data) {
+              avisosParaNotificar.push(...globalesData.data);
+            }
           }
+
+          // 2. Avisos personales del empleado actual (solo los que son para mí)
+          const personalesRes = await fetch(
+            `${API_URL_BASE}/empleados/${empleadoId}/avisos`,
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          if (personalesRes.ok) {
+            const personalesData = await personalesRes.json();
+            if (personalesData.success && personalesData.data) {
+              avisosParaNotificar.push(...personalesData.data);
+            }
+          }
+
+          await detectarAvisosNuevos(avisosParaNotificar);
         } catch (_) { }
 
         // ── NOTIFICACIONES DE FONDO (horario del día) ───────────────────

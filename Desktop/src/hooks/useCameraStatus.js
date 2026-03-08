@@ -110,5 +110,21 @@ export const useCameraStatus = (enabled = true) => {
     };
   }, []);
 
+  // Evento nativo del navegador para hot-plug de cámaras web
+  useEffect(() => {
+    if (!enabled || !navigator.mediaDevices) return;
+
+    const handleDeviceChange = () => {
+      console.log("[useCameraStatus] Detectado cambio en dispositivos multimedia (Hot-Plug)");
+      checkRegisteredCameras();
+    };
+
+    navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+    
+    return () => {
+      navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+    };
+  }, [enabled, checkRegisteredCameras]);
+
   return { isCameraConnected, hasCameraRegistered };
 };

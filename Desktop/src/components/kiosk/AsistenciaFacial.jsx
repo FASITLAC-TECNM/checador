@@ -39,10 +39,10 @@ export default function AsistenciaFacial({
   const [loginHabilitado, setLoginHabilitado] = useState(false);
   const [processingLogin, setProcessingLogin] = useState(false);
 
-  // Liveness detection state
-  const [blinkDone, setBlinkDone] = useState(false);
-  const [headTurnDone, setHeadTurnDone] = useState(false);
-  const [currentChallenge, setCurrentChallenge] = useState("blink"); // 'blink' | 'head'
+  // Liveness detection state (Point Challenge)
+  const [challengePoint, setChallengePoint] = useState(null); // {x, y, angle}
+  const [challengeDone, setChallengeDone] = useState(false);
+  const [proximityMessage, setProximityMessage] = useState(""); // Guía visual de proximidad
 
   // Refs
   const countdownIntervalRef = useRef(null);
@@ -56,40 +56,39 @@ export default function AsistenciaFacial({
   // Liveness refs (no re-render during loop)
   const livenessIntervalRef = useRef(null);
   const livenessTimeoutRef = useRef(null);
-  const eyesClosedRef = useRef(false);
-  const eyesClosedFramesRef = useRef(0);
-  const lastBlinkTimeRef = useRef(0);
-  const blinkDoneRef = useRef(false);
-  const headTurnDoneRef = useRef(false);
+  const challengeDoneRef = useRef(false);
+  const startNoseRef = useRef(null); // Guardar posicion inicial de la nariz
+  const smoothedPoseRef = useRef(null); // Guardar la posición suavizada actual (filtro EMA)
+  const currentChallengeRef = useRef(null); // Referencia al challenge actual para el closure de setInterval
 
   // Hook de camara singleton
   const { initCamera, releaseCamera } = useCamera();
 
   // ── Helpers de Liveness ──────────────────────────────────────────────────
 
-  // EAR: Eye Aspect Ratio para detectar parpadeo
-  const calculateEAR = (landmarks) => {
-    try {
-      const leftEye = landmarks.getLeftEye();
-      const rightEye = landmarks.getRightEye();
-      const dist = (a, b) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
-      const leftEAR = (dist(leftEye[1], leftEye[5]) + dist(leftEye[2], leftEye[4])) / (2 * dist(leftEye[0], leftEye[3]));
-      const rightEAR = (dist(rightEye[1], rightEye[5]) + dist(rightEye[2], rightEye[4])) / (2 * dist(rightEye[0], rightEye[3]));
-      return (leftEAR + rightEAR) / 2;
-    } catch { return 0.3; }
-  };
+  // Generar punto aleatorio dentro del óvalo
+  const generateChallengePoint = () => {
+    // Definimos el área visible: asumiendo viewBox de la máscara (400x300)
+    // Angulo aleatorio entre 0 y 2PI (360 grados)
+    const angle = Math.random() * Math.PI * 2;
 
-  // Head pose: ratio distancia mandíbula-nariz izq vs der
-  const calculateHeadPoseRatio = (landmarks) => {
-    try {
-      const jaw = landmarks.getJawOutline();
-      const nose = landmarks.getNose();
-      const noseTip = nose[3];
-      const dist = (a, b) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
-      const distLeft = dist(jaw[0], noseTip);
-      const distRight = dist(jaw[16], noseTip);
-      return distLeft / (distRight || 1);
-    } catch { return 1; }
+    // Distancia aleatoria desde el centro (entre 45% y 80% del radio del óvalo)
+    const scale = 0.45 + (Math.random() * 0.35);
+
+    // Posicionamos
+    const radiusX = 80 * scale;
+    const radiusY = 105 * scale;
+
+    // En el SVG original, el origin = (200, 140)
+    const targetX = 200 + Math.cos(angle) * radiusX;
+    const targetY = 140 + Math.sin(angle) * radiusY;
+
+    return {
+      x: targetX,
+      y: targetY,
+      angle: angle, // Angulo real de la dirección a mover
+      direction: 'punto rojo'
+    };
   };
 
   // Cleanup del loop de liveness
@@ -100,25 +99,22 @@ export default function AsistenciaFacial({
     livenessTimeoutRef.current = null;
   };
 
-  // Iniciar loop de liveness Detection (elige 1 desafío aleatorio)
+  // Iniciar loop de liveness Detection (Challenge-Response)
   const startLivenessLoop = (video) => {
     stopLiveness();
-    eyesClosedRef.current = false;
-    eyesClosedFramesRef.current = 0;
-    lastBlinkTimeRef.current = 0;
-    blinkDoneRef.current = false;
-    headTurnDoneRef.current = false;
-    setBlinkDone(false);
-    setHeadTurnDone(false);
-
-    // Elegir desafío aleatorio: 'blink' o 'head'
-    const challenge = Math.random() < 0.5 ? "blink" : "head";
-    setCurrentChallenge(challenge);
-    console.log(`🎲 Desafío liveness seleccionado: ${challenge}`);
+    challengeDoneRef.current = false;
+    startNoseRef.current = null;
+    smoothedPoseRef.current = null;
+    currentChallengeRef.current = null;
+    setChallengePoint(null);
+    setChallengeDone(false);
 
     const advanceToCapture = () => {
       stopLiveness();
-      setTimeout(() => setStep("capturing"), 600);
+      setTimeout(() => {
+        setStep("capturing");
+        setChallengePoint(null);
+      }, 600);
     };
 
     livenessIntervalRef.current = setInterval(async () => {
@@ -130,46 +126,134 @@ export default function AsistenciaFacial({
 
         if (!detections) return;
 
-        if (challenge === "blink") {
-          // ── Parpadeo (EAR) ──
-          const ear = calculateEAR(detections.landmarks);
-          if (ear < 0.22) {
-            eyesClosedFramesRef.current++;
-            eyesClosedRef.current = true;
-          } else if (eyesClosedRef.current && eyesClosedFramesRef.current >= 1) {
-            const now = Date.now();
-            if (now - lastBlinkTimeRef.current > 300) {
-              lastBlinkTimeRef.current = now;
-              blinkDoneRef.current = true;
-              setBlinkDone(true);
-              console.log("👁️ Parpadeo detectado");
-              advanceToCapture();
-            }
-            eyesClosedRef.current = false;
-            eyesClosedFramesRef.current = 0;
+        // Obtener la punta de la nariz y los ojos
+        const nose = detections.landmarks.getNose();
+        const leftEye = detections.landmarks.getLeftEye();
+        const rightEye = detections.landmarks.getRightEye();
+
+        if (!nose || nose.length < 4 || !leftEye || !rightEye) {
+          setProximityMessage("No se detecta correctamente el rostro");
+          return;
+        }
+
+        // --- VALIDACIÓN DE PROXIMIDAD Y CENTRADO ---
+        if (!challengeDoneRef.current) {
+          const box = detections.detection.box;
+          const vw = video.videoWidth;
+          const vh = video.videoHeight;
+          const faceCenterX = box.x + box.width / 2;
+          const faceCenterY = box.y + box.height / 2;
+          const idealCenterX = vw * 0.5;
+          const idealCenterY = vh * 0.466; // El ovalo está un poco arriba del puro centro
+
+          const heightRatio = box.height / vh;
+
+          let positionGood = false;
+          if (heightRatio < 0.25) {
+            setProximityMessage("Acércate un poco más a la cámara");
+          } else if (heightRatio > 0.60) {
+            setProximityMessage("Aléjate un poco de la cámara");
+          } else if (Math.abs(faceCenterX - idealCenterX) > vw * 0.15 || Math.abs(faceCenterY - idealCenterY) > vh * 0.15) {
+            setProximityMessage("Centra tu rostro dentro del óvalo");
           } else {
-            eyesClosedRef.current = false;
-            eyesClosedFramesRef.current = 0;
+            setProximityMessage("¡Posición perfecta!");
+            positionGood = true;
           }
+
+          // Si no está en una buena posición y aún no ha iniciado el reto, no lo generamos todavía
+          if (!currentChallengeRef.current) {
+            if (!positionGood) {
+              startNoseRef.current = null;
+              smoothedPoseRef.current = null;
+              return;
+            } else {
+              const chal = generateChallengePoint();
+              currentChallengeRef.current = chal;
+              setChallengePoint(chal);
+              console.log(`🎯 Nuevo Punto Liveness generado tras posición perfecta`);
+            }
+          }
+        }
+
+        const noseTip = nose[3]; // Punta de la nariz
+
+        // Calcular el punto central entre ambos ojos
+        const eyesCenterX = (leftEye[0].x + rightEye[3].x) / 2;
+        const eyesCenterY = (leftEye[0].y + rightEye[3].y) / 2;
+
+        // Calcular la posición RELATIVA de la nariz respecto al centro de los ojos
+        const relativeNoseX = noseTip.x - eyesCenterX;
+        const relativeNoseY = noseTip.y - eyesCenterY;
+
+        // Medir distancia y ángulo de los ojos para Normalizar Escala y Rotación plana (2D)
+        const eyeDistance = Math.sqrt(
+          Math.pow(rightEye[3].x - leftEye[0].x, 2) + Math.pow(rightEye[3].y - leftEye[0].y, 2)
+        );
+        const eyeAngle = Math.atan2(rightEye[3].y - leftEye[0].y, rightEye[3].x - leftEye[0].x);
+
+        // Rotar el vector de la nariz para ignorar la inclinación de la foto (Invariancia de Rotación 2D)
+        const rotatedNoseX = relativeNoseX * Math.cos(-eyeAngle) - relativeNoseY * Math.sin(-eyeAngle);
+        const rotatedNoseY = relativeNoseX * Math.sin(-eyeAngle) + relativeNoseY * Math.cos(-eyeAngle);
+
+        // Normalizar por la distancia de los ojos para ignorar acercamiento/alejamiento de foto (Invariancia de Escala 2D)
+        const normNoseX = rotatedNoseX / eyeDistance;
+        const normNoseY = rotatedNoseY / eyeDistance;
+
+        // --- FILTRO DE ESTABILIZACIÓN (EMA) ---
+        // Filtramos las pulsaciones rápidas (jitter de IA) o sacudidas irreales del papel
+        const alpha = 0.3; // Factor de suavizado (menor = más suave/lento)
+        if (!smoothedPoseRef.current) {
+          smoothedPoseRef.current = { x: normNoseX, y: normNoseY };
         } else {
-          // ── Giro de cabeza ──
-          const ratio = calculateHeadPoseRatio(detections.landmarks);
-          if (ratio < 0.72 || ratio > 1.38) {
-            headTurnDoneRef.current = true;
-            setHeadTurnDone(true);
-            console.log("🔄 Giro de cabeza detectado");
+          smoothedPoseRef.current.x = (alpha * normNoseX) + ((1 - alpha) * smoothedPoseRef.current.x);
+          smoothedPoseRef.current.y = (alpha * normNoseY) + ((1 - alpha) * smoothedPoseRef.current.y);
+        }
+
+        const stableNoseX = smoothedPoseRef.current.x;
+        const stableNoseY = smoothedPoseRef.current.y;
+
+        // Si es el primer cuadro detectado con éxito, guardamos la "pose" inicial normalizada y estable
+        if (!startNoseRef.current) {
+          startNoseRef.current = { x: stableNoseX, y: stableNoseY };
+          return;
+        }
+
+        // Calcular cuánto cambió la POSICIÓN RELATIVA verdadera (Rotación 3D pura Pitch/Yaw)
+        // Convertimos de vuelta a escala de píxeles para mantener la sensibilidad de umbral original
+        const deltaX = -(stableNoseX - startNoseRef.current.x) * eyeDistance; // Invertido por Espejo
+        const deltaY = (stableNoseY - startNoseRef.current.y) * eyeDistance;
+
+        // Calcular magnitud de la rotación 3D (cuánto rotó la cabeza)
+        const rotationMoved3D = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+        // Si la cabeza rotó de forma evidente (al menos 20px relativos a los ojos es una rotación muy clara) 
+        if (rotationMoved3D > 20) {
+          // Calcular ángulo de movimiento de la cabeza interactiva (-PI a PI)
+          let userAngle = Math.atan2(deltaY, deltaX);
+          if (userAngle < 0) userAngle += 2 * Math.PI; // Normalizar 0 a 2*PI
+
+          // Calcular diferencia con el ángulo del target
+          let angleDiff = Math.abs(userAngle - currentChallengeRef.current.angle);
+          if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+
+          // Tolerancia de ~45 grados (PI/4)
+          if (angleDiff < Math.PI / 4) {
+            console.log("✅ Rotación 3D intencional correcta hacia el punto detectado");
+            challengeDoneRef.current = true;
+            setChallengeDone(true);
             advanceToCapture();
           }
         }
+
       } catch (err) {
-        // silencioso — no detener liveness por error de frame
+        // silenciar error de detección por frame
       }
-    }, 200);
+    }, 150);
 
     // Timeout de 20s para liveness
     livenessTimeoutRef.current = setTimeout(() => {
       stopLiveness();
-      setErrorMessage("Verificacion de vida fallida. Por favor intenta de nuevo.");
+      setErrorMessage("Verificación de vida fallida. Sigue el punto verde mostrado en pantalla.");
       setStep("error");
     }, 20000);
   };
@@ -765,11 +849,10 @@ export default function AsistenciaFacial({
     setResult(null);
     setErrorMessage("");
     isProcessingRef.current = false;
-    blinkDoneRef.current = false;
-    headTurnDoneRef.current = false;
-    setBlinkDone(false);
-    setHeadTurnDone(false);
-    // currentChallenge se re-elige aleatoriamente en startLivenessLoop
+    challengeDoneRef.current = false;
+    startNoseRef.current = null;
+    setChallengeDone(false);
+    setChallengePoint(null);
 
     // Reiniciar camara directamente
     initCamera()
@@ -925,6 +1008,22 @@ export default function AsistenciaFacial({
                     {/* Cruz de alineacion central (sutil) */}
                     <line x1="196" y1="135" x2="204" y2="135" stroke={faceDetected ? "rgba(25,118,210,0.4)" : "rgba(255,255,255,0.2)"} strokeWidth="1" />
                     <line x1="200" y1="131" x2="200" y2="139" stroke={faceDetected ? "rgba(25,118,210,0.4)" : "rgba(255,255,255,0.2)"} strokeWidth="1" />
+                    {/* ── Guía visual de Liveness Challenge Point ── */}
+                    {step === "liveness" && challengePoint && (
+                      <circle
+                        cx={challengePoint.x}
+                        cy={challengePoint.y}
+                        r={challengeDone ? "28" : "18"}
+                        fill={challengeDone ? "#22c55e" : "#ef4444"}
+                        opacity="1"
+                        stroke="white"
+                        strokeWidth="4"
+                        style={{
+                          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                          animation: challengeDone ? 'none' : 'facePulse 1.5s infinite'
+                        }}
+                      />
+                    )}
                   </svg>
                   {/* Keyframes para animaciones */}
                   <style>{`
@@ -940,8 +1039,8 @@ export default function AsistenciaFacial({
                     }
                   `}</style>
 
-                  {/* ── Guía visual de Liveness (desafío aleatorio) ── */}
-                  {step === "liveness" && modelsLoaded && (
+                  {/* ── Guía visual y feedback de Liveness ── */}
+                  {step === "liveness" && modelsLoaded && challengePoint && (
                     <div className="absolute bottom-3 left-3 right-3 pointer-events-none">
                       <div style={{
                         background: 'rgba(0,0,0,0.55)',
@@ -950,25 +1049,16 @@ export default function AsistenciaFacial({
                         padding: '8px 14px',
                         display: 'flex',
                         alignItems: 'center',
+                        justifyContent: 'center',
                         gap: '10px',
                       }}>
                         <span style={{
-                          width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
-                          background: (currentChallenge === 'blink' ? blinkDone : headTurnDone) ? '#22c55e' : 'rgba(255,255,255,0.15)',
-                          border: (currentChallenge === 'blink' ? blinkDone : headTurnDone) ? 'none' : '2px solid rgba(255,255,255,0.6)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 13, color: 'white',
+                          color: challengeDone ? '#86efac' : 'white',
+                          fontSize: 14, fontWeight: 600,
                           transition: 'all 0.3s ease',
+                          textAlign: 'center'
                         }}>
-                          {(currentChallenge === 'blink' ? blinkDone : headTurnDone) ? '✓' : '!'}
-                        </span>
-                        <span style={{
-                          color: (currentChallenge === 'blink' ? blinkDone : headTurnDone) ? '#86efac' : 'white',
-                          fontSize: 13, fontWeight: 600,
-                          textDecoration: (currentChallenge === 'blink' ? blinkDone : headTurnDone) ? 'line-through' : 'none',
-                          transition: 'all 0.3s ease',
-                        }}>
-                          {currentChallenge === 'blink' ? '👁️ Parpadea una vez' : '🔄 Gira levemente la cabeza'}
+                          {challengeDone ? '¡Excelente!' : 'Apunta con la nariz hacia el punto rojo'}
                         </span>
                       </div>
                     </div>
@@ -978,10 +1068,16 @@ export default function AsistenciaFacial({
 
               {/* Indicadores */}
               <div className="space-y-2">
-                <p className="text-center text-gray-700 dark:text-gray-300 text-sm font-medium">
+                <p className={`text-center text-sm font-medium ${proximityMessage === "¡Posición perfecta!" || challengeDone
+                  ? "text-green-600 dark:text-green-400"
+                  : (proximityMessage && !challengePoint)
+                    ? "text-[#1976D2] dark:text-[#42A5F5]"
+                    : "text-gray-700 dark:text-gray-300"
+                  }`}>
                   {!modelsLoaded && "Cargando modelos de reconocimiento..."}
-                  {modelsLoaded && step === "liveness" && "Verifica que eres una persona real"}
-                  {modelsLoaded && step === "capturing" && "Coloca tu rostro frente a la camara"}
+                  {modelsLoaded && step === "liveness" && !challengePoint && (proximityMessage || "Coloca tu rostro frente a la cámara...")}
+                  {modelsLoaded && step === "liveness" && challengePoint && !challengeDone && "Apunta con la nariz hacia el punto rojo"}
+                  {modelsLoaded && step === "capturing" && "Mantén tu rostro quieto para el registro..."}
                 </p>
 
                 {modelsLoaded && (

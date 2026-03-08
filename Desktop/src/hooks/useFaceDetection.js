@@ -17,12 +17,14 @@ export function useFaceDetection() {
   const isScanning = useRef(false);
   const detectionTimeout = useRef(null);
   
-  // Refs para lógica de parpadeo
-  const blinkCount = useRef(0);
-  const eyesClosedFrames = useRef(0);
-  const eyesOpenFrames = useRef(0);
-  const lastBlinkTime = useRef(0);
+  // Refs para lógica de Challenge Point
+  const challengeDoneRef = useRef(false);
+  const startNoseRef = useRef(null);
+  const smoothedPoseRef = useRef(null); // Ref de filtro temporal (EMA)
   const startTimeRef = useRef(0);
+  
+  // Guardamos el punto actual (puede leerlo el componente)
+  const [challengePoint, setChallengePoint] = useState(null);
 
   /**
    * Carga Singleton de modelos
@@ -60,21 +62,27 @@ export function useFaceDetection() {
     }
   }, []);
 
-  // Cálculo del EAR (Eye Aspect Ratio)
-  const calculateEAR = (landmarks) => {
-    try {
-      const leftEye = landmarks.getLeftEye();
-      const rightEye = landmarks.getRightEye();
-      const distance = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+  // Generar punto aleatorio dentro del óvalo
+  const generateChallengePoint = useCallback(() => {
+    // Angulo aleatorio entre 0 y 2PI (360 grados)
+    const angle = Math.random() * Math.PI * 2;
+    
+    // Distancia aleatoria desde el centro (entre 45% y 80% del radio del óvalo)
+    const scale = 0.45 + (Math.random() * 0.35);
+    
+    const radiusX = 80 * scale;
+    const radiusY = 105 * scale;
+    
+    // Coordinadas origen estaticas (SVG mask centro) = 200, 140
+    const targetX = 200 + Math.cos(angle) * radiusX;
+    const targetY = 140 + Math.sin(angle) * radiusY;
 
-      const leftEAR = (distance(leftEye[1], leftEye[5]) + distance(leftEye[2], leftEye[4])) / (2.0 * distance(leftEye[0], leftEye[3]));
-      const rightEAR = (distance(rightEye[1], rightEye[5]) + distance(rightEye[2], rightEye[4])) / (2.0 * distance(rightEye[0], rightEye[3]));
-
-      return (leftEAR + rightEAR) / 2.0;
-    } catch {
-      return 0.3;
-    }
-  };
+    return { 
+      x: targetX, 
+      y: targetY, 
+      angle: angle,
+    };
+  }, []);
 
   /**
    * Bucle de Detección Recursivo
@@ -99,37 +107,87 @@ export function useFaceDetection() {
       if (detections) {
         setFaceDetected(true);
         
-        // --- LÓGICA DE LIVENESS MEJORADA ---
-        const ear = calculateEAR(detections.landmarks);
-        
-        // Ajuste dinámico de dificultad:
-        // Si lleva más de 4 segundos intentando, hacemos el umbral un poco más permisivo
-        // para gente con ojos pequeños o lentes, pero SIN aceptar fotos estáticas.
-        const timeElapsed = Date.now() - startTimeRef.current;
-        const currentThreshold = timeElapsed > 4000 ? 0.29 : 0.26; 
+        // --- LÓGICA DE LIVENESS (Challenge Point) ---
+        const nose = detections.landmarks.getNose();
+        const leftEye = detections.landmarks.getLeftEye();
+        const rightEye = detections.landmarks.getRightEye();
 
-        // Detectar ojos cerrados
-        if (ear < currentThreshold) {
-          eyesClosedFrames.current++;
-        } else {
-          // Detectar apertura tras cierre (Parpadeo completo)
-          if (eyesClosedFrames.current > 0) {
-             const now = Date.now();
-             // Filtrar parpadeos fantasma (ruido) demasiado rápidos (<50ms) o lentos
-             if (eyesClosedFrames.current >= 1 && (now - lastBlinkTime.current > 200)) {
-                blinkCount.current++;
-                lastBlinkTime.current = now;
-                console.log(`👁️ Parpadeo válido! (${blinkCount.current})`);
-                
-                // Feedback visual de progreso
-                setDetectionProgress((prev) => Math.min(prev + 50, 90));
-             }
-             eyesClosedFrames.current = 0;
+        if (nose && nose.length >= 4 && leftEye && rightEye) {
+          const noseTip = nose[3];
+
+          // Calcular el punto central entre ambos ojos
+          const eyesCenterX = (leftEye[0].x + rightEye[3].x) / 2;
+          const eyesCenterY = (leftEye[0].y + rightEye[3].y) / 2;
+
+          // Posición relativa de la nariz (Rotación de cabeza vs Posición en cámara)
+          const relativeNoseX = noseTip.x - eyesCenterX;
+          const relativeNoseY = noseTip.y - eyesCenterY;
+
+          // Medir distancia y ángulo de los ojos para Normalizar Escala y Rotación plana (2D)
+          const eyeDistance = Math.sqrt(
+            Math.pow(rightEye[3].x - leftEye[0].x, 2) + Math.pow(rightEye[3].y - leftEye[0].y, 2)
+          );
+          const eyeAngle = Math.atan2(rightEye[3].y - leftEye[0].y, rightEye[3].x - leftEye[0].x);
+
+          // Rotar el vector de la nariz para ignorar la inclinación de la foto (Invariancia de Rotación 2D)
+          const rotatedNoseX = relativeNoseX * Math.cos(-eyeAngle) - relativeNoseY * Math.sin(-eyeAngle);
+          const rotatedNoseY = relativeNoseX * Math.sin(-eyeAngle) + relativeNoseY * Math.cos(-eyeAngle);
+
+          // Normalizar por la distancia de los ojos para ignorar acercamiento/alejamiento de foto (Invariancia de Escala 2D)
+          const normNoseX = rotatedNoseX / eyeDistance;
+          const normNoseY = rotatedNoseY / eyeDistance;
+
+          // --- FILTRO DE ESTABILIZACIÓN (EMA) ---
+          // Filtramos las pulsaciones rápidas (jitter de IA) o sacudidas irreales del papel
+          const alpha = 0.3; // Factor de suavizado (menor = más suave/lento)
+          if (!smoothedPoseRef.current) {
+             smoothedPoseRef.current = { x: normNoseX, y: normNoseY };
+          } else {
+             smoothedPoseRef.current.x = (alpha * normNoseX) + ((1 - alpha) * smoothedPoseRef.current.x);
+             smoothedPoseRef.current.y = (alpha * normNoseY) + ((1 - alpha) * smoothedPoseRef.current.y);
+          }
+
+          const stableNoseX = smoothedPoseRef.current.x;
+          const stableNoseY = smoothedPoseRef.current.y;
+
+          if (!startNoseRef.current) {
+            startNoseRef.current = { x: stableNoseX, y: stableNoseY };
+          } else {
+            // Evaluamos el movimiento si el componente ha generado un challengePoint en el DOM 
+            // Para simplificar la inyección de la coordenada generamos uno local si no existe (al inicio)
+            let actChallenge = null;
+            setChallengePoint(prev => {
+              actChallenge = prev || generateChallengePoint();
+              return actChallenge;
+            });
+
+            if (actChallenge) {
+               // Invertir deltaX porque el video web suele renderizarse en modo espejo
+               // Convertimos de vuelta a escala de píxeles para mantener la sensibilidad de umbral original
+               const deltaX = -(stableNoseX - startNoseRef.current.x) * eyeDistance;
+               const deltaY = (stableNoseY - startNoseRef.current.y) * eyeDistance;
+               const rotationMoved3D = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+               // Evaluamos si hubo rotación pura 3D (20px relativos para evadir jitter)
+               if (rotationMoved3D > 20) {
+                   let userAngle = Math.atan2(deltaY, deltaX);
+                   if (userAngle < 0) userAngle += 2 * Math.PI;
+
+                   let angleDiff = Math.abs(userAngle - actChallenge.angle);
+                   if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+
+                   // Tolerancia de ~45 grados (PI/4)
+                   if (angleDiff < Math.PI / 4) {
+                      challengeDoneRef.current = true;
+                      setDetectionProgress(100);
+                   }
+               }
+            }
           }
         }
 
         // --- VERIFICACIÓN DE ÉXITO ---
-        if (blinkCount.current >= 1 && !livenessDetected) {
+        if (challengeDoneRef.current && !livenessDetected) {
             setLivenessDetected(true);
             setDetectionProgress(100);
             
@@ -147,15 +205,14 @@ export function useFaceDetection() {
             return; // Salir del bucle
         }
 
-        // Si no ha parpadeado, mostramos progreso parcial de "rostro detectado"
-        if (blinkCount.current === 0) {
+        // Progreso parcial si ya hay rostro
+        if (!challengeDoneRef.current) {
            setDetectionProgress((prev) => Math.min(prev + 2, 40)); 
         }
 
       } else {
         // No hay rostro
         setFaceDetected(false);
-        eyesClosedFrames.current = 0;
         setDetectionProgress((prev) => Math.max(0, prev - 5));
       }
 
@@ -200,8 +257,9 @@ export function useFaceDetection() {
     }
 
     // Reiniciar estados
-    blinkCount.current = 0;
-    eyesClosedFrames.current = 0;
+    challengeDoneRef.current = false;
+    startNoseRef.current = null;
+    setChallengePoint(generateChallengePoint());
     startTimeRef.current = Date.now();
     isScanning.current = true; // Bandera maestra
     
@@ -231,6 +289,7 @@ export function useFaceDetection() {
     }
     setFaceDetected(false);
     setDetectionProgress(0);
+    setChallengePoint(null);
   };
 
   useEffect(() => {
@@ -244,6 +303,7 @@ export function useFaceDetection() {
     faceDescriptor,
     detectionProgress,
     detectionError,
+    challengePoint,
     loadModels,
     startFaceDetection,
     stopFaceDetection,

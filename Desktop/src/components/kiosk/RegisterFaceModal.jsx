@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { X, UserPlus, CheckCircle, XCircle, Eye } from "lucide-react";
+import { X, UserPlus, CheckCircle, XCircle } from "lucide-react";
 import { useFaceDetection } from "../../hooks/useFaceDetection";
 import { registrarDescriptorFacial } from "../../services/biometricAuthService";
 import { useCamera } from "../../context/CameraContext";
@@ -11,20 +11,16 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isClosing, setIsClosing] = useState(false);
-  const [skipLiveness, setSkipLiveness] = useState(true); // Modo rápido para pruebas
+  const [faceDetected, setFaceDetected] = useState(false);
+  const [proximityMessage, setProximityMessage] = useState("");
 
   // Hook de cámara singleton
   const { initCamera, releaseCamera } = useCamera();
 
   const {
     modelsLoaded,
-    faceDetected,
-    livenessDetected,
-    detectionProgress,
     detectionError,
     loadModels,
-    startFaceDetection,
-    stopFaceDetection,
   } = useFaceDetection();
 
   const cropCanvasRef = useRef(null);
@@ -132,27 +128,52 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
     const handleVideoReady = () => {
       console.log("📹 Video listo para registro facial...");
 
-      // Si skipLiveness está activado, capturar directamente sin parpadeo
-      if (skipLiveness) {
-        console.log("⚡ Modo rápido activado - Capturando sin liveness...");
-        let capturado = false;
+      // Capturando directamente sin liveness
+      let capturado = false;
 
-        const captureInterval = setInterval(async () => {
-          if (capturado) return;
+      const captureInterval = setInterval(async () => {
+        if (capturado) return;
 
-          try {
-            const croppedFrame = getCroppedOvalFrame(video);
-            if (!croppedFrame) return;
+        try {
+          const croppedFrame = getCroppedOvalFrame(video);
+          if (!croppedFrame) return;
 
-            const detections = await faceapi
-              .detectSingleFace(croppedFrame, new faceapi.TinyFaceDetectorOptions({
-                inputSize: 224,
-                scoreThreshold: 0.4
-              }))
-              .withFaceLandmarks()
-              .withFaceDescriptor();
+          const detections = await faceapi
+            .detectSingleFace(croppedFrame, new faceapi.TinyFaceDetectorOptions({
+              inputSize: 224,
+              scoreThreshold: 0.4
+            }))
+            .withFaceLandmarks()
+            .withFaceDescriptor();
 
-            if (detections && detections.detection.score > 0.4 && !capturado) {
+          if (detections && detections.detection.score > 0.4) {
+            setFaceDetected(true);
+
+            // Validar posición de proximidad
+            const box = detections.detection.box;
+            const canvasW = 280;
+            // cropH/cropW aspect is (3/4)*(0.7/0.4) = 1.3125
+            const canvasH = 368;
+            const faceCenterX = box.x + box.width / 2;
+            const faceCenterY = box.y + box.height / 2;
+
+            const widthRatio = box.width / canvasW;
+            const heightRatio = box.height / canvasH;
+
+            let isPositionGood = false;
+
+            if (widthRatio < 0.35 || heightRatio < 0.35) {
+              setProximityMessage("Acércate un poco más a la cámara");
+            } else if (widthRatio > 0.85 || heightRatio > 0.85) {
+              setProximityMessage("Aléjate un poco de la cámara");
+            } else if (Math.abs(faceCenterX - canvasW / 2) > canvasW * 0.20 || Math.abs(faceCenterY - canvasH / 2) > canvasH * 0.20) {
+              setProximityMessage("Centra tu rostro dentro del óvalo");
+            } else {
+              setProximityMessage("¡Posición perfecta! Registrando...");
+              isPositionGood = true;
+            }
+
+            if (isPositionGood && !capturado) {
               capturado = true;
               clearInterval(captureInterval);
               const descriptor = Array.from(detections.descriptor);
@@ -193,73 +214,22 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
                 setStep("error");
               }
             }
-          } catch (error) {
-            console.error("❌ Error en detección:", error);
+          } else {
+            setFaceDetected(false);
           }
-        }, 500);
-
-        // Timeout de 10 segundos
-        setTimeout(() => {
-          if (!capturado) {
-            clearInterval(captureInterval);
-          }
-        }, 10000);
-        return;
-      }
-
-      // Modo normal con liveness
-      startFaceDetection(
-        video,
-        async (result) => {
-          console.log("✅ Rostro capturado para registro:", result);
-
-          // Registrar el descriptor en la base de datos
-          try {
-            // Convertir descriptor a Base64 (igual que las huellas)
-            const descriptor = Array.isArray(result.descriptor)
-              ? result.descriptor
-              : Array.from(result.descriptor);
-
-            const float32Array = new Float32Array(descriptor);
-            const buffer = new Uint8Array(float32Array.buffer);
-            let binary = '';
-            for (let i = 0; i < buffer.length; i++) {
-              binary += String.fromCharCode(buffer[i]);
-            }
-            const descriptorBase64 = btoa(binary);
-
-            console.log(`📦 Descriptor convertido a Base64: ${descriptorBase64.length} caracteres`);
-
-            // Usar el servicio para registrar
-            const response = await registrarDescriptorFacial(
-              empleadoId,
-              descriptorBase64
-            );
-
-            if (response.success) {
-              setSuccessMessage(`Descriptor facial registrado para empleado ${empleadoId}`);
-              setStep("success");
-
-              // Cerrar después de 3 segundos
-              setTimeout(() => {
-                handleClose();
-              }, 3000);
-            } else {
-              setErrorMessage(response.error || "Error al registrar descriptor");
-              setStep("error");
-            }
-          } catch (error) {
-            console.error("❌ Error registrando descriptor:", error);
-            setErrorMessage(error.message);
-            setStep("error");
-          }
-        },
-        (error) => {
+        } catch (error) {
           console.error("❌ Error en detección:", error);
-          setErrorMessage("Error al detectar rostro");
+        }
+      }, 400);
+
+      // Timeout de 15 segundos
+      setTimeout(() => {
+        if (!capturado) {
+          clearInterval(captureInterval);
+          setErrorMessage("Tiempo agotado. No se detectó rostro.");
           setStep("error");
         }
-      );
+      }, 15000);
     };
 
     const handleCanPlay = () => {
@@ -278,9 +248,8 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
     return () => {
       video.removeEventListener("loadeddata", handleCanPlay);
       video.removeEventListener("canplay", handleCanPlay);
-      stopFaceDetection();
     };
-  }, [step, modelsLoaded, empleadoId, startFaceDetection, stopFaceDetection]);
+  }, [step, modelsLoaded, empleadoId]);
 
   // Limpiar cámara al cerrar
   useEffect(() => {
@@ -369,24 +338,11 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
 
               <button
                 onClick={handleStartCapture}
-                className="w-full bg-[#1976D2] hover:bg-[#1565C0] text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-[#1976D2] hover:bg-[#1565C0] text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 mb-2"
               >
                 <UserPlus className="w-5 h-5" />
                 Capturar Rostro
               </button>
-
-              <div className="flex items-center gap-2 p-3 bg-[#E3F2FD] dark:bg-[#1565C0]/20 border border-[#BBDEFB] dark:border-[#1565C0]/40 rounded-lg">
-                <input
-                  type="checkbox"
-                  id="skipLiveness"
-                  checked={skipLiveness}
-                  onChange={(e) => setSkipLiveness(e.target.checked)}
-                  className="w-4 h-4 text-[#1976D2] border-gray-300 rounded focus:ring-[#1976D2]"
-                />
-                <label htmlFor="skipLiveness" className="text-sm text-[#0D47A1] dark:text-[#90CAF9] cursor-pointer">
-                  <strong>⚡ Modo Rápido</strong> - Capturar sin verificación de parpadeo (solo para pruebas)
-                </label>
-              </div>
 
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
                 <p className="text-xs text-yellow-700 dark:text-yellow-400">
@@ -479,17 +435,14 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
                       50% { opacity: 0.8; }
                     }
                   `}</style>
+
                 </div>
               </div>
 
-              {/* Indicadores */}
               <div className="space-y-2">
-                <p className="text-center text-gray-700 dark:text-gray-300 text-sm font-medium">
+                <p className={`text-center text-sm font-medium ${proximityMessage === "¡Posición perfecta! Registrando..." ? "text-green-600 dark:text-green-400" : proximityMessage ? "text-[#1976D2] dark:text-[#42A5F5]" : "text-gray-700 dark:text-gray-300"}`}>
                   {!modelsLoaded && "Cargando modelos de reconocimiento..."}
-                  {skipLiveness && modelsLoaded && "⚡ Modo Rápido - Coloca tu rostro y mantén la posición..."}
-                  {!skipLiveness && modelsLoaded && !faceDetected && "Coloca tu rostro frente a la cámara"}
-                  {!skipLiveness && modelsLoaded && faceDetected && !livenessDetected && "Parpadea 1 vez para verificar"}
-                  {!skipLiveness && modelsLoaded && livenessDetected && "¡Rostro validado! Guardando..."}
+                  {modelsLoaded && (proximityMessage || "Coloca tu rostro frente a la cámara y mantén la posición...")}
                 </p>
 
                 {modelsLoaded && (
@@ -498,19 +451,6 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
                       <div className={`w-2.5 h-2.5 rounded-full ${faceDetected ? 'bg-[#1976D2] animate-pulse' : 'bg-gray-400'}`} />
                       <span className="font-medium">Rostro detectado</span>
                     </div>
-                    <div className={`flex items-center gap-1.5 ${livenessDetected ? 'text-[#1976D2] dark:text-[#42A5F5]' : 'text-gray-500 dark:text-gray-400'}`}>
-                      <Eye className={`w-4 h-4 ${livenessDetected ? 'animate-pulse' : ''}`} />
-                      <span className="font-medium">Liveness</span>
-                    </div>
-                  </div>
-                )}
-
-                {modelsLoaded && detectionProgress > 0 && (
-                  <div className="w-full bg-gray-300 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
-                    <div
-                      className="bg-[#1976D2] h-full transition-all duration-300 rounded-full"
-                      style={{ width: `${detectionProgress}%` }}
-                    />
                   </div>
                 )}
 

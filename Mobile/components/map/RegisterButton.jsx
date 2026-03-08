@@ -386,49 +386,23 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       return;
     }
 
-    // ── Último registro fue salida → jornada del bloque completa ─────────────
+    // ── Último registro fue salida → siempre habilitar nueva entrada libremente ─────────
+    // (el botón se habilita, pero `handleRegistro` bloqueará el clic si es muy temprano para el siguiente turno)
     if (ultimoTipo === 'salida') {
-      const totalReq = (horarioInfo.numBloques || 1) * 2; // entradas + salidas necesarias para acabar el día
-
-      if (registrosHoyTodos.length >= totalReq) {
-        setPuedeRegistrar(false);
-        setTipoSiguienteRegistro('entrada');
-        setEstadoHorario('bloque_completo');
-        setJornadaCompletada(true);
-        setMensajeEspera('');
-      } else {
-        setPuedeRegistrar(true);
-        setTipoSiguienteRegistro('entrada');
-        setEstadoHorario('espera'); // Podríamos poner activa, pero en la realidad el botón pasa a decir "Entrada"
-        setJornadaCompletada(false);
-        setMensajeEspera('');
-      }
+      setPuedeRegistrar(true);
+      setTipoSiguienteRegistro('entrada');
+      setEstadoHorario('activo');
+      setJornadaCompletada(false);
+      setMensajeEspera('');
       return;
     }
 
     // ── Último registro fue entrada válida → siguiente es salida ─────────────
-    // Tratamos de derivar si la salida ya está disponible según las tolerancias offline
-    let salidaDisponibleOffline = true;
-    if (horarioInfo?.bloques) {
-      const ahora = new Date();
-      const minsAhora = ahora.getHours() * 60 + ahora.getMinutes();
-      const tolerancias = horarioInfo.tolerancias || {};
-      const anticipoSalida = tolerancias.anticipoSalida || 0;
-
-      // Buscar un bloque cuya salida ya esté disponible o activa
-      const bloqueAbiertoSalida = horarioInfo.bloques.find(b =>
-        minsAhora >= (b.salida - anticipoSalida)
-      );
-
-      // Si no hay ningún bloque cuya salida ya se permita registrar, bloqueamos el botón
-      if (!bloqueAbiertoSalida) {
-        salidaDisponibleOffline = false;
-      }
-    }
-
-    setPuedeRegistrar(salidaDisponibleOffline);
+    // El botón siempre se habilita — la validación de tiempo ocurre en handleRegistro
+    // al momento del clic, mostrando advertencia si aún no es la hora de salida.
+    setPuedeRegistrar(true);
     setTipoSiguienteRegistro('salida');
-    setEstadoHorario(salidaDisponibleOffline ? ultimoEstado : 'fuera_horario');
+    setEstadoHorario(ultimoEstado);
     setJornadaCompletada(false);
     setMensajeEspera('');
 
@@ -650,9 +624,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         numBloques: bloques.length,
         bloques,
         tolerancias: {
-          anticipoEntrada: toleranciasSqlite?.minutos_anticipado_max != null ? parseInt(toleranciasSqlite.minutos_anticipado_max) : (parseInt(config?.minutos_anticipado_max) || 60),
+          anticipoEntrada: toleranciasSqlite?.minutos_anticipado_max != null ? parseInt(toleranciasSqlite.minutos_anticipado_max) : (parseInt(config?.minutos_anticipado_max) || 0),
           anticipoSalida: toleranciasSqlite?.minutos_anticipo_salida != null ? parseInt(toleranciasSqlite.minutos_anticipo_salida) : (parseInt(config?.minutos_anticipo_salida) || 0),
-          posteriorSalida: toleranciasSqlite?.minutos_posterior_salida != null ? parseInt(toleranciasSqlite.minutos_posterior_salida) : (parseInt(config?.minutos_posterior_salida) || 60),
+          posteriorSalida: toleranciasSqlite?.minutos_posterior_salida != null ? parseInt(toleranciasSqlite.minutos_posterior_salida) : (parseInt(config?.minutos_posterior_salida) || 0),
         },
         entrada: minToHHMM(bloques[0].entrada),
         salida: minToHHMM(bloques[bloques.length - 1].salida),
@@ -1321,22 +1295,67 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const ahora = new Date();
       const minsAhora = ahora.getHours() * 60 + ahora.getMinutes();
       const { bloques, tolerancias } = horarioInfo;
-      const { anticipoEntrada = 60, anticipoSalida = 0, posteriorSalida = 60 } = tolerancias || {};
+      const { anticipoEntrada = 0, anticipoSalida = 0, posteriorSalida = 0 } = tolerancias || {};
 
       const _minsToHHMM = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 
       if (tipoSiguienteRegistro === 'entrada') {
-        const bloqueAbiertoEntrada = bloques.find(b => minsAhora >= (b.entrada - anticipoEntrada) && minsAhora <= b.salida);
-        if (!bloqueAbiertoEntrada) {
-          const bloqueFuturo = bloques.find(b => (b.entrada - anticipoEntrada) > minsAhora);
-          if (bloqueFuturo) {
+        // Usamos el ref (no el state) para tener los datos más frescos al momento del clic
+        const regsTodos = registrosHoyTodosRef.current || [];
+
+        // Helper para obtener minutos locales desde ISO string (maneja strings UTC o locales de SQLite)
+        const getMinutosLocales = (fechaStr) => {
+          if (!fechaStr) return -1;
+          // SQLite puede guardar fechas sin 'Z' (tratadas como locales por JS) o con 'Z' (UTC).
+          // new Date() las parsea correctamente a la zona horaria del dispositivo.
+          try {
+            const d = new Date(fechaStr);
+            if (isNaN(d.getTime())) return -1;
+            return d.getHours() * 60 + d.getMinutes();
+          } catch (e) {
+            return -1;
+          }
+        };
+
+        // Buscamos el primer bloque que NO tiene ya una entrada asignada dentro de su ventana de tiempo.
+        const bloqueSinEntrada = bloques.find(b => {
+          return !regsTodos.some(r => {
+            if (r.tipo !== 'entrada') return false;
+            const m = getMinutosLocales(r.fecha_registro);
+            return m >= (b.entrada - anticipoEntrada) && m <= (b.salida + posteriorSalida);
+          });
+        });
+
+        if (bloqueSinEntrada) {
+          if (minsAhora < (bloqueSinEntrada.entrada - anticipoEntrada)) {
+            Alert.alert(
+              'Aún no es momento',
+              `Tu próxima entrada es a las ${_minsToHHMM(bloqueSinEntrada.entrada)}.\nPodrás registrarte a partir de las ${_minsToHHMM(bloqueSinEntrada.entrada - anticipoEntrada)}.`
+            );
+            return;
+          }
+        }
+      }
+
+      if (tipoSiguienteRegistro === 'salida') {
+        const MARGEN_SALIDA = 5; // 5 minutos de margen antes de la hora de salida
+
+        // Buscar el bloque actual o futuro basado en la hora actual
+        const bloqueActivoSalida = bloques.find(b => minsAhora <= (b.salida + posteriorSalida));
+
+        if (bloqueActivoSalida) {
+          const horaSalidaPermitida = bloqueActivoSalida.salida - MARGEN_SALIDA;
+
+          if (minsAhora < horaSalidaPermitida) {
             Alert.alert(
               'Aviso',
-              `Tu próxima entrada es a las ${_minsToHHMM(bloqueFuturo.entrada)}.\nAún no es momento de registrarte. El sistema se habilitará a las ${_minsToHHMM(bloqueFuturo.entrada - anticipoEntrada)}.`
+              `Tu salida es a las ${_minsToHHMM(bloqueActivoSalida.salida)}.\nAún no es momento de registrarte. El sistema se habilitará a las ${_minsToHHMM(horaSalidaPermitida)}.`
             );
-          } else {
-            Alert.alert('Aviso', 'Tu jornada ha terminado o el tiempo para registrar tu entrada ya finalizó.');
+            return;
           }
+        } else {
+          // Si no hay bloques activos/futuros, la jornada ha terminado
+          Alert.alert('Aviso', 'Tu jornada ha terminado o el tiempo para registrar tu salida ya finalizó.');
           return;
         }
       }

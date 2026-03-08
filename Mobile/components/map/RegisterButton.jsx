@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as Network from 'expo-network';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { isPointInPolygon, extraerCoordenadas } from '../../services/ubicacionService';
 import { getApiEndpoint } from '../../config/api';
 import { getCredencialesByEmpleado, verificarPin } from '../../services/credencialesService';
@@ -147,7 +148,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           .map(([key]) => key);
 
       setOrdenCredenciales(ordenArray);
-      construirMetodosDisponibles(creds, ordenArray);
+      await construirMetodosDisponibles(creds, ordenArray);
 
     } catch (error) {
       console.log('Using offline credentials');
@@ -167,7 +168,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         };
 
         setCredencialesUsuario(offlineCreds);
-        construirMetodosDisponibles(offlineCreds, ['pin', 'dactilar']);
+        await construirMetodosDisponibles(offlineCreds, ['pin', 'dactilar']);
 
       } catch (offlineError) {
         setCredencialesUsuario({
@@ -179,7 +180,17 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }
   };
 
-  const construirMetodosDisponibles = (credenciales, orden) => {
+  const construirMetodosDisponibles = async (credenciales, orden) => {
+    // Verificar soporte de hardware para biometría (huella)
+    let biometricSupported = false;
+    try {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      biometricSupported = hasHardware && isEnrolled;
+    } catch (e) {
+      console.log('Error verificando biometría local:', e);
+    }
+
     const metodosBase = {
       'pin': {
         id: 'pin',
@@ -191,7 +202,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         id: 'dactilar',
         nombre: 'Huella',
         icono: 'finger-print',
-        disponible: credenciales?.tiene_dactilar || false,
+        disponible: biometricSupported, // Solo depende de si el teléfono tiene el hardware y una huella registrada
       },
       'facial': {
         id: 'facial',
@@ -307,19 +318,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             ultimoRegistroHoyRef.current = nuevoUltimo;
             registrosHoyTodosRef.current = nuevosTodos;
           }
-        } catch (_e) { /* fallo silencioso, se reintenta al siguiente minuto */ }
+        } catch (_e) { /* fallo silencioso */ }
       }
     }, 1000);
 
     return () => clearInterval(intervalo);
   }, [obtenerHorario, obtenerUltimoRegistro, actualizarEstadoPreflight]);
-  // ────────────────────────────────────────────────────────────────────────────
-
-  // ─── Derivar estado de registro — 100% desde valores de la DB ────────────────
-  // No se hace ningún cálculo propio. Solo se leen los campos que el backend ya
-  // devuelve en ultimoRegistroHoy (tipo, estado) que provienen directamente de la DB.
-  // El backend (srvVerificarLongitudYTipo, srvValidarVentanaDeRegistro) es quien decide
-  // todo al momento de registrar; aquí solo actualizamos la UI para reflejarlo.
   useEffect(() => {
     if (usandoEstadoBackend) return; // Si el backend dicta las reglas, omitimos esta derivación offline
     if (!horarioInfo && !diaFestivo) return;
@@ -384,11 +388,21 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
     // ── Último registro fue salida → jornada del bloque completa ─────────────
     if (ultimoTipo === 'salida') {
-      setPuedeRegistrar(false);
-      setTipoSiguienteRegistro('entrada');
-      setEstadoHorario('bloque_completo');
-      setJornadaCompletada(true);
-      setMensajeEspera('');
+      const totalReq = (horarioInfo.numBloques || 1) * 2; // entradas + salidas necesarias para acabar el día
+
+      if (registrosHoyTodos.length >= totalReq) {
+        setPuedeRegistrar(false);
+        setTipoSiguienteRegistro('entrada');
+        setEstadoHorario('bloque_completo');
+        setJornadaCompletada(true);
+        setMensajeEspera('');
+      } else {
+        setPuedeRegistrar(true);
+        setTipoSiguienteRegistro('entrada');
+        setEstadoHorario('espera'); // Podríamos poner activa, pero en la realidad el botón pasa a decir "Entrada"
+        setJornadaCompletada(false);
+        setMensajeEspera('');
+      }
       return;
     }
 
@@ -548,6 +562,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         if (hLocal) horario = hLocal;
       }
 
+      // Si toleranciasSqlite existe, tomar los valores de ahí (prioridad offline real)
+      let toleranciasSqlite = null;
+      try { toleranciasSqlite = await sqliteManager.getTolerancia(empleadoId); } catch (e) { }
+
       if (!horario?.configuracion) return { trabaja: false, numTurnos: 0, entrada: null, salida: null };
 
       let config = typeof horario.configuracion === 'string'
@@ -607,11 +625,17 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       }
       bloques.push(bActual);
 
-      // Devuelve solo info estructural — el backend decide ventanas y tolerancias
+      // Devuelve info estructural y la tolerancia offline que encontramos
       const minToHHMM = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
       return {
         trabaja: true,
-        numBloques: bloques.length, // bloques reales fusionados (igual que el backend)
+        numBloques: bloques.length,
+        bloques,
+        tolerancias: {
+          anticipoEntrada: toleranciasSqlite?.minutos_anticipado_max != null ? parseInt(toleranciasSqlite.minutos_anticipado_max) : (parseInt(config?.minutos_anticipado_max) || 60),
+          anticipoSalida: toleranciasSqlite?.minutos_anticipo_salida != null ? parseInt(toleranciasSqlite.minutos_anticipo_salida) : (parseInt(config?.minutos_anticipo_salida) || 0),
+          posteriorSalida: toleranciasSqlite?.minutos_posterior_salida != null ? parseInt(toleranciasSqlite.minutos_posterior_salida) : (parseInt(config?.minutos_posterior_salida) || 60),
+        },
         entrada: minToHHMM(bloques[0].entrada),
         salida: minToHHMM(bloques[bloques.length - 1].salida),
       };
@@ -1273,6 +1297,48 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       Alert.alert('Error', 'No tienes un horario configurado. Contacta al administrador.', [{ text: 'OK' }]);
       return;
     }
+
+    // ── Validación Offline en el momento del Clic ───────────────────────────
+    if (!usandoEstadoBackend && horarioInfo && horarioInfo.bloques && !jornadaCompletada) {
+      const ahora = new Date();
+      const minsAhora = ahora.getHours() * 60 + ahora.getMinutes();
+      const { bloques, tolerancias } = horarioInfo;
+      const { anticipoEntrada = 60, anticipoSalida = 0, posteriorSalida = 60 } = tolerancias || {};
+
+      const _minsToHHMM = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+      if (tipoSiguienteRegistro === 'entrada') {
+        const bloqueAbiertoEntrada = bloques.find(b => minsAhora >= (b.entrada - anticipoEntrada) && minsAhora <= b.salida);
+        if (!bloqueAbiertoEntrada) {
+          const bloqueFuturo = bloques.find(b => (b.entrada - anticipoEntrada) > minsAhora);
+          if (bloqueFuturo) {
+            Alert.alert(
+              'Aviso',
+              `Tu próxima entrada es a las ${_minsToHHMM(bloqueFuturo.entrada)}.\nAún no es momento de registrarte. El sistema se habilitará a las ${_minsToHHMM(bloqueFuturo.entrada - anticipoEntrada)}.`
+            );
+          } else {
+            Alert.alert('Aviso', 'Tu jornada ha terminado o el tiempo para registrar tu entrada ya finalizó.');
+          }
+          return;
+        }
+      } else if (tipoSiguienteRegistro === 'salida') {
+        const bloqueAbiertoSalida = bloques.find(b => minsAhora >= (b.salida - anticipoSalida) && minsAhora <= (b.salida + posteriorSalida));
+
+        if (!bloqueAbiertoSalida) {
+          const bloqueEnCurso = bloques.find(b => (b.salida - anticipoSalida) > minsAhora);
+          if (bloqueEnCurso) {
+            Alert.alert(
+              'Aviso',
+              `Tu hora de salida es a las ${_minsToHHMM(bloqueEnCurso.salida)}.\nAún no es momento de registrar tu salida. Se habilitará a las ${_minsToHHMM(bloqueEnCurso.salida - anticipoSalida)}.`
+            );
+          } else {
+            Alert.alert('Aviso', 'El tiempo límite permitido para registrar tu salida de este turno ha terminado.');
+          }
+          return;
+        }
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────
 
     if (!puedeRegistrar || !dentroDelArea || !departamentoSeleccionado) {
       let mensaje = 'No puedes registrar en este momento';

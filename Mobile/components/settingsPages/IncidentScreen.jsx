@@ -18,8 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   getIncidenciasEmpleado,
-  createIncidencia,
-  updateIncidencia
+  createIncidencia
 } from '../../services/incidenciasService';
 
 // Offline Services
@@ -250,28 +249,6 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
     }
   };
 
-  const handleCancelarIncidencia = (incidenciaId) => {
-    Alert.alert(
-      'Cancelar Incidencia',
-      '¿Estás seguro de que deseas cancelar esta incidencia?',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Sí, cancelar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await updateIncidencia(incidenciaId, { estado: 'cancelado' }, userData.token);
-              Alert.alert('Éxito', 'Incidencia cancelada');
-              await cargarIncidencias();
-            } catch (error) {
-              Alert.alert('Error', 'No se pudo cancelar la incidencia');
-            }
-          }
-        }
-      ]
-    );
-  };
 
   const getEstadoColor = (estado) => {
     switch (estado?.toLowerCase()) {
@@ -568,30 +545,18 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
               </View>
             )}
 
-            {incidencia.aprobado_por && (
+            {incidencia.observaciones && (
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Aprobado por:</Text>
-                <Text style={styles.detailValue}>{incidencia.aprobado_por}</Text>
-              </View>
-            )}
-
-            {incidencia.motivo_rechazo && (
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Motivo de rechazo:</Text>
-                <Text style={[styles.detailValue, { color: '#ef4444' }]}>
-                  {incidencia.motivo_rechazo}
+                <Text style={styles.detailLabel}>
+                  {incidencia.estado === 'rechazado' ? 'Motivo de rechazo:' : 'Observaciones:'}
+                </Text>
+                <Text style={[
+                  styles.detailValue,
+                  incidencia.estado === 'rechazado' && { color: '#ef4444' }
+                ]}>
+                  {incidencia.observaciones}
                 </Text>
               </View>
-            )}
-
-            {incidencia.estado === 'pendiente' && !incidencia.is_offline && (
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => handleCancelarIncidencia(incidencia.id)}
-              >
-                <Ionicons name="close-circle-outline" size={18} color="#ef4444" />
-                <Text style={styles.cancelButtonText}>Cancelar Incidencia</Text>
-              </TouchableOpacity>
             )}
           </View>
         )}

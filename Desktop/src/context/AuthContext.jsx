@@ -31,6 +31,15 @@ export const AuthProvider = ({ children }) => {
 
       if (token && userData) {
         setUser(JSON.parse(userData));
+
+        if (window.electronAPI && window.electronAPI.syncManager) {
+          try {
+            window.electronAPI.syncManager.updateToken(token);
+            console.log("Token hidratado de localStorage entregado a SyncManager");
+          } catch (e) {
+            console.warn("No se pudo sincronizar el token con el proceso principal en el inicio", e);
+          }
+        }
       }
     } catch (error) {
       console.error("Error al verificar autenticacion:", error);

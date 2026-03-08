@@ -17,6 +17,7 @@ import { Camera as VisionCamera, useCameraDevice } from 'react-native-vision-cam
 import { Camera } from 'react-native-vision-camera-face-detector';
 import { Ionicons } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -226,6 +227,17 @@ export const FacialCaptureScreen = ({
       const fileUri = Platform.OS === 'ios' ? photo.path : `file://${photo.path}`;
       const fileInfo = await FileSystem.getInfoAsync(fileUri);
 
+      // ── NUEVO: Forzar rotación adecuada (quitar formato EXIF) y comprimir la foto ──
+      const manipResult = await ImageManipulator.manipulateAsync(
+        fileUri,
+        // No aplicamos rotaciones extras fijas, dejamos que expo-image-manipulator 
+        // hornee la rotación del EXIF nativo al hacer resize.
+        [{ resize: { width: 800 } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+      );
+
+      const photoBase64 = manipResult.base64;
+
       if (!fileInfo.exists || fileInfo.size < 50000) {
         throw new Error('La captura falló. Intenta de nuevo con mejor iluminación.');
       }
@@ -300,7 +312,7 @@ export const FacialCaptureScreen = ({
 
       onCapture({
         photoUri: fileUri,
-        photoBase64: null,
+        photoBase64: photoBase64,
         faceData: realFaceData,
         timestamp: Date.now(),
         imageSize: fileInfo.size,

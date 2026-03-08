@@ -953,16 +953,29 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         return;
       }
 
-      console.log(' Validación facial exitosa, verificando identidad...');
+      console.log(' Validación facial detectó rostro de calidad, enviando imagen al servidor para verificar identidad...');
 
       const empleadoId = userData?.empleado?.id || userData?.empleado_id || userData?.id;
-      const verification = await verifyFace(empleadoId, captureData.faceData);
 
-      if (!verification.verified) {
-        console.warn(' Verificación facial falló:', verification);
+      const response = await fetch(`${API_URL}/credenciales/facial/verify-image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${userData.token}`,
+        },
+        body: JSON.stringify({
+          empleado_id: empleadoId,
+          imagen_base64: captureData.photoBase64,
+        }),
+      });
+
+      const verification = await response.json();
+
+      if (!response.ok || !verification.success) {
+        console.warn(' Verificación facial falló en el servidor:', verification);
         Alert.alert(
           'Identidad no verificada',
-          `No se pudo confirmar tu identidad.\nSimilitud: ${verification.similarity?.toFixed(1) || 0}% (mínimo 65%)\n\nAsegúrate de que eres la persona registrada e intenta de nuevo.`,
+          verification.message || 'El rostro capturado no coincide con tu registro.',
           [
             { text: 'Cancelar', style: 'cancel', onPress: () => setRegistrando(false) },
             { text: 'Reintentar', onPress: () => setMostrarCapturaFacial(true) },
@@ -972,7 +985,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         return;
       }
 
-      console.log(` Identidad verificada (${verification.similarity.toFixed(1)}% similitud), procediendo con el registro`);
+      console.log(` Identidad verificada (${verification.data?.matchScore || 100}% similitud), procediendo con el registro`);
 
       await procederConRegistro();
     } catch (error) {

@@ -37,10 +37,15 @@ export const useDeviceDetection = (devices, setDevices) => {
           devices,
         );
 
-        // 4. Agregar nuevos dispositivos a la lista
+        // 4. Agregar nuevos dispositivos a la lista extrayendo device_id de hardware
         if (newDevices.length > 0) {
+          const mappedNewDevices = newDevices.map(d => ({
+            ...d,
+            device_id: d.deviceId || d.instanceId || null
+          }));
+
           const devicesWithIds = deviceDetectionService.assignUniqueIds(
-            newDevices,
+            mappedNewDevices,
             devices.length + 1,
           );
           setDevices([...devices, ...devicesWithIds]);

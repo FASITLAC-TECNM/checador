@@ -96,8 +96,20 @@ export const useDeviceStatus = (devices, setDevices, options = {}) => {
         if (!regName) return device;
 
         const connected = allDetected.some((detected) => {
+          // 1. Intentar coincidencia exacta y estable por ID físico (nuevo sistema)
+          if (device.device_id && (detected.deviceId || detected.instanceId)) {
+            if (
+              device.device_id === detected.deviceId ||
+              device.device_id === detected.instanceId
+            ) {
+              return true;
+            }
+          }
+
+          // 2. Si no tienen ID o no coincidieron, caer al viejo sistema por nombre (fallback)
           const detName = normalizeName(detected.name);
           if (!detName) return false;
+          
           return (
             regName === detName ||
             regName.includes(detName) ||
@@ -199,6 +211,22 @@ export const useDeviceStatus = (devices, setDevices, options = {}) => {
       }
     };
   }, []);
+
+  // Evento nativo del navegador para hot-plug de dispositivos multimedia (cámaras/micrófonos)
+  useEffect(() => {
+    if (!enabled || !navigator.mediaDevices) return;
+
+    const handleDeviceChange = () => {
+      console.log("[useDeviceStatus] Detectado cambio en dispositivos multimedia (Hot-Plug)");
+      checkDeviceStatuses();
+    };
+
+    navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+    
+    return () => {
+      navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+    };
+  }, [enabled, checkDeviceStatuses]);
 
   return {
     isChecking,

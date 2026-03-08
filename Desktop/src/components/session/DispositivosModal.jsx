@@ -83,12 +83,13 @@ export default function DispositivosModal({ onClose, onBack, escritorioId, inlin
 
       const detectedDevices = deviceDetectionService.mergeDetectedDevices(usbDevices, webcams);
 
-      // Mapear del formato del hook (name, type) al del modal (nombre, tipo)
+      // Mapear del formato del hook (name, type, deviceId, instanceId) al del modal (nombre, tipo, device_id)
       const mappedDetected = detectedDevices.map(d => ({
         nombre: d.name || "",
         tipo: d.type || "facial",
         puerto: d.port || "",
         ip: d.ip || "",
+        device_id: d.deviceId || d.instanceId || null,
         estado: "desconectado",
         es_activo: true,
         isNew: true,
@@ -178,6 +179,7 @@ export default function DispositivosModal({ onClose, onBack, escritorioId, inlin
           tipo: device.tipo,
           puerto: device.puerto || null,
           ip: device.ip || null,
+          device_id: device.device_id || null,
           estado: device.estado,
           es_activo: device.es_activo,
           escritorio_id: escritorioId,

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { XCircle, Clock, AlertCircle } from 'lucide-react';
 import { API_CONFIG } from '../../config/apiEndPoint';
 
 const API_URL = API_CONFIG.BASE_URL;
 
 /**
- * Panel de Equivalencias de Retardos (Reglamento Art. 80)
+ * Panel de Acumulación de retardos
  * Muestra los retardos A/B del mes actual, cuántos faltan para generar una falta
  * y las notas malas acumuladas.
  */
@@ -72,8 +72,7 @@ const EquivalenciasPanel = ({ empleadoId, mesSeleccionado }) => {
             {/* Header / Titulo minimalista */}
             <div className="flex items-center justify-between border-b border-border-subtle pb-2">
                 <span className="text-[10px] uppercase font-bold text-text-secondary tracking-widest flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    Art. 80 — Equivalencias
+                    Acumulación de retardos
                 </span>
             </div>
 

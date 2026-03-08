@@ -16,6 +16,7 @@ import {
     Calendar,
     Fingerprint,
     Camera,
+    HeartPulse,
 } from "lucide-react";
 import GeneralNodoModal from "./GeneralNodoModal";
 import DispositivosModal from "./DispositivosModal";
@@ -161,7 +162,7 @@ export default function AdminDashboard({
                             )}
                             {userNSS && (
                                 <div className="flex items-center gap-1.5 overflow-hidden">
-                                    <Fingerprint className="w-3 h-3 text-[#1976D2] flex-shrink-0" />
+                                    <HeartPulse className="w-3 h-3 text-[#1976D2] flex-shrink-0" />
                                     <div className="overflow-hidden">
                                         <p className="text-text-tertiary text-[9px] font-semibold uppercase leading-none">NSS</p>
                                         <p className="text-text-primary font-medium truncate text-[11px]">{userNSS}</p>

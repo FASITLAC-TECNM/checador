@@ -407,10 +407,28 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }
 
     // ── Último registro fue entrada válida → siguiente es salida ─────────────
-    // (La ventana de salida la valida el backend al intentar registrar)
-    setPuedeRegistrar(true);
+    // Tratamos de derivar si la salida ya está disponible según las tolerancias offline
+    let salidaDisponibleOffline = true;
+    if (horarioInfo?.bloques) {
+      const ahora = new Date();
+      const minsAhora = ahora.getHours() * 60 + ahora.getMinutes();
+      const tolerancias = horarioInfo.tolerancias || {};
+      const anticipoSalida = tolerancias.anticipoSalida || 0;
+
+      // Buscar un bloque cuya salida ya esté disponible o activa
+      const bloqueAbiertoSalida = horarioInfo.bloques.find(b =>
+        minsAhora >= (b.salida - anticipoSalida)
+      );
+
+      // Si no hay ningún bloque cuya salida ya se permita registrar, bloqueamos el botón
+      if (!bloqueAbiertoSalida) {
+        salidaDisponibleOffline = false;
+      }
+    }
+
+    setPuedeRegistrar(salidaDisponibleOffline);
     setTipoSiguienteRegistro('salida');
-    setEstadoHorario(ultimoEstado || null);
+    setEstadoHorario(salidaDisponibleOffline ? ultimoEstado : 'fuera_horario');
     setJornadaCompletada(false);
     setMensajeEspera('');
 
@@ -1318,21 +1336,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             );
           } else {
             Alert.alert('Aviso', 'Tu jornada ha terminado o el tiempo para registrar tu entrada ya finalizó.');
-          }
-          return;
-        }
-      } else if (tipoSiguienteRegistro === 'salida') {
-        const bloqueAbiertoSalida = bloques.find(b => minsAhora >= (b.salida - anticipoSalida) && minsAhora <= (b.salida + posteriorSalida));
-
-        if (!bloqueAbiertoSalida) {
-          const bloqueEnCurso = bloques.find(b => (b.salida - anticipoSalida) > minsAhora);
-          if (bloqueEnCurso) {
-            Alert.alert(
-              'Aviso',
-              `Tu hora de salida es a las ${_minsToHHMM(bloqueEnCurso.salida)}.\nAún no es momento de registrar tu salida. Se habilitará a las ${_minsToHHMM(bloqueEnCurso.salida - anticipoSalida)}.`
-            );
-          } else {
-            Alert.alert('Aviso', 'El tiempo límite permitido para registrar tu salida de este turno ha terminado.');
           }
           return;
         }

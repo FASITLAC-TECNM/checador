@@ -145,19 +145,26 @@ export async function fullPull(empleadoId) {
         // equivalencia_retardo_a, equivalencia_retardo_b, dias_aplica
         try {
             if (data.tolerancia) {
-                const DEFAULTS_TOLERANCIA = {
-                    minutos_retardo: 10,
-                    minutos_falta: 30,
-                    minutos_retardo_a_max: 20,
-                    minutos_retardo_b_max: 29,
-                    equivalencia_retardo_a: 10,
-                    equivalencia_retardo_b: 5,
-                    permite_registro_anticipado: true,
-                    minutos_anticipado_max: 60,
-                    aplica_tolerancia_entrada: true,
-                    aplica_tolerancia_salida: false,
+                // IMPORTANTE: Solo usamos defaults para campos que el servidor puede omitir.
+                // minutos_anticipado_max NO tiene default — debe venir del servidor tal cual.
+                // Si el servidor devuelve null/undefined para ese campo, se guarda 0 (sin anticipo).
+                const toleranciaCompleta = {
+                    minutos_retardo: data.tolerancia.minutos_retardo ?? 10,
+                    minutos_falta: data.tolerancia.minutos_falta ?? 30,
+                    minutos_retardo_a_max: data.tolerancia.minutos_retardo_a_max ?? 20,
+                    minutos_retardo_b_max: data.tolerancia.minutos_retardo_b_max ?? 29,
+                    equivalencia_retardo_a: data.tolerancia.equivalencia_retardo_a ?? 10,
+                    equivalencia_retardo_b: data.tolerancia.equivalencia_retardo_b ?? 5,
+                    permite_registro_anticipado: data.tolerancia.permite_registro_anticipado ?? true,
+                    minutos_anticipado_max: data.tolerancia.minutos_anticipado_max ?? 0,
+                    minutos_anticipo_salida: data.tolerancia.minutos_anticipo_salida ?? 0,
+                    minutos_posterior_salida: data.tolerancia.minutos_posterior_salida ?? 0,
+                    aplica_tolerancia_entrada: data.tolerancia.aplica_tolerancia_entrada ?? true,
+                    aplica_tolerancia_salida: data.tolerancia.aplica_tolerancia_salida ?? false,
+                    reglas: data.tolerancia.reglas ?? [],
+                    dias_aplica: data.tolerancia.dias_aplica ?? {},
+                    ...data.tolerancia, // los campos del servidor siempre tienen prioridad
                 };
-                const toleranciaCompleta = { ...DEFAULTS_TOLERANCIA, ...data.tolerancia };
                 await sqliteManager.upsertTolerancia(empleadoId, toleranciaCompleta);
                 await sqliteManager.setLastFullSync('cache_tolerancias');
                 results.tolerancia = { success: true, count: 1 };

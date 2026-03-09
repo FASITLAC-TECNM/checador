@@ -739,8 +739,10 @@ export async function getTolerancia(empleadoId) {
     return row || {
         minutos_retardo: 10,
         minutos_falta: 30,
-        permite_anticipado: 1,
-        minutos_anticipado_max: 60,
+        permite_anticipado: 0,
+        minutos_anticipado_max: 0,
+        minutos_anticipo_salida: 0,
+        minutos_posterior_salida: 0,
         aplica_tolerancia_entrada: 1,
         aplica_tolerancia_salida: 0,
         dias_aplica: null

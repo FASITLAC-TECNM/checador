@@ -267,8 +267,8 @@ export default function KioskScreen() {
 
   return (
     <div className="h-screen bg-bg-secondary flex overflow-hidden">
-      {/* Barra lateral izquierda - iconos only en mobile, expandida en sm+ */}
-      <div className="w-12 sm:w-20 bg-bg-primary shadow-lg flex flex-col items-center py-4 sm:py-6 gap-3 sm:gap-4 flex-shrink-0">
+      {/* Barra lateral izquierda - iconos only en mobile, expandida en sm+, y ultra-amplia en 2xl+ */}
+      <div className="w-12 sm:w-20 2xl:w-32 bg-bg-primary shadow-lg flex flex-col items-center py-4 sm:py-6 2xl:py-10 gap-3 sm:gap-4 2xl:gap-8 flex-shrink-0">
         <button
           onClick={() => setShowLoginModal(true)}
           disabled={!isInternetConnected || !isDatabaseConnected}
@@ -277,16 +277,16 @@ export default function KioskScreen() {
             : "text-[#1976D2] hover:bg-bg-secondary"
             }`}
         >
-          <User className="w-4 h-4 sm:w-5 sm:h-5" />
-          <span className="text-[9px] sm:text-xs font-semibold hidden sm:block">Usuario</span>
+          <User className="w-4 h-4 sm:w-5 sm:h-5 2xl:w-8 2xl:h-8" />
+          <span className="text-[9px] sm:text-xs 2xl:text-base font-semibold hidden sm:block">Usuario</span>
         </button>
 
         <button
           onClick={() => setShowBitacora(true)}
           className="flex flex-col items-center gap-1 text-[#1976D2] hover:bg-bg-secondary p-1.5 sm:p-2 rounded-lg transition-all w-10 sm:w-16"
         >
-          <ClipboardList className="w-4 h-4 sm:w-5 sm:h-5" />
-          <span className="text-[9px] sm:text-xs font-semibold hidden sm:block">Bitácora</span>
+          <ClipboardList className="w-4 h-4 sm:w-5 sm:h-5 2xl:w-8 2xl:h-8" />
+          <span className="text-[9px] sm:text-xs 2xl:text-base font-semibold hidden sm:block">Bitácora</span>
         </button>
 
         <div className="flex-1"></div>
@@ -300,7 +300,7 @@ export default function KioskScreen() {
       </div>
 
       {/* Contenido principal */}
-      <div className="flex-1 flex flex-col p-2 sm:p-4 overflow-hidden gap-2 sm:gap-3">
+      <div className="flex-1 flex flex-col p-2 sm:p-4 2xl:p-8 overflow-hidden gap-2 sm:gap-3 2xl:gap-6">
         {/* Tarjeta principal de registro */}
         <div className="flex-[7] min-h-0">
           {loadingCredenciales ? (
@@ -336,33 +336,33 @@ export default function KioskScreen() {
                       : "cursor-default"
                     }`}
                 >
-                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-2 sm:mb-4">
+                  <h2 className="text-xl sm:text-2xl lg:text-3xl 2xl:text-5xl font-bold mb-2 sm:mb-4 2xl:mb-8">
                     Registrar Asistencia
                   </h2>
 
-                  <div className="flex justify-center mb-2 sm:mb-4">
-                    <Icon className={`w-16 h-16 sm:w-24 sm:h-24 lg:w-32 lg:h-32 ${isDisabled ? "text-gray-300" : "text-white"}`} strokeWidth={1.5} />
+                  <div className="flex justify-center mb-2 sm:mb-4 2xl:mb-8">
+                    <Icon className={`w-16 h-16 sm:w-24 sm:h-24 lg:w-32 lg:h-32 2xl:w-48 2xl:h-48 ${isDisabled ? "text-gray-300" : "text-white"}`} strokeWidth={1.5} />
                   </div>
                   {isDisabled && (
-                    <p className="text-sm sm:text-lg text-gray-300 mb-2">
+                    <p className="text-sm sm:text-lg 2xl:text-2xl text-gray-300 mb-2 2xl:mb-8">
                       ({method.disabledMessage})
                     </p>
                   )}
 
-                  <div className="mb-2 sm:mb-3">
+                  <div className="mb-2 sm:mb-3 2xl:mb-6">
                     <div
-                      className="text-4xl sm:text-5xl lg:text-7xl font-bold mb-1 sm:mb-2 tracking-wider"
+                      className="text-4xl sm:text-5xl lg:text-7xl 2xl:text-9xl font-bold mb-1 sm:mb-2 tracking-wider"
                       style={{ letterSpacing: "0.1em" }}
                     >
                       {formatTime(time).replace(/\s/g, "\u00A0")}
                     </div>
                   </div>
 
-                  <div className="text-base sm:text-xl">
-                    <div className="font-semibold text-lg sm:text-2xl mb-1">
+                  <div className="text-base sm:text-xl 2xl:text-3xl">
+                    <div className="font-semibold text-lg sm:text-2xl 2xl:text-4xl mb-1 2xl:mb-3">
                       {formatDate(time)}
                     </div>
-                    <div className="text-white/80 capitalize text-sm sm:text-lg">
+                    <div className="text-white/80 capitalize text-sm sm:text-lg 2xl:text-3xl">
                       {formatDay(time)}
                     </div>
                   </div>
@@ -414,20 +414,20 @@ export default function KioskScreen() {
                 })}
               </div>
 
-              <div className="mb-2 sm:mb-3">
+              <div className="mb-2 sm:mb-3 2xl:mb-6">
                 <div
-                  className="text-4xl sm:text-5xl lg:text-7xl font-bold mb-1 sm:mb-2 tracking-wider"
+                  className="text-4xl sm:text-5xl lg:text-7xl 2xl:text-9xl font-bold mb-1 sm:mb-2 2xl:mb-4 tracking-wider"
                   style={{ letterSpacing: "0.1em" }}
                 >
                   {formatTime(time).replace(/\s/g, "\u00A0")}
                 </div>
               </div>
 
-              <div className="text-base sm:text-xl">
-                <div className="font-semibold text-lg sm:text-2xl mb-1">
+              <div className="text-base sm:text-xl 2xl:text-3xl">
+                <div className="font-semibold text-lg sm:text-2xl 2xl:text-4xl mb-1 2xl:mb-3">
                   {formatDate(time)}
                 </div>
-                <div className="text-white/80 dark:text-white/70 capitalize text-sm sm:text-lg">
+                <div className="text-white/80 dark:text-white/70 capitalize text-sm sm:text-lg 2xl:text-2xl">
                   {formatDay(time)}
                 </div>
               </div>

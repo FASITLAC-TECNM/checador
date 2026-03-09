@@ -248,15 +248,19 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         return false;
       }
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       const response = await fetch(
         `${API_URL}/asistencias/estado/${empleadoId}`,
         {
           headers: {
             'Authorization': `Bearer ${userData.token}`,
             'Content-Type': 'application/json'
-          }
+          },
+          signal: controller.signal
         }
       );
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const json = await response.json();
@@ -435,15 +439,19 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       if (online) {
         try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
           const response = await fetch(
             `${API_URL}/asistencias/empleado/${empleadoId}`,
             {
               headers: {
                 'Authorization': `Bearer ${userData.token}`,
                 'Content-Type': 'application/json'
-              }
+              },
+              signal: controller.signal
             }
           );
+          clearTimeout(timeoutId);
 
           if (response.ok) {
             const data = await response.json();
@@ -533,15 +541,19 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       if (online) {
         try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
           const response = await fetch(
             `${API_URL}/empleados/${empleadoId}/horario`,
             {
               headers: {
                 'Authorization': `Bearer ${userData.token}`,
                 'Content-Type': 'application/json'
-              }
+              },
+              signal: controller.signal
             }
           );
+          clearTimeout(timeoutId);
           if (response.ok) {
             const data = await response.json();
             horario = data.data || data.horario || data;
@@ -650,15 +662,19 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         try {
           const online = await syncManager.isOnline();
           if (online) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
             const response = await fetch(
               `${API_URL}/departamentos/${depto.id}`,
               {
                 headers: {
                   'Authorization': `Bearer ${userData.token}`,
                   'Content-Type': 'application/json'
-                }
+                },
+                signal: controller.signal
               }
             );
+            clearTimeout(timeoutId);
             if (response.ok) {
               const data = await response.json();
               return data.data || data;
@@ -865,6 +881,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         e.message.includes('Failed to fetch') ||
         e.message.includes('Timeout') ||
         e.message.includes('network') ||
+        e.message.includes('Servidor inactivo') ||
+        e.message.includes('JSON') ||
         e.name === 'AbortError'
       );
 
@@ -1030,15 +1048,18 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const tipoActual = tipoSiguienteRegistroRef.current;
 
       try {
-        const location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.High,
-          maximumAge: 3000,
-        });
+        const location = await Promise.race([
+          Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High,
+            maximumAge: 3000,
+          }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+        ]);
         ubicacionFinal = {
           lat: location.coords.latitude,
           lng: location.coords.longitude
         };
-      } catch (locationError) { }
+      } catch (locationError) { console.log('Location real-time failed, using last known'); }
 
       if (!ubicacionFinal || !ubicacionFinal.lat || !ubicacionFinal.lng) {
         throw new Error('No se pudo obtener la ubicación');
@@ -1065,7 +1086,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       let networkWifi = null;
       try {
         const netState = await Network.getNetworkStateAsync();
-        networkIp = await Network.getIpAddressAsync();
+        networkIp = await Promise.race([
+          Network.getIpAddressAsync(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+        ]);
 
         // El wifi BSSID normalmente requiere permisos especiales
         // pero podemos mandar el tipo de red para diagnosticar
@@ -1094,14 +1118,19 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       let data = null;
 
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+
         const response = await fetch(`${API_URL}/asistencias/registrar`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${userData.token}`,
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
 
         const responseText = await response.text();
 
@@ -1334,6 +1363,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             );
             return;
           }
+        } else {
+          // Si no hay bloque sin entrada, significa que ya completó todos sus bloques
+          Alert.alert('Aviso', 'Ya has registrado todas tus entradas para hoy o no tienes más turnos disponibles.');
+          return;
         }
       }
 

@@ -302,7 +302,7 @@ function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales,
                                     <button
                                         type="submit"
                                         disabled={isSubmitting || loading}
-                                        className="w-full bg-[#1976D2] hover:bg-[#1565C0] text-white py-2.5 rounded-lg font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-[#1976D2] focus:ring-offset-2 focus:ring-offset-bg-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                                        className="w-full bg-[#1976D2] hover:bg-[#1565C0] text-white py-2.5 md:py-3 2xl:py-4 rounded-xl font-semibold text-sm md:text-base 2xl:text-lg focus:outline-none focus:ring-2 focus:ring-[#1976D2] focus:ring-offset-2 focus:ring-offset-bg-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                                     >
                                         {isSubmitting || loading ? (
                                             <span className="flex items-center justify-center gap-2">
@@ -337,7 +337,7 @@ function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales,
                                         type="button"
                                         onClick={handleBiometricLogin}
                                         disabled={isSubmitting || loading || !isFingerprintEnabled || !isReaderConnected}
-                                        className={`w-full py-2.5 px-4 rounded-lg font-semibold text-sm transition-all flex items-center gap-3 disabled:cursor-not-allowed ${!isFingerprintEnabled || !isReaderConnected
+                                        className={`w-full py-2.5 px-4 md:py-3 md:px-5 2xl:py-4 2xl:px-6 rounded-xl font-semibold text-sm md:text-base 2xl:text-lg transition-all flex items-center gap-3 disabled:cursor-not-allowed ${!isFingerprintEnabled || !isReaderConnected
                                             ? "bg-gradient-to-r from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700 text-white/80 opacity-60"
                                             : "bg-[#1976D2] hover:bg-[#1565C0] text-white"
                                             }`}
@@ -357,7 +357,7 @@ function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales,
                                         type="button"
                                         onClick={handleFacialLogin}
                                         disabled={isSubmitting || loading || !isFacialEnabled || !isCameraConnected}
-                                        className={`w-full py-2.5 px-4 rounded-lg font-semibold text-sm transition-all flex items-center gap-3 disabled:cursor-not-allowed ${!isFacialEnabled || !isCameraConnected
+                                        className={`w-full py-2.5 px-4 md:py-3 md:px-5 2xl:py-4 2xl:px-6 rounded-xl font-semibold text-sm md:text-base 2xl:text-lg transition-all flex items-center gap-3 disabled:cursor-not-allowed ${!isFacialEnabled || !isCameraConnected
                                             ? "bg-gradient-to-r from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700 text-white/80 opacity-60"
                                             : "bg-[#1976D2] hover:bg-[#1565C0] text-white"
                                             }`}

@@ -8,7 +8,7 @@ import getApiEndpoint from '../config/api.js';
 // Obtener credenciales de un empleado
 export const getCredencialesByEmpleado = async (empleadoId, token) => {
     try {
-        
+
         const response = await fetch(
             getApiEndpoint(`/api/credenciales/empleado/${empleadoId}`),
             {
@@ -21,7 +21,7 @@ export const getCredencialesByEmpleado = async (empleadoId, token) => {
         );
 
         const data = await response.json();
-        
+
         // ✅ MEJORA: Diferenciar entre "no encontrado" (normal) y errores reales
         if (!response.ok) {
             // Si es 404, no hay credenciales (es normal para usuarios nuevos)
@@ -36,13 +36,13 @@ export const getCredencialesByEmpleado = async (empleadoId, token) => {
                     }
                 };
             }
-            
+
             // Otros errores sí son problemáticos
             throw new Error(data.message || 'Error al obtener credenciales');
         }
 
         return data;
-        
+
     } catch (error) {
         // Solo mostrar error si NO es el caso de "no encontradas"
         if (!error.message?.includes('no encontradas')) {
@@ -54,7 +54,7 @@ export const getCredencialesByEmpleado = async (empleadoId, token) => {
 // Guardar huella dactilar
 export const guardarDactilar = async (empleadoId, dactilarBase64, token) => {
     try {
-        
+
         const response = await fetch(
             getApiEndpoint('/api/credenciales/dactilar'),
             {
@@ -71,13 +71,13 @@ export const guardarDactilar = async (empleadoId, dactilarBase64, token) => {
         );
 
         const data = await response.json();
-        
+
         if (!response.ok) {
             throw new Error(data.message || 'Error al guardar huella dactilar');
         }
 
         return data;
-        
+
     } catch (error) {
         throw error;
     }
@@ -86,7 +86,7 @@ export const guardarDactilar = async (empleadoId, dactilarBase64, token) => {
 // Guardar reconocimiento facial
 export const guardarFacial = async (empleadoId, facialBase64, token) => {
     try {
-        
+
         const response = await fetch(
             getApiEndpoint('/api/credenciales/facial'),
             {
@@ -103,13 +103,13 @@ export const guardarFacial = async (empleadoId, facialBase64, token) => {
         );
 
         const data = await response.json();
-        
+
         if (!response.ok) {
             throw new Error(data.message || 'Error al guardar reconocimiento facial');
         }
 
         return data;
-        
+
     } catch (error) {
         throw error;
     }
@@ -118,12 +118,12 @@ export const guardarFacial = async (empleadoId, facialBase64, token) => {
 // Guardar PIN de seguridad
 export const guardarPin = async (empleadoId, pin, token) => {
     try {
-        
+
         // Validar que el PIN sea de 6 dígitos
         if (pin.length !== 6 || !/^\d{6}$/.test(pin)) {
             throw new Error('El PIN debe ser de exactamente 6 dígitos');
         }
-        
+
         const response = await fetch(
             getApiEndpoint('/api/credenciales/pin'),
             {
@@ -140,13 +140,13 @@ export const guardarPin = async (empleadoId, pin, token) => {
         );
 
         const data = await response.json();
-        
+
         if (!response.ok) {
             throw new Error(data.message || 'Error al guardar PIN');
         }
 
         return data;
-        
+
     } catch (error) {
         throw error;
     }
@@ -155,7 +155,9 @@ export const guardarPin = async (empleadoId, pin, token) => {
 // Verificar PIN
 export const verificarPin = async (empleadoId, pin, token) => {
     try {
-        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+
         const response = await fetch(
             getApiEndpoint('/api/credenciales/verificar-pin'),
             {
@@ -167,18 +169,26 @@ export const verificarPin = async (empleadoId, pin, token) => {
                 body: JSON.stringify({
                     empleado_id: empleadoId,
                     pin: pin
-                })
+                }),
+                signal: controller.signal
             }
         );
+        clearTimeout(timeoutId);
 
-        const data = await response.json();
-        
+        const responseText = await response.text();
+        let data;
+        try {
+            data = JSON.parse(responseText);
+        } catch (parseErr) {
+            throw new Error('Servidor inactivo o respuesta no válida (Server Down)');
+        }
+
         if (!response.ok) {
             throw new Error(data.message || 'Error al verificar PIN');
         }
 
         return data;
-        
+
     } catch (error) {
         throw error;
     }
@@ -187,7 +197,7 @@ export const verificarPin = async (empleadoId, pin, token) => {
 // Eliminar credencial específica
 export const eliminarCredencial = async (empleadoId, tipo, token) => {
     try {
-        
+
         const response = await fetch(
             getApiEndpoint(`/api/credenciales/empleado/${empleadoId}?tipo=${tipo}`),
             {
@@ -200,13 +210,13 @@ export const eliminarCredencial = async (empleadoId, tipo, token) => {
         );
 
         const data = await response.json();
-        
+
         if (!response.ok) {
             throw new Error(data.message || 'Error al eliminar credencial');
         }
 
         return data;
-        
+
     } catch (error) {
         throw error;
     }

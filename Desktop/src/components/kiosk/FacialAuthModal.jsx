@@ -12,13 +12,14 @@ export default function FacialAuthModal({ onClose, onAuthSuccess }) {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [isClosing, setIsClosing] = useState(false);
+  const [proximityMessage, setProximityMessage] = useState("");
+  const [faceDetected, setFaceDetected] = useState(false);
 
   // Hook de camara singleton
   const { initCamera, releaseCamera } = useCamera();
 
   const {
     modelsLoaded,
-    faceDetected,
     detectionProgress,
     detectionError,
     loadModels,
@@ -119,96 +120,128 @@ export default function FacialAuthModal({ onClose, onAuthSuccess }) {
             .withFaceLandmarks()
             .withFaceDescriptor();
 
-          if (detections && detections.detection.score > 0.4 && !capturado) {
-            capturado = true;
-            clearInterval(captureInterval);
-            if (timeoutId) clearTimeout(timeoutId);
+          if (detections && detections.detection.score > 0.4) {
 
-            const descriptor = Array.from(detections.descriptor);
-            console.log("✅ Rostro capturado para autenticacion");
+            setFaceDetected(true); // <-- This is what enables the proximity text
 
-            // Convertir descriptor a Base64
-            const float32Array = new Float32Array(descriptor);
-            const buffer = new Uint8Array(float32Array.buffer);
-            let binary = '';
-            for (let i = 0; i < buffer.length; i++) {
-              binary += String.fromCharCode(buffer[i]);
+            // Validar posición de proximidad
+            const box = detections.detection.box;
+            const canvasW = 280;
+            // cropH/cropW aspect is (3/4)*(0.7/0.4) = 1.3125
+            const canvasH = 368;
+            const faceCenterX = box.x + box.width / 2;
+            const faceCenterY = box.y + box.height / 2;
+
+            const widthRatio = box.width / canvasW;
+            const heightRatio = box.height / canvasH;
+
+            let isPositionGood = false;
+
+            if (widthRatio < 0.35 || heightRatio < 0.35) {
+              setProximityMessage("Acércate un poco más a la cámara");
+            } else if (widthRatio > 0.85 || heightRatio > 0.85) {
+              setProximityMessage("Aléjate un poco de la cámara");
+            } else if (Math.abs(faceCenterX - canvasW / 2) > canvasW * 0.20 || Math.abs(faceCenterY - canvasH / 2) > canvasH * 0.20) {
+              setProximityMessage("Centra tu rostro dentro del óvalo");
+            } else {
+              setProximityMessage("¡Posición perfecta! Autenticando...");
+              isPositionGood = true;
             }
-            const descriptorBase64 = btoa(binary);
 
-            console.log(`📦 Descriptor convertido a Base64: ${descriptorBase64.length} caracteres`);
+            if (isPositionGood && !capturado) {
+              capturado = true;
+              clearInterval(captureInterval);
+              if (timeoutId) clearTimeout(timeoutId);
 
-            // Identificar usuario por facial
-            try {
-              const response = await identificarPorFacial(descriptorBase64);
+              const descriptor = Array.from(detections.descriptor);
+              console.log("✅ Rostro capturado para autenticacion");
 
-              if (response.success) {
-                console.log("✅ Usuario identificado:", response.usuario);
+              // Convertir descriptor a Base64
+              const float32Array = new Float32Array(descriptor);
+              const buffer = new Uint8Array(float32Array.buffer);
+              let binary = '';
+              for (let i = 0; i < buffer.length; i++) {
+                binary += String.fromCharCode(buffer[i]);
+              }
+              const descriptorBase64 = btoa(binary);
 
-                // Extraer empleado_id para autenticar via /api/auth/biometric
-                const empleadoId = response.usuario.id_empleado || response.usuario.id;
+              console.log(`📦 Descriptor convertido a Base64: ${descriptorBase64.length} caracteres`);
 
-                if (!empleadoId) {
-                  setErrorMessage("No se pudo obtener el ID del empleado");
-                  setStep("error");
-                  return;
-                }
+              // Identificar usuario por facial
+              try {
+                const response = await identificarPorFacial(descriptorBase64);
 
-                // Autenticar via /api/auth/biometric (mismo flujo que BiometricAuth)
-                const authResponse = await fetch(`${API_CONFIG.BASE_URL}/api/auth/biometric`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ empleado_id: empleadoId }),
-                });
+                if (response.success) {
+                  console.log("✅ Usuario identificado:", response.usuario);
 
-                if (!authResponse.ok) {
-                  const errorData = await authResponse.json().catch(() => ({}));
-                  throw new Error(errorData.message || "Error al autenticar");
-                }
+                  // Extraer empleado_id para autenticar via /api/auth/biometric
+                  const empleadoId = response.usuario.id_empleado || response.usuario.id;
 
-                const authResult = await authResponse.json();
-
-                if (!authResult.success) {
-                  throw new Error(authResult.message || "Error en autenticacion");
-                }
-
-                const { usuario, roles, permisos, esAdmin, token } = authResult.data;
-
-                if (token) {
-                  localStorage.setItem("auth_token", token);
-                }
-
-                const usuarioCompleto = {
-                  ...usuario,
-                  roles,
-                  permisos,
-                  esAdmin,
-                  token,
-                  matchScore: response.matchScore,
-                  metodoAutenticacion: "FACIAL",
-                };
-
-                guardarSesion(usuarioCompleto);
-
-                setSuccessMessage(`Bienvenido, ${usuarioCompleto.nombre || usuarioCompleto.id}`);
-                setStep("success");
-
-                // Callback y cerrar despues de mostrar mensaje
-                setTimeout(() => {
-                  if (onAuthSuccess) {
-                    onAuthSuccess(usuarioCompleto);
+                  if (!empleadoId) {
+                    setErrorMessage("No se pudo obtener el ID del empleado");
+                    setStep("error");
+                    return;
                   }
-                  handleClose();
-                }, 2000);
-              } else {
-                setErrorMessage(response.error || "Rostro no reconocido en el sistema");
+
+                  // Autenticar via /api/auth/biometric (mismo flujo que BiometricAuth)
+                  const authResponse = await fetch(`${API_CONFIG.BASE_URL}/api/auth/biometric`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ empleado_id: empleadoId }),
+                  });
+
+                  if (!authResponse.ok) {
+                    const errorData = await authResponse.json().catch(() => ({}));
+                    throw new Error(errorData.message || "Error al autenticar");
+                  }
+
+                  const authResult = await authResponse.json();
+
+                  if (!authResult.success) {
+                    throw new Error(authResult.message || "Error en autenticacion");
+                  }
+
+                  const { usuario, roles, permisos, esAdmin, token } = authResult.data;
+
+                  if (token) {
+                    localStorage.setItem("auth_token", token);
+                  }
+
+                  const usuarioCompleto = {
+                    ...usuario,
+                    roles,
+                    permisos,
+                    esAdmin,
+                    token,
+                    matchScore: response.matchScore,
+                    metodoAutenticacion: "FACIAL",
+                  };
+
+                  guardarSesion(usuarioCompleto);
+
+                  setSuccessMessage(`Bienvenido, ${usuarioCompleto.nombre || usuarioCompleto.id}`);
+                  setStep("success");
+
+                  // Callback y cerrar despues de mostrar mensaje
+                  setTimeout(() => {
+                    if (onAuthSuccess) {
+                      onAuthSuccess(usuarioCompleto);
+                    }
+                    handleClose();
+                  }, 2000);
+                } else {
+                  setErrorMessage(response.error || "Rostro no reconocido en el sistema");
+                  setStep("error");
+                }
+              } catch (error) {
+                console.error("Error identificando usuario:", error);
+                setErrorMessage(error.message || "Error al identificar rostro");
                 setStep("error");
               }
-            } catch (error) {
-              console.error("Error identificando usuario:", error);
-              setErrorMessage(error.message || "Error al identificar rostro");
-              setStep("error");
             }
+          } else {
+            setFaceDetected(false);
+            setProximityMessage("");
           }
         } catch (error) {
           console.error("❌ Error en deteccion:", error);
@@ -296,7 +329,7 @@ export default function FacialAuthModal({ onClose, onAuthSuccess }) {
       }}
     >
       <div
-        className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden transition-all duration-300"
+        className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-lg 2xl:max-w-3xl max-h-[90vh] overflow-y-auto w-full transition-all duration-300"
         style={{
           transform: isClosing ? 'scale(0.95)' : 'scale(1)',
           opacity: isClosing ? 0 : 1
@@ -329,14 +362,14 @@ export default function FacialAuthModal({ onClose, onAuthSuccess }) {
           {/* Capturando */}
           {step === "capturing" && (
             <div className="space-y-4">
-              <div className="relative bg-black rounded-xl overflow-hidden w-full" style={{ aspectRatio: "4/3", minHeight: "300px" }}>
+              <div className="relative bg-black rounded-xl overflow-hidden w-full aspect-[4/3] min-h-[280px] 2xl:min-h-[450px]">
                 <video
                   id="authVideo"
                   autoPlay
                   playsInline
                   muted
-                  className="w-full h-full object-cover"
-                  style={{ transform: "scaleX(-1)", minHeight: "300px" }}
+                  className="w-full h-full object-cover min-h-[280px] 2xl:min-h-[450px]"
+                  style={{ transform: "scaleX(-1)" }}
                 />
 
                 {/* Guias de captura - Ovalo facial con animaciones */}
@@ -413,9 +446,9 @@ export default function FacialAuthModal({ onClose, onAuthSuccess }) {
 
               {/* Indicadores */}
               <div className="space-y-2">
-                <p className="text-center text-gray-700 dark:text-gray-300 text-sm font-medium">
+                <p className={`text-center text-sm font-medium ${proximityMessage === "¡Posición perfecta! Autenticando..." ? "text-green-600 dark:text-green-400" : proximityMessage ? "text-[#1976D2] dark:text-[#42A5F5]" : "text-gray-700 dark:text-gray-300"}`}>
                   {!modelsLoaded && "Cargando modelos de reconocimiento..."}
-                  {modelsLoaded && "Coloca tu rostro frente a la camara"}
+                  {modelsLoaded && (proximityMessage || "Coloca tu rostro frente a la cámara")}
                 </p>
 
                 {modelsLoaded && (

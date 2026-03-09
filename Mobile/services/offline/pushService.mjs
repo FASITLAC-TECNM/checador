@@ -229,7 +229,7 @@ export async function pushPendingRecords() {
                 (r.idempotency_key === sync.id_local) || (r.local_id.toString() === sync.id_local)
             );
             if (record) {
-                await sqliteManager.markAsSynced(record.local_id, sync.id_servidor);
+                await sqliteManager.markAsSynced(record.local_id, sync.id_servidor, sync.estado || null);
 
                 let nombreGuardado = 'El empleado';
                 try {
@@ -239,10 +239,10 @@ export async function pushPendingRecords() {
 
                 console.log(`[DEBUG PUSH] Firing postEvent for record: ${record.local_id}`);
 
-                // Formato igual al que genera el backend en asistencias.controller.js
-                const estadoSincronizado = record.estado && record.estado !== 'pendiente'
-                    ? record.estado
-                    : 'sincronizado';
+                // El backend ahora devuelve el estado REAL calculado (puntual, retardo, etc) en sync.estado
+                const estadoSincronizado = sync.estado && sync.estado !== 'pendiente'
+                    ? sync.estado
+                    : (record.estado && record.estado !== 'pendiente' ? record.estado : 'sincronizado');
                 await postEvent(
                     `Registro de ${record.tipo} - ${estadoSincronizado}`,
                     'ASISTENCIA',

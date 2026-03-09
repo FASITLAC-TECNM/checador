@@ -184,7 +184,7 @@ export default function SessionScreen({ onLogout, usuario, isReaderConnected = f
 
   return (
     <div className="h-screen bg-bg-secondary p-2 sm:p-4 overflow-hidden">
-      <div className="max-w-[1600px] mx-auto h-full flex flex-col">
+      <div className="max-w-[1600px] 2xl:max-w-[1920px] mx-auto h-full flex flex-col">
         {/* Sidebar Dashboard - All Users */}
         <div className="flex-1 min-h-0">
           <AdminDashboard

@@ -73,7 +73,7 @@ export default function AdminDashboard({
         <>
             <div className="flex h-full rounded-2xl shadow-lg border border-border-subtle overflow-hidden">
                 {/* ===== SIDEBAR ===== */}
-                <aside className="w-14 lg:w-[240px] xl:w-[280px] bg-bg-secondary border-r border-border-subtle flex flex-col flex-shrink-0 transition-all duration-300">
+                <aside className="w-14 lg:w-[240px] xl:w-[280px] 2xl:w-[340px] bg-bg-secondary border-r border-border-subtle flex flex-col flex-shrink-0 transition-all duration-300">
 
                     {/* Profile Card - Compact */}
                     <div className="p-2 lg:p-4 border-b border-border-subtle">
@@ -86,15 +86,15 @@ export default function AdminDashboard({
                                     <img
                                         src={datosCompletos.foto}
                                         alt={userName}
-                                        className="relative w-10 h-10 lg:w-12 lg:h-12 rounded-full object-cover border-[3px] border-transparent"
+                                        className="relative w-10 h-10 lg:w-12 lg:h-12 2xl:w-16 2xl:h-16 rounded-full object-cover border-[3px] border-transparent"
                                         style={{ background: "none" }}
                                     />
                                 ) : (
-                                    <div className="relative w-10 h-10 lg:w-12 lg:h-12 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-full flex items-center justify-center shadow-md border-2 border-[#1976D2]">
-                                        <User className="w-5 h-5 lg:w-6 lg:h-6 text-[#1976D2] dark:text-[#42A5F5]" />
+                                    <div className="relative w-10 h-10 lg:w-12 lg:h-12 2xl:w-16 2xl:h-16 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-full flex items-center justify-center shadow-md border-2 border-[#1976D2]">
+                                        <User className="w-5 h-5 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 text-[#1976D2] dark:text-[#42A5F5]" />
                                     </div>
                                 )}
-                                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-bg-secondary" />
+                                <div className="absolute bottom-0 right-0 w-3 h-3 2xl:w-4 2xl:h-4 bg-green-500 rounded-full border-2 border-bg-secondary" />
                             </div>
 
                             <div className="flex-col overflow-hidden hidden lg:flex">
@@ -131,9 +131,9 @@ export default function AdminDashboard({
                                 <div className="col-span-2 flex items-center gap-1.5 overflow-hidden">
                                     <Building2 className="w-3 h-3 text-[#1976D2] flex-shrink-0" />
                                     <div className="overflow-hidden flex-1 min-w-0">
-                                        <p className="text-text-tertiary text-[9px] font-semibold uppercase leading-none">Departamento</p>
+                                        <p className="text-text-tertiary text-[9px] 2xl:text-xs font-semibold uppercase leading-none">Departamento</p>
                                         <div className="flex items-center gap-1">
-                                            <p className="text-text-primary font-medium truncate text-[11px]">
+                                            <p className="text-text-primary font-medium truncate text-[11px] 2xl:text-sm">
                                                 {departamentos.length > 0
                                                     ? (departamentos[0]?.nombre || departamentos[0])
                                                     : (typeof userDepartamento === 'object' ? userDepartamento.nombre : userDepartamento)
@@ -142,7 +142,7 @@ export default function AdminDashboard({
                                             {departamentos.length > 1 && (
                                                 <button
                                                     onClick={() => setShowDeptPopover(!showDeptPopover)}
-                                                    className="px-1.5 py-0.5 bg-[#E3F2FD] dark:bg-[#1565C0]/20 text-[#1976D2] text-[9px] font-bold rounded-md hover:bg-[#BBDEFB] transition-colors flex-shrink-0"
+                                                    className="px-1.5 py-0.5 bg-[#E3F2FD] dark:bg-[#1565C0]/20 text-[#1976D2] text-[9px] 2xl:text-xs font-bold rounded-md hover:bg-[#BBDEFB] transition-colors flex-shrink-0"
                                                 >
                                                     +{departamentos.length - 1}
                                                 </button>
@@ -230,12 +230,12 @@ export default function AdminDashboard({
                     {!isAdmin && <div className="flex-1" />}
 
                     {/* Logout */}
-                    <div className="p-2 lg:p-3 border-t border-border-subtle">
+                    <div className="p-2 lg:p-3 2xl:p-4 border-t border-border-subtle">
                         <button
                             onClick={onLogout}
-                            className="w-full flex items-center justify-center gap-2 px-2 lg:px-4 py-2.5 lg:py-3 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg text-xs lg:text-sm"
+                            className="w-full flex items-center justify-center gap-2 px-2 lg:px-4 py-2.5 lg:py-3 2xl:py-4 bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 text-white rounded-xl font-bold transition-all shadow-md hover:shadow-lg text-xs lg:text-sm 2xl:text-base"
                         >
-                            <LogOut className="w-4 h-4" />
+                            <LogOut className="w-4 h-4 2xl:w-5 2xl:h-5" />
                             <span className="hidden lg:inline">Cerrar Sesión</span>
                         </button>
                     </div>

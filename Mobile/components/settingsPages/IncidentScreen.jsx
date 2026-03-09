@@ -13,19 +13,22 @@ import {
   TextInput,
   Platform,
   KeyboardAvoidingView
-} from 'react-native';
+} from
+  'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   getIncidenciasEmpleado,
   createIncidencia
-} from '../../services/incidenciasService';
+} from
+  '../../services/incidenciasService';
 
-// Offline Services
+
 import sqliteManager from '../../services/offline/sqliteManager.mjs';
 import syncManager from '../../services/offline/syncManager.mjs';
 import { detectarCambiosIncidencias } from '../../services/localNotificationService';
 import { incidenciasStyles, incidenciasStylesDark } from './IncidentScreenStyles';
+import { CreationIncidentScreen } from './CreationIncidentScreen';
 
 export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
   const [incidencias, setIncidencias] = useState([]);
@@ -34,50 +37,37 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [creando, setCreando] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState('todos');
-  const [filtroTipo, setFiltroTipo] = useState('todos'); // NUEVO
+  const [filtroTipo, setFiltroTipo] = useState('todos');
   const [vistaActual, setVistaActual] = useState('lista');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [expandedCard, setExpandedCard] = useState(null);
   const [modalFiltroVisible, setModalFiltroVisible] = useState(false);
-  const [modalTipoVisible, setModalTipoVisible] = useState(false);
-  const [modalFiltroTipoVisible, setModalFiltroTipoVisible] = useState(false); // NUEVO
-
-  // Form state
-  const [tipoSeleccionado, setTipoSeleccionado] = useState('');
-  const [motivo, setMotivo] = useState('');
-  const [fechaInicio, setFechaInicio] = useState(new Date());
-  const [fechaFin, setFechaFin] = useState(new Date(new Date().getTime() + 86400000));
-  const [showDatePickerInicio, setShowDatePickerInicio] = useState(false);
-  const [showDatePickerFin, setShowDatePickerFin] = useState(false);
+  const [modalFiltroTipoVisible, setModalFiltroTipoVisible] = useState(false);
 
   const styles = darkMode ? incidenciasStylesDark : incidenciasStyles;
 
-  const monthNames = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-  ];
 
   const tiposIncidencia = [
     { value: 'retardo', label: 'Retardo', icon: 'time', color: '#f59e0b' },
     { value: 'justificante', label: 'Justificante', icon: 'document-text', color: '#3b82f6' },
     { value: 'permiso', label: 'Permiso', icon: 'calendar', color: '#8b5cf6' },
     { value: 'vacaciones', label: 'Vacaciones', icon: 'airplane', color: '#10b981' },
-    { value: 'falta_justificada', label: 'Falta Justificada', icon: 'medkit', color: '#ec4899' },
-  ];
+    { value: 'falta_justificada', label: 'Falta Justificada', icon: 'medkit', color: '#ec4899' }];
+
 
   const filtrosEstado = [
     { value: 'todos', label: 'Todos', icon: 'list' },
     { value: 'pendiente', label: 'Pendientes', icon: 'time', color: '#f59e0b' },
     { value: 'aprobado', label: 'Aprobadas', icon: 'checkmark-circle', color: '#10b981' },
-    { value: 'rechazado', label: 'Rechazadas', icon: 'close-circle', color: '#ef4444' },
-  ];
+    { value: 'rechazado', label: 'Rechazadas', icon: 'close-circle', color: '#ef4444' }];
 
-  // NUEVO: Filtros de tipo
+
+
   const filtrosTipo = [
     { value: 'todos', label: 'Todos los tipos', icon: 'apps', color: '#6b7280' },
-    ...tiposIncidencia
-  ];
+    ...tiposIncidencia];
+
 
   useEffect(() => {
     cargarIncidencias();
@@ -96,35 +86,35 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
       let datos = [];
       let cargoOnline = false;
 
-      // Siempre intentar cargar del servidor primero
+
       try {
         const response = await getIncidenciasEmpleado(empleadoId, token);
         datos = response.data || [];
         cargoOnline = true;
 
-        // Guardar en caché local para uso offline
+
         if (datos.length > 0) {
-          await sqliteManager.upsertIncidencias(empleadoId, datos).catch(e =>
-            console.log('Error guardando caché incidencias:', e.message)
+          await sqliteManager.upsertIncidencias(empleadoId, datos).catch((e) =>
+            function () { }('Error guardando caché incidencias:', e.message)
           );
         }
       } catch (e) {
-        console.log('Error cargando incidencias online, usando caché local:', e.message);
-        // Fallback: cargar desde SQLite
+        (function () { })('Error cargando incidencias online, usando caché local:', e.message);
+
         try {
           datos = await sqliteManager.getIncidenciasLocal(empleadoId);
         } catch (dbErr) {
-          console.log('Error leyendo caché local:', dbErr.message);
+          (function () { })('Error leyendo caché local:', dbErr.message);
           datos = [];
         }
       }
 
-      // Agregar incidencias offline pendientes (no sincronizadas)
+
       try {
         const pendientes = await sqliteManager.getPendingIncidencias();
-        const offlineItems = pendientes
-          .filter(p => p.empleado_id === empleadoId)
-          .map(p => ({
+        const offlineItems = pendientes.
+          filter((p) => p.empleado_id === empleadoId).
+          map((p) => ({
             id: `offline_${p.local_id}`,
             empleado_id: p.empleado_id,
             tipo: p.tipo,
@@ -138,7 +128,7 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
 
         datos = [...offlineItems, ...datos];
       } catch (e) {
-        console.log('Error leyendo incidencias offline:', e.message);
+        (function () { })('Error leyendo incidencias offline:', e.message);
       }
 
       const incidenciasOrdenadas = datos.sort((a, b) =>
@@ -146,17 +136,17 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
       );
       setIncidencias(incidenciasOrdenadas);
 
-      // Detectar cambios de estado y notificar (aprobado/rechazado)
+
       if (cargoOnline) {
         detectarCambiosIncidencias(incidenciasOrdenadas);
       }
 
-      // Si no cargo online y no hay datos, avisar
+
       if (!cargoOnline && datos.length === 0) {
         Alert.alert('Sin conexión', 'No se pudieron cargar las incidencias. Revisa tu conexión.');
       }
     } catch (error) {
-      console.error('Error cargando incidencias:', error);
+      (function () { })('Error cargando incidencias:', error);
       Alert.alert('Error', 'No se pudieron cargar las incidencias');
     } finally {
       setLoading(false);
@@ -168,87 +158,6 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
     await cargarIncidencias();
     setRefreshing(false);
   };
-
-  const handleCrearIncidencia = async () => {
-    if (creando) return; // Prevent double taps
-
-    if (!tipoSeleccionado) {
-      Alert.alert('Error', 'Selecciona un tipo de incidencia');
-      return;
-    }
-
-    if (!motivo.trim()) {
-      Alert.alert('Error', 'Ingresa el motivo de la incidencia');
-      return;
-    }
-
-    if (!fechaFin) {
-      Alert.alert('Error', 'La fecha de fin es obligatoria');
-      return;
-    }
-
-    if (fechaFin < fechaInicio) {
-      Alert.alert('Error', 'La fecha de fin debe ser posterior a la fecha de inicio');
-      return;
-    }
-
-    try {
-      setCreando(true);
-
-      const incidenciaData = {
-        empleado_id: userData.empleado_id,
-        tipo: tipoSeleccionado,
-        motivo: motivo.trim(),
-        fecha_inicio: fechaInicio.toISOString(),
-        fecha_fin: fechaFin.toISOString()
-      };
-
-      const online = await syncManager.isOnline();
-      let creadaOnline = false;
-
-      if (online && userData.token) {
-        try {
-          await createIncidencia(incidenciaData, userData.token);
-          creadaOnline = true;
-        } catch (e) {
-          console.log('Error creando incidencia online, guardando offline:', e.message);
-        }
-      }
-
-      if (!creadaOnline) {
-        // Guardar offline para sincronizar después
-        await sqliteManager.saveOfflineIncidencia(incidenciaData);
-
-        Alert.alert(
-          'Modo Offline',
-          'No hay conexión con el servidor. Tu incidencia se ha guardado localmente y se enviará cuando recuperes la conexión.',
-          [{ text: 'Entendido' }]
-        );
-      } else {
-        Alert.alert(
-          '¡Éxito!',
-          'Incidencia creada correctamente. Está pendiente de aprobación.',
-          [{ text: 'OK' }]
-        );
-      }
-
-      // Limpiar formulario
-      setTipoSeleccionado('');
-      setMotivo('');
-      setFechaInicio(new Date());
-      setFechaFin(new Date(new Date().getTime() + 86400000));
-      setModalVisible(false);
-
-      // Recargar lista
-      await cargarIncidencias();
-    } catch (error) {
-      console.error('Error creando incidencia:', error);
-      Alert.alert('Error', error.message || 'No se pudo crear la incidencia');
-    } finally {
-      setCreando(false);
-    }
-  };
-
 
   const getEstadoColor = (estado) => {
     switch (estado?.toLowerCase()) {
@@ -273,12 +182,12 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
   };
 
   const getTipoIcon = (tipo) => {
-    const tipoObj = tiposIncidencia.find(t => t.value === tipo);
+    const tipoObj = tiposIncidencia.find((t) => t.value === tipo);
     return tipoObj?.icon || 'document';
   };
 
   const getTipoColor = (tipo) => {
-    const tipoObj = tiposIncidencia.find(t => t.value === tipo);
+    const tipoObj = tiposIncidencia.find((t) => t.value === tipo);
     return tipoObj?.color || '#6b7280';
   };
 
@@ -313,15 +222,15 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
     let filtradas = incidencias;
 
     if (filtroEstado !== 'todos' && vistaActual === 'lista') {
-      filtradas = filtradas.filter(i => i.estado?.toLowerCase() === filtroEstado);
+      filtradas = filtradas.filter((i) => i.estado?.toLowerCase() === filtroEstado);
     }
 
     if (filtroTipo !== 'todos') {
-      filtradas = filtradas.filter(i => i.tipo === filtroTipo);
+      filtradas = filtradas.filter((i) => i.tipo === filtroTipo);
     }
 
     if (selectedDate && vistaActual === 'calendario') {
-      filtradas = filtradas.filter(i => {
+      filtradas = filtradas.filter((i) => {
         const inicioDate = new Date(i.fecha_inicio);
         const finDate = i.fecha_fin ? new Date(i.fecha_fin) : inicioDate;
         return selectedDate >= new Date(inicioDate.setHours(0, 0, 0, 0)) &&
@@ -360,7 +269,7 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
     for (let dia = 1; dia <= daysInMonth; dia++) {
       const fecha = new Date(year, month, dia);
 
-      const incidenciasDia = incidencias.filter(i => {
+      const incidenciasDia = incidencias.filter((i) => {
         const inicioDate = new Date(i.fecha_inicio);
         const finDate = i.fecha_fin ? new Date(i.fecha_fin) : inicioDate;
         return fecha >= new Date(inicioDate.setHours(0, 0, 0, 0)) &&
@@ -374,12 +283,17 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
     return mapa;
   }, [incidencias, currentMonth]);
 
+  const monthNames = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+
   const renderCalendario = () => {
     const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
     return (
       <View style={styles.calendarSection}>
-        {/* Navegación mes */}
+        { }
         <View style={styles.monthSelector}>
           <TouchableOpacity onPress={() => cambiarMes(-1)} style={styles.monthButton}>
             <Ionicons name="chevron-back" size={24} color={styles.monthButtonText.color} />
@@ -394,19 +308,19 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
           </TouchableOpacity>
         </View>
 
-        {/* Calendario */}
+        { }
         <View style={styles.calendar}>
           <View style={styles.weekDays}>
-            {dayNames.map((day, index) => (
+            {dayNames.map((day, index) =>
               <View key={index} style={styles.weekDay}>
                 <Text style={styles.weekDayText}>{day}</Text>
               </View>
-            ))}
+            )}
           </View>
 
           <View style={styles.daysGrid}>
             {diasCalendario.map((dia, index) => {
-              const incidenciasDia = dia ? (incidenciasPorDia[dia] || []) : [];
+              const incidenciasDia = dia ? incidenciasPorDia[dia] || [] : [];
               const isSelected = selectedDate && dia === selectedDate.getDate() &&
                 selectedDate.getMonth() === currentMonth.getMonth();
               const isToday = dia &&
@@ -426,36 +340,36 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
                       }
                     }
                   }}
-                  disabled={!dia}
-                >
-                  {dia && (
+                  disabled={!dia}>
+
+                  {dia &&
                     <View style={[
                       styles.dayContent,
                       isSelected && styles.dayContentSelected,
-                      isToday && !isSelected && styles.dayContentToday
-                    ]}>
+                      isToday && !isSelected && styles.dayContentToday]
+                    }>
                       <Text style={[
                         styles.dayText,
                         isSelected && styles.dayTextSelected,
-                        isToday && !isSelected && styles.dayTextToday
-                      ]}>
+                        isToday && !isSelected && styles.dayTextToday]
+                      }>
                         {dia}
                       </Text>
-                      {/* MODIFICADO: Solo un indicador (oculto si está seleccionado) */}
-                      {incidenciasDia.length > 0 && !isSelected && (
+                      { }
+                      {incidenciasDia.length > 0 && !isSelected &&
                         <View style={styles.dayIndicators}>
                           <View style={styles.dayIndicator} />
                         </View>
-                      )}
+                      }
                     </View>
-                  )}
-                </TouchableOpacity>
-              );
+                  }
+                </TouchableOpacity>);
+
             })}
           </View>
         </View>
-      </View>
-    );
+      </View>);
+
   };
 
   const renderIncidenciaCard = (incidencia) => {
@@ -467,23 +381,23 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
         key={incidencia.id}
         style={styles.incidenciaCard}
         onPress={() => setExpandedCard(isExpanded ? null : incidencia.id)}
-        activeOpacity={0.7}
-      >
+        activeOpacity={0.7}>
+
         <View style={styles.cardHeader}>
           <View style={styles.tipoContainer}>
             <View style={[
               styles.tipoIcon,
-              { backgroundColor: `${getTipoColor(incidencia.tipo)}20` }
-            ]}>
+              { backgroundColor: `${getTipoColor(incidencia.tipo)}20` }]
+            }>
               <Ionicons
                 name={getTipoIcon(incidencia.tipo)}
                 size={20}
-                color={getTipoColor(incidencia.tipo)}
-              />
+                color={getTipoColor(incidencia.tipo)} />
+
             </View>
             <View style={styles.tipoInfo}>
               <Text style={styles.tipoText}>
-                {tiposIncidencia.find(t => t.value === incidencia.tipo)?.label || incidencia.tipo}
+                {tiposIncidencia.find((t) => t.value === incidencia.tipo)?.label || incidencia.tipo}
               </Text>
               <Text style={styles.fechaText}>
                 {formatearFecha(incidencia.fecha_inicio)}
@@ -494,35 +408,35 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
 
           <View style={[
             styles.estadoBadge,
-            { backgroundColor: `${getEstadoColor(incidencia.estado)}20` }
-          ]}>
+            { backgroundColor: `${getEstadoColor(incidencia.estado)}20` }]
+          }>
             <Ionicons
               name={getEstadoIcon(incidencia.estado)}
               size={14}
-              color={getEstadoColor(incidencia.estado)}
-            />
+              color={getEstadoColor(incidencia.estado)} />
+
           </View>
         </View>
 
-        {incidencia.is_offline && (
+        {incidencia.is_offline &&
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, backgroundColor: '#eef2ff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, alignSelf: 'flex-start', gap: 4 }}>
             <Ionicons name="cloud-offline" size={14} color="#6366f1" />
             <Text style={{ fontSize: 12, fontWeight: '600', color: '#6366f1' }}>Pendiente de enviar</Text>
           </View>
-        )}
+        }
 
         <Text style={styles.motivoText} numberOfLines={isExpanded ? undefined : 2}>
           {incidencia.motivo}
         </Text>
 
-        {incidencia.fecha_fin && (
+        {incidencia.fecha_fin &&
           <View style={styles.diasBadge}>
             <Ionicons name="calendar-outline" size={14} color="#6b7280" />
             <Text style={styles.diasText}>{diasTotal} {diasTotal === 1 ? 'día' : 'días'}</Text>
           </View>
-        )}
+        }
 
-        {isExpanded && (
+        {isExpanded &&
           <View style={styles.expandedContent}>
             <View style={styles.divider} />
 
@@ -538,35 +452,35 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
               <Text style={styles.detailValue}>{formatearFechaCompleta(incidencia.fecha_inicio)}</Text>
             </View>
 
-            {incidencia.fecha_fin && (
+            {incidencia.fecha_fin &&
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Fin:</Text>
                 <Text style={styles.detailValue}>{formatearFechaCompleta(incidencia.fecha_fin)}</Text>
               </View>
-            )}
+            }
 
-            {incidencia.observaciones && (
+            {incidencia.observaciones &&
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>
                   {incidencia.estado === 'rechazado' ? 'Motivo de rechazo:' : 'Observaciones:'}
                 </Text>
                 <Text style={[
                   styles.detailValue,
-                  incidencia.estado === 'rechazado' && { color: '#ef4444' }
-                ]}>
+                  incidencia.estado === 'rechazado' && { color: '#ef4444' }]
+                }>
                   {incidencia.observaciones}
                 </Text>
               </View>
-            )}
+            }
           </View>
-        )}
-      </TouchableOpacity>
-    );
+        }
+      </TouchableOpacity>);
+
   };
 
   const keyExtractor = useCallback((item) => item.id.toString(), []);
 
-  const ListHeader = () => (
+  const ListHeader = () =>
     <>
       <View style={styles.viewToggle}>
         <TouchableOpacity
@@ -574,75 +488,75 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
           onPress={() => {
             setVistaActual('lista');
             setSelectedDate(null);
-          }}
-        >
+          }}>
+
           <Ionicons name="list" size={20} color={vistaActual === 'lista' ? '#2563eb' : '#6b7280'} />
           <Text style={[styles.viewButtonText, vistaActual === 'lista' && styles.viewButtonTextActive]}>Lista</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.viewButton, vistaActual === 'calendario' && styles.viewButtonActive]}
-          onPress={() => setVistaActual('calendario')}
-        >
+          onPress={() => setVistaActual('calendario')}>
+
           <Ionicons name="calendar" size={20} color={vistaActual === 'calendario' ? '#2563eb' : '#6b7280'} />
           <Text style={[styles.viewButtonText, vistaActual === 'calendario' && styles.viewButtonTextActive]}>Calendario</Text>
         </TouchableOpacity>
       </View>
 
-      {vistaActual === 'lista' && (
+      {vistaActual === 'lista' &&
         <View style={styles.filtrosContainer}>
           <TouchableOpacity style={styles.filtroChip} onPress={() => setModalFiltroVisible(true)}>
-            <Ionicons name={filtrosEstado.find(f => f.value === filtroEstado)?.icon || 'list'} size={16} color="#2563eb" />
-            <Text style={styles.filtroChipText}>{filtrosEstado.find(f => f.value === filtroEstado)?.label || 'Todos'}</Text>
+            <Ionicons name={filtrosEstado.find((f) => f.value === filtroEstado)?.icon || 'list'} size={16} color="#2563eb" />
+            <Text style={styles.filtroChipText}>{filtrosEstado.find((f) => f.value === filtroEstado)?.label || 'Todos'}</Text>
             <View style={styles.filtroChipBadge}>
               <Text style={styles.filtroChipBadgeText}>
-                {filtroEstado === 'todos' ? incidencias.length : incidencias.filter(i => i.estado === filtroEstado).length}
+                {filtroEstado === 'todos' ? incidencias.length : incidencias.filter((i) => i.estado === filtroEstado).length}
               </Text>
             </View>
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.filtroChip, { flex: 1 }]} onPress={() => setModalFiltroTipoVisible(true)}>
-            <Ionicons name={filtrosTipo.find(f => f.value === filtroTipo)?.icon || 'apps'} size={16} color={getTipoColor(filtroTipo)} />
-            <Text style={styles.filtroChipText}>{filtroTipo === 'todos' ? 'Tipo' : filtrosTipo.find(f => f.value === filtroTipo)?.label}</Text>
+            <Ionicons name={filtrosTipo.find((f) => f.value === filtroTipo)?.icon || 'apps'} size={16} color={getTipoColor(filtroTipo)} />
+            <Text style={styles.filtroChipText}>{filtroTipo === 'todos' ? 'Tipo' : filtrosTipo.find((f) => f.value === filtroTipo)?.label}</Text>
             <View style={[styles.filtroChipBadge, { backgroundColor: `${getTipoColor(filtroTipo)}20` }]}>
               <Text style={[styles.filtroChipBadgeText, { color: getTipoColor(filtroTipo) }]}>
-                {filtroTipo === 'todos' ? incidencias.length : incidencias.filter(i => i.tipo === filtroTipo).length}
+                {filtroTipo === 'todos' ? incidencias.length : incidencias.filter((i) => i.tipo === filtroTipo).length}
               </Text>
             </View>
           </TouchableOpacity>
         </View>
-      )}
+      }
 
       {vistaActual === 'calendario' && renderCalendario()}
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>
-          {selectedDate
-            ? `${selectedDate.getDate()} de ${monthNames[selectedDate.getMonth()]}`
-            : vistaActual === 'calendario'
-              ? 'Todas las incidencias'
-              : 'Incidencias'
+          {selectedDate ?
+            `${selectedDate.getDate()} de ${monthNames[selectedDate.getMonth()]}` :
+            vistaActual === 'calendario' ?
+              'Todas las incidencias' :
+              'Incidencias'
           }
         </Text>
         <Text style={styles.sectionCount}>
           {incidenciasFiltradas.length} {incidenciasFiltradas.length === 1 ? 'registro' : 'registros'}
         </Text>
       </View>
-    </>
-  );
+    </>;
 
-  const ListEmpty = () => (
+
+  const ListEmpty = () =>
     <View style={styles.emptyContainer}>
       <Ionicons name="document-text-outline" size={64} color="#cbd5e1" />
       <Text style={styles.emptyTitle}>No hay incidencias</Text>
       <Text style={styles.emptyText}>
-        {filtroEstado === 'todos' && filtroTipo === 'todos'
-          ? 'Toca el botón + para crear tu primera incidencia'
-          : 'Cambia los filtros para ver otras incidencias'
+        {filtroEstado === 'todos' && filtroTipo === 'todos' ?
+          'Toca el botón + para crear tu primera incidencia' :
+          'Cambia los filtros para ver otras incidencias'
         }
       </Text>
-    </View>
-  );
+    </View>;
+
 
   if (loading) {
     return (
@@ -660,13 +574,13 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#3b82f6" />
         </View>
-      </View>
-    );
+      </View>);
+
   }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      { }
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
@@ -698,24 +612,24 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor="#3b82f6"
-            colors={['#3b82f6']}
-          />
-        }
-      />
+            colors={['#3b82f6']} />
 
-      {/* NUEVO: Modal Filtro de Tipo */}
+        } />
+
+
+      { }
       <Modal
         visible={modalFiltroTipoVisible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setModalFiltroTipoVisible(false)}
-      >
+        onRequestClose={() => setModalFiltroTipoVisible(false)}>
+
         <View style={styles.modalOverlayBottomSheet}>
           <TouchableOpacity
             style={styles.modalBackdrop}
             activeOpacity={1}
-            onPress={() => setModalFiltroTipoVisible(false)}
-          >
+            onPress={() => setModalFiltroTipoVisible(false)}>
+
             <View style={{ flex: 1 }} />
           </TouchableOpacity>
 
@@ -729,65 +643,65 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
               </TouchableOpacity>
             </View>
 
-            {filtrosTipo.map((filtro, index) => (
+            {filtrosTipo.map((filtro, index) =>
               <TouchableOpacity
                 key={filtro.value}
                 style={[
                   styles.modalListItem,
                   filtroTipo === filtro.value && styles.modalListItemActive,
-                  index === filtrosTipo.length - 1 && { borderBottomWidth: 0 }
-                ]}
+                  index === filtrosTipo.length - 1 && { borderBottomWidth: 0 }]
+                }
                 onPress={() => {
                   setFiltroTipo(filtro.value);
                   setModalFiltroTipoVisible(false);
                 }}
-                activeOpacity={0.7}
-              >
+                activeOpacity={0.7}>
+
                 <View style={styles.modalListItemLeft}>
                   <View style={[
                     styles.tipoIconSmall,
-                    { backgroundColor: `${filtro.color}20` }
-                  ]}>
+                    { backgroundColor: `${filtro.color}20` }]
+                  }>
                     <Ionicons
                       name={filtro.icon}
                       size={20}
-                      color={filtro.color}
-                    />
+                      color={filtro.color} />
+
                   </View>
                   <Text style={[
                     styles.modalListItemText,
-                    filtroTipo === filtro.value && styles.modalListItemTextActive
-                  ]}>
+                    filtroTipo === filtro.value && styles.modalListItemTextActive]
+                  }>
                     {filtro.label}
                   </Text>
                 </View>
                 <View style={styles.modalListItemBadge}>
                   <Text style={styles.modalListItemBadgeText}>
-                    {filtro.value === 'todos'
-                      ? incidencias.length
-                      : incidencias.filter(i => i.tipo === filtro.value).length
+                    {filtro.value === 'todos' ?
+                      incidencias.length :
+                      incidencias.filter((i) => i.tipo === filtro.value).length
                     }
                   </Text>
                 </View>
               </TouchableOpacity>
-            ))}
+            )}
           </View>
         </View>
       </Modal>
 
-      {/* Modal Filtros */}
+      { }
       <Modal
         visible={modalFiltroVisible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setModalFiltroVisible(false)}
-      >
+        onRequestClose={() => setModalFiltroVisible(false)}>
+
         <View style={styles.modalOverlayBottomSheet}>
           <TouchableOpacity
             style={styles.modalBackdrop}
             activeOpacity={1}
-            onPress={() => setModalFiltroVisible(false)}
-          >
+            onPress={() => setModalFiltroVisible(false)}>
+
             <View style={{ flex: 1 }} />
           </TouchableOpacity>
 
@@ -801,379 +715,59 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
               </TouchableOpacity>
             </View>
 
-            {filtrosEstado.map((filtro, index) => (
+            {filtrosEstado.map((filtro, index) =>
               <TouchableOpacity
                 key={filtro.value}
                 style={[
                   styles.modalListItem,
                   filtroEstado === filtro.value && styles.modalListItemActive,
-                  index === filtrosEstado.length - 1 && { borderBottomWidth: 0 }
-                ]}
+                  index === filtrosEstado.length - 1 && { borderBottomWidth: 0 }]
+                }
                 onPress={() => {
                   setFiltroEstado(filtro.value);
                   setModalFiltroVisible(false);
                 }}
-                activeOpacity={0.7}
-              >
+                activeOpacity={0.7}>
+
                 <View style={styles.modalListItemLeft}>
                   <Ionicons
                     name={filtro.icon}
                     size={22}
-                    color={filtroEstado === filtro.value ? '#2563eb' : '#6b7280'}
-                  />
+                    color={filtroEstado === filtro.value ? '#2563eb' : '#6b7280'} />
+
                   <Text style={[
                     styles.modalListItemText,
-                    filtroEstado === filtro.value && styles.modalListItemTextActive
-                  ]}>
+                    filtroEstado === filtro.value && styles.modalListItemTextActive]
+                  }>
                     {filtro.label}
                   </Text>
                 </View>
                 <View style={styles.modalListItemBadge}>
                   <Text style={styles.modalListItemBadgeText}>
-                    {filtro.value === 'todos'
-                      ? incidencias.length
-                      : incidencias.filter(i => i.estado === filtro.value).length
+                    {filtro.value === 'todos' ?
+                      incidencias.length :
+                      incidencias.filter((i) => i.estado === filtro.value).length
                     }
                   </Text>
                 </View>
               </TouchableOpacity>
-            ))}
+            )}
           </View>
         </View>
       </Modal>
 
-      {/* Modal Tipo de Incidencia */}
-      <Modal
-        visible={modalTipoVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setModalTipoVisible(false)}
-      >
-        <View style={styles.modalOverlayBottomSheet}>
-          <TouchableOpacity
-            style={styles.modalBackdrop}
-            activeOpacity={1}
-            onPress={() => setModalTipoVisible(false)}
-          >
-            <View style={{ flex: 1 }} />
-          </TouchableOpacity>
-
-          <View style={styles.modalSheetContent}>
-            <View style={styles.modalSheetHandle} />
-
-            <View style={styles.modalListHeader}>
-              <Text style={styles.modalListTitle}>Tipo de Incidencia</Text>
-              <TouchableOpacity onPress={() => setModalTipoVisible(false)}>
-                <Ionicons name="close" size={24} color="#6b7280" />
-              </TouchableOpacity>
-            </View>
-
-            {tiposIncidencia.map((tipo, index) => (
-              <TouchableOpacity
-                key={tipo.value}
-                style={[
-                  styles.modalListItem,
-                  tipoSeleccionado === tipo.value && styles.modalListItemActive,
-                  index === tiposIncidencia.length - 1 && { borderBottomWidth: 0 }
-                ]}
-                onPress={() => {
-                  setTipoSeleccionado(tipo.value);
-                  setModalTipoVisible(false);
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={styles.modalListItemLeft}>
-                  <View style={[
-                    styles.tipoIconSmall,
-                    { backgroundColor: `${tipo.color}20` }
-                  ]}>
-                    <Ionicons
-                      name={tipo.icon}
-                      size={20}
-                      color={tipo.color}
-                    />
-                  </View>
-                  <Text style={[
-                    styles.modalListItemText,
-                    tipoSeleccionado === tipo.value && styles.modalListItemTextActive
-                  ]}>
-                    {tipo.label}
-                  </Text>
-                </View>
-                {tipoSeleccionado === tipo.value && (
-                  <Ionicons name="checkmark" size={24} color="#2563eb" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </Modal>
-
-      {/* Modal Crear - MODIFICADO: 75% de altura */}
-      <Modal
+      <CreationIncidentScreen
         visible={modalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalOverlayCreate}>
-          <TouchableOpacity
-            style={styles.modalBackdropCreate}
-            activeOpacity={1}
-            onPress={() => setModalVisible(false)}
-          />
-
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.modalCreateContainer}
-          >
-            <View style={styles.modalCreateContent}>
-              <View style={styles.modalSheetHandle} />
-
-              <View style={styles.modalHeader}>
-                <TouchableOpacity
-                  onPress={() => setModalVisible(false)}
-                  style={styles.closeButton}
-                >
-                  <Ionicons name="close" size={28} color="#6b7280" />
-                </TouchableOpacity>
-                <Text style={styles.modalTitle}>Nueva Incidencia</Text>
-                <View style={styles.headerPlaceholder} />
-              </View>
-
-              <ScrollView
-                style={styles.modalBody}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={{ paddingBottom: 100 }}
-              >
-                {/* Selector de Tipo */}
-                <View style={styles.sectionContainer}>
-                  <Text style={styles.sectionLabel}>Tipo de Incidencia *</Text>
-                  <TouchableOpacity
-                    style={styles.selectInput}
-                    onPress={() => setModalTipoVisible(true)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.selectInputContent}>
-                      {tipoSeleccionado ? (
-                        <>
-                          <View style={[
-                            styles.tipoIconSmall,
-                            { backgroundColor: `${getTipoColor(tipoSeleccionado)}20` }
-                          ]}>
-                            <Ionicons
-                              name={getTipoIcon(tipoSeleccionado)}
-                              size={18}
-                              color={getTipoColor(tipoSeleccionado)}
-                            />
-                          </View>
-                          <Text style={styles.selectInputText}>
-                            {tiposIncidencia.find(t => t.value === tipoSeleccionado)?.label}
-                          </Text>
-                        </>
-                      ) : (
-                        <>
-                          <Ionicons name="list" size={20} color="#9ca3af" />
-                          <Text style={styles.selectInputPlaceholder}>Selecciona el tipo</Text>
-                        </>
-                      )}
-                    </View>
-                    <Ionicons name="chevron-down" size={20} color="#6b7280" />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Fechas compactas */}
-                <View style={styles.sectionContainer}>
-                  <Text style={styles.sectionLabel}>Período *</Text>
-
-                  <View style={styles.dateRow}>
-                    <TouchableOpacity
-                      style={[styles.dateCompact, showDatePickerInicio && Platform.OS === 'ios' && styles.dateCompactActive]}
-                      onPress={() => {
-                        if (Platform.OS === 'ios') {
-                          setShowDatePickerFin(false);
-                          setShowDatePickerInicio(!showDatePickerInicio);
-                        } else {
-                          setShowDatePickerInicio(true);
-                        }
-                      }}
-                    >
-                      <Ionicons name="calendar" size={18} color="#3b82f6" />
-                      <View style={styles.dateCompactInfo}>
-                        <Text style={styles.dateCompactLabel}>Inicio</Text>
-                        <Text style={styles.dateCompactValue}>
-                          {fechaInicio.getDate()} {monthNames[fechaInicio.getMonth()].substring(0, 3)} {fechaInicio.getFullYear()}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-
-                    <View style={styles.dateArrow}>
-                      <Ionicons name="arrow-forward" size={16} color="#9ca3af" />
-                    </View>
-
-                    <TouchableOpacity
-                      style={[styles.dateCompact, showDatePickerFin && Platform.OS === 'ios' && styles.dateCompactActive]}
-                      onPress={() => {
-                        if (Platform.OS === 'ios') {
-                          setShowDatePickerInicio(false);
-                          setShowDatePickerFin(!showDatePickerFin);
-                        } else {
-                          setShowDatePickerFin(true);
-                        }
-                      }}
-                    >
-                      <Ionicons name="calendar" size={18} color="#10b981" />
-                      <View style={styles.dateCompactInfo}>
-                        <Text style={styles.dateCompactLabel}>Fin</Text>
-                        <Text style={styles.dateCompactValue}>
-                          {fechaFin.getDate()} {monthNames[fechaFin.getMonth()].substring(0, 3)} {fechaFin.getFullYear()}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* iOS Date Pickers inline */}
-                  {showDatePickerInicio && Platform.OS === 'ios' && (
-                    <View style={styles.datePickerInline}>
-                      <DateTimePicker
-                        value={fechaInicio}
-                        mode="date"
-                        display="compact"
-                        onChange={(event, selectedDate) => {
-                          if (selectedDate) {
-                            setFechaInicio(selectedDate);
-                            if (fechaFin < selectedDate) {
-                              setFechaFin(new Date(selectedDate.getTime() + 86400000));
-                            }
-                          }
-                          setShowDatePickerInicio(false);
-                        }}
-                        style={{ alignSelf: 'center' }}
-                      />
-                    </View>
-                  )}
-
-                  {showDatePickerFin && Platform.OS === 'ios' && (
-                    <View style={styles.datePickerInline}>
-                      <DateTimePicker
-                        value={fechaFin}
-                        mode="date"
-                        display="compact"
-                        minimumDate={fechaInicio}
-                        onChange={(event, selectedDate) => {
-                          if (selectedDate) {
-                            setFechaFin(selectedDate);
-                          }
-                          setShowDatePickerFin(false);
-                        }}
-                        style={{ alignSelf: 'center' }}
-                      />
-                    </View>
-                  )}
-
-                  {/* DatePickers para Android */}
-                  {Platform.OS === 'android' && showDatePickerInicio && (
-                    <DateTimePicker
-                      value={fechaInicio}
-                      mode="date"
-                      display="default"
-                      onChange={(event, selectedDate) => {
-                        setShowDatePickerInicio(false);
-                        if (selectedDate) {
-                          setFechaInicio(selectedDate);
-                          if (fechaFin < selectedDate) {
-                            setFechaFin(new Date(selectedDate.getTime() + 86400000));
-                          }
-                        }
-                      }}
-                    />
-                  )}
-
-                  {Platform.OS === 'android' && showDatePickerFin && (
-                    <DateTimePicker
-                      value={fechaFin}
-                      mode="date"
-                      display="default"
-                      minimumDate={fechaInicio}
-                      onChange={(event, selectedDate) => {
-                        setShowDatePickerFin(false);
-                        if (selectedDate) {
-                          setFechaFin(selectedDate);
-                        }
-                      }}
-                    />
-                  )}
-
-                  {/* Resumen de días */}
-                  <View style={styles.durationSummary}>
-                    <Ionicons name="time" size={16} color="#8b5cf6" />
-                    <Text style={styles.durationText}>
-                      Duración: <Text style={styles.durationValue}>
-                        {calcularDiasDiferencia(fechaInicio, fechaFin)} {calcularDiasDiferencia(fechaInicio, fechaFin) === 1 ? 'día' : 'días'}
-                      </Text>
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Motivo */}
-                <View style={styles.sectionContainer}>
-                  <Text style={styles.sectionLabel}>Motivo de la Incidencia *</Text>
-                  <View style={styles.motivoCard}>
-                    <View style={styles.motivoHeader}>
-                      <Ionicons name="document-text" size={20} color="#6b7280" />
-                      <Text style={styles.motivoPlaceholder}>
-                        {motivo.length > 0 ? `${motivo.length} caracteres` : 'Describe el motivo'}
-                      </Text>
-                    </View>
-                    <TextInput
-                      style={styles.motivoInput}
-                      placeholder="Escribe aquí el motivo detallado de tu incidencia..."
-                      placeholderTextColor="#9ca3af"
-                      value={motivo}
-                      onChangeText={setMotivo}
-                      multiline={true}
-                      textAlignVertical="top"
-                      scrollEnabled={true}
-                      returnKeyType="default"
-                      blurOnSubmit={false}
-                      autoCorrect={true}
-                      spellCheck={true}
-                    />
-                  </View>
-                </View>
-              </ScrollView>
-
-              <View style={styles.modalFooter}>
-                <TouchableOpacity
-                  style={styles.cancelButtonModal}
-                  onPress={() => setModalVisible(false)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.cancelButtonModalText}>Cancelar</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.createButton,
-                    (!tipoSeleccionado || !motivo.trim()) && styles.createButtonDisabled
-                  ]}
-                  onPress={handleCrearIncidencia}
-                  disabled={creando || !tipoSeleccionado || !motivo.trim()}
-                  activeOpacity={0.7}
-                >
-                  {creando ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={styles.createButtonText}>Crear Incidencia</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
+        onClose={() => setModalVisible(false)}
+        onSuccess={() => {
+          setModalVisible(false);
+          cargarIncidencias();
+        }}
+        userData={userData}
+        darkMode={darkMode}
+      />
     </View>
   );
 };
+
 export default IncidenciasScreen;

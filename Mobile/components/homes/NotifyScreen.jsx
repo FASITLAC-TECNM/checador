@@ -8,8 +8,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   Platform,
-  StatusBar,
-} from 'react-native';
+  StatusBar } from
+'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAvisosGlobales, getAvisosDeEmpleado } from '../../services/avisosService';
@@ -21,7 +21,7 @@ const PINNED_STORAGE_KEY = '@avisos_pinned';
 export const NotifyScreen = ({
   userData = null,
   darkMode = false,
-  onGoBack = () => { },
+  onGoBack = () => {}
 }) => {
   const [filtroActivo, setFiltroActivo] = useState('todos');
   const [avisoSeleccionado, setAvisoSeleccionado] = useState(null);
@@ -53,7 +53,7 @@ export const NotifyScreen = ({
 
       let cargoOnline = false;
 
-      // Intentar online primero
+
       let datosGlobales = [];
       let datosEmpleado = [];
       try {
@@ -62,9 +62,9 @@ export const NotifyScreen = ({
           datosGlobales = globalRes.data;
           setAvisosGlobales(datosGlobales);
           cargoOnline = true;
-          // Cachear en SQLite
-          await sqliteManager.upsertAvisosGlobales(datosGlobales).catch(e =>
-            console.warn('️ No se pudo cachear avisos globales:', e.message)
+
+          await sqliteManager.upsertAvisosGlobales(datosGlobales).catch((e) =>
+          function () {}('️ No se pudo cachear avisos globales:', e.message)
           );
         }
 
@@ -73,22 +73,22 @@ export const NotifyScreen = ({
           if (empRes.success && empRes.data) {
             datosEmpleado = empRes.data;
             setAvisosEmpleado(datosEmpleado);
-            // Cachear en SQLite
-            await sqliteManager.upsertAvisosEmpleado(empleadoId, datosEmpleado).catch(e =>
-              console.warn('️ No se pudo cachear avisos empleado:', e.message)
+
+            await sqliteManager.upsertAvisosEmpleado(empleadoId, datosEmpleado).catch((e) =>
+            function () {}('️ No se pudo cachear avisos empleado:', e.message)
             );
           }
         }
       } catch (onlineErr) {
-        console.warn('️ No se pudieron cargar avisos online:', onlineErr.message);
+        (function () {})('️ No se pudieron cargar avisos online:', onlineErr.message);
       }
 
-      // Detectar avisos nuevos y notificar
+
       if (cargoOnline) {
         detectarAvisosNuevos([...datosGlobales, ...datosEmpleado]);
       }
 
-      // Fallback: cargar desde SQLite si no cargo online
+
       if (!cargoOnline) {
         try {
           const globalesLocal = await sqliteManager.getAvisosGlobalesLocal();
@@ -99,11 +99,11 @@ export const NotifyScreen = ({
             setAvisosEmpleado(personalLocal || []);
           }
 
-          if ((globalesLocal && globalesLocal.length > 0)) {
-            console.log(' [Offline] Avisos cargados desde caché local');
+          if (globalesLocal && globalesLocal.length > 0) {
+            (function () {})(' [Offline] Avisos cargados desde caché local');
           }
         } catch (localErr) {
-          console.warn('️ Error cargando avisos desde SQLite:', localErr.message);
+          (function () {})('️ Error cargando avisos desde SQLite:', localErr.message);
           setError('No se pudieron cargar los avisos');
         }
       }
@@ -116,10 +116,10 @@ export const NotifyScreen = ({
   useEffect(() => {
     cargarAvisos();
 
-    // Polling interval para mantener los avisos actualizados "en vivo" 
+
     const intervalId = setInterval(() => {
-      cargarAvisos(true); // Recarga silenciosa
-    }, 15000); // 15 segundos
+      cargarAvisos(true);
+    }, 15000);
 
     return () => clearInterval(intervalId);
   }, [cargarAvisos]);
@@ -131,7 +131,7 @@ export const NotifyScreen = ({
         if (stored) {
           setPinnedIds(new Set(JSON.parse(stored)));
         }
-      } catch (_) { }
+      } catch (_) {}
     };
     cargarPins();
   }, []);
@@ -147,18 +147,18 @@ export const NotifyScreen = ({
     await AsyncStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify([...updated]));
   };
 
-  // Combinar avisos según filtro, pinneados primero
+
   const obtenerAvisosFiltrados = () => {
     let lista;
     if (filtroActivo === 'globales') {
-      lista = avisosGlobales.map(a => ({ ...a, _tipo: 'global' }));
+      lista = avisosGlobales.map((a) => ({ ...a, _tipo: 'global' }));
     } else if (filtroActivo === 'personales') {
-      lista = avisosEmpleado.map(a => ({ ...a, _tipo: 'personal' }));
+      lista = avisosEmpleado.map((a) => ({ ...a, _tipo: 'personal' }));
     } else {
       lista = [
-        ...avisosGlobales.map(a => ({ ...a, _tipo: 'global' })),
-        ...avisosEmpleado.map(a => ({ ...a, _tipo: 'personal' })),
-      ];
+      ...avisosGlobales.map((a) => ({ ...a, _tipo: 'global' })),
+      ...avisosEmpleado.map((a) => ({ ...a, _tipo: 'personal' }))];
+
     }
 
     lista.sort((a, b) => {
@@ -178,7 +178,7 @@ export const NotifyScreen = ({
   const estadisticas = {
     total: avisosGlobales.length + avisosEmpleado.length,
     globales: avisosGlobales.length,
-    personales: avisosEmpleado.length,
+    personales: avisosEmpleado.length
   };
 
   const formatearFecha = (fecha) => {
@@ -221,7 +221,7 @@ export const NotifyScreen = ({
         color: '#8b5cf6',
         bg: '#ede9fe',
         label: 'Personal',
-        iconBg: '#8b5cf6',
+        iconBg: '#8b5cf6'
       };
     }
     return {
@@ -229,13 +229,13 @@ export const NotifyScreen = ({
       color: '#3b82f6',
       bg: '#dbeafe',
       label: 'Global',
-      iconBg: '#3b82f6',
+      iconBg: '#3b82f6'
     };
   };
 
   const styles = darkMode ? stylesDark : stylesLight;
 
-  // ─── Vista de detalle ──────────────────────────────────────────────
+
   if (avisoSeleccionado) {
     const aviso = avisoSeleccionado;
     const info = getAvisoTipoInfo(aviso);
@@ -246,10 +246,10 @@ export const NotifyScreen = ({
       <View style={styles.mainContainer}>
         <StatusBar
           barStyle="light-content"
-          backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
-        />
+          backgroundColor={darkMode ? "#1e40af" : "#2563eb"} />
+        
 
-        {/* Header detalle */}
+        {}
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <View style={styles.headerLeft}>
@@ -262,13 +262,13 @@ export const NotifyScreen = ({
             </View>
             <TouchableOpacity
               onPress={() => togglePin(avisoKey)}
-              style={styles.headerPinButton}
-            >
+              style={styles.headerPinButton}>
+              
               <Ionicons
                 name={isPinned ? "bookmark" : "bookmark-outline"}
                 size={22}
-                color={isPinned ? "#f59e0b" : "#fff"}
-              />
+                color={isPinned ? "#f59e0b" : "#fff"} />
+              
             </TouchableOpacity>
           </View>
         </View>
@@ -276,9 +276,9 @@ export const NotifyScreen = ({
         <ScrollView
           style={styles.avisosScrollView}
           contentContainerStyle={styles.detalleScrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Badge tipo */}
+          showsVerticalScrollIndicator={false}>
+          
+          {}
           <View style={[styles.detalleBadge, { backgroundColor: info.bg, alignSelf: 'flex-start' }]}>
             <View style={styles.detalleBadgeInner}>
               <Ionicons name={info.icono} size={14} color={info.color} />
@@ -288,10 +288,10 @@ export const NotifyScreen = ({
             </View>
           </View>
 
-          {/* Titulo */}
+          {}
           <Text style={styles.detalleTitulo}>{aviso.titulo}</Text>
 
-          {/* Fecha */}
+          {}
           <View style={styles.detalleMeta}>
             <View style={styles.detalleFechaRow}>
               <Ionicons name="calendar-outline" size={15} color="#9ca3af" />
@@ -300,45 +300,45 @@ export const NotifyScreen = ({
               </Text>
             </View>
 
-            {aviso.remitente_nombre && (
-              <View style={styles.detalleFechaRow}>
+            {aviso.remitente_nombre &&
+            <View style={styles.detalleFechaRow}>
                 <Ionicons name="person-circle-outline" size={16} color="#64748b" />
                 <Text style={styles.detalleFechaText}>
                   Por: {aviso.remitente_nombre}
                 </Text>
               </View>
-            )}
+            }
 
-            {aviso.fecha_asignacion && (
-              <View style={styles.detalleFechaRow}>
+            {aviso.fecha_asignacion &&
+            <View style={styles.detalleFechaRow}>
                 <Ionicons name="person-add-outline" size={15} color="#8b5cf6" />
                 <Text style={styles.detalleFechaText}>
                   Asignado: {formatearFechaCompleta(aviso.fecha_asignacion)}
                 </Text>
               </View>
-            )}
+            }
           </View>
 
-          {/* Separador */}
+          {}
           <View style={styles.detalleDivider} />
 
-          {/* Contenido */}
-          {aviso.contenido ? (
-            <Text style={styles.detalleContenidoText}>{aviso.contenido}</Text>
-          ) : (
-            <View style={styles.detalleSinContenido}>
+          {}
+          {aviso.contenido ?
+          <Text style={styles.detalleContenidoText}>{aviso.contenido}</Text> :
+
+          <View style={styles.detalleSinContenido}>
               <Ionicons name="document-text-outline" size={36} color={darkMode ? '#334155' : '#d1d5db'} />
               <Text style={styles.detalleSinContenidoText}>
                 Este aviso no tiene contenido adicional
               </Text>
             </View>
-          )}
+          }
         </ScrollView>
-      </View>
-    );
+      </View>);
+
   }
 
-  // ─── Vista de lista ────────────────────────────────────────────────
+
   const renderAviso = (aviso) => {
     const info = getAvisoTipoInfo(aviso);
     const avisoKey = `${aviso._tipo || 'global'}-${aviso.id}`;
@@ -349,8 +349,8 @@ export const NotifyScreen = ({
         key={avisoKey}
         style={styles.avisoCard}
         activeOpacity={0.7}
-        onPress={() => setAvisoSeleccionado(aviso)}
-      >
+        onPress={() => setAvisoSeleccionado(aviso)}>
+        
         <View style={styles.avisoMainContent}>
           <View style={[styles.avisoIconCircle, { backgroundColor: info.iconBg }]}>
             <Ionicons name={info.icono} size={24} color="#fff" />
@@ -367,15 +367,15 @@ export const NotifyScreen = ({
                 <Text style={styles.avisoFecha}>
                   {formatearFecha(aviso.fecha_registro)}
                 </Text>
-                {aviso.remitente_nombre && (
-                  <>
+                {aviso.remitente_nombre &&
+                <>
                     <Text style={styles.avisoFechaSeparator}>•</Text>
                     <Ionicons name="person-outline" size={14} color="#9ca3af" />
                     <Text style={styles.avisoFecha} numberOfLines={1}>
                       {aviso.remitente_nombre}
                     </Text>
                   </>
-                )}
+                }
               </View>
 
               <TouchableOpacity
@@ -383,19 +383,19 @@ export const NotifyScreen = ({
                   e.stopPropagation?.();
                   togglePin(avisoKey);
                 }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                
                 <Ionicons
                   name={isPinned ? "bookmark" : "bookmark-outline"}
                   size={18}
-                  color={isPinned ? "#f59e0b" : "#9ca3af"}
-                />
+                  color={isPinned ? "#f59e0b" : "#9ca3af"} />
+                
               </TouchableOpacity>
             </View>
           </View>
         </View>
-      </TouchableOpacity>
-    );
+      </TouchableOpacity>);
+
   };
 
   const renderContent = () => {
@@ -404,8 +404,8 @@ export const NotifyScreen = ({
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2563eb" />
           <Text style={styles.loadingText}>Cargando avisos...</Text>
-        </View>
-      );
+        </View>);
+
     }
 
     if (error) {
@@ -418,13 +418,13 @@ export const NotifyScreen = ({
           <Text style={styles.errorSubtitle}>{error}</Text>
           <TouchableOpacity
             style={styles.retryButton}
-            onPress={() => cargarAvisos()}
-          >
+            onPress={() => cargarAvisos()}>
+            
             <Ionicons name="refresh-outline" size={20} color="#fff" />
             <Text style={styles.retryButtonText}>Reintentar</Text>
           </TouchableOpacity>
-        </View>
-      );
+        </View>);
+
     }
 
     if (avisosFiltrados.length === 0) {
@@ -435,23 +435,23 @@ export const NotifyScreen = ({
           </View>
           <Text style={styles.emptyTitle}>Sin avisos</Text>
           <Text style={styles.emptySubtitle}>
-            {filtroActivo === 'todos'
-              ? 'No hay avisos disponibles en este momento'
-              : filtroActivo === 'globales'
-                ? 'No hay avisos globales disponibles'
-                : 'No tienes avisos personales asignados'}
+            {filtroActivo === 'todos' ?
+            'No hay avisos disponibles en este momento' :
+            filtroActivo === 'globales' ?
+            'No hay avisos globales disponibles' :
+            'No tienes avisos personales asignados'}
           </Text>
-        </View>
-      );
+        </View>);
+
     }
 
-    return avisosFiltrados.map(aviso => renderAviso(aviso));
+    return avisosFiltrados.map((aviso) => renderAviso(aviso));
   };
 
   const filtros = [
-    { key: 'todos', label: 'Todos', count: estadisticas.total },
-    { key: 'globales', label: 'Globales', count: estadisticas.globales },
-  ];
+  { key: 'todos', label: 'Todos', count: estadisticas.total },
+  { key: 'globales', label: 'Globales', count: estadisticas.globales }];
+
   if (esEmpleado) {
     filtros.push({ key: 'personales', label: 'Personales', count: estadisticas.personales });
   }
@@ -460,10 +460,10 @@ export const NotifyScreen = ({
     <View style={styles.mainContainer}>
       <StatusBar
         barStyle="light-content"
-        backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
-      />
+        backgroundColor={darkMode ? "#1e40af" : "#2563eb"} />
+      
 
-      {/* Header */}
+      {}
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <View style={styles.headerLeft}>
@@ -483,88 +483,88 @@ export const NotifyScreen = ({
         </View>
       </View>
 
-      {/* Filtros */}
+      {}
       <View style={styles.filtrosWrapper}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtrosContainer}
-        >
-          {filtros.map(filtro => (
-            <TouchableOpacity
-              key={filtro.key}
-              style={[
-                styles.filtroChip,
-                filtroActivo === filtro.key && styles.filtroChipActive
-              ]}
-              onPress={() => setFiltroActivo(filtro.key)}
-            >
+          contentContainerStyle={styles.filtrosContainer}>
+          
+          {filtros.map((filtro) =>
+          <TouchableOpacity
+            key={filtro.key}
+            style={[
+            styles.filtroChip,
+            filtroActivo === filtro.key && styles.filtroChipActive]
+            }
+            onPress={() => setFiltroActivo(filtro.key)}>
+            
               <Text style={[
-                styles.filtroChipText,
-                filtroActivo === filtro.key && styles.filtroChipTextActive
-              ]}>
+            styles.filtroChipText,
+            filtroActivo === filtro.key && styles.filtroChipTextActive]
+            }>
                 {filtro.label}
               </Text>
-              {filtro.count > 0 && (
-                <View style={[
-                  styles.filtroBadge,
-                  filtroActivo === filtro.key && styles.filtroBadgeActive
-                ]}>
+              {filtro.count > 0 &&
+            <View style={[
+            styles.filtroBadge,
+            filtroActivo === filtro.key && styles.filtroBadgeActive]
+            }>
                   <Text style={[
-                    styles.filtroBadgeText,
-                    filtroActivo === filtro.key && styles.filtroBadgeTextActive
-                  ]}>
+              styles.filtroBadgeText,
+              filtroActivo === filtro.key && styles.filtroBadgeTextActive]
+              }>
                     {filtro.count}
                   </Text>
                 </View>
-              )}
+            }
             </TouchableOpacity>
-          ))}
+          )}
         </ScrollView>
       </View>
 
-      {/* Lista de avisos */}
+      {}
       <ScrollView
         style={styles.avisosScrollView}
         contentContainerStyle={styles.avisosContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => cargarAvisos(true)}
-            colors={['#2563eb']}
-            tintColor="#2563eb"
-          />
-        }
-      >
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => cargarAvisos(true)}
+          colors={['#2563eb']}
+          tintColor="#2563eb" />
+
+        }>
+        
         {renderContent()}
       </ScrollView>
-    </View>
-  );
+    </View>);
+
 };
 
-// ─── Estilos Light ──────────────────────────────────────────────────────
+
 const stylesLight = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f8fafc'
   },
   header: {
     backgroundColor: '#2563eb',
     paddingTop: Platform.OS === 'android' ? 16 : 50,
     paddingBottom: 20,
-    paddingHorizontal: 20,
+    paddingHorizontal: 20
   },
   headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    flex: 1,
+    flex: 1
   },
   backButton: {
     width: 40,
@@ -572,7 +572,7 @@ const stylesLight = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   headerIconContainer: {
     width: 50,
@@ -580,17 +580,17 @@ const stylesLight = StyleSheet.create({
     borderRadius: 25,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#fff',
+    color: '#fff'
   },
   headerSubtitle: {
     fontSize: 13,
     color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 2,
+    marginTop: 2
   },
   headerPinButton: {
     width: 42,
@@ -599,18 +599,18 @@ const stylesLight = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 12,
+    marginLeft: 12
   },
-  // Filtros
+
   filtrosWrapper: {
     backgroundColor: '#f9fafb',
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: '#e5e7eb'
   },
   filtrosContainer: {
     paddingHorizontal: 20,
     paddingVertical: 14,
-    gap: 8,
+    gap: 8
   },
   filtroChip: {
     flexDirection: 'row',
@@ -625,20 +625,20 @@ const stylesLight = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowRadius: 2
   },
   filtroChipActive: {
     backgroundColor: '#2563eb',
     elevation: 4,
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.25
   },
   filtroChipText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6b7280',
+    color: '#6b7280'
   },
   filtroChipTextActive: {
-    color: '#fff',
+    color: '#fff'
   },
   filtroBadge: {
     backgroundColor: '#e5e7eb',
@@ -646,28 +646,28 @@ const stylesLight = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 12,
     minWidth: 24,
-    alignItems: 'center',
+    alignItems: 'center'
   },
   filtroBadgeActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)'
   },
   filtroBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#4b5563',
+    color: '#4b5563'
   },
   filtroBadgeTextActive: {
-    color: '#fff',
+    color: '#fff'
   },
-  // Lista
+
   avisosScrollView: {
-    flex: 1,
+    flex: 1
   },
   avisosContent: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 40
   },
-  // Tarjeta de aviso (simplificada)
+
   avisoCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -679,135 +679,135 @@ const stylesLight = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowRadius: 2
   },
   avisoMainContent: {
     flexDirection: 'row',
     gap: 12,
-    alignItems: 'center',
+    alignItems: 'center'
   },
   avisoIconCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   avisoTextContainer: {
-    flex: 1,
+    flex: 1
   },
   avisoTitulo: {
     fontSize: 14,
     fontWeight: '600',
     color: '#1f2937',
     lineHeight: 20,
-    marginBottom: 6,
+    marginBottom: 6
   },
   avisoFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   avisoFechaContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 4
   },
   avisoFecha: {
     fontSize: 12,
     color: '#9ca3af',
-    fontWeight: '500',
+    fontWeight: '500'
   },
   avisoFechaSeparator: {
     fontSize: 12,
     color: '#9ca3af',
-    marginHorizontal: 6,
+    marginHorizontal: 6
   },
-  // ─── Vista de detalle ────────────────────────────────────────────────
+
   detalleScrollContent: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 40
   },
   detalleTipoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    marginBottom: 20,
+    marginBottom: 20
   },
   detalleBadge: {
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 20,
-    marginBottom: 16,
+    marginBottom: 16
   },
   detalleBadgeInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 5
   },
   detalleBadgeText: {
     fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.5
   },
   detalleTitulo: {
     fontSize: 24,
     fontWeight: '800',
     color: '#1f2937',
     lineHeight: 32,
-    marginBottom: 16,
+    marginBottom: 16
   },
   detalleMeta: {
     gap: 6,
-    marginBottom: 4,
+    marginBottom: 4
   },
   detalleFechaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 8
   },
   detalleFechaText: {
     fontSize: 13,
     color: '#9ca3af',
-    fontWeight: '500',
+    fontWeight: '500'
   },
   detalleDivider: {
     height: 1,
     backgroundColor: '#e5e7eb',
-    marginVertical: 20,
+    marginVertical: 20
   },
   detalleContenidoText: {
     fontSize: 16,
     color: '#374151',
-    lineHeight: 26,
+    lineHeight: 26
   },
   detalleSinContenido: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 40
   },
   detalleSinContenidoText: {
     fontSize: 14,
     color: '#9ca3af',
-    marginTop: 10,
+    marginTop: 10
   },
-  // Estados
+
   loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 80,
+    paddingVertical: 80
   },
   loadingText: {
     marginTop: 16,
     fontSize: 15,
     color: '#6b7280',
-    fontWeight: '500',
+    fontWeight: '500'
   },
   errorContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 60,
-    paddingHorizontal: 40,
+    paddingHorizontal: 40
   },
   errorIconContainer: {
     width: 100,
@@ -816,20 +816,20 @@ const stylesLight = StyleSheet.create({
     backgroundColor: '#fee2e2',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 20
   },
   errorTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#1f2937',
-    marginBottom: 8,
+    marginBottom: 8
   },
   errorSubtitle: {
     fontSize: 15,
     color: '#6b7280',
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 20,
+    marginBottom: 20
   },
   retryButton: {
     flexDirection: 'row',
@@ -838,18 +838,18 @@ const stylesLight = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
-    gap: 8,
+    gap: 8
   },
   retryButtonText: {
     color: '#fff',
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '600'
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 80,
-    paddingHorizontal: 40,
+    paddingHorizontal: 40
   },
   emptyIconContainer: {
     width: 100,
@@ -858,103 +858,103 @@ const stylesLight = StyleSheet.create({
     backgroundColor: '#f3f4f6',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 20
   },
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#1f2937',
-    marginBottom: 8,
+    marginBottom: 8
   },
   emptySubtitle: {
     fontSize: 15,
     color: '#6b7280',
     textAlign: 'center',
-    lineHeight: 22,
-  },
+    lineHeight: 22
+  }
 });
 
-// ─── Estilos Dark ───────────────────────────────────────────────────────
+
 const stylesDark = StyleSheet.create({
   ...stylesLight,
   mainContainer: {
     ...stylesLight.mainContainer,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#0f172a'
   },
   header: {
     ...stylesLight.header,
-    backgroundColor: '#1e40af',
+    backgroundColor: '#1e40af'
   },
   filtrosWrapper: {
     ...stylesLight.filtrosWrapper,
     backgroundColor: '#1e293b',
-    borderBottomColor: '#334155',
+    borderBottomColor: '#334155'
   },
   filtroChip: {
     ...stylesLight.filtroChip,
-    backgroundColor: '#334155',
+    backgroundColor: '#334155'
   },
   filtroChipText: {
     ...stylesLight.filtroChipText,
-    color: '#9ca3af',
+    color: '#9ca3af'
   },
   filtroBadge: {
     ...stylesLight.filtroBadge,
-    backgroundColor: '#475569',
+    backgroundColor: '#475569'
   },
   filtroBadgeText: {
     ...stylesLight.filtroBadgeText,
-    color: '#d1d5db',
+    color: '#d1d5db'
   },
   avisoCard: {
     ...stylesLight.avisoCard,
     backgroundColor: '#1e293b',
-    borderColor: '#334155',
+    borderColor: '#334155'
   },
   avisoTitulo: {
     ...stylesLight.avisoTitulo,
-    color: '#f1f5f9',
+    color: '#f1f5f9'
   },
   detalleTitulo: {
     ...stylesLight.detalleTitulo,
-    color: '#f1f5f9',
+    color: '#f1f5f9'
   },
   detalleContenidoText: {
     ...stylesLight.detalleContenidoText,
-    color: '#cbd5e1',
+    color: '#cbd5e1'
   },
   detalleDivider: {
     ...stylesLight.detalleDivider,
-    backgroundColor: '#334155',
+    backgroundColor: '#334155'
   },
   detalleFechaText: {
     ...stylesLight.detalleFechaText,
-    color: '#9ca3af',
+    color: '#9ca3af'
   },
   detalleSinContenidoText: {
     ...stylesLight.detalleSinContenidoText,
-    color: '#64748b',
+    color: '#64748b'
   },
   loadingText: {
     ...stylesLight.loadingText,
-    color: '#9ca3af',
+    color: '#9ca3af'
   },
   errorTitle: {
     ...stylesLight.errorTitle,
-    color: '#f1f5f9',
+    color: '#f1f5f9'
   },
   errorIconContainer: {
     ...stylesLight.errorIconContainer,
-    backgroundColor: '#3b1111',
+    backgroundColor: '#3b1111'
   },
   emptyTitle: {
     ...stylesLight.emptyTitle,
-    color: '#f1f5f9',
+    color: '#f1f5f9'
   },
   emptyIconContainer: {
     ...stylesLight.emptyIconContainer,
-    backgroundColor: '#1e293b',
-  },
+    backgroundColor: '#1e293b'
+  }
 });
 
 export default NotifyScreen;

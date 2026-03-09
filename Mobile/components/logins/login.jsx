@@ -10,8 +10,8 @@ import {
   Platform,
   ScrollView,
   Image,
-  Animated,
-} from 'react-native';
+  Animated } from
+'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,14 +27,14 @@ import { SeleccionEmpresaScreen } from './SeleccionEmpresaScreen';
 const SECURE_KEYS = {
   CACHED_USER: 'offline_cached_user',
   CACHED_PASS_HASH: 'offline_cached_pass_hash',
-  CACHED_USER_DATA: 'offline_cached_user_data',
+  CACHED_USER_DATA: 'offline_cached_user_data'
 };
 
 const simpleHash = (str) => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash |= 0;
   }
   return hash.toString(36);
@@ -55,10 +55,10 @@ export const LoginScreen = ({ onLoginSuccess }) => {
   const [empresasList, setEmpresasList] = useState([]);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener(state => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
       setIsWifiConnected(state.isConnected && state.isInternetReachable);
     });
-    NetInfo.fetch().then(state => {
+    NetInfo.fetch().then((state) => {
       setIsWifiConnected(state.isConnected && state.isInternetReachable);
     });
     return () => unsubscribe();
@@ -79,9 +79,9 @@ export const LoginScreen = ({ onLoginSuccess }) => {
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 0.4, duration: 1000, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
-      ])
+      Animated.timing(pulseAnim, { toValue: 0.4, duration: 1000, useNativeDriver: true }),
+      Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true })]
+      )
     );
     pulse.start();
     return () => pulse.stop();
@@ -102,12 +102,12 @@ export const LoginScreen = ({ onLoginSuccess }) => {
   const cacheCredentials = async (user, pass, datosCompletos) => {
     try {
       await Promise.all([
-        SecureStore.setItemAsync(SECURE_KEYS.CACHED_USER, user.trim().toLowerCase()),
-        SecureStore.setItemAsync(SECURE_KEYS.CACHED_PASS_HASH, simpleHash(pass)),
-        AsyncStorage.setItem(SECURE_KEYS.CACHED_USER_DATA, JSON.stringify(datosCompletos)),
-      ]);
+      SecureStore.setItemAsync(SECURE_KEYS.CACHED_USER, user.trim().toLowerCase()),
+      SecureStore.setItemAsync(SECURE_KEYS.CACHED_PASS_HASH, simpleHash(pass)),
+      AsyncStorage.setItem(SECURE_KEYS.CACHED_USER_DATA, JSON.stringify(datosCompletos))]
+      );
     } catch (e) {
-      console.error('Error cacheando credenciales:', e);
+      (function () {})('Error cacheando credenciales:', e);
     }
   };
 
@@ -137,10 +137,10 @@ export const LoginScreen = ({ onLoginSuccess }) => {
         syncManager.setAuthToken(userData.token);
       }
 
-      console.log(' [Login] Login offline exitoso para:', inputUser);
+      (function () {})(' [Login] Login offline exitoso para:', inputUser);
       return { success: true, data: userData };
     } catch (e) {
-      console.error('Error en validación offline:', e);
+      (function () {})('Error en validación offline:', e);
       return { success: false, error: 'Error al validar credenciales offline' };
     }
   };
@@ -182,14 +182,14 @@ export const LoginScreen = ({ onLoginSuccess }) => {
                 }
                 return emp;
               } catch (err) {
-                console.warn(`Error fetching public info for company ${emp.empresa_id}:`, err);
+                (function () {})(`Error fetching public info for company ${emp.empresa_id}:`, err);
                 return emp;
               }
             })
           );
           setEmpresasList(empresasConLogo);
         } catch (error) {
-          console.warn('Error processing public company data:', error);
+          (function () {})('Error processing public company data:', error);
           setEmpresasList(response.empresas);
         }
 
@@ -207,7 +207,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
             if (empleadoData.success && empleadoData.data) {
               empresaId = empleadoData.data.empresa_id;
             }
-          } catch (error) { }
+          } catch (error) {}
         }
         const datosCompletos = {
           id: response.usuario.id,
@@ -228,7 +228,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
           token: token
         };
 
-        // Verificación dispositivo + cacheo en paralelo (ambos son independientes)
+
         const verificarDispositivo = async () => {
           try {
             const tokenSolicitud = await AsyncStorage.getItem('token_solicitud');
@@ -239,33 +239,33 @@ export const LoginScreen = ({ onLoginSuccess }) => {
               const emailDispositivo = solicitud.correo.trim().toLowerCase();
 
               if (emailUsuario !== emailDispositivo) {
-                // Cerrar sesión inmediatamente
+
                 const { logout } = require('../../services/authService');
                 await logout(token);
                 await AsyncStorage.removeItem('userToken');
                 await AsyncStorage.removeItem('@user_data');
                 alert(`ACCESO DENEGADO\n\nEste dispositivo está registrado para:\n${emailDispositivo}\n\nNo puedes iniciar sesión con:\n${emailUsuario}`);
-                return false; // Login bloqueado
+                return false;
               }
             }
           } catch (verifyError) {
-            console.error('[Login] Error verificando dispositivo:', verifyError);
+            (function () {})('[Login] Error verificando dispositivo:', verifyError);
           }
-          return true; // Login permitido
+          return true;
         };
 
-        // Ejecutar verificación y cacheo en paralelo
+
         const [verificacionOk] = await Promise.all([
-          verificarDispositivo(),
-          cacheCredentials(usuario, password, datosCompletos),
-        ]);
+        verificarDispositivo(),
+        cacheCredentials(usuario, password, datosCompletos)]
+        );
 
         if (!verificacionOk) {
           setIsLoading(false);
           return;
         }
 
-        // Guardar sesión local (rápido) y configurar sync
+
         if (token) {
           syncManager.setAuthToken(token, datosCompletos.empleado_id?.toString());
         }
@@ -278,25 +278,25 @@ export const LoginScreen = ({ onLoginSuccess }) => {
             modo: 'online'
           });
         } catch (e) {
-          console.error('[Login] Error guardando sesión:', e.message || e);
+          (function () {})('[Login] Error guardando sesión:', e.message || e);
         }
 
-        // Push sesión al servidor en background (no bloquea el login)
-        syncManager.pushSessions().catch(e =>
-          console.warn('[Login] pushSessions background error:', e.message)
+
+        syncManager.pushSessions().catch((e) =>
+        function () {}('[Login] pushSessions background error:', e.message)
         );
 
         onLoginSuccess(datosCompletos, false);
       }
     } catch (error) {
-      console.log('Login online falló:', error.message);
+      (function () {})('Login online falló:', error.message);
       const msg = error.message || '';
       const isNetworkError = msg.includes('Network') || msg.includes('Failed to fetch') || msg.includes('connection') || msg.includes('timeout');
       const isServerError = msg.includes('500') || msg.includes('502') || msg.includes('503') || msg.includes('504') || msg.includes('Error del servidor') || msg.includes('JSON') || msg.includes('inactivo');
 
       if (isNetworkError || isServerError) {
-        // ====== INTENTO 2: Login Offline (red caída o servidor/BD caída) ======
-        console.log(` [Login] Intentando login offline... (${isNetworkError ? 'red' : 'servidor'} no disponible)`);
+
+        (function () {})(` [Login] Intentando login offline... (${isNetworkError ? 'red' : 'servidor'} no disponible)`);
         setIsOfflineLogin(true);
         const offlineResult = await validateOffline(usuario, password);
 
@@ -308,33 +308,33 @@ export const LoginScreen = ({ onLoginSuccess }) => {
               tipo: 'login',
               modo: 'offline'
             };
-            console.log(' [Login] Guardando sesión OFFLINE en SQLite:', JSON.stringify(sessionData));
+            (function () {})(' [Login] Guardando sesión OFFLINE en SQLite:', JSON.stringify(sessionData));
             await sqliteManager.saveOfflineSession(sessionData);
-            console.log(' [Login] Sesión offline guardada en SQLite');
+            (function () {})(' [Login] Sesión offline guardada en SQLite');
 
-            // Configurar token cacheado en syncManager antes de push
+
             if (offlineResult.data.token) {
               syncManager.setAuthToken(offlineResult.data.token, offlineResult.data.empleado_id?.toString());
             }
 
-            // Intentar enviar inmediatamente
-            console.log(' [Login] Intentando push de sesión offline...');
+
+            (function () {})(' [Login] Intentando push de sesión offline...');
             const pushResult = await syncManager.pushSessions();
-            console.log(' [Login] Resultado pushSessions (offline):', JSON.stringify(pushResult));
+            (function () {})(' [Login] Resultado pushSessions (offline):', JSON.stringify(pushResult));
           } catch (e) {
-            console.error(' [Login] Error guardando sesión offline:', e);
+            (function () {})(' [Login] Error guardando sesión offline:', e);
           }
-          // Login offline OK -> isOffline = true
+
           onLoginSuccess(offlineResult.data, true);
         } else {
-          // Falló offline también
+
           setGeneralError(offlineResult.error || 'Credenciales inválidas (offline)');
           setIsLoading(false);
-          // Vibración error
+
           Animated.sequence([
-            Animated.timing(pulseAnim, { toValue: 1.2, duration: 100, useNativeDriver: true }),
-            Animated.timing(pulseAnim, { toValue: 1, duration: 100, useNativeDriver: true }),
-          ]).start();
+          Animated.timing(pulseAnim, { toValue: 1.2, duration: 100, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 100, useNativeDriver: true })]
+          ).start();
         }
       } else if (msg.includes('401') || msg.includes('credentials') || msg.includes('Credenciales')) {
         setGeneralError('Usuario o contraseña incorrectos');
@@ -356,9 +356,9 @@ export const LoginScreen = ({ onLoginSuccess }) => {
         }}
         onCancel={() => {
           setShowEmpresaSelector(false);
-        }}
-      />
-    );
+        }} />);
+
+
   }
 
   return (
@@ -366,51 +366,51 @@ export const LoginScreen = ({ onLoginSuccess }) => {
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ flex: 1 }}
-        >
+          style={{ flex: 1 }}>
+          
           <ScrollView
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             bounces={false}
-            overScrollMode="never"
-          >
+            overScrollMode="never">
+            
             <View style={styles.headerContainer}>
               <View style={styles.iconFrame}>
                 <Image
                   source={require('../../assets/icon.png')}
                   style={styles.logoImage}
-                  resizeMode="contain"
-                />
+                  resizeMode="contain" />
+                
               </View>
               <Text style={styles.title}>FASITLAC™</Text>
               <Text style={styles.subtitle}>Fábrica de Software del ITLAC</Text>
             </View>
 
-            {/* Status Indicators */}
+            {}
             <View style={styles.statusRow}>
               <View style={styles.statusPill}>
                 <Animated.View style={[
-                  styles.statusDot,
-                  { backgroundColor: isWifiConnected ? '#4ade80' : '#f87171', opacity: pulseAnim }
-                ]} />
+                styles.statusDot,
+                { backgroundColor: isWifiConnected ? '#4ade80' : '#f87171', opacity: pulseAnim }]
+                } />
                 <Ionicons
                   name={isWifiConnected ? 'wifi' : 'wifi'}
                   size={18}
-                  color="#ffffff"
-                />
+                  color="#ffffff" />
+                
               </View>
 
               <View style={styles.statusPill}>
                 <Animated.View style={[
-                  styles.statusDot,
-                  { backgroundColor: isDbReady ? '#4ade80' : '#f87171', opacity: pulseAnim }
-                ]} />
+                styles.statusDot,
+                { backgroundColor: isDbReady ? '#4ade80' : '#f87171', opacity: pulseAnim }]
+                } />
                 <Ionicons
                   name="server"
                   size={18}
-                  color="#ffffff"
-                />
+                  color="#ffffff" />
+                
               </View>
             </View>
 
@@ -428,15 +428,15 @@ export const LoginScreen = ({ onLoginSuccess }) => {
                     onChangeText={handleUsuarioChange}
                     autoCapitalize="none"
                     autoCorrect={false}
-                    editable={!isLoading}
-                  />
+                    editable={!isLoading} />
+                  
                 </View>
-                {usuarioError ? (
-                  <View style={styles.errorContainer}>
+                {usuarioError ?
+                <View style={styles.errorContainer}>
                     <Ionicons name="alert-circle" size={12} color="#ef4444" />
                     <Text style={styles.errorText}>{usuarioError}</Text>
-                  </View>
-                ) : null}
+                  </View> :
+                null}
               </View>
 
               <View style={styles.inputWrapper}>
@@ -451,58 +451,58 @@ export const LoginScreen = ({ onLoginSuccess }) => {
                     onChangeText={handlePasswordChange}
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
-                    editable={!isLoading}
-                  />
+                    editable={!isLoading} />
+                  
                   <TouchableOpacity
                     onPress={() => setShowPassword(!showPassword)}
                     style={styles.eyeButton}
-                    disabled={isLoading}
-                  >
+                    disabled={isLoading}>
+                    
                     <Ionicons
                       name={showPassword ? "eye-off" : "eye"}
                       size={18}
-                      color="#64748b"
-                    />
+                      color="#64748b" />
+                    
                   </TouchableOpacity>
                 </View>
-                {passwordError ? (
-                  <View style={styles.errorContainer}>
+                {passwordError ?
+                <View style={styles.errorContainer}>
                     <Ionicons name="alert-circle" size={12} color="#ef4444" />
                     <Text style={styles.errorText}>{passwordError}</Text>
-                  </View>
-                ) : null}
+                  </View> :
+                null}
               </View>
 
-              {generalError ? (
-                <View style={styles.generalErrorContainer}>
+              {generalError ?
+              <View style={styles.generalErrorContainer}>
                   <Ionicons name="warning" size={16} color="#dc2626" />
                   <Text style={styles.generalErrorText}>{generalError}</Text>
-                </View>
-              ) : null}
+                </View> :
+              null}
 
               <TouchableOpacity
                 style={styles.loginButtonWrapper}
                 onPress={handleLogin}
                 disabled={isLoading}
-                activeOpacity={0.9}
-              >
+                activeOpacity={0.9}>
+                
                 <LinearGradient
                   colors={isLoading ? ['#94a3b8', '#cbd5e1'] : ['#2563eb', '#1d4ed8']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={styles.loginButton}
-                >
-                  {isLoading ? (
-                    <View style={styles.loadingContainer}>
+                  style={styles.loginButton}>
+                  
+                  {isLoading ?
+                  <View style={styles.loadingContainer}>
                       <ActivityIndicator color="#fff" size="small" />
                       <Text style={styles.buttonText}>Verificando...</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.buttonContent}>
+                    </View> :
+
+                  <View style={styles.buttonContent}>
                       <Text style={styles.buttonText}>Iniciar Sesión</Text>
                       <Ionicons name="arrow-forward" size={18} color="#fff" />
                     </View>
-                  )}
+                  }
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -510,28 +510,28 @@ export const LoginScreen = ({ onLoginSuccess }) => {
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </View>
-  );
+    </View>);
+
 };
 
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: '#2563eb',
+    backgroundColor: '#2563eb'
   },
   safeArea: {
     flex: 1,
-    backgroundColor: '#2563eb',
+    backgroundColor: '#2563eb'
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingVertical: 20
   },
   headerContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 20
   },
   iconFrame: {
     backgroundColor: 'white',
@@ -542,29 +542,29 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 5,
+    shadowRadius: 5
   },
   logoImage: {
     width: 80,
-    height: 80,
+    height: 80
   },
   title: {
     fontSize: 24,
     fontWeight: '800',
     color: '#ffffff',
     marginBottom: 2,
-    letterSpacing: 0.5,
+    letterSpacing: 0.5
   },
   subtitle: {
     fontSize: 12,
     color: '#e0f2fe',
-    fontWeight: '500',
+    fontWeight: '500'
   },
   statusRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 10,
-    marginBottom: 16,
+    marginBottom: 16
   },
   statusPill: {
     flexDirection: 'row',
@@ -572,8 +572,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 30,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)', // Translucent dark
-    gap: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    gap: 10
   },
   statusDot: {
     width: 8,
@@ -582,15 +582,15 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 0,
+      height: 0
     },
     shadowOpacity: 0.5,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 3
   },
   statusText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '600'
   },
   formContainer: {
     backgroundColor: 'rgba(255, 255, 255, 0.98)',
@@ -600,13 +600,13 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
-    shadowRadius: 12,
+    shadowRadius: 12
   },
   welcomeText: {
     fontSize: 20,
     fontWeight: '700',
     color: '#1e293b',
-    marginBottom: 20,
+    marginBottom: 20
   },
   offlineBadge: {
     flexDirection: 'row',
@@ -617,22 +617,22 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginBottom: 12,
     borderLeftWidth: 3,
-    borderLeftColor: '#f59e0b',
+    borderLeftColor: '#f59e0b'
   },
   offlineBadgeText: {
     color: '#92400e',
     fontSize: 12,
     fontWeight: '600',
-    marginLeft: 6,
+    marginLeft: 6
   },
   inputWrapper: {
-    marginBottom: 16,
+    marginBottom: 16
   },
   label: {
     fontSize: 13,
     fontWeight: '600',
     color: '#334155',
-    marginBottom: 6,
+    marginBottom: 6
   },
   inputContainer: {
     flexDirection: 'row',
@@ -642,35 +642,35 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#e2e8f0',
     paddingHorizontal: 12,
-    height: 44,
+    height: 44
   },
   inputError: {
     borderColor: '#ef4444',
-    backgroundColor: '#fef2f2',
+    backgroundColor: '#fef2f2'
   },
   icon: {
-    marginRight: 8,
+    marginRight: 8
   },
   input: {
     flex: 1,
     fontSize: 14,
     color: '#1e293b',
-    fontWeight: '500',
+    fontWeight: '500'
   },
   eyeButton: {
-    padding: 6,
+    padding: 6
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 4,
-    marginLeft: 2,
+    marginLeft: 2
   },
   errorText: {
     color: '#ef4444',
     fontSize: 11,
     marginLeft: 4,
-    fontWeight: '500',
+    fontWeight: '500'
   },
   generalErrorContainer: {
     flexDirection: 'row',
@@ -680,14 +680,14 @@ const styles = StyleSheet.create({
     borderLeftColor: '#dc2626',
     padding: 10,
     borderRadius: 8,
-    marginBottom: 12,
+    marginBottom: 12
   },
   generalErrorText: {
     color: '#991b1b',
     fontSize: 12,
     marginLeft: 8,
     flex: 1,
-    fontWeight: '600',
+    fontWeight: '600'
   },
   loginButtonWrapper: {
     borderRadius: 12,
@@ -697,33 +697,33 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
-    marginBottom: 16,
+    marginBottom: 16
   },
   loginButton: {
     height: 48,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'center'
   },
   buttonText: {
     color: '#ffffff',
     fontSize: 15,
     fontWeight: '700',
-    marginRight: 6,
+    marginRight: 6
   },
   loadingContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   copyright: {
     color: '#e0f2fe',
     fontSize: 11,
     textAlign: 'center',
     marginTop: 16,
-    fontWeight: '500',
-  },
+    fontWeight: '500'
+  }
 });

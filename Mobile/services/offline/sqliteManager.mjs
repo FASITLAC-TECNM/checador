@@ -1,72 +1,72 @@
-/**
- * SQLiteManager — Módulo de persistencia local Offline-First (Mobile)
- * Gestiona la base de datos SQLite para cola de asistencias y caché de datos maestros.
- * Adaptado de Desktop (better-sqlite3) para Expo/React Native (expo-sqlite async).
- * 
- * Archivo .mjs — ES Module
- */
+
+
+
+
+
+
+
 
 import * as SQLite from 'expo-sqlite';
-import 'react-native-get-random-values'; // Polyfill para uuid
+import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
 
 let db = null;
 let initializationPromise = null;
 const DB_NAME = 'checador_offline.db';
 
-// ============================================================
-// INICIALIZACIÓN Y MIGRACIONES
-// ============================================================
 
-/**
- * Inicializa la base de datos SQLite y ejecuta migraciones.
- * Implementa patrón Singleton para evitar condiciones de carrera.
- * @returns {Promise<SQLite.SQLiteDatabase>} instancia de la base de datos
- */
+
+
+
+
+
+
+
+
 export async function initDatabase() {
-    if (db) return db;
+  if (db) return db;
 
-    // Si ya hay una inicialización en curso, devolver esa promesa
-    if (initializationPromise) {
-        return initializationPromise;
-    }
 
-    initializationPromise = (async () => {
-        try {
-            const database = await SQLite.openDatabaseAsync(DB_NAME);
-
-            // Verificar conexión
-            try {
-                await database.execAsync('SELECT 1');
-            } catch (e) {
-                throw new Error('Database verification failed');
-            }
-
-            // Optimizaciones para rendimiento (patrón Desktop)
-            await database.execAsync('PRAGMA journal_mode = WAL');
-            await database.execAsync('PRAGMA synchronous = NORMAL');
-            await database.execAsync('PRAGMA foreign_keys = ON');
-
-            db = database; // Asignar instancia global
-            await runMigrations();
-
-            return db;
-        } catch (error) {
-            db = null;
-            initializationPromise = null; // Permitir reintento
-            throw error;
-        }
-    })();
-
+  if (initializationPromise) {
     return initializationPromise;
+  }
+
+  initializationPromise = (async () => {
+    try {
+      const database = await SQLite.openDatabaseAsync(DB_NAME);
+
+
+      try {
+        await database.execAsync('SELECT 1');
+      } catch (e) {
+        throw new Error('Database verification failed');
+      }
+
+
+      await database.execAsync('PRAGMA journal_mode = WAL');
+      await database.execAsync('PRAGMA synchronous = NORMAL');
+      await database.execAsync('PRAGMA foreign_keys = ON');
+
+      db = database;
+      await runMigrations();
+
+      return db;
+    } catch (error) {
+      db = null;
+      initializationPromise = null;
+      throw error;
+    }
+  })();
+
+  return initializationPromise;
 }
 
-/**
- * Ejecuta las migraciones para crear/actualizar las tablas
- */
+
+
+
 async function runMigrations() {
 
-    await db.execAsync(`
+  await db.execAsync(`
     -- Cola de registros de asistencia pendientes
     CREATE TABLE IF NOT EXISTS offline_asistencias (
       local_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -267,249 +267,249 @@ async function runMigrations() {
     CREATE INDEX IF NOT EXISTS idx_offline_events_synced ON offline_events(is_synced);
   `);
 
-    // Migración segura: agregar columna ubicacion si no existe (para DBs existentes)
-    try {
-        await db.execAsync('ALTER TABLE cache_departamentos ADD COLUMN ubicacion TEXT');
-    } catch (e) {
-        // La columna ya existe — ignorar
-    }
 
-    // Migración segura: columnas de red para offline_asistencias
-    for (const col of [
-        'ALTER TABLE offline_asistencias ADD COLUMN ubicacion TEXT',
-        'ALTER TABLE offline_asistencias ADD COLUMN ip TEXT',
-        'ALTER TABLE offline_asistencias ADD COLUMN wifi TEXT',
-    ]) {
-        try { await db.execAsync(col); } catch (e) { /* columna ya existe */ }
-    }
+  try {
+    await db.execAsync('ALTER TABLE cache_departamentos ADD COLUMN ubicacion TEXT');
+  } catch (e) {
 
-    // Inicializar sync_metadata si están vacías
-    const tables = ['cache_empleados', 'cache_credenciales', 'cache_horarios', 'cache_tolerancias', 'cache_departamentos'];
-    for (const t of tables) {
-        await db.runAsync('INSERT OR IGNORE INTO sync_metadata (tabla) VALUES (?)', t);
-    }
+  }
+
+
+  for (const col of [
+  'ALTER TABLE offline_asistencias ADD COLUMN ubicacion TEXT',
+  'ALTER TABLE offline_asistencias ADD COLUMN ip TEXT',
+  'ALTER TABLE offline_asistencias ADD COLUMN wifi TEXT'])
+  {
+    try {await db.execAsync(col);} catch (e) {}
+  }
+
+
+  const tables = ['cache_empleados', 'cache_credenciales', 'cache_horarios', 'cache_tolerancias', 'cache_departamentos'];
+  for (const t of tables) {
+    await db.runAsync('INSERT OR IGNORE INTO sync_metadata (tabla) VALUES (?)', t);
+  }
 
 }
 
-// ============================================================
-// CRUD — COLA DE ASISTENCIAS OFFLINE
-// ============================================================
 
-/**
- * Guarda un registro de asistencia en la cola local
- */
+
+
+
+
+
+
 export async function saveOfflineAsistencia(data) {
-    if (!db) await initDatabase();
+  if (!db) await initDatabase();
 
-    const idempotencyKey = uuidv4();
+  const idempotencyKey = uuidv4();
 
-    // Normalizar ubicacion a JSON string si viene como objeto o array
-    let ubicacionStr = null;
-    if (data.ubicacion) {
-        ubicacionStr = typeof data.ubicacion === 'string'
-            ? data.ubicacion
-            : JSON.stringify(data.ubicacion);
-    }
 
-    // Normalizar wifi a JSON string si viene como objeto
-    let wifiStr = null;
-    if (data.wifi) {
-        wifiStr = typeof data.wifi === 'string'
-            ? data.wifi
-            : JSON.stringify(data.wifi);
-    }
+  let ubicacionStr = null;
+  if (data.ubicacion) {
+    ubicacionStr = typeof data.ubicacion === 'string' ?
+    data.ubicacion :
+    JSON.stringify(data.ubicacion);
+  }
 
-    try {
-        const result = await db.runAsync(
-            `INSERT INTO offline_asistencias
+
+  let wifiStr = null;
+  if (data.wifi) {
+    wifiStr = typeof data.wifi === 'string' ?
+    data.wifi :
+    JSON.stringify(data.wifi);
+  }
+
+  try {
+    const result = await db.runAsync(
+      `INSERT INTO offline_asistencias
         (idempotency_key, empleado_id, tipo, estado, dispositivo_origen, metodo_registro,
          departamento_id, fecha_registro, payload_biometrico, ubicacion, ip, wifi)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-                idempotencyKey,
-                data.empleado_id,
-                data.tipo,
-                data.estado,
-                data.dispositivo_origen || 'movil',
-                data.metodo_registro,
-                data.departamento_id || null,
-                data.fecha_registro || new Date().toISOString(),
-                data.payload_biometrico ? JSON.stringify(data.payload_biometrico) : null,
-                ubicacionStr,
-                data.ip || null,
-                wifiStr
-            ]
-        );
+      [
+      idempotencyKey,
+      data.empleado_id,
+      data.tipo,
+      data.estado,
+      data.dispositivo_origen || 'movil',
+      data.metodo_registro,
+      data.departamento_id || null,
+      data.fecha_registro || new Date().toISOString(),
+      data.payload_biometrico ? JSON.stringify(data.payload_biometrico) : null,
+      ubicacionStr,
+      data.ip || null,
+      wifiStr]
 
-        return {
-            local_id: result.lastInsertRowId,
-            idempotency_key: idempotencyKey,
-            ...data
-        };
-    } catch (error) {
-        throw error;
-    }
+    );
+
+    return {
+      local_id: result.lastInsertRowId,
+      idempotency_key: idempotencyKey,
+      ...data
+    };
+  } catch (error) {
+    throw error;
+  }
 }
 
 export async function getPendingAsistencias(limit = 50) {
-    if (!db) await initDatabase();
-    return await db.getAllAsync(
-        `SELECT * FROM offline_asistencias WHERE is_synced = 0 ORDER BY fecha_registro ASC LIMIT ?`,
-        [limit]
-    );
+  if (!db) await initDatabase();
+  return await db.getAllAsync(
+    `SELECT * FROM offline_asistencias WHERE is_synced = 0 ORDER BY fecha_registro ASC LIMIT ?`,
+    [limit]
+  );
 }
 
 export async function markAsSynced(localId, serverId, estadoSincronizado) {
-    if (!db) await initDatabase();
-    await db.runAsync(
-        `UPDATE offline_asistencias
+  if (!db) await initDatabase();
+  await db.runAsync(
+    `UPDATE offline_asistencias
          SET is_synced = 1, 
              server_id = ?, 
              last_sync_attempt = datetime('now', 'localtime'),
              estado = COALESCE(?, estado)
          WHERE local_id = ?`,
-        [serverId, estadoSincronizado, localId]
-    );
+    [serverId, estadoSincronizado, localId]
+  );
 }
 
 export async function markSyncError(localId, error, definitivo = false) {
-    if (!db) await initDatabase();
-    await db.runAsync(
-        `UPDATE offline_asistencias
+  if (!db) await initDatabase();
+  await db.runAsync(
+    `UPDATE offline_asistencias
      SET is_synced = CASE WHEN ? = 1 THEN -1 ELSE 0 END,
          sync_attempts = sync_attempts + 1,
          last_sync_error = ?,
          last_sync_attempt = datetime('now', 'localtime')
      WHERE local_id = ?`,
-        [definitivo ? 1 : 0, error, localId]
-    );
+    [definitivo ? 1 : 0, error, localId]
+  );
 }
 
 export async function getPendingCount() {
-    if (!db) await initDatabase();
-    const row = await db.getFirstAsync(`
+  if (!db) await initDatabase();
+  const row = await db.getFirstAsync(`
     SELECT
       SUM(CASE WHEN is_synced = 0 THEN 1 ELSE 0 END) as pending,
       SUM(CASE WHEN is_synced = -1 THEN 1 ELSE 0 END) as errors,
       SUM(CASE WHEN is_synced = 1 THEN 1 ELSE 0 END) as synced
     FROM offline_asistencias
   `);
-    return {
-        pending: row?.pending || 0,
-        errors: row?.errors || 0,
-        synced: row?.synced || 0
-    };
+  return {
+    pending: row?.pending || 0,
+    errors: row?.errors || 0,
+    synced: row?.synced || 0
+  };
 }
 
 export async function getRegistrosHoy(empleadoId) {
-    if (!db) await initDatabase();
-    const hoy = new Date().toISOString().split('T')[0];
-    // UNION: registros creados offline (pendientes) + registros online cacheados localmente
-    return await db.getAllAsync(
-        `SELECT tipo, estado, fecha_registro FROM offline_asistencias
+  if (!db) await initDatabase();
+  const hoy = new Date().toISOString().split('T')[0];
+
+  return await db.getAllAsync(
+    `SELECT tipo, estado, fecha_registro FROM offline_asistencias
          WHERE empleado_id = ? AND fecha_registro LIKE ? || '%'
          UNION
          SELECT tipo, estado, fecha_registro FROM cache_asistencias
          WHERE empleado_id = ? AND fecha_registro LIKE ? || '%'
          ORDER BY fecha_registro ASC`,
-        [empleadoId, hoy, empleadoId, hoy]
-    );
+    [empleadoId, hoy, empleadoId, hoy]
+  );
 }
 
-/**
- * Guarda una copia local de un registro de asistencia realizado online.
- * Permite que el modo offline detecte correctamente el tipo del siguiente registro
- * (entrada vs salida) incluso si el registro anterior se hizo con conexión.
- */
+
+
+
+
+
 export async function saveOnlineAsistenciaToCache(data) {
-    if (!db) await initDatabase();
-    const mesKey = (data.fecha_registro || new Date().toISOString()).substring(0, 7);
-    try {
-        await db.runAsync(
-            `INSERT OR REPLACE INTO cache_asistencias
+  if (!db) await initDatabase();
+  const mesKey = (data.fecha_registro || new Date().toISOString()).substring(0, 7);
+  try {
+    await db.runAsync(
+      `INSERT OR REPLACE INTO cache_asistencias
              (id, empleado_id, tipo, estado, fecha_registro, dispositivo_origen, departamento_id, departamento_nombre, mes_key, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','localtime'))`,
-            [
-                data.id || `local_online_${Date.now()}`,
-                data.empleado_id,
-                data.tipo,
-                data.estado || null,
-                data.fecha_registro,
-                data.dispositivo_origen || 'movil',
-                data.departamento_id || null,
-                data.departamento_nombre || null,
-                mesKey
-            ]
-        );
-    } catch (error) {
-        // No crítico — no interrumpir el flujo principal
-        console.log('saveOnlineAsistenciaToCache error (no crítico):', error.message);
-    }
-}
+      [
+      data.id || `local_online_${Date.now()}`,
+      data.empleado_id,
+      data.tipo,
+      data.estado || null,
+      data.fecha_registro,
+      data.dispositivo_origen || 'movil',
+      data.departamento_id || null,
+      data.departamento_nombre || null,
+      mesKey]
 
-/**
- * Obtiene registros offline pendientes de hoy para un empleado
- * (solo los no sincronizados aún)
- */
-export async function getPendingOfflineRegistrosHoy(empleadoId) {
-    if (!db) await initDatabase();
-    const hoy = new Date().toISOString().split('T')[0];
-    return await db.getAllAsync(
-        `SELECT * FROM offline_asistencias WHERE empleado_id = ? AND fecha_registro LIKE ? || '%' AND is_synced = 0 ORDER BY fecha_registro ASC`,
-        [empleadoId, hoy]
     );
+  } catch (error) {
+
+    (function () {})('saveOnlineAsistenciaToCache error (no crítico):', error.message);
+  }
 }
 
-/**
- * Obtiene registros de asistencia offline de un empleado en un rango de fechas
- * (Adaptado de Desktop)
- * @param {string} empleadoId
- * @param {string} fechaInicio - formato YYYY-MM-DD
- * @param {string} fechaFin - formato YYYY-MM-DD
- * @returns {Promise<Array>}
- */
+
+
+
+
+export async function getPendingOfflineRegistrosHoy(empleadoId) {
+  if (!db) await initDatabase();
+  const hoy = new Date().toISOString().split('T')[0];
+  return await db.getAllAsync(
+    `SELECT * FROM offline_asistencias WHERE empleado_id = ? AND fecha_registro LIKE ? || '%' AND is_synced = 0 ORDER BY fecha_registro ASC`,
+    [empleadoId, hoy]
+  );
+}
+
+
+
+
+
+
+
+
+
 export async function getRegistrosByRange(empleadoId, fechaInicio, fechaFin) {
-    if (!db) await initDatabase();
-    return await db.getAllAsync(
-        `SELECT * FROM offline_asistencias
+  if (!db) await initDatabase();
+  return await db.getAllAsync(
+    `SELECT * FROM offline_asistencias
      WHERE empleado_id = ?
        AND fecha_registro >= ?
        AND fecha_registro < date(?, '+1 day')
      ORDER BY fecha_registro DESC`,
-        [empleadoId, fechaInicio, fechaFin]
-    );
+    [empleadoId, fechaInicio, fechaFin]
+  );
 }
 
-/**
- * Obtiene registros con error definitivo para revisión
- * (Adaptado de Desktop)
- * @returns {Promise<Array>}
- */
+
+
+
+
+
 export async function getErrorRecords() {
-    if (!db) await initDatabase();
-    return await db.getAllAsync(
-        `SELECT * FROM offline_asistencias WHERE is_synced = -1 ORDER BY fecha_registro ASC`
-    );
+  if (!db) await initDatabase();
+  return await db.getAllAsync(
+    `SELECT * FROM offline_asistencias WHERE is_synced = -1 ORDER BY fecha_registro ASC`
+  );
 }
 
-// ============================================================
-// CRUD — CACHÉ DE DATOS MAESTROS
-// ============================================================
+
+
+
 
 export async function upsertEmpleados(empleados) {
-    if (!db) await initDatabase();
+  if (!db) await initDatabase();
 
-    // Eliminar transacción manual si causa problemas con execAsync
-    // await db.execAsync('BEGIN TRANSACTION');
-    try {
-        for (const emp of empleados) {
-            // Adaptar es_activo (boolean) a estado_cuenta (string) si viene del nuevo endpoint
-            let estadoCuenta = emp.estado_cuenta || 'activo';
-            if (emp.es_activo === false) estadoCuenta = 'inactivo';
-            if (emp.es_activo === true) estadoCuenta = 'activo';
 
-            await db.runAsync(
-                `INSERT INTO cache_empleados (empleado_id, usuario_id, nombre, usuario, correo, estado_cuenta, es_empleado, foto, updated_at)
+
+  try {
+    for (const emp of empleados) {
+
+      let estadoCuenta = emp.estado_cuenta || 'activo';
+      if (emp.es_activo === false) estadoCuenta = 'inactivo';
+      if (emp.es_activo === true) estadoCuenta = 'activo';
+
+      await db.runAsync(
+        `INSERT INTO cache_empleados (empleado_id, usuario_id, nombre, usuario, correo, estado_cuenta, es_empleado, foto, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
          ON CONFLICT(empleado_id) DO UPDATE SET
            usuario_id = excluded.usuario_id,
@@ -520,33 +520,33 @@ export async function upsertEmpleados(empleados) {
            es_empleado = excluded.es_empleado,
            foto = excluded.foto,
            updated_at = excluded.updated_at`,
-                [
-                    emp.empleado_id || emp.id,
-                    emp.usuario_id,
-                    emp.nombre,
-                    emp.usuario || null,
-                    emp.correo || null,
-                    estadoCuenta,
-                    emp.es_empleado !== false ? 1 : 0,
-                    emp.foto || null
-                ]
-            );
-        }
-        // await db.execAsync('COMMIT');
-    } catch (error) {
-        // await db.execAsync('ROLLBACK');
-        throw error;
+        [
+        emp.empleado_id || emp.id,
+        emp.usuario_id,
+        emp.nombre,
+        emp.usuario || null,
+        emp.correo || null,
+        estadoCuenta,
+        emp.es_empleado !== false ? 1 : 0,
+        emp.foto || null]
+
+      );
     }
-    await updateMetaCount('cache_empleados');
+
+  } catch (error) {
+
+    throw error;
+  }
+  await updateMetaCount('cache_empleados');
 }
 
 export async function upsertCredenciales(credenciales) {
-    if (!db) await initDatabase();
+  if (!db) await initDatabase();
 
-    try {
-        for (const cred of credenciales) {
-            await db.runAsync(
-                `INSERT INTO cache_credenciales (id, empleado_id, pin_hash, dactilar_template, facial_descriptor, updated_at)
+  try {
+    for (const cred of credenciales) {
+      await db.runAsync(
+        `INSERT INTO cache_credenciales (id, empleado_id, pin_hash, dactilar_template, facial_descriptor, updated_at)
          VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))
          ON CONFLICT(id) DO UPDATE SET
            empleado_id = excluded.empleado_id,
@@ -554,51 +554,51 @@ export async function upsertCredenciales(credenciales) {
            dactilar_template = excluded.dactilar_template,
            facial_descriptor = excluded.facial_descriptor,
            updated_at = excluded.updated_at`,
-                [
-                    cred.id,
-                    cred.empleado_id,
-                    cred.pin_hash || cred.pin || null,
-                    cred.dactilar_template || cred.dactilar || null,
-                    cred.facial_descriptor || cred.facial || null
-                ]
-            );
-        }
-    } catch (error) {
-        throw error;
+        [
+        cred.id,
+        cred.empleado_id,
+        cred.pin_hash || cred.pin || null,
+        cred.dactilar_template || cred.dactilar || null,
+        cred.facial_descriptor || cred.facial || null]
+
+      );
     }
-    await updateMetaCount('cache_credenciales');
+  } catch (error) {
+    throw error;
+  }
+  await updateMetaCount('cache_credenciales');
 }
 
 export async function upsertHorario(empleadoId, horario) {
-    if (!db) await initDatabase();
+  if (!db) await initDatabase();
 
-    await db.runAsync(
-        `INSERT INTO cache_horarios (horario_id, empleado_id, configuracion, es_activo, updated_at)
+  await db.runAsync(
+    `INSERT INTO cache_horarios (horario_id, empleado_id, configuracion, es_activo, updated_at)
      VALUES (?, ?, ?, ?, datetime('now', 'localtime'))
      ON CONFLICT(horario_id) DO UPDATE SET
        empleado_id = excluded.empleado_id,
        configuracion = excluded.configuracion,
        es_activo = excluded.es_activo,
        updated_at = excluded.updated_at`,
-        [
-            horario.id || horario.horario_id,
-            empleadoId,
-            typeof horario.configuracion === 'string' ? horario.configuracion : JSON.stringify(horario.configuracion),
-            horario.es_activo ? 1 : 0
-        ]
-    );
+    [
+    horario.id || horario.horario_id,
+    empleadoId,
+    typeof horario.configuracion === 'string' ? horario.configuracion : JSON.stringify(horario.configuracion),
+    horario.es_activo ? 1 : 0]
+
+  );
 }
 
 export async function upsertTolerancia(empleadoId, tolerancia) {
-    if (!db) await initDatabase();
+  if (!db) await initDatabase();
 
-    const diasAplica = tolerancia.dias_aplica || tolerancia.dias_aplicables
-        ? (typeof tolerancia.dias_aplica === 'string' ? tolerancia.dias_aplica : JSON.stringify(tolerancia.dias_aplica || tolerancia.dias_aplicables))
-        : null;
+  const diasAplica = tolerancia.dias_aplica || tolerancia.dias_aplicables ?
+  typeof tolerancia.dias_aplica === 'string' ? tolerancia.dias_aplica : JSON.stringify(tolerancia.dias_aplica || tolerancia.dias_aplicables) :
+  null;
 
-    try {
-        await db.runAsync(
-            `INSERT INTO cache_tolerancias
+  try {
+    await db.runAsync(
+      `INSERT INTO cache_tolerancias
       (empleado_id, nombre, minutos_retardo, minutos_falta, permite_anticipado, minutos_anticipado_max, aplica_tolerancia_entrada, aplica_tolerancia_salida, max_retardos, dias_aplica, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
     ON CONFLICT(empleado_id) DO UPDATE SET
@@ -612,96 +612,96 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
       max_retardos = excluded.max_retardos,
       dias_aplica = excluded.dias_aplica,
       updated_at = excluded.updated_at`,
-            [
-                empleadoId,
-                tolerancia.nombre || null,
-                tolerancia.minutos_retardo ?? 10,
-                tolerancia.minutos_falta ?? 30,
-                tolerancia.permite_registro_anticipado !== false ? 1 : 0,
-                tolerancia.minutos_anticipado_max ?? 60,
-                tolerancia.aplica_tolerancia_entrada !== false ? 1 : 0,
-                tolerancia.aplica_tolerancia_salida ? 1 : 0,
-                tolerancia.max_retardos ?? 0,
-                diasAplica
-            ]
-        );
-    } catch (ignore) {
-        try {
-            await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN max_retardos INTEGER DEFAULT 0');
-            await upsertTolerancia(empleadoId, tolerancia);
-        } catch (e) {
-            // Silencio en producción
-        }
+      [
+      empleadoId,
+      tolerancia.nombre || null,
+      tolerancia.minutos_retardo ?? 10,
+      tolerancia.minutos_falta ?? 30,
+      tolerancia.permite_registro_anticipado !== false ? 1 : 0,
+      tolerancia.minutos_anticipado_max ?? 60,
+      tolerancia.aplica_tolerancia_entrada !== false ? 1 : 0,
+      tolerancia.aplica_tolerancia_salida ? 1 : 0,
+      tolerancia.max_retardos ?? 0,
+      diasAplica]
+
+    );
+  } catch (ignore) {
+    try {
+      await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN max_retardos INTEGER DEFAULT 0');
+      await upsertTolerancia(empleadoId, tolerancia);
+    } catch (e) {
+
     }
+  }
 }
 
 export async function upsertDepartamentos(empleadoId, departamentos) {
-    if (!db) await initDatabase();
+  if (!db) await initDatabase();
 
-    try {
-        for (const dep of departamentos) {
-            const ubicacionStr = dep.ubicacion
-                ? (typeof dep.ubicacion === 'string' ? dep.ubicacion : JSON.stringify(dep.ubicacion))
-                : null;
+  try {
+    for (const dep of departamentos) {
+      const ubicacionStr = dep.ubicacion ?
+      typeof dep.ubicacion === 'string' ? dep.ubicacion : JSON.stringify(dep.ubicacion) :
+      null;
 
-            await db.runAsync(`
+      await db.runAsync(`
                 INSERT OR REPLACE INTO cache_departamentos (empleado_id, departamento_id, nombre, ubicacion, es_activo, updated_at)
                 VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))
              `, [
-                empleadoId,
-                dep.departamento_id,
-                dep.nombre,
-                ubicacionStr,
-                dep.es_activo ? 1 : 0
-            ]);
-        }
-    } catch (error) {
-        throw error;
+      empleadoId,
+      dep.departamento_id,
+      dep.nombre,
+      ubicacionStr,
+      dep.es_activo ? 1 : 0]
+      );
     }
+  } catch (error) {
+    throw error;
+  }
 }
 
-/**
- * Elimina empleados del caché que ya no existen en el servidor
- * (Adaptado de Desktop)
- * @param {Array} serverIds - IDs de empleados que existen en el servidor
- * @returns {Promise<number>} cantidad de empleados marcados como eliminados
- */
-export async function markDeletedEmpleados(serverIds) {
-    if (!db) await initDatabase();
-    if (!serverIds || serverIds.length === 0) return 0;
 
-    const placeholders = serverIds.map(() => '?').join(',');
-    const result = await db.runAsync(
-        `UPDATE cache_empleados
+
+
+
+
+
+export async function markDeletedEmpleados(serverIds) {
+  if (!db) await initDatabase();
+  if (!serverIds || serverIds.length === 0) return 0;
+
+  const placeholders = serverIds.map(() => '?').join(',');
+  const result = await db.runAsync(
+    `UPDATE cache_empleados
      SET estado_cuenta = 'eliminado', updated_at = datetime('now', 'localtime')
      WHERE empleado_id NOT IN (${placeholders}) AND estado_cuenta != 'eliminado'`,
-        serverIds
-    );
-    return result.changes || 0;
+    serverIds
+  );
+  return result.changes || 0;
 }
 
-// ============================================================
-// LECTURAS — Para autenticación y lógica offline
-// ============================================================
+
+
+
 
 export async function getEmpleado(empleadoId) {
-    if (!db) await initDatabase();
-    return await db.getFirstAsync('SELECT * FROM cache_empleados WHERE empleado_id = ? AND estado_cuenta = ?', [empleadoId, 'activo']);
+  if (!db) await initDatabase();
+  return await db.getFirstAsync('SELECT * FROM cache_empleados WHERE empleado_id = ? AND estado_cuenta = ?', [empleadoId, 'activo']);
 }
 
-/**
- * Obtiene TODOS los empleados activos desde la caché
- * (Adaptado de Desktop)
- * @returns {Promise<Array>}
- */
+
+
+
+
+
 export async function getAllEmpleados() {
-    if (!db) await initDatabase();
-    return await db.getAllAsync("SELECT * FROM cache_empleados WHERE estado_cuenta = 'activo'");
+  if (!db) await initDatabase();
+  return await db.getAllAsync("SELECT * FROM cache_empleados WHERE estado_cuenta = 'activo'");
 }
 
 export async function getAllCredenciales() {
-    if (!db) await initDatabase();
-    return await db.getAllAsync(`
+  if (!db) await initDatabase();
+  return await db.getAllAsync(`
     SELECT cc.*, ce.nombre, ce.estado_cuenta
     FROM cache_credenciales cc
     INNER JOIN cache_empleados ce ON ce.empleado_id = cc.empleado_id
@@ -709,598 +709,598 @@ export async function getAllCredenciales() {
   `);
 }
 
-/**
- * Obtiene las credenciales de un empleado específico
- * (Adaptado de Desktop)
- * @param {string} empleadoId
- * @returns {Promise<Object|null>}
- */
+
+
+
+
+
+
 export async function getCredenciales(empleadoId) {
-    if (!db) await initDatabase();
-    return await db.getFirstAsync('SELECT * FROM cache_credenciales WHERE empleado_id = ?', [empleadoId]);
+  if (!db) await initDatabase();
+  return await db.getFirstAsync('SELECT * FROM cache_credenciales WHERE empleado_id = ?', [empleadoId]);
 }
 
 export async function getHorario(empleadoId) {
-    if (!db) await initDatabase();
-    const row = await db.getFirstAsync('SELECT * FROM cache_horarios WHERE empleado_id = ? AND es_activo = 1', [empleadoId]);
-    if (row && row.configuracion) {
-        try {
-            row.configuracion = JSON.parse(row.configuracion);
-        } catch (e) { }
-    }
-    return row;
+  if (!db) await initDatabase();
+  const row = await db.getFirstAsync('SELECT * FROM cache_horarios WHERE empleado_id = ? AND es_activo = 1', [empleadoId]);
+  if (row && row.configuracion) {
+    try {
+      row.configuracion = JSON.parse(row.configuracion);
+    } catch (e) {}
+  }
+  return row;
 }
 
 export async function getTolerancia(empleadoId) {
-    if (!db) await initDatabase();
-    const row = await db.getFirstAsync('SELECT * FROM cache_tolerancias WHERE empleado_id = ?', [empleadoId]);
-    if (row && row.dias_aplica) {
-        try {
-            row.dias_aplica = JSON.parse(row.dias_aplica);
-        } catch (e) { }
-    }
-    return row || {
-        minutos_retardo: 10,
-        minutos_falta: 30,
-        permite_anticipado: 0,
-        minutos_anticipado_max: 0,
-        minutos_anticipo_salida: 0,
-        minutos_posterior_salida: 0,
-        aplica_tolerancia_entrada: 1,
-        aplica_tolerancia_salida: 0,
-        dias_aplica: null
-    };
+  if (!db) await initDatabase();
+  const row = await db.getFirstAsync('SELECT * FROM cache_tolerancias WHERE empleado_id = ?', [empleadoId]);
+  if (row && row.dias_aplica) {
+    try {
+      row.dias_aplica = JSON.parse(row.dias_aplica);
+    } catch (e) {}
+  }
+  return row || {
+    minutos_retardo: 10,
+    minutos_falta: 30,
+    permite_anticipado: 0,
+    minutos_anticipado_max: 0,
+    minutos_anticipo_salida: 0,
+    minutos_posterior_salida: 0,
+    aplica_tolerancia_entrada: 1,
+    aplica_tolerancia_salida: 0,
+    dias_aplica: null
+  };
 }
 
-/**
- * Obtiene todos los departamentos activos de un empleado
- */
+
+
+
 export async function getDepartamentos(empleadoId) {
-    if (!db) await initDatabase();
-    return await db.getAllAsync('SELECT * FROM cache_departamentos WHERE empleado_id = ? AND es_activo = 1', [empleadoId]);
+  if (!db) await initDatabase();
+  return await db.getAllAsync('SELECT * FROM cache_departamentos WHERE empleado_id = ? AND es_activo = 1', [empleadoId]);
 }
 
-/**
- * Obtiene el departamento activo de un empleado (singular, adaptado de Desktop)
- * @param {string} empleadoId
- * @returns {Promise<Object|null>}
- */
+
+
+
+
+
 export async function getDepartamento(empleadoId) {
-    if (!db) await initDatabase();
-    return await db.getFirstAsync('SELECT * FROM cache_departamentos WHERE empleado_id = ? AND es_activo = 1 LIMIT 1', [empleadoId]);
+  if (!db) await initDatabase();
+  return await db.getFirstAsync('SELECT * FROM cache_departamentos WHERE empleado_id = ? AND es_activo = 1 LIMIT 1', [empleadoId]);
 }
 
-// ============================================================
-// CRUD — ASISTENCIAS (CACHÉ HISTORIAL)
-// ============================================================
+
+
+
 
 export async function upsertAsistenciasMes(empleadoId, mesKey, asistencias) {
-    if (!db) await initDatabase();
+  if (!db) await initDatabase();
 
-    await db.withTransactionAsync(async () => {
-        // Using INSERT OR REPLACE to avoid UNIQUE failures on 'id'
+  await db.withTransactionAsync(async () => {
 
-        for (const reg of asistencias) {
-            await db.runAsync(
-                `INSERT OR REPLACE INTO cache_asistencias (id, empleado_id, tipo, estado, fecha_registro, dispositivo_origen, departamento_id, departamento_nombre, mes_key, updated_at)
+
+    for (const reg of asistencias) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO cache_asistencias (id, empleado_id, tipo, estado, fecha_registro, dispositivo_origen, departamento_id, departamento_nombre, mes_key, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))`,
-                [
-                    reg.id,
-                    empleadoId,
-                    reg.tipo,
-                    reg.estado || null,
-                    reg.fecha_registro,
-                    reg.dispositivo_origen || null,
-                    reg.departamento_id || null,
-                    reg.departamento_nombre || null,
-                    mesKey
-                ]
-            );
-        }
-    });
+        [
+        reg.id,
+        empleadoId,
+        reg.tipo,
+        reg.estado || null,
+        reg.fecha_registro,
+        reg.dispositivo_origen || null,
+        reg.departamento_id || null,
+        reg.departamento_nombre || null,
+        mesKey]
+
+      );
+    }
+  });
 }
 
 export async function getAsistenciasMesLocal(empleadoId, mesKey) {
-    if (!db) await initDatabase();
-    return await db.getAllAsync(
-        'SELECT * FROM cache_asistencias WHERE empleado_id = ? AND mes_key = ? ORDER BY fecha_registro DESC',
-        [empleadoId, mesKey]
-    );
+  if (!db) await initDatabase();
+  return await db.getAllAsync(
+    'SELECT * FROM cache_asistencias WHERE empleado_id = ? AND mes_key = ? ORDER BY fecha_registro DESC',
+    [empleadoId, mesKey]
+  );
 }
 
-// ============================================================
-// CRUD — INCIDENCIAS OFFLINE
-// ============================================================
+
+
+
 
 export async function upsertIncidencias(empleadoId, incidencias) {
-    if (!db) await initDatabase();
+  if (!db) await initDatabase();
 
-    await db.withTransactionAsync(async () => {
-        // Removed DELETE to avoid "UNIQUE constraint failed" if server sends duplicates
-        // Use INSERT OR REPLACE instead for atomic updates per row
+  await db.withTransactionAsync(async () => {
 
-        for (const inc of incidencias) {
-            await db.runAsync(
-                `INSERT OR REPLACE INTO cache_incidencias (id, empleado_id, tipo, motivo, observaciones, fecha_inicio, fecha_fin, estado, empleado_nombre, updated_at)
+
+
+    for (const inc of incidencias) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO cache_incidencias (id, empleado_id, tipo, motivo, observaciones, fecha_inicio, fecha_fin, estado, empleado_nombre, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))`,
-                [
-                    inc.id,
-                    inc.empleado_id || empleadoId,
-                    inc.tipo,
-                    inc.motivo || null,
-                    inc.observaciones || null,
-                    inc.fecha_inicio || null,
-                    inc.fecha_fin || null,
-                    inc.estado || 'pendiente',
-                    inc.empleado_nombre || null
-                ]
-            );
-        }
-    });
+        [
+        inc.id,
+        inc.empleado_id || empleadoId,
+        inc.tipo,
+        inc.motivo || null,
+        inc.observaciones || null,
+        inc.fecha_inicio || null,
+        inc.fecha_fin || null,
+        inc.estado || 'pendiente',
+        inc.empleado_nombre || null]
+
+      );
+    }
+  });
 }
 
 export async function getIncidenciasLocal(empleadoId) {
-    if (!db) await initDatabase();
-    return await db.getAllAsync(
-        'SELECT * FROM cache_incidencias WHERE empleado_id = ? ORDER BY fecha_inicio DESC',
-        [empleadoId]
-    );
+  if (!db) await initDatabase();
+  return await db.getAllAsync(
+    'SELECT * FROM cache_incidencias WHERE empleado_id = ? ORDER BY fecha_inicio DESC',
+    [empleadoId]
+  );
 }
 
 export async function saveOfflineIncidencia(data) {
-    if (!db) await initDatabase();
+  if (!db) await initDatabase();
 
-    const idempotencyKey = uuidv4();
+  const idempotencyKey = uuidv4();
 
-    const result = await db.runAsync(
-        `INSERT INTO offline_incidencias
+  const result = await db.runAsync(
+    `INSERT INTO offline_incidencias
          (idempotency_key, empleado_id, tipo, motivo, fecha_inicio, fecha_fin, estado)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [
-            idempotencyKey,
-            data.empleado_id,
-            data.tipo,
-            data.motivo || null,
-            data.fecha_inicio || null,
-            data.fecha_fin || null,
-            'pendiente'
-        ]
-    );
+    [
+    idempotencyKey,
+    data.empleado_id,
+    data.tipo,
+    data.motivo || null,
+    data.fecha_inicio || null,
+    data.fecha_fin || null,
+    'pendiente']
 
-    return {
-        local_id: result.lastInsertRowId,
-        idempotency_key: idempotencyKey,
-        ...data,
-        estado: 'pendiente',
-        is_offline: true
-    };
+  );
+
+  return {
+    local_id: result.lastInsertRowId,
+    idempotency_key: idempotencyKey,
+    ...data,
+    estado: 'pendiente',
+    is_offline: true
+  };
 }
 
 export async function getPendingIncidencias(limit = 50) {
-    if (!db) await initDatabase();
-    return await db.getAllAsync(
-        'SELECT * FROM offline_incidencias WHERE is_synced = 0 ORDER BY created_at ASC LIMIT ?',
-        [limit]
-    );
+  if (!db) await initDatabase();
+  return await db.getAllAsync(
+    'SELECT * FROM offline_incidencias WHERE is_synced = 0 ORDER BY created_at ASC LIMIT ?',
+    [limit]
+  );
 }
 
 export async function markIncidenciaSynced(localId, serverId) {
-    if (!db) await initDatabase();
-    await db.runAsync(
-        `UPDATE offline_incidencias SET is_synced = 1, server_id = ? WHERE local_id = ?`,
-        [serverId, localId]
-    );
+  if (!db) await initDatabase();
+  await db.runAsync(
+    `UPDATE offline_incidencias SET is_synced = 1, server_id = ? WHERE local_id = ?`,
+    [serverId, localId]
+  );
 }
 
 export async function markIncidenciaSyncError(localId, error) {
-    if (!db) await initDatabase();
-    await db.runAsync(
-        `UPDATE offline_incidencias SET sync_attempts = sync_attempts + 1, last_sync_error = ? WHERE local_id = ?`,
-        [error, localId]
-    );
+  if (!db) await initDatabase();
+  await db.runAsync(
+    `UPDATE offline_incidencias SET sync_attempts = sync_attempts + 1, last_sync_error = ? WHERE local_id = ?`,
+    [error, localId]
+  );
 }
 
-// ============================================================
-// CRUD — EMPRESA (CACHÉ)
-// ============================================================
+
+
+
 
 export async function upsertEmpresa(empresa) {
-    if (!db) await initDatabase();
+  if (!db) await initDatabase();
 
-    await db.runAsync(
-        `INSERT OR REPLACE INTO cache_empresa (id, nombre, logo, telefono, correo, es_activo, updated_at)
+  await db.runAsync(
+    `INSERT OR REPLACE INTO cache_empresa (id, nombre, logo, telefono, correo, es_activo, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))`,
-        [
-            empresa.id,
-            empresa.nombre || null,
-            empresa.logo || null,
-            empresa.telefono || null,
-            empresa.correo || null,
-            empresa.es_activo !== false ? 1 : 0
-        ]
-    );
+    [
+    empresa.id,
+    empresa.nombre || null,
+    empresa.logo || null,
+    empresa.telefono || null,
+    empresa.correo || null,
+    empresa.es_activo !== false ? 1 : 0]
+
+  );
 }
 
 export async function getEmpresaLocal(empresaId) {
-    if (!db) await initDatabase();
-    return await db.getFirstAsync('SELECT * FROM cache_empresa WHERE id = ?', [empresaId]);
+  if (!db) await initDatabase();
+  return await db.getFirstAsync('SELECT * FROM cache_empresa WHERE id = ?', [empresaId]);
 }
 
-// ============================================================
-// CRUD — AVISOS (CACHÉ)
-// ============================================================
+
+
+
 
 export async function upsertAvisosGlobales(avisos) {
-    if (!db) await initDatabase();
-    if (!avisos || avisos.length === 0) return;
+  if (!db) await initDatabase();
+  if (!avisos || avisos.length === 0) return;
 
-    // Usar INSERT OR REPLACE para no borrar todo — solo actualiza si el aviso cambió
-    // Esto evita el caro DELETE + INSERT en cada sync (~cada 2 min)
-    for (const aviso of avisos) {
-        await db.runAsync(
-            `INSERT OR REPLACE INTO cache_avisos (id, tipo, empleado_id, titulo, contenido, fecha_registro, fecha_asignacion, remitente_nombre, updated_at)
+
+
+  for (const aviso of avisos) {
+    await db.runAsync(
+      `INSERT OR REPLACE INTO cache_avisos (id, tipo, empleado_id, titulo, contenido, fecha_registro, fecha_asignacion, remitente_nombre, updated_at)
              VALUES (?, 'global', NULL, ?, ?, ?, NULL, ?, datetime('now', 'localtime'))`,
-            [
-                aviso.id,
-                aviso.titulo || null,
-                aviso.contenido || null,
-                aviso.fecha_registro || null,
-                aviso.remitente_nombre || null
-            ]
-        );
-    }
-    // Limpiar avisos globales que ya no existen en el servidor (por ID)
-    if (avisos.length > 0) {
-        const ids = avisos.map(() => '?').join(',');
-        await db.runAsync(
-            `DELETE FROM cache_avisos WHERE tipo = 'global' AND id NOT IN (${ids})`,
-            avisos.map(a => a.id)
-        );
-    }
+      [
+      aviso.id,
+      aviso.titulo || null,
+      aviso.contenido || null,
+      aviso.fecha_registro || null,
+      aviso.remitente_nombre || null]
+
+    );
+  }
+
+  if (avisos.length > 0) {
+    const ids = avisos.map(() => '?').join(',');
+    await db.runAsync(
+      `DELETE FROM cache_avisos WHERE tipo = 'global' AND id NOT IN (${ids})`,
+      avisos.map((a) => a.id)
+    );
+  }
 }
 
 export async function upsertAvisosEmpleado(empleadoId, avisos) {
-    if (!db) await initDatabase();
+  if (!db) await initDatabase();
 
-    // Usar INSERT OR REPLACE — evita DELETE completo en cada sync
-    for (const aviso of avisos) {
-        await db.runAsync(
-            `INSERT OR REPLACE INTO cache_avisos (id, tipo, empleado_id, titulo, contenido, fecha_registro, fecha_asignacion, remitente_nombre, updated_at)
+
+  for (const aviso of avisos) {
+    await db.runAsync(
+      `INSERT OR REPLACE INTO cache_avisos (id, tipo, empleado_id, titulo, contenido, fecha_registro, fecha_asignacion, remitente_nombre, updated_at)
              VALUES (?, 'personal', ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))`,
-            [
-                aviso.id,
-                empleadoId,
-                aviso.titulo || null,
-                aviso.contenido || null,
-                aviso.fecha_registro || null,
-                aviso.fecha_asignacion || null,
-                aviso.remitente_nombre || null
-            ]
-        );
-    }
-    // Limpiar avisos personales que ya no existen en el servidor
-    if (avisos.length > 0) {
-        const ids = avisos.map(() => '?').join(',');
-        await db.runAsync(
-            `DELETE FROM cache_avisos WHERE tipo = 'personal' AND empleado_id = ? AND id NOT IN (${ids})`,
-            [empleadoId, ...avisos.map(a => a.id)]
-        );
-    } else {
-        // Si el servidor devuelve lista vacía, borrar todos los personales del empleado
-        await db.runAsync(
-            `DELETE FROM cache_avisos WHERE tipo = 'personal' AND empleado_id = ?`,
-            [empleadoId]
-        );
-    }
+      [
+      aviso.id,
+      empleadoId,
+      aviso.titulo || null,
+      aviso.contenido || null,
+      aviso.fecha_registro || null,
+      aviso.fecha_asignacion || null,
+      aviso.remitente_nombre || null]
+
+    );
+  }
+
+  if (avisos.length > 0) {
+    const ids = avisos.map(() => '?').join(',');
+    await db.runAsync(
+      `DELETE FROM cache_avisos WHERE tipo = 'personal' AND empleado_id = ? AND id NOT IN (${ids})`,
+      [empleadoId, ...avisos.map((a) => a.id)]
+    );
+  } else {
+
+    await db.runAsync(
+      `DELETE FROM cache_avisos WHERE tipo = 'personal' AND empleado_id = ?`,
+      [empleadoId]
+    );
+  }
 }
 
 export async function getAvisosGlobalesLocal() {
-    if (!db) await initDatabase();
-    return await db.getAllAsync(
-        "SELECT * FROM cache_avisos WHERE tipo = 'global' ORDER BY fecha_registro DESC"
-    );
+  if (!db) await initDatabase();
+  return await db.getAllAsync(
+    "SELECT * FROM cache_avisos WHERE tipo = 'global' ORDER BY fecha_registro DESC"
+  );
 }
 
 export async function getAvisosEmpleadoLocal(empleadoId) {
-    if (!db) await initDatabase();
-    return await db.getAllAsync(
-        "SELECT * FROM cache_avisos WHERE tipo = 'personal' AND empleado_id = ? ORDER BY fecha_registro DESC",
-        [empleadoId]
-    );
+  if (!db) await initDatabase();
+  return await db.getAllAsync(
+    "SELECT * FROM cache_avisos WHERE tipo = 'personal' AND empleado_id = ? ORDER BY fecha_registro DESC",
+    [empleadoId]
+  );
 }
 
-// ============================================================
-// CRUD — SESIONES OFFLINE
-// ============================================================
+
+
+
 
 async function saveOfflineSession({ usuario_id, empleado_id, tipo, modo = 'offline' }) {
-    if (!db) await initDatabase();
-    const fecha = new Date().toISOString();
-    await db.runAsync(
-        `INSERT INTO sesiones_offline (usuario_id, empleado_id, tipo, modo, fecha_evento)
+  if (!db) await initDatabase();
+  const fecha = new Date().toISOString();
+  await db.runAsync(
+    `INSERT INTO sesiones_offline (usuario_id, empleado_id, tipo, modo, fecha_evento)
          VALUES (?, ?, ?, ?, ?)`,
-        [usuario_id, empleado_id || null, tipo, modo, fecha]
-    );
+    [usuario_id, empleado_id || null, tipo, modo, fecha]
+  );
 }
 
 async function getPendingSessions(limit = 50) {
-    if (!db) await initDatabase();
-    return await db.getAllAsync(
-        `SELECT * FROM sesiones_offline WHERE is_synced = 0 ORDER BY created_at ASC LIMIT ?`,
-        [limit]
-    );
+  if (!db) await initDatabase();
+  return await db.getAllAsync(
+    `SELECT * FROM sesiones_offline WHERE is_synced = 0 ORDER BY created_at ASC LIMIT ?`,
+    [limit]
+  );
 }
 
 async function markSessionSynced(localId) {
-    if (!db) await initDatabase();
-    await db.runAsync(
-        `UPDATE sesiones_offline SET is_synced = 1 WHERE local_id = ?`,
-        [localId]
-    );
+  if (!db) await initDatabase();
+  await db.runAsync(
+    `UPDATE sesiones_offline SET is_synced = 1 WHERE local_id = ?`,
+    [localId]
+  );
 }
 
 async function markSessionSyncError(localId, error) {
-    if (!db) await initDatabase();
-    await db.runAsync(
-        `UPDATE sesiones_offline SET sync_error = ? WHERE local_id = ?`,
-        [error, localId]
-    );
+  if (!db) await initDatabase();
+  await db.runAsync(
+    `UPDATE sesiones_offline SET sync_error = ? WHERE local_id = ?`,
+    [error, localId]
+  );
 }
 
-// ============================================================
-// CRUD — EVENTOS OFFLINE
-// ============================================================
 
-/**
- * Guarda un evento offline para sincronizar después
- */
+
+
+
+
+
+
 export async function saveOfflineEvent(data) {
-    if (!db) await initDatabase();
-    await db.runAsync(
-        `INSERT INTO offline_events (titulo, tipo_evento, descripcion, empleado_id, prioridad, detalles)
+  if (!db) await initDatabase();
+  await db.runAsync(
+    `INSERT INTO offline_events (titulo, tipo_evento, descripcion, empleado_id, prioridad, detalles)
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [
-            data.titulo,
-            data.tipo_evento,
-            data.descripcion || null,
-            data.empleado_id || null,
-            data.prioridad || 'media',
-            data.detalles ? JSON.stringify(data.detalles) : null
-        ]
-    );
+    [
+    data.titulo,
+    data.tipo_evento,
+    data.descripcion || null,
+    data.empleado_id || null,
+    data.prioridad || 'media',
+    data.detalles ? JSON.stringify(data.detalles) : null]
+
+  );
 }
 
-/**
- * Obtiene eventos pendientes de sincronizar
- */
+
+
+
 export async function getPendingEvents(limit = 100) {
-    if (!db) await initDatabase();
-    return await db.getAllAsync(
-        'SELECT * FROM offline_events WHERE is_synced = 0 ORDER BY created_at ASC LIMIT ?',
-        [limit]
-    );
+  if (!db) await initDatabase();
+  return await db.getAllAsync(
+    'SELECT * FROM offline_events WHERE is_synced = 0 ORDER BY created_at ASC LIMIT ?',
+    [limit]
+  );
 }
 
-/**
- * Marca un evento como sincronizado
- */
+
+
+
 export async function markEventSynced(localId) {
-    if (!db) await initDatabase();
-    await db.runAsync(
-        'UPDATE offline_events SET is_synced = 1 WHERE local_id = ?',
-        [localId]
-    );
+  if (!db) await initDatabase();
+  await db.runAsync(
+    'UPDATE offline_events SET is_synced = 1 WHERE local_id = ?',
+    [localId]
+  );
 }
 
-/**
- * Marca error en sincronización de evento
- */
+
+
+
 export async function markEventSyncError(localId, error) {
-    if (!db) await initDatabase();
-    await db.runAsync(
-        'UPDATE offline_events SET sync_error = ? WHERE local_id = ?',
-        [error, localId]
-    );
+  if (!db) await initDatabase();
+  await db.runAsync(
+    'UPDATE offline_events SET sync_error = ? WHERE local_id = ?',
+    [error, localId]
+  );
 }
 
-// ============================================================
-// METADATA DE SINCRONIZACIÓN (Adaptado de Desktop)
-// ============================================================
 
-/**
- * Actualiza el conteo de registros de una tabla (interno)
- * @param {string} tabla
- */
+
+
+
+
+
+
+
 async function updateMetaCount(tabla) {
-    try {
-        const row = await db.getFirstAsync(`SELECT COUNT(*) as count FROM ${tabla}`);
-        await db.runAsync('UPDATE sync_metadata SET total_records = ? WHERE tabla = ?', [row.count, tabla]);
-    } catch (e) {
-        // tabla puede no existir en metadata
-    }
+  try {
+    const row = await db.getFirstAsync(`SELECT COUNT(*) as count FROM ${tabla}`);
+    await db.runAsync('UPDATE sync_metadata SET total_records = ? WHERE tabla = ?', [row.count, tabla]);
+  } catch (e) {
+
+  }
 }
 
-/**
- * Registra el timestamp de un full sync
- * @param {string} tabla
- */
+
+
+
+
 export async function setLastFullSync(tabla) {
-    if (!db) await initDatabase();
-    await db.runAsync(
-        `UPDATE sync_metadata SET last_full_sync = datetime('now', 'localtime') WHERE tabla = ?`,
-        [tabla]
-    );
+  if (!db) await initDatabase();
+  await db.runAsync(
+    `UPDATE sync_metadata SET last_full_sync = datetime('now', 'localtime') WHERE tabla = ?`,
+    [tabla]
+  );
 }
 
-/**
- * Registra el timestamp de un sync incremental
- * @param {string} tabla
- */
+
+
+
+
 export async function setLastIncrementalSync(tabla) {
-    if (!db) await initDatabase();
-    await db.runAsync(
-        `UPDATE sync_metadata SET last_incremental_sync = datetime('now', 'localtime') WHERE tabla = ?`,
-        [tabla]
-    );
+  if (!db) await initDatabase();
+  await db.runAsync(
+    `UPDATE sync_metadata SET last_incremental_sync = datetime('now', 'localtime') WHERE tabla = ?`,
+    [tabla]
+  );
 }
 
-/**
- * Obtiene metadata de sync de una tabla
- * @param {string} tabla
- * @returns {Promise<Object|null>}
- */
+
+
+
+
+
 export async function getSyncMetadata(tabla) {
-    if (!db) await initDatabase();
-    return await db.getFirstAsync('SELECT * FROM sync_metadata WHERE tabla = ?', [tabla]);
+  if (!db) await initDatabase();
+  return await db.getFirstAsync('SELECT * FROM sync_metadata WHERE tabla = ?', [tabla]);
 }
 
-/**
- * Obtiene toda la metadata de sincronización
- * @returns {Promise<Array>}
- */
+
+
+
+
 export async function getAllSyncMetadata() {
-    if (!db) await initDatabase();
-    return await db.getAllAsync('SELECT * FROM sync_metadata');
+  if (!db) await initDatabase();
+  return await db.getAllAsync('SELECT * FROM sync_metadata');
 }
 
-// ============================================================
-// UTILIDADES (Adaptadas de Desktop)
-// ============================================================
 
-/**
- * Limpia registros ya sincronizados de las tablas de cola.
- * Elimina entradas con más de `diasRetencion` días de antigüedad.
- * Llamar periódicamente (e.g. una vez al día al iniciar sesión).
- * @param {number} diasRetencion - días a conservar (default: 7)
- */
+
+
+
+
+
+
+
+
+
 export async function cleanupSyncedRecords(diasRetencion = 7) {
-    if (!db) await initDatabase();
+  if (!db) await initDatabase();
 
-    const cutoff = `datetime('now', '-${diasRetencion} days', 'localtime')`;
-    let totalEliminados = 0;
+  const cutoff = `datetime('now', '-${diasRetencion} days', 'localtime')`;
+  let totalEliminados = 0;
 
-    try {
-        // Asistencias sincronizadas o con error definitivo
-        const r1 = await db.runAsync(
-            `DELETE FROM offline_asistencias WHERE is_synced != 0 AND created_at < ${cutoff}`
-        );
-        totalEliminados += r1.changes || 0;
+  try {
 
-        // Sesiones sincronizadas
-        const r2 = await db.runAsync(
-            `DELETE FROM sesiones_offline WHERE is_synced = 1 AND created_at < ${cutoff}`
-        );
-        totalEliminados += r2.changes || 0;
+    const r1 = await db.runAsync(
+      `DELETE FROM offline_asistencias WHERE is_synced != 0 AND created_at < ${cutoff}`
+    );
+    totalEliminados += r1.changes || 0;
 
-        // Eventos offline sincronizados
-        const r3 = await db.runAsync(
-            `DELETE FROM offline_events WHERE is_synced = 1 AND created_at < ${cutoff}`
-        );
-        totalEliminados += r3.changes || 0;
 
-        // Incidencias offline sincronizadas
-        const r4 = await db.runAsync(
-            `DELETE FROM offline_incidencias WHERE is_synced = 1 AND created_at < ${cutoff}`
-        );
-        totalEliminados += r4.changes || 0;
+    const r2 = await db.runAsync(
+      `DELETE FROM sesiones_offline WHERE is_synced = 1 AND created_at < ${cutoff}`
+    );
+    totalEliminados += r2.changes || 0;
 
-        if (totalEliminados > 50) {
-            await db.execAsync('VACUUM');
-        }
 
-        return { success: true, eliminados: totalEliminados };
-    } catch (error) {
-        return { success: false, error: error.message };
+    const r3 = await db.runAsync(
+      `DELETE FROM offline_events WHERE is_synced = 1 AND created_at < ${cutoff}`
+    );
+    totalEliminados += r3.changes || 0;
+
+
+    const r4 = await db.runAsync(
+      `DELETE FROM offline_incidencias WHERE is_synced = 1 AND created_at < ${cutoff}`
+    );
+    totalEliminados += r4.changes || 0;
+
+    if (totalEliminados > 50) {
+      await db.execAsync('VACUUM');
     }
+
+    return { success: true, eliminados: totalEliminados };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 }
 
-/**
- * Cierra la conexión a la base de datos
- */
+
+
+
 export async function closeDatabase() {
-    if (db) {
-        try {
-            await db.closeAsync();
-        } catch (e) {
-            // Algunos drivers no soportan closeAsync
-        }
-        db = null;
-        initializationPromise = null;
+  if (db) {
+    try {
+      await db.closeAsync();
+    } catch (e) {
+
     }
+    db = null;
+    initializationPromise = null;
+  }
 }
 
-/**
- * Obtiene la instancia de la base de datos
- * @returns {Object|null}
- */
+
+
+
+
 export function getDatabase() {
-    return db;
+  return db;
 }
 
 export default {
-    initDatabase,
-    closeDatabase,
-    getDatabase,
-    // Asistencias offline (cola)
-    saveOfflineAsistencia,
-    getPendingAsistencias,
-    markAsSynced,
-    markSyncError,
-    getPendingCount,
-    getRegistrosHoy,
-    getPendingOfflineRegistrosHoy,
-    getRegistrosByRange,
-    getErrorRecords,
-    // Caché de datos maestros
-    upsertEmpleados,
-    upsertCredenciales,
-    upsertHorario,
-    upsertTolerancia,
-    upsertDepartamentos,
-    markDeletedEmpleados,
-    // Lecturas
-    getEmpleado,
-    getAllEmpleados,
-    getAllCredenciales,
-    getCredenciales,
-    getHorario,
-    getTolerancia,
-    getDepartamentos,
-    getDepartamento,
-    // Asistencias (historial)
-    upsertAsistenciasMes,
-    getAsistenciasMesLocal,
-    saveOnlineAsistenciaToCache,
-    // Empresa
-    upsertEmpresa,
-    getEmpresaLocal,
-    // Avisos
-    upsertAvisosGlobales,
-    upsertAvisosEmpleado,
-    getAvisosGlobalesLocal,
-    getAvisosEmpleadoLocal,
-    // Incidencias
-    upsertIncidencias,
-    getIncidenciasLocal,
-    saveOfflineIncidencia,
-    getPendingIncidencias,
-    markIncidenciaSynced,
-    markIncidenciaSyncError,
-    // Sesiones
-    saveOfflineSession,
-    getPendingSessions,
-    markSessionSynced,
-    markSessionSyncError,
-    // Eventos offline
-    saveOfflineEvent,
-    getPendingEvents,
-    markEventSynced,
-    markEventSyncError,
-    // Sync metadata
-    setLastFullSync,
-    setLastIncrementalSync,
-    getSyncMetadata,
-    getAllSyncMetadata,
-    // Utilidades
-    cleanupSyncedRecords,
+  initDatabase,
+  closeDatabase,
+  getDatabase,
+
+  saveOfflineAsistencia,
+  getPendingAsistencias,
+  markAsSynced,
+  markSyncError,
+  getPendingCount,
+  getRegistrosHoy,
+  getPendingOfflineRegistrosHoy,
+  getRegistrosByRange,
+  getErrorRecords,
+
+  upsertEmpleados,
+  upsertCredenciales,
+  upsertHorario,
+  upsertTolerancia,
+  upsertDepartamentos,
+  markDeletedEmpleados,
+
+  getEmpleado,
+  getAllEmpleados,
+  getAllCredenciales,
+  getCredenciales,
+  getHorario,
+  getTolerancia,
+  getDepartamentos,
+  getDepartamento,
+
+  upsertAsistenciasMes,
+  getAsistenciasMesLocal,
+  saveOnlineAsistenciaToCache,
+
+  upsertEmpresa,
+  getEmpresaLocal,
+
+  upsertAvisosGlobales,
+  upsertAvisosEmpleado,
+  getAvisosGlobalesLocal,
+  getAvisosEmpleadoLocal,
+
+  upsertIncidencias,
+  getIncidenciasLocal,
+  saveOfflineIncidencia,
+  getPendingIncidencias,
+  markIncidenciaSynced,
+  markIncidenciaSyncError,
+
+  saveOfflineSession,
+  getPendingSessions,
+  markSessionSynced,
+  markSessionSyncError,
+
+  saveOfflineEvent,
+  getPendingEvents,
+  markEventSynced,
+  markEventSyncError,
+
+  setLastFullSync,
+  setLastIncrementalSync,
+  getSyncMetadata,
+  getAllSyncMetadata,
+
+  cleanupSyncedRecords
 };

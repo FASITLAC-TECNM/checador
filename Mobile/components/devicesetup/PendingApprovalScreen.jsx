@@ -6,8 +6,8 @@ import {
   StatusBar,
   Alert,
   ActivityIndicator,
-  Platform
-} from 'react-native';
+  Platform } from
+'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getSolicitudPorToken } from '../../services/solicitudMovilService';
@@ -32,7 +32,7 @@ export const PendingApprovalScreen = ({ tokenSolicitud, idSolicitud, onApproved,
         const estadoLower = response.estado?.toLowerCase();
         setSolicitudStatus(estadoLower);
 
-        // Si fue aceptada (comparar en minúsculas)
+
         if (estadoLower === 'aceptado') {
           if (intervalRef.current) {
             clearInterval(intervalRef.current);
@@ -46,7 +46,7 @@ export const PendingApprovalScreen = ({ tokenSolicitud, idSolicitud, onApproved,
           }, 500);
         }
 
-        // Si fue rechazada
+
         if (estadoLower === 'rechazado') {
           if (intervalRef.current) {
             clearInterval(intervalRef.current);
@@ -73,7 +73,7 @@ export const PendingApprovalScreen = ({ tokenSolicitud, idSolicitud, onApproved,
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
 
-      {/* Header Azul con Stepper */}
+      {}
       <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? insets.top + 16 : insets.top + 8 }]}>
         <Text style={styles.headerTitle}>Solicitud Enviada</Text>
         <Text style={styles.headerSubtitle}>Esperando aprobación del administrador</Text>
@@ -93,7 +93,7 @@ export const PendingApprovalScreen = ({ tokenSolicitud, idSolicitud, onApproved,
         </View>
       </View>
 
-      {/* Content — Static, centered */}
+      {}
       <View style={styles.content}>
         <View style={styles.waitingCard}>
           <View style={styles.spinnerContainer}>
@@ -128,36 +128,36 @@ export const PendingApprovalScreen = ({ tokenSolicitud, idSolicitud, onApproved,
           </View>
         </View>
       </View>
-    </View>
-  );
+    </View>);
+
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#f9fafb'
   },
   header: {
     backgroundColor: '#2563eb',
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingBottom: 16
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 2,
+    marginBottom: 2
   },
   headerSubtitle: {
     fontSize: 12,
     color: '#dbeafe',
-    marginBottom: 14,
+    marginBottom: 14
   },
   stepperContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
+    paddingVertical: 4
   },
   stepComplete: {
     width: 28,
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: '#10b981',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   stepPending: {
     width: 28,
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: '#ffffff',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   stepLine: {
     flex: 1,
@@ -181,12 +181,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#10b981',
     marginHorizontal: 8,
     maxWidth: 80,
-    borderRadius: 2,
+    borderRadius: 2
   },
   content: {
     flex: 1,
     padding: 20,
-    justifyContent: 'center',
+    justifyContent: 'center'
   },
   waitingCard: {
     backgroundColor: '#fff',
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
     borderWidth: 1,
-    borderColor: '#f0f0f4',
+    borderColor: '#f0f0f4'
   },
   spinnerContainer: {
     width: 72,
@@ -210,21 +210,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#dbeafe',
+    borderColor: '#dbeafe'
   },
   mainMessage: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#1f2937',
     marginBottom: 10,
-    textAlign: 'center',
+    textAlign: 'center'
   },
   description: {
     fontSize: 13,
     color: '#6b7280',
     textAlign: 'center',
     lineHeight: 19,
-    marginBottom: 20,
+    marginBottom: 20
   },
   infoBox: {
     flexDirection: 'row',
@@ -234,22 +234,22 @@ const styles = StyleSheet.create({
     width: '100%',
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#dbeafe',
+    borderColor: '#dbeafe'
   },
   infoContent: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: 10
   },
   infoTitle: {
     fontSize: 13,
     fontWeight: 'bold',
     color: '#1e40af',
-    marginBottom: 6,
+    marginBottom: 6
   },
   infoText: {
     fontSize: 11,
     color: '#3b82f6',
-    lineHeight: 17,
+    lineHeight: 17
   },
   warningBox: {
     flexDirection: 'row',
@@ -260,12 +260,12 @@ const styles = StyleSheet.create({
     width: '100%',
     borderWidth: 1,
     borderColor: '#fde68a',
-    gap: 8,
+    gap: 8
   },
   warningText: {
     flex: 1,
     fontSize: 11,
     color: '#92400e',
-    lineHeight: 16,
-  },
+    lineHeight: 16
+  }
 });

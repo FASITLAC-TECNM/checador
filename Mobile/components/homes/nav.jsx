@@ -5,8 +5,8 @@ import {
   StyleSheet,
   Platform,
   Animated,
-  Easing
-} from 'react-native';
+  Easing } from
+'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,7 +18,7 @@ const NavItem = ({ item, isActive, onPress, darkMode, navStyles }) => {
       toValue: isActive ? 1 : 0,
       duration: 250,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: false, // width/backgroundColor requires false
+      useNativeDriver: false
     }).start();
   }, [isActive]);
 
@@ -27,7 +27,7 @@ const NavItem = ({ item, isActive, onPress, darkMode, navStyles }) => {
       Animated.timing(customAnim, {
         toValue: 0.3,
         duration: 100,
-        useNativeDriver: false,
+        useNativeDriver: false
       }).start();
     }
   };
@@ -37,7 +37,7 @@ const NavItem = ({ item, isActive, onPress, darkMode, navStyles }) => {
       Animated.timing(customAnim, {
         toValue: 0,
         duration: 150,
-        useNativeDriver: false,
+        useNativeDriver: false
       }).start();
     }
   };
@@ -58,27 +58,27 @@ const NavItem = ({ item, isActive, onPress, darkMode, navStyles }) => {
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      activeOpacity={1}
-    >
-      {/* Top Line Indicator */}
+      activeOpacity={1}>
+      
+      {}
       <View style={navStyles.indicatorContainer}>
         <Animated.View
           style={[
-            navStyles.activeIndicator,
-            { width: indicatorWidth, opacity: indicatorOpacity }
-          ]}
-        />
+          navStyles.activeIndicator,
+          { width: indicatorWidth, opacity: indicatorOpacity }]
+          } />
+        
       </View>
 
       <View style={navStyles.iconWrapper}>
         <Ionicons
           name={isActive ? item.icon : `${item.icon}-outline`}
-          size={26} // Ligeramente más grande ya que no hay texto
-          color={isActive ? '#2563eb' : (darkMode ? '#9ca3af' : '#6b7280')}
-        />
+          size={26}
+          color={isActive ? '#2563eb' : darkMode ? '#9ca3af' : '#6b7280'} />
+        
       </View>
-    </TouchableOpacity>
-  );
+    </TouchableOpacity>);
+
 };
 
 export const BottomNavigation = ({ currentScreen, onScreenChange, darkMode, userData }) => {
@@ -86,10 +86,10 @@ export const BottomNavigation = ({ currentScreen, onScreenChange, darkMode, user
   const styles = darkMode ? navStylesDark : navStyles;
 
   const navItems = [
-    { id: 'home', icon: 'home', label: 'Inicio' },
-    { id: 'history', icon: 'time', label: 'Historial' },
-    { id: 'schedule', icon: 'calendar', label: 'Horario' },
-  ];
+  { id: 'home', icon: 'home', label: 'Inicio' },
+  { id: 'history', icon: 'time', label: 'Historial' },
+  { id: 'schedule', icon: 'calendar', label: 'Horario' }];
+
 
   if (userData?.esAdmin) {
     navItems.push({ id: 'admin', icon: 'shield-checkmark', label: 'Admin' });
@@ -100,12 +100,12 @@ export const BottomNavigation = ({ currentScreen, onScreenChange, darkMode, user
   return (
     <View
       style={[
-        styles.container,
-        {
-          paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 12) : insets.bottom + 8,
-        }
-      ]}
-    >
+      styles.container,
+      {
+        paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 12) : insets.bottom + 8
+      }]
+      }>
+      
       <View style={styles.shadow} />
 
       <View style={styles.navBar}>
@@ -119,13 +119,13 @@ export const BottomNavigation = ({ currentScreen, onScreenChange, darkMode, user
               isActive={isActive}
               onPress={() => onScreenChange(item.id)}
               darkMode={darkMode}
-              navStyles={styles}
-            />
-          );
+              navStyles={styles} />);
+
+
         })}
       </View>
-    </View>
-  );
+    </View>);
+
 };
 
 const navStyles = StyleSheet.create({
@@ -135,7 +135,7 @@ const navStyles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: '#fff',
-    borderTopWidth: 0,
+    borderTopWidth: 0
   },
   shadow: {
     position: 'absolute',
@@ -143,7 +143,7 @@ const navStyles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 1,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#e5e7eb'
   },
   navBar: {
     flexDirection: 'row',
@@ -151,56 +151,56 @@ const navStyles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingTop: 10,
     paddingBottom: 10,
-    height: 60,
+    height: 60
   },
   navItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    height: '100%',
+    height: '100%'
   },
   indicatorContainer: {
     position: 'absolute',
-    top: -10, // Se alinea con la parte superior del navBar
+    top: -10,
     left: 0,
     right: 0,
     height: 3,
-    alignItems: 'center',
+    alignItems: 'center'
   },
   activeIndicator: {
     height: 3,
     backgroundColor: '#2563eb',
     borderBottomLeftRadius: 3,
-    borderBottomRightRadius: 3,
+    borderBottomRightRadius: 3
   },
   iconWrapper: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: 'transparent'
   }
 });
 
 const navStylesDark = StyleSheet.create({
   container: {
     ...navStyles.container,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#1f2937'
   },
   shadow: {
     ...navStyles.shadow,
-    backgroundColor: '#374151',
+    backgroundColor: '#374151'
   },
   navBar: {
     ...navStyles.navBar,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#1f2937'
   },
   navItem: navStyles.navItem,
   indicatorContainer: navStyles.indicatorContainer,
   activeIndicator: {
     ...navStyles.activeIndicator,
-    backgroundColor: '#60a5fa',
+    backgroundColor: '#60a5fa'
   },
-  iconWrapper: navStyles.iconWrapper,
+  iconWrapper: navStyles.iconWrapper
 });

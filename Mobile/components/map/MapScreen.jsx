@@ -7,8 +7,8 @@ import {
   StatusBar,
   ActivityIndicator,
   ScrollView,
-  Dimensions
-} from 'react-native';
+  Dimensions } from
+'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
@@ -17,9 +17,9 @@ import { useNavigationBarColor } from '../../services/useNavigationBarColor';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-/**
- * Componente para visualizar el mapa con Leaflet y múltiples zonas permiatidas
- */
+
+
+
 const MapaZonasPermitidas = ({
   departamento,
   departamentos = [],
@@ -36,11 +36,11 @@ const MapaZonasPermitidas = ({
 
   const styles = darkMode ? mapStylesDark : mapStyles;
 
-  // Usar el hook para configurar la barra de navegación 
+
   useNavigationBarColor(darkMode);
 
-  // Usar departamentos array o crear array con departamento único
-  const listaDepartamentos = departamentos.length > 0 ? departamentos : (departamento ? [departamento] : []);
+
+  const listaDepartamentos = departamentos.length > 0 ? departamentos : departamento ? [departamento] : [];
 
   useEffect(() => {
     if (departamento) {
@@ -57,7 +57,7 @@ const MapaZonasPermitidas = ({
     }
 
     try {
-      // Procesar todas las zonas
+
       const zonas = [];
 
       for (const depto of listaDepartamentos) {
@@ -67,8 +67,8 @@ const MapaZonasPermitidas = ({
 
         if (!coords || coords.length < 3) continue;
 
-        // Convertir coordenadas a formato [lat, lng] para Leaflet
-        const coordsFormateadas = coords.map(coord => {
+
+        const coordsFormateadas = coords.map((coord) => {
           const lat = coord.lat || coord[0];
           const lng = coord.lng || coord[1];
           return [lat, lng];
@@ -90,7 +90,7 @@ const MapaZonasPermitidas = ({
     }
   }, [listaDepartamentos]);
 
-  // Enviar ubicación GPS en tiempo real al WebView cuando cambia 
+
   useEffect(() => {
     if (webViewRef.current && ubicacionActual) {
       const message = JSON.stringify({
@@ -103,22 +103,22 @@ const MapaZonasPermitidas = ({
 
   const handleDepartamentoClick = (depto) => {
     setDepartamentoSeleccionado(depto);
-    setMostrandoMiUbicacion(false); // Desactivar "Mi ubicación"
+    setMostrandoMiUbicacion(false);
 
     if (onDepartamentoSeleccionado) {
       onDepartamentoSeleccionado(depto);
     }
 
-    // Encontrar las coordenadas de este departamento
-    const zona = zonasData.find(z => z.id === depto.id);
+
+    const zona = zonasData.find((z) => z.id === depto.id);
     if (zona && webViewRef.current) {
-      // Calcular centro de este departamento
+
       const sumLat = zona.coordenadas.reduce((sum, c) => sum + c[0], 0);
       const sumLng = zona.coordenadas.reduce((sum, c) => sum + c[1], 0);
       const centerLat = sumLat / zona.coordenadas.length;
       const centerLng = sumLng / zona.coordenadas.length;
 
-      // Enviar mensaje al WebView para centrar el mapa
+
       const message = JSON.stringify({
         action: 'focusDepartamento',
         departamentoId: depto.id,
@@ -130,7 +130,7 @@ const MapaZonasPermitidas = ({
   };
 
   const handleFocusUserLocation = () => {
-    setMostrandoMiUbicacion(true); // Activar estado de "Mi ubicación"
+    setMostrandoMiUbicacion(true);
 
     if (webViewRef.current && ubicacionActual) {
       const message = JSON.stringify({
@@ -147,13 +147,13 @@ const MapaZonasPermitidas = ({
 
     const selectedId = departamentoSeleccionadoId ? `"${departamentoSeleccionadoId}"` : 'null';
 
-    // Calcular centro global
+
     let totalLat = 0;
     let totalLng = 0;
     let totalPuntos = 0;
 
-    zonas.forEach(zona => {
-      zona.coordenadas.forEach(coord => {
+    zonas.forEach((zona) => {
+      zona.coordenadas.forEach((coord) => {
         totalLat += coord[0];
         totalLng += coord[1];
         totalPuntos++;
@@ -341,8 +341,8 @@ const MapaZonasPermitidas = ({
       <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#3b82f6" />
         <Text style={styles.loadingText}>Cargando mapa...</Text>
-      </SafeAreaView>
-    );
+      </SafeAreaView>);
+
   }
 
   if (zonasData.length === 0) {
@@ -353,8 +353,8 @@ const MapaZonasPermitidas = ({
         <TouchableOpacity style={styles.closeButton} onPress={onClose}>
           <Text style={styles.closeButtonText}>Cerrar</Text>
         </TouchableOpacity>
-      </SafeAreaView>
-    );
+      </SafeAreaView>);
+
   }
 
   const htmlContent = generarHTMLLeaflet(
@@ -367,10 +367,10 @@ const MapaZonasPermitidas = ({
     <SafeAreaView style={styles.container}>
       <StatusBar
         barStyle={darkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={darkMode ? '#1f2937' : '#fff'}
-      />
+        backgroundColor={darkMode ? '#1f2937' : '#fff'} />
+      
 
-      {/* Header */}
+      {}
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <View style={styles.headerLeft}>
@@ -388,14 +388,14 @@ const MapaZonasPermitidas = ({
           <TouchableOpacity
             style={styles.closeIconButton}
             onPress={onClose}
-            activeOpacity={0.7}
-          >
+            activeOpacity={0.7}>
+            
             <Ionicons name="close" size={24} color="#6b7280" />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Map WebView */}
+      {}
       <View style={styles.mapContainer}>
         <WebView
           ref={webViewRef}
@@ -404,171 +404,171 @@ const MapaZonasPermitidas = ({
           javaScriptEnabled={true}
           domStorageEnabled={true}
           startInLoadingState={true}
-          renderLoading={() => (
-            <View style={styles.webviewLoading}>
+          renderLoading={() =>
+          <View style={styles.webviewLoading}>
               <ActivityIndicator size="large" color="#3b82f6" />
             </View>
-          )}
-        />
+          } />
+        
       </View>
 
-      {/* Lista de departamentos (si hay múltiples) */}
-      {listaDepartamentos.length > 1 && (
-        <View style={styles.departamentosContainer}>
+      {}
+      {listaDepartamentos.length > 1 &&
+      <View style={styles.departamentosContainer}>
           <Text style={styles.departamentosTitle}>Selecciona departamento</Text>
           <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.departamentosScroll}
-            contentContainerStyle={styles.departamentosContent}
-          >
-            {ubicacionActual && (
-              <TouchableOpacity
-                style={[
-                  styles.departamentoChip,
-                  mostrandoMiUbicacion && styles.departamentoChipActivo
-                ]}
-                onPress={handleFocusUserLocation}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name={mostrandoMiUbicacion ? "navigate" : "navigate"}
-                  size={16}
-                  color={mostrandoMiUbicacion ? '#10b981' : '#6b7280'}
-                  style={styles.chipIcon}
-                />
-                <Text
-                  style={[
-                    styles.departamentoChipText,
-                    mostrandoMiUbicacion && styles.departamentoChipTextActivo
-                  ]}
-                  numberOfLines={1}
-                >
-                  Mi ubicación
-                </Text>
-                {mostrandoMiUbicacion && (
-                  <View style={styles.activeDot} />
-                )}
-              </TouchableOpacity>
-            )}
-
-            {listaDepartamentos.map((depto, index) => {
-              const esSeleccionado = departamentoSeleccionado?.id === depto.id && !mostrandoMiUbicacion;
-
-              return (
-                <TouchableOpacity
-                  key={depto.id || index}
-                  style={[
-                    styles.departamentoChip,
-                    esSeleccionado && styles.departamentoChipActivo
-                  ]}
-                  onPress={() => handleDepartamentoClick(depto)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={esSeleccionado ? 'location' : 'location-outline'}
-                    size={16}
-                    color={esSeleccionado ? '#10b981' : '#6b7280'}
-                    style={styles.chipIcon}
-                  />
-                  <Text
-                    style={[
-                      styles.departamentoChipText,
-                      esSeleccionado && styles.departamentoChipTextActivo
-                    ]}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                  >
-                    {depto.nombre}
-                  </Text>
-                  {esSeleccionado && (
-                    <View style={styles.activeDot} />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Botón de Mi Ubicación cuando hay un solo departamento */}
-      {listaDepartamentos.length === 1 && ubicacionActual && (
-        <View style={styles.singleLocationContainer}>
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.departamentosScroll}
+          contentContainerStyle={styles.departamentosContent}>
+          
+            {ubicacionActual &&
           <TouchableOpacity
             style={[
-              styles.departamentoChip,
-              mostrandoMiUbicacion && styles.departamentoChipActivo
-            ]}
+            styles.departamentoChip,
+            mostrandoMiUbicacion && styles.departamentoChipActivo]
+            }
             onPress={handleFocusUserLocation}
-            activeOpacity={0.7}
-          >
-            <Ionicons
+            activeOpacity={0.7}>
+            
+                <Ionicons
               name={mostrandoMiUbicacion ? "navigate" : "navigate"}
               size={16}
               color={mostrandoMiUbicacion ? '#10b981' : '#6b7280'}
-              style={styles.chipIcon}
-            />
-            <Text
+              style={styles.chipIcon} />
+            
+                <Text
               style={[
-                styles.departamentoChipText,
-                mostrandoMiUbicacion && styles.departamentoChipTextActivo
-              ]}
-            >
+              styles.departamentoChipText,
+              mostrandoMiUbicacion && styles.departamentoChipTextActivo]
+              }
+              numberOfLines={1}>
+              
+                  Mi ubicación
+                </Text>
+                {mostrandoMiUbicacion &&
+            <View style={styles.activeDot} />
+            }
+              </TouchableOpacity>
+          }
+
+            {listaDepartamentos.map((depto, index) => {
+            const esSeleccionado = departamentoSeleccionado?.id === depto.id && !mostrandoMiUbicacion;
+
+            return (
+              <TouchableOpacity
+                key={depto.id || index}
+                style={[
+                styles.departamentoChip,
+                esSeleccionado && styles.departamentoChipActivo]
+                }
+                onPress={() => handleDepartamentoClick(depto)}
+                activeOpacity={0.7}>
+                
+                  <Ionicons
+                  name={esSeleccionado ? 'location' : 'location-outline'}
+                  size={16}
+                  color={esSeleccionado ? '#10b981' : '#6b7280'}
+                  style={styles.chipIcon} />
+                
+                  <Text
+                  style={[
+                  styles.departamentoChipText,
+                  esSeleccionado && styles.departamentoChipTextActivo]
+                  }
+                  numberOfLines={1}
+                  ellipsizeMode="tail">
+                  
+                    {depto.nombre}
+                  </Text>
+                  {esSeleccionado &&
+                <View style={styles.activeDot} />
+                }
+                </TouchableOpacity>);
+
+          })}
+          </ScrollView>
+        </View>
+      }
+
+      {}
+      {listaDepartamentos.length === 1 && ubicacionActual &&
+      <View style={styles.singleLocationContainer}>
+          <TouchableOpacity
+          style={[
+          styles.departamentoChip,
+          mostrandoMiUbicacion && styles.departamentoChipActivo]
+          }
+          onPress={handleFocusUserLocation}
+          activeOpacity={0.7}>
+          
+            <Ionicons
+            name={mostrandoMiUbicacion ? "navigate" : "navigate"}
+            size={16}
+            color={mostrandoMiUbicacion ? '#10b981' : '#6b7280'}
+            style={styles.chipIcon} />
+          
+            <Text
+            style={[
+            styles.departamentoChipText,
+            mostrandoMiUbicacion && styles.departamentoChipTextActivo]
+            }>
+            
               Mi ubicación
             </Text>
-            {mostrandoMiUbicacion && (
-              <View style={styles.activeDot} />
-            )}
+            {mostrandoMiUbicacion &&
+          <View style={styles.activeDot} />
+          }
           </TouchableOpacity>
         </View>
-      )}
+      }
 
-      {/* Legend */}
+      {}
       <View style={styles.legend}>
-        {!mostrandoMiUbicacion && departamentoSeleccionado && (
-          <View style={styles.legendItem}>
+        {!mostrandoMiUbicacion && departamentoSeleccionado &&
+        <View style={styles.legendItem}>
             <View style={[styles.legendColor, { backgroundColor: '#10b981' }]} />
             <Text style={styles.legendText} numberOfLines={1}>
               {departamentoSeleccionado.nombre}
             </Text>
           </View>
-        )}
+        }
 
-        {listaDepartamentos.length > 1 && !mostrandoMiUbicacion && (
-          <View style={styles.legendItem}>
+        {listaDepartamentos.length > 1 && !mostrandoMiUbicacion &&
+        <View style={styles.legendItem}>
             <View style={[styles.legendColor, { backgroundColor: '#3b82f6' }]} />
             <Text style={styles.legendText}>Otras zonas disponibles</Text>
           </View>
-        )}
+        }
 
-        {ubicacionActual && (
-          <View style={styles.legendItem}>
+        {ubicacionActual &&
+        <View style={styles.legendItem}>
             <View style={[styles.legendColor, { backgroundColor: '#ef4444' }]} />
             <Text style={styles.legendText}>Tu ubicación</Text>
           </View>
-        )}
+        }
       </View>
-    </SafeAreaView>
-  );
+    </SafeAreaView>);
+
 };
 
-// ==================== ESTILOS ====================
+
 const mapStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#fff'
   },
   loadingContainer: {
     flex: 1,
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 16,
+    gap: 16
   },
   loadingText: {
     fontSize: 16,
     color: '#6b7280',
-    fontWeight: '500',
+    fontWeight: '500'
   },
   errorContainer: {
     flex: 1,
@@ -576,46 +576,46 @@ const mapStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 16,
-    padding: 20,
+    padding: 20
   },
   errorText: {
     fontSize: 16,
     color: '#6b7280',
     fontWeight: '500',
-    textAlign: 'center',
+    textAlign: 'center'
   },
   header: {
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
-    paddingTop: 8,
+    paddingTop: 8
   },
   headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 12
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     flex: 1,
-    marginRight: 8,
+    marginRight: 8
   },
   headerTextContainer: {
-    flex: 1,
+    flex: 1
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1f2937',
+    color: '#1f2937'
   },
   headerSubtitle: {
     fontSize: 13,
     color: '#6b7280',
-    marginTop: 2,
+    marginTop: 2
   },
   closeIconButton: {
     width: 40,
@@ -624,13 +624,13 @@ const mapStyles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
     justifyContent: 'center',
     alignItems: 'center',
-    flexShrink: 0,
+    flexShrink: 0
   },
   mapContainer: {
-    flex: 1,
+    flex: 1
   },
   webview: {
-    flex: 1,
+    flex: 1
   },
   webviewLoading: {
     position: 'absolute',
@@ -640,13 +640,13 @@ const mapStyles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#fff'
   },
   departamentosContainer: {
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
-    paddingVertical: 12,
+    paddingVertical: 12
   },
   departamentosTitle: {
     fontSize: 12,
@@ -655,14 +655,14 @@ const mapStyles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     paddingHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: 8
   },
   departamentosScroll: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 16
   },
   departamentosContent: {
     gap: 8,
-    paddingRight: 16,
+    paddingRight: 16
   },
   departamentoChip: {
     flexDirection: 'row',
@@ -674,31 +674,31 @@ const mapStyles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 2,
     borderColor: 'transparent',
-    maxWidth: SCREEN_WIDTH * 0.7, // Máximo 70% del ancho de pantalla
+    maxWidth: SCREEN_WIDTH * 0.7
   },
   departamentoChipActivo: {
     backgroundColor: '#d1fae5',
-    borderColor: '#10b981',
+    borderColor: '#10b981'
   },
   chipIcon: {
-    flexShrink: 0, // El ícono nunca se reduce
+    flexShrink: 0
   },
   departamentoChipText: {
     fontSize: 13,
     fontWeight: '500',
     color: '#6b7280',
-    flexShrink: 1, // El texto se puede reducir si es necesario
+    flexShrink: 1
   },
   departamentoChipTextActivo: {
     color: '#059669',
-    fontWeight: '600',
+    fontWeight: '600'
   },
   activeDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: '#10b981',
-    flexShrink: 0, // El punto nunca se reduce
+    flexShrink: 0
   },
   singleLocationContainer: {
     backgroundColor: '#fff',
@@ -706,7 +706,7 @@ const mapStyles = StyleSheet.create({
     paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   legend: {
     backgroundColor: '#fff',
@@ -714,24 +714,24 @@ const mapStyles = StyleSheet.create({
     paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
-    gap: 8,
+    gap: 8
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 10
   },
   legendColor: {
     width: 24,
     height: 24,
     borderRadius: 4,
     borderWidth: 2,
-    flexShrink: 0,
+    flexShrink: 0
   },
   legendText: {
     fontSize: 13,
     color: '#6b7280',
-    flex: 1,
+    flex: 1
   },
   infoCard: {
     backgroundColor: '#eff6ff',
@@ -740,111 +740,111 @@ const mapStyles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#bfdbfe',
+    borderColor: '#bfdbfe'
   },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10,
+    gap: 10
   },
   infoIcon: {
-    flexShrink: 0,
+    flexShrink: 0
   },
   infoText: {
     fontSize: 13,
     color: '#1e40af',
     flex: 1,
-    lineHeight: 18,
+    lineHeight: 18
   },
   closeButton: {
     backgroundColor: '#3b82f6',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
-    marginTop: 16,
+    marginTop: 16
   },
   closeButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+  }
 });
 
 const mapStylesDark = StyleSheet.create({
   ...mapStyles,
   container: {
     ...mapStyles.container,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#1f2937'
   },
   loadingContainer: {
     ...mapStyles.loadingContainer,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#1f2937'
   },
   errorContainer: {
     ...mapStyles.errorContainer,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#1f2937'
   },
   header: {
     ...mapStyles.header,
     backgroundColor: '#1f2937',
-    borderBottomColor: '#374151',
+    borderBottomColor: '#374151'
   },
   headerTitle: {
     ...mapStyles.headerTitle,
-    color: '#fff',
+    color: '#fff'
   },
   closeIconButton: {
     ...mapStyles.closeIconButton,
-    backgroundColor: '#374151',
+    backgroundColor: '#374151'
   },
   departamentosContainer: {
     ...mapStyles.departamentosContainer,
     backgroundColor: '#1f2937',
-    borderTopColor: '#374151',
+    borderTopColor: '#374151'
   },
   departamentosTitle: {
     ...mapStyles.departamentosTitle,
-    color: '#9ca3af',
+    color: '#9ca3af'
   },
   departamentoChip: {
     ...mapStyles.departamentoChip,
-    backgroundColor: '#374151',
+    backgroundColor: '#374151'
   },
   departamentoChipActivo: {
     ...mapStyles.departamentoChipActivo,
-    backgroundColor: '#1e3a2f',
+    backgroundColor: '#1e3a2f'
   },
   departamentoChipText: {
     ...mapStyles.departamentoChipText,
-    color: '#d1d5db',
+    color: '#d1d5db'
   },
   singleLocationContainer: {
     ...mapStyles.singleLocationContainer,
     backgroundColor: '#1f2937',
-    borderTopColor: '#374151',
+    borderTopColor: '#374151'
   },
   legend: {
     ...mapStyles.legend,
     backgroundColor: '#1f2937',
-    borderTopColor: '#374151',
+    borderTopColor: '#374151'
   },
   legendText: {
     ...mapStyles.legendText,
-    color: '#d1d5db',
+    color: '#d1d5db'
   },
   infoCard: {
     ...mapStyles.infoCard,
     backgroundColor: '#1e3a5f',
-    borderColor: '#3b82f6',
+    borderColor: '#3b82f6'
   },
   infoText: {
     ...mapStyles.infoText,
-    color: '#93c5fd',
+    color: '#93c5fd'
   },
   webviewLoading: {
     ...mapStyles.webviewLoading,
-    backgroundColor: '#1f2937',
-  },
+    backgroundColor: '#1f2937'
+  }
 });
 
 export default MapaZonasPermitidas;

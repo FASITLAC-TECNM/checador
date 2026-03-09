@@ -1,4 +1,4 @@
-// FacialCaptureScreen.js - CON DETECCIÓN FACIAL usando Vision Camera
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
@@ -11,8 +11,8 @@ import {
   Platform,
   ActivityIndicator,
   StatusBar,
-  Modal,
-} from 'react-native';
+  Modal } from
+'react-native';
 import { Camera as VisionCamera, useCameraDevice } from 'react-native-vision-camera';
 import { Camera } from 'react-native-vision-camera-face-detector';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,11 +21,11 @@ import * as ImageManipulator from 'expo-image-manipulator';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// Dimensiones del óvalo
+
 const OVAL_WIDTH = SCREEN_WIDTH * 0.65;
 const OVAL_HEIGHT = SCREEN_HEIGHT * 0.42;
 
-// Posición del óvalo en pantalla
+
 const OVAL_CENTER_X = SCREEN_WIDTH / 2;
 const OVAL_CENTER_Y = SCREEN_HEIGHT / 2 - 20;
 const OVAL_LEFT = OVAL_CENTER_X - OVAL_WIDTH / 2;
@@ -33,11 +33,11 @@ const OVAL_RIGHT = OVAL_CENTER_X + OVAL_WIDTH / 2;
 const OVAL_TOP = OVAL_CENTER_Y - OVAL_HEIGHT / 2;
 const OVAL_BOTTOM = OVAL_CENTER_Y + OVAL_HEIGHT / 2;
 
-/**
- * Verifica si el centro del rostro detectado está dentro del óvalo guía.
- * Los bounds del face detector se mapean 1:1 a coordenadas de pantalla
- * cuando la cámara ocupa todo el screen.
- */
+
+
+
+
+
 const isFaceInOval = (face) => {
   if (!face?.bounds) return false;
 
@@ -48,13 +48,13 @@ const isFaceInOval = (face) => {
   const radiusX = OVAL_WIDTH / 2;
   const radiusY = OVAL_HEIGHT / 2;
 
-  // Fórmula de elipse: (cx-h)²/a² + (cy-k)²/b² ≤ 1
-  const ellipseTest =
-    Math.pow((faceCX - OVAL_CENTER_X) / radiusX, 2) +
-    Math.pow((faceCY - OVAL_CENTER_Y) / radiusY, 2);
 
-  const isCentered = ellipseTest <= 1.05; // pequeño margen de tolerancia
-  const isBigEnough = width >= OVAL_WIDTH * 0.30; // rostro ocupa al menos 30% del óvalo
+  const ellipseTest =
+  Math.pow((faceCX - OVAL_CENTER_X) / radiusX, 2) +
+  Math.pow((faceCY - OVAL_CENTER_Y) / radiusY, 2);
+
+  const isCentered = ellipseTest <= 1.05;
+  const isBigEnough = width >= OVAL_WIDTH * 0.30;
 
   return isCentered && isBigEnough;
 };
@@ -68,17 +68,17 @@ export const FacialCaptureScreen = ({
   const camera = useRef(null);
   const [hasPermission, setHasPermission] = useState(false);
 
-  // ── Colores adaptábles al modo oscuro ──
+
   const dm = darkMode;
   const bgColor = dm ? '#0f172a' : '#ffffff';
   const textColor = dm ? '#f1f5f9' : '#374151';
   const closeBtnBg = dm ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)';
   const closeIconClr = dm ? '#f1f5f9' : '#1f2937';
   const tipBg = dm ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)';
-  // Botón X debajo del status bar de Android
-  const closeTop = Platform.OS === 'ios'
-    ? 50
-    : (StatusBar.currentHeight || 24) + 8;
+
+  const closeTop = Platform.OS === 'ios' ?
+  50 :
+  (StatusBar.currentHeight || 24) + 8;
 
   const faceDetectionOptions = useRef({
     performanceMode: 'fast',
@@ -86,7 +86,7 @@ export const FacialCaptureScreen = ({
     landmarkMode: 'all',
     contourMode: 'none',
     trackingEnabled: true,
-    minFaceSize: 0.15,
+    minFaceSize: 0.15
   }).current;
 
   const [instruction, setInstruction] = useState('Centra tu rostro dentro del óvalo');
@@ -119,17 +119,17 @@ export const FacialCaptureScreen = ({
   const startPulseAnimation = () => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.02,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
-      ])
+      Animated.timing(pulseAnim, {
+        toValue: 1.02,
+        duration: 1500,
+        useNativeDriver: true
+      }),
+      Animated.timing(pulseAnim, {
+        toValue: 1,
+        duration: 1500,
+        useNativeDriver: true
+      })]
+      )
     ).start();
   };
 
@@ -151,7 +151,7 @@ export const FacialCaptureScreen = ({
 
       const isGoodQuality = leftEyeOpen > 0.3 && rightEyeOpen > 0.3 && yaw < 30 && roll < 30;
 
-      // ── NUEVA VALIDACIÓN: el rostro debe estar dentro del óvalo ──
+
       const inOval = isFaceInOval(face);
 
       if (!countdown && !isProcessing && !isValidating) {
@@ -200,7 +200,7 @@ export const FacialCaptureScreen = ({
     setInstruction('Mantén la posición');
 
     const timer = setInterval(() => {
-      setCountdown(prev => {
+      setCountdown((prev) => {
         if (prev === 1) {
           clearInterval(timer);
           handleCapture();
@@ -221,17 +221,17 @@ export const FacialCaptureScreen = ({
       const photo = await camera.current.takePhoto({
         qualityPrioritization: 'quality',
         flash: 'off',
-        skipMetadata: true,
+        skipMetadata: true
       });
 
       const fileUri = Platform.OS === 'ios' ? photo.path : `file://${photo.path}`;
       const fileInfo = await FileSystem.getInfoAsync(fileUri);
 
-      // ── NUEVO: Forzar rotación adecuada (quitar formato EXIF) y comprimir la foto ──
+
       const manipResult = await ImageManipulator.manipulateAsync(
         fileUri,
-        // No aplicamos rotaciones extras fijas, dejamos que expo-image-manipulator 
-        // hornee la rotación del EXIF nativo al hacer resize.
+
+
         [{ resize: { width: 800 } }],
         { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
       );
@@ -257,7 +257,7 @@ export const FacialCaptureScreen = ({
         return;
       }
 
-      // Validar que el rostro seguía en el óvalo al momento de capturar
+
       if (!isFaceInOval(lastFaceData)) {
         setIsValidating(false);
         setIsProcessing(false);
@@ -282,10 +282,10 @@ export const FacialCaptureScreen = ({
         setCountdown(null);
         Alert.alert(
           '⚠️ Calidad insuficiente',
-          'Se detectó un rostro pero la calidad no es suficiente.\n\n' +
-          (leftEyeOpen < 0.2 || rightEyeOpen < 0.2 ? '• Mantén los ojos abiertos\n' : '') +
-          (yaw > 40 ? '• Mira de frente a la cámara\n' : '') +
-          (roll > 40 ? '• Mantén la cabeza recta\n' : ''),
+          'Se detectó un rostro pero la calidad no es suficiente.\n\n' + (
+          leftEyeOpen < 0.2 || rightEyeOpen < 0.2 ? '• Mantén los ojos abiertos\n' : '') + (
+          yaw > 40 ? '• Mira de frente a la cámara\n' : '') + (
+          roll > 40 ? '• Mantén la cabeza recta\n' : ''),
           [{ text: 'Tomar otra foto', onPress: () => setInstruction('Centra tu rostro en el óvalo') }]
         );
         return;
@@ -304,11 +304,11 @@ export const FacialCaptureScreen = ({
         noseBasePosition: detectedFace.landmarks?.NOSE_BASE,
         mouthPosition: detectedFace.landmarks?.MOUTH_BOTTOM,
         leftCheekPosition: detectedFace.landmarks?.LEFT_CHEEK,
-        rightCheekPosition: detectedFace.landmarks?.RIGHT_CHEEK,
+        rightCheekPosition: detectedFace.landmarks?.RIGHT_CHEEK
       };
 
       setInstruction('✅ Rostro verificado correctamente');
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
       onCapture({
         photoUri: fileUri,
@@ -317,11 +317,11 @@ export const FacialCaptureScreen = ({
         timestamp: Date.now(),
         imageSize: fileInfo.size,
         validated: true,
-        faceDetectionUsed: true,
+        faceDetectionUsed: true
       });
 
     } catch (error) {
-      // Silencio en producción
+
       setIsValidating(false);
       setIsProcessing(false);
       setCountdown(null);
@@ -341,8 +341,8 @@ export const FacialCaptureScreen = ({
           <ActivityIndicator size="large" color="#3b82f6" />
           <Text style={styles.permissionText}>Solicitando permisos...</Text>
         </View>
-      </Modal>
-    );
+      </Modal>);
+
   }
 
   if (hasPermission === false && hasPermission !== null) {
@@ -357,8 +357,8 @@ export const FacialCaptureScreen = ({
             <Text style={styles.cancelButtonText}>Volver</Text>
           </TouchableOpacity>
         </View>
-      </Modal>
-    );
+      </Modal>);
+
   }
 
   if (!device) {
@@ -369,28 +369,28 @@ export const FacialCaptureScreen = ({
           <ActivityIndicator size="large" color="#3b82f6" />
           <Text style={styles.permissionText}>Cargando cámara...</Text>
         </View>
-      </Modal>
-    );
+      </Modal>);
+
   }
 
-  // Color del borde del óvalo según el estado
-  const ovalBorderColor = countdown
-    ? '#10b981'
-    : isValidating
-      ? '#f59e0b'
-      : faceDetected
-        ? '#10b981'
-        : '#3b82f6';
+
+  const ovalBorderColor = countdown ?
+  '#10b981' :
+  isValidating ?
+  '#f59e0b' :
+  faceDetected ?
+  '#10b981' :
+  '#3b82f6';
 
   return (
     <Modal visible={true} animationType="fade" statusBarTranslucent>
       <View style={styles.fullScreen}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-        {/* Fondo adaptable al modo oscuro */}
+        {}
         <View style={[StyleSheet.absoluteFill, { backgroundColor: bgColor }]} />
 
-        {/* Cámara clipeada al óvalo */}
+        {}
         <View style={styles.cameraOval}>
           <Camera
             ref={camera}
@@ -399,57 +399,57 @@ export const FacialCaptureScreen = ({
             isActive={true}
             photo={true}
             faceDetectionCallback={handleFaceDetection}
-            faceDetectionOptions={faceDetectionOptions}
-          />
+            faceDetectionOptions={faceDetectionOptions} />
+          
         </View>
 
-        {/* Borde del óvalo encima */}
+        {}
         <View style={styles.ovalContainer} pointerEvents="none">
           <Animated.View
             style={[
-              styles.oval,
-              {
-                transform: [{ scale: pulseAnim }],
-                borderColor: ovalBorderColor,
-              }
-            ]}
-          />
-          {countdown && (
-            <Text style={styles.countdownText}>{countdown}</Text>
-          )}
-          {isValidating && (
-            <ActivityIndicator size="large" color="#f59e0b" style={styles.validatingIndicator} />
-          )}
+            styles.oval,
+            {
+              transform: [{ scale: pulseAnim }],
+              borderColor: ovalBorderColor
+            }]
+            } />
+          
+          {countdown &&
+          <Text style={styles.countdownText}>{countdown}</Text>
+          }
+          {isValidating &&
+          <ActivityIndicator size="large" color="#f59e0b" style={styles.validatingIndicator} />
+          }
         </View>
 
-        {/* Botón cerrar — respeta status bar Android */}
+        {}
         <TouchableOpacity
           style={[styles.closeButton, {
             top: closeTop,
-            backgroundColor: closeBtnBg,
+            backgroundColor: closeBtnBg
           }]}
           onPress={onCancel}
           disabled={isProcessing || isValidating}
-          activeOpacity={0.7}
-        >
+          activeOpacity={0.7}>
+          
           <Ionicons name="close" size={24} color={closeIconClr} />
         </TouchableOpacity>
 
-        {/* Instrucción — centrada entre status bar y borde superior del óvalo */}
+        {}
         <View style={[styles.instructionContainer, { top: closeTop + 56 }]} pointerEvents="none">
           <View style={[
-            styles.instructionBadge,
-            countdown && styles.instructionBadgeCountdown,
-            isValidating && styles.instructionBadgeValidating,
-            faceDetected && !countdown && !isValidating && styles.instructionBadgeDetected
-          ]}>
+          styles.instructionBadge,
+          countdown && styles.instructionBadgeCountdown,
+          isValidating && styles.instructionBadgeValidating,
+          faceDetected && !countdown && !isValidating && styles.instructionBadgeDetected]
+          }>
             <Text style={styles.instructionText}>{instruction}</Text>
           </View>
         </View>
 
-        {/* Tips — debajo del óvalo */}
-        {!countdown && !isValidating && (
-          <View style={styles.tipsContainer} pointerEvents="none">
+        {}
+        {!countdown && !isValidating &&
+        <View style={styles.tipsContainer} pointerEvents="none">
             <View style={[styles.tipItem, { backgroundColor: tipBg }]}>
               <Ionicons name="sunny-outline" size={14} color="#f59e0b" />
               <Text style={[styles.tipText, { color: textColor }]}>Busca buena iluminación</Text>
@@ -459,75 +459,75 @@ export const FacialCaptureScreen = ({
               <Text style={[styles.tipText, { color: textColor }]}>Mira directamente a la cámara</Text>
             </View>
           </View>
-        )}
+        }
 
-        {/* Botón de captura — abajo */}
+        {}
         <View style={styles.bottomContainer}>
           <TouchableOpacity
             style={[
-              styles.captureButton,
-              (isProcessing || countdown !== null || isValidating) && styles.captureButtonDisabled
-            ]}
+            styles.captureButton,
+            (isProcessing || countdown !== null || isValidating) && styles.captureButtonDisabled]
+            }
             onPress={startCountdown}
             disabled={isProcessing || countdown !== null || isValidating}
-            activeOpacity={0.8}
-          >
+            activeOpacity={0.8}>
+            
             <View style={[
-              styles.captureButtonInner,
-              countdown && styles.captureButtonInnerCountdown,
-              faceDetected && !countdown && !isValidating && styles.captureButtonInnerReady
-            ]}>
+            styles.captureButtonInner,
+            countdown && styles.captureButtonInnerCountdown,
+            faceDetected && !countdown && !isValidating && styles.captureButtonInnerReady]
+            }>
               <Ionicons
                 name={isProcessing || isValidating ? 'hourglass' : 'camera'}
                 size={28}
-                color="#fff"
-              />
+                color="#fff" />
+              
             </View>
           </TouchableOpacity>
 
           <Text style={[styles.helpText, { color: textColor }]}>
-            {isProcessing
-              ? 'Procesando...'
-              : isValidating
-                ? 'Analizando rostro...'
-                : countdown
-                  ? `Capturando en ${countdown}...`
-                  : faceDetected
-                    ? '✓ Listo – Toca para capturar'
-                    : 'Centra tu rostro en el óvalo y toca'}
+            {isProcessing ?
+            'Procesando...' :
+            isValidating ?
+            'Analizando rostro...' :
+            countdown ?
+            `Capturando en ${countdown}...` :
+            faceDetected ?
+            '✓ Listo – Toca para capturar' :
+            'Centra tu rostro en el óvalo y toca'}
           </Text>
         </View>
       </View>
-    </Modal>
-  );
+    </Modal>);
+
 };
 
 const styles = StyleSheet.create({
   fullScreen: {
     flex: 1,
-    backgroundColor: '#ffffff', // base — sobreescrito inline por darkMode
+    backgroundColor: '#ffffff'
   },
   container: {
     flex: 1,
     backgroundColor: '#000',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 40
   },
 
-  // ── Cámara clipeada al óvalo ─────────────────────────────────
+
   cameraOval: {
     position: 'absolute',
     top: OVAL_TOP,
     left: OVAL_LEFT,
     width: OVAL_WIDTH,
     height: OVAL_HEIGHT,
-    borderRadius: OVAL_WIDTH / 1.5, // mismo radio que el borde del óvalo
-    overflow: 'hidden',             // clipa la cámara al shape del óvalo
-    zIndex: 1,
+    borderRadius: OVAL_WIDTH / 1.5,
+    overflow: 'hidden',
+    zIndex: 1
   },
 
-  // ── Óvalo guía ──────────────────────────────────────────────
+
   ovalContainer: {
     position: 'absolute',
     top: OVAL_TOP,
@@ -536,17 +536,17 @@ const styles = StyleSheet.create({
     height: OVAL_HEIGHT,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 3,
+    zIndex: 3
   },
   oval: {
     width: '100%',
     height: '100%',
     borderRadius: OVAL_WIDTH / 1.5,
     borderWidth: 4,
-    backgroundColor: 'transparent',
+    backgroundColor: 'transparent'
   },
   validatingIndicator: {
-    position: 'absolute',
+    position: 'absolute'
   },
   countdownText: {
     position: 'absolute',
@@ -555,10 +555,10 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 8,
+    textShadowRadius: 8
   },
 
-  // ── Botón cerrar ────────────────────────────────────────────
+
   closeButton: {
     position: 'absolute',
     right: 20,
@@ -567,17 +567,17 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 20,
+    borderRadius: 20
   },
 
-  // ── Instrucción ─────────────────────────────────────────────
+
   instructionContainer: {
     position: 'absolute',
     left: 0,
     right: 0,
     alignItems: 'center',
     paddingHorizontal: 20,
-    zIndex: 10,
+    zIndex: 10
   },
   instructionBadge: {
     backgroundColor: 'rgba(59,130,246,0.92)',
@@ -585,7 +585,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 24,
     maxWidth: '90%',
-    elevation: 3,
+    elevation: 3
   },
   instructionBadgeCountdown: { backgroundColor: 'rgba(16,185,129,0.95)' },
   instructionBadgeValidating: { backgroundColor: 'rgba(245,158,11,0.95)' },
@@ -594,10 +594,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
-    textAlign: 'center',
+    textAlign: 'center'
   },
 
-  // ── Tips ────────────────────────────────────────────────────
+
   tipsContainer: {
     position: 'absolute',
     top: OVAL_BOTTOM + 20,
@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     gap: 8,
-    zIndex: 10,
+    zIndex: 10
   },
   tipItem: {
     flexDirection: 'row',
@@ -614,22 +614,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 16,
-    gap: 8,
+    gap: 8
   },
   tipText: {
     color: '#374151',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '500'
   },
 
-  // ── Botón captura ────────────────────────────────────────────
+
   bottomContainer: {
     position: 'absolute',
     bottom: Platform.OS === 'ios' ? 50 : 30,
     left: 0,
     right: 0,
     alignItems: 'center',
-    zIndex: 10,
+    zIndex: 10
   },
   captureButton: {
     width: 70,
@@ -643,7 +643,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
-    shadowRadius: 6,
+    shadowRadius: 6
   },
   captureButtonDisabled: { opacity: 0.6 },
   captureButtonInner: {
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     backgroundColor: '#3b82f6',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   captureButtonInnerCountdown: { backgroundColor: '#10b981' },
   captureButtonInnerReady: { backgroundColor: '#10b981' },
@@ -660,33 +660,33 @@ const styles = StyleSheet.create({
     color: '#374151',
     fontSize: 13,
     fontWeight: '500',
-    textAlign: 'center',
+    textAlign: 'center'
   },
 
-  // ── Permisos ─────────────────────────────────────────────────
+
   permissionText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
     marginTop: 16,
-    textAlign: 'center',
+    textAlign: 'center'
   },
   permissionSubtext: {
     color: '#9ca3af',
     fontSize: 13,
     marginTop: 8,
-    textAlign: 'center',
+    textAlign: 'center'
   },
   cancelButton: {
     marginTop: 24,
     backgroundColor: '#ef4444',
     paddingHorizontal: 28,
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: 10
   },
   cancelButtonText: {
     color: '#fff',
     fontSize: 15,
-    fontWeight: '600',
-  },
+    fontWeight: '600'
+  }
 });

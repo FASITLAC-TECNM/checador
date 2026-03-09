@@ -103,6 +103,12 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
             });
 
             if (!loginResponse.ok) {
+                // Si la API responde pero con error de servidor (ej. 500, 502, 503, 504)
+                if (loginResponse.status >= 500) {
+                    const error = new Error(`Server Error: ${loginResponse.status}`);
+                    error.isApiOffline = true;
+                    throw error;
+                }
                 const errorData = await loginResponse.json().catch(() => ({}));
                 throw new Error(errorData.message || "Credenciales inválidas");
             }
@@ -246,7 +252,9 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
             const isNetworkError = error.name === 'TypeError'
                 || error.message.includes('Failed to fetch')
                 || error.message.includes('NetworkError')
-                || error.message.includes('ERR_INTERNET_DISCONNECTED');
+                || error.message.includes('ERR_INTERNET_DISCONNECTED')
+                || error.isApiOffline // API server returned 500+ error
+                || error.message.includes('Server Error'); // Propagated from custom throws
 
             if (isNetworkError && window.electronAPI && window.electronAPI.offlineDB) {
                 console.log('📴 [PinModal] Sin conexión — intentando autenticación offline...');

@@ -404,7 +404,9 @@ export default function AsistenciaHuella({
       const isNetworkError = error.name === 'TypeError'
         || error.message.includes('Failed to fetch')
         || error.message.includes('NetworkError')
-        || error.message.includes('ERR_INTERNET_DISCONNECTED');
+        || error.message.includes('ERR_INTERNET_DISCONNECTED')
+        || error.isApiOffline // API server returned 500+ error
+        || error.message.includes('Server Error');
 
       if (isNetworkError && window.electronAPI && window.electronAPI.offlineDB) {
         console.log('📴 [AsistenciaHuella] Sin conexión — intentando autenticación offline...');
@@ -554,6 +556,11 @@ export default function AsistenciaHuella({
       });
 
       if (!authResponse.ok) {
+        if (authResponse.status >= 500) {
+          const error = new Error(`Server Error: ${authResponse.status}`);
+          error.isApiOffline = true;
+          throw error;
+        }
         const errorData = await authResponse.json().catch(() => ({}));
         throw new Error(errorData.message || "Error al autenticar");
       }
@@ -603,7 +610,9 @@ export default function AsistenciaHuella({
       const isNetworkError = error.name === 'TypeError'
         || error.message.includes('Failed to fetch')
         || error.message.includes('NetworkError')
-        || error.message.includes('ERR_INTERNET_DISCONNECTED');
+        || error.message.includes('ERR_INTERNET_DISCONNECTED')
+        || error.isApiOffline // API server returned 500+ error
+        || error.message.includes('Server Error');
 
       if (isNetworkError && window.electronAPI && window.electronAPI.offlineDB) {
         console.log('📴 [AsistenciaHuella] Sin conexión — intentando Login offline...');

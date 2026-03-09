@@ -151,10 +151,11 @@ export const useConnectivity = () => {
         setIsDatabaseConnected(false);
       }
 
-      // 3. Notificar al SyncManager del estado de conectividad
+      // 3. Notificar al SyncManager del estado de conectividad combinado
       if (window.electronAPI && window.electronAPI.syncManager) {
         try {
-          window.electronAPI.syncManager.setOnline(internetStatus);
+          const isFullyOnline = internetStatus && dbStatus;
+          window.electronAPI.syncManager.setOnline(isFullyOnline);
         } catch (e) {
           // Silenciar errores de IPC
         }

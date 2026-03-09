@@ -622,7 +622,9 @@ export default function AsistenciaFacial({
       const isNetworkError = error.name === 'TypeError'
         || error.message.includes('Failed to fetch')
         || error.message.includes('NetworkError')
-        || error.message.includes('ERR_INTERNET_DISCONNECTED');
+        || error.message.includes('ERR_INTERNET_DISCONNECTED')
+        || error.isApiOffline // API server returned 500+ error
+        || error.message.includes('Server Error');
 
       if (isNetworkError && window.electronAPI && window.electronAPI.offlineDB) {
         console.log('📴 [AsistenciaFacial] Sin conexión — intentando autenticación offline...');

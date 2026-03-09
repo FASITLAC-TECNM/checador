@@ -292,7 +292,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
       console.log('Login online falló:', error.message);
       const msg = error.message || '';
       const isNetworkError = msg.includes('Network') || msg.includes('Failed to fetch') || msg.includes('connection') || msg.includes('timeout');
-      const isServerError = msg.includes('500') || msg.includes('502') || msg.includes('503') || msg.includes('504') || msg.includes('Error del servidor');
+      const isServerError = msg.includes('500') || msg.includes('502') || msg.includes('503') || msg.includes('504') || msg.includes('Error del servidor') || msg.includes('JSON') || msg.includes('inactivo');
 
       if (isNetworkError || isServerError) {
         // ====== INTENTO 2: Login Offline (red caída o servidor/BD caída) ======

@@ -359,13 +359,16 @@ export async function getPendingAsistencias(limit = 50) {
     );
 }
 
-export async function markAsSynced(localId, serverId) {
+export async function markAsSynced(localId, serverId, estadoSincronizado) {
     if (!db) await initDatabase();
     await db.runAsync(
         `UPDATE offline_asistencias
-     SET is_synced = 1, server_id = ?, last_sync_attempt = datetime('now', 'localtime')
-     WHERE local_id = ?`,
-        [serverId, localId]
+         SET is_synced = 1, 
+             server_id = ?, 
+             last_sync_attempt = datetime('now', 'localtime'),
+             estado = COALESCE(?, estado)
+         WHERE local_id = ?`,
+        [serverId, estadoSincronizado, localId]
     );
 }
 

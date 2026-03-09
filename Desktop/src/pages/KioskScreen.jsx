@@ -248,6 +248,16 @@ export default function KioskScreen() {
     return info[methodKey];
   };
 
+  // Determinar el orden visual de los métodos: si el principal está desconectado, subir el primero conectado
+  const visualActiveMethods = [...activeMethods];
+  if (visualActiveMethods.length > 1) {
+    const firstConnectedIndex = visualActiveMethods.findIndex(methodKey => !getMethodInfo(methodKey).isDisabled);
+    if (firstConnectedIndex > 0) {
+      const firstConnected = visualActiveMethods.splice(firstConnectedIndex, 1)[0];
+      visualActiveMethods.unshift(firstConnected);
+    }
+  }
+
   // Si está logueado, mostrar SessionScreen
   if (isLoggedIn) {
     return <SessionScreen onLogout={handleLogout} usuario={usuarioActual} isReaderConnected={isReaderConnected} />;
@@ -295,7 +305,7 @@ export default function KioskScreen() {
             <div className="bg-bg-primary rounded-3xl shadow-2xl h-full flex flex-col items-center justify-center p-8 border border-border-subtle">
               <DynamicLoader text="Cargando configuración..." size="large" />
             </div>
-          ) : activeMethods.length === 0 ? (
+          ) : visualActiveMethods.length === 0 ? (
             /* Sin métodos activos */
             <div className="bg-bg-primary rounded-3xl shadow-2xl h-full flex flex-col items-center justify-center p-8 border border-border-subtle">
               <h2 className="text-2xl font-bold text-text-primary mb-4">
@@ -306,10 +316,10 @@ export default function KioskScreen() {
                 Preferencias
               </p>
             </div>
-          ) : activeMethods.length === 1 ? (
+          ) : visualActiveMethods.length === 1 ? (
             /* Un solo método - Botón grande */
             (() => {
-              const method = getMethodInfo(activeMethods[0]);
+              const method = getMethodInfo(visualActiveMethods[0]);
               const Icon = method.icon;
               const isDisabled = method.isDisabled;
               const isClickable = method.handler && !method.isVisualOnly && !isDisabled;
@@ -324,47 +334,97 @@ export default function KioskScreen() {
                       : "cursor-default"
                     }`}
                 >
-                  <h2 className="text-xl sm:text-2xl lg:text-3xl 2xl:text-5xl font-bold mb-2 sm:mb-4 2xl:mb-8">
-                    Registrar Asistencia
-                  </h2>
-
-                  <div className="flex justify-center mb-2 sm:mb-4 2xl:mb-8">
-                    <Icon className={`w-16 h-16 sm:w-24 sm:h-24 lg:w-32 lg:h-32 2xl:w-48 2xl:h-48 ${isDisabled ? "text-gray-300" : "text-white"}`} strokeWidth={1.5} />
-                  </div>
-                  {isDisabled && (
-                    <p className="text-sm sm:text-lg 2xl:text-2xl text-gray-300 mb-2 2xl:mb-8">
-                      ({method.disabledMessage})
-                    </p>
-                  )}
-
-                  <div className="mb-2 sm:mb-3 2xl:mb-6">
+                  <div className="mb-6 flex flex-col items-center w-full">
                     <div
-                      className="text-4xl sm:text-5xl lg:text-7xl 2xl:text-9xl font-bold mb-1 sm:mb-2 tracking-wider"
+                      className="text-4xl sm:text-5xl lg:text-7xl 2xl:text-9xl font-bold mb-1 tracking-wider"
                       style={{ letterSpacing: "0.1em" }}
                     >
                       {formatTime(time).replace(/\s/g, "\u00A0")}
                     </div>
+                    <div className="text-base sm:text-xl 2xl:text-3xl font-medium opacity-90">
+                      {formatDay(time).charAt(0).toUpperCase() + formatDay(time).slice(1)} - {formatDate(time)}
+                    </div>
                   </div>
 
-                  <div className="text-base sm:text-xl 2xl:text-3xl">
-                    <div className="font-semibold text-lg sm:text-2xl 2xl:text-4xl mb-1 2xl:mb-3">
-                      {formatDate(time)}
+                  <div className="flex-1 flex flex-col justify-center items-center">
+                    <h2 className="text-xl sm:text-2xl lg:text-3xl 2xl:text-5xl font-bold mb-4 sm:mb-6 2xl:mb-8">
+                      {method.label}
+                    </h2>
+
+                    <div className="flex justify-center mb-4 sm:mb-6 2xl:mb-8">
+                      <Icon className={`w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 2xl:w-48 2xl:h-48 ${isDisabled ? "text-gray-300" : "text-white"}`} strokeWidth={1.5} />
                     </div>
-                    <div className="text-white/80 capitalize text-sm sm:text-lg 2xl:text-3xl">
-                      {formatDay(time)}
-                    </div>
+                    {isDisabled && (
+                      <p className="text-sm sm:text-lg 2xl:text-2xl text-gray-300 bg-black/30 px-6 py-2 rounded-full backdrop-blur-sm mt-4">
+                        {method.disabledMessage}
+                      </p>
+                    )}
                   </div>
                 </div>
               );
             })()
           ) : (
-            /* Múltiples métodos - Botón grande con mini-botones dentro */
-            <div className="bg-gradient-to-br from-[#1976D2] to-[#001A70] dark:from-slate-700 dark:to-slate-800 rounded-3xl shadow-2xl h-full text-white text-center flex flex-col items-center justify-center p-4 sm:p-8">
-              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-3 sm:mb-6">Registrar Asistencia</h2>
+            /* Múltiples métodos / Prioridades aplicadas */
+            <div className="relative bg-gradient-to-br from-[#1976D2] to-[#001A70] dark:from-slate-700 dark:to-slate-800 rounded-3xl shadow-2xl h-full text-white text-center flex flex-col items-center justify-center p-4 sm:p-8">
 
-              {/* Mini-botones con fondo blur */}
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full max-w-2xl mb-4 sm:mb-6">
-                {activeMethods.map((methodKey) => {
+              {/* Reloj arriba */}
+              <div className="mb-2 sm:mb-4 flex flex-col items-center w-full">
+                <div
+                  className="text-3xl sm:text-5xl lg:text-6xl 2xl:text-7xl font-bold mb-1 tracking-wider"
+                  style={{ letterSpacing: "0.1em" }}
+                >
+                  {formatTime(time).replace(/\s/g, "\u00A0")}
+                </div>
+                <div className="text-sm sm:text-lg 2xl:text-xl font-medium opacity-90">
+                  {formatDay(time).charAt(0).toUpperCase() + formatDay(time).slice(1)} - {formatDate(time)}
+                </div>
+              </div>
+
+              {/* Botón Principal (Prioridad 1) */}
+              <div className="flex-1 w-full max-w-sm mb-4 flex flex-col items-center justify-center min-h-0">
+                {(() => {
+                  const methodKey = visualActiveMethods[0];
+                  const method = getMethodInfo(methodKey);
+                  const Icon = method.icon;
+                  const isClickable = method.handler && !method.isVisualOnly && !method.isDisabled;
+                  const isDisabled = method.isDisabled;
+                  return (
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isClickable) method.handler();
+                      }}
+                      title={isDisabled ? method.disabledMessage : ""}
+                      className={`w-full max-w-sm flex flex-col items-center justify-center p-4 sm:p-6 gap-2 sm:gap-4 transition-all ${isDisabled
+                        ? "opacity-60 cursor-not-allowed"
+                        : ""
+                        } ${isClickable && !isDisabled
+                          ? "hover:scale-[1.03] cursor-pointer"
+                          : !isDisabled
+                            ? "cursor-default"
+                            : ""
+                        }`}
+                    >
+                      <h2 className={`text-2xl sm:text-4xl font-bold ${isDisabled ? "text-gray-300 dark:text-gray-400" : "text-white"}`}>
+                        {method.label}
+                      </h2>
+                      <Icon
+                        className={`w-28 h-28 sm:w-40 sm:h-40 lg:w-48 lg:h-48 mt-4 ${isDisabled ? "text-gray-300 dark:text-gray-400" : "text-white"}`}
+                        strokeWidth={1.5}
+                      />
+                      {isDisabled && (
+                        <span className="text-xs sm:text-sm text-gray-300 dark:text-gray-400 bg-black/30 px-3 py-1 rounded-full backdrop-blur-sm mt-1 font-medium">
+                          {method.disabledMessage}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Botones Secundarios */}
+              <div className="absolute bottom-4 right-4 sm:bottom-8 sm:right-8 flex flex-row justify-end gap-3 sm:gap-4">
+                {visualActiveMethods.slice(1).map((methodKey) => {
                   const method = getMethodInfo(methodKey);
                   const Icon = method.icon;
                   const isClickable = method.handler && !method.isVisualOnly && !method.isDisabled;
@@ -377,47 +437,26 @@ export default function KioskScreen() {
                         if (isClickable) method.handler();
                       }}
                       title={isDisabled ? method.disabledMessage : ""}
-                      className={`flex-1 backdrop-blur-md border rounded-2xl shadow-lg transition-all flex flex-row sm:flex-col items-center justify-center p-3 sm:p-6 gap-3 sm:gap-0 ${isDisabled
+                      className={`backdrop-blur-md border rounded-2xl shadow-lg transition-all flex flex-row items-center justify-center px-3 sm:px-5 py-2 sm:py-3 gap-2 sm:gap-3 ${isDisabled
                         ? "bg-gray-500/30 dark:bg-gray-600/30 border-gray-400/30 dark:border-gray-500/30 opacity-60 cursor-not-allowed"
-                        : "bg-white/20 dark:bg-white/10 border-white/30 dark:border-white/20"
+                        : "bg-white/15 dark:bg-black/20 border-white/20 dark:border-white/10"
                         } ${isClickable && !isDisabled
-                          ? "hover:bg-white/30 dark:hover:bg-white/20 hover:shadow-xl hover:scale-105 cursor-pointer"
-                          : !isDisabled ? "cursor-default" : ""
+                          ? "hover:bg-white/25 dark:hover:bg-white/10 hover:shadow-xl hover:-translate-y-1 cursor-pointer"
+                          : !isDisabled
+                            ? "cursor-default"
+                            : ""
                         }`}
                     >
                       <Icon
-                        className={`w-10 h-10 sm:w-16 sm:h-16 sm:mb-2 ${isDisabled ? "text-gray-300 dark:text-gray-400" : "text-white"}`}
-                        strokeWidth={1.5}
+                        className={`w-5 h-5 sm:w-6 sm:h-6 ${isDisabled ? "text-gray-300 dark:text-gray-400" : "text-white"}`}
+                        strokeWidth={2}
                       />
-                      <span className={`text-sm font-bold ${isDisabled ? "text-gray-300 dark:text-gray-400" : "text-white"}`}>
+                      <span className={`text-xs sm:text-sm font-bold whitespace-nowrap ${isDisabled ? "text-gray-300 dark:text-gray-400" : "text-white"}`}>
                         {method.label}
                       </span>
-                      {isDisabled && (
-                        <span className="text-xs text-gray-300 dark:text-gray-400 sm:mt-1">
-                          (Desconectado)
-                        </span>
-                      )}
                     </div>
                   );
                 })}
-              </div>
-
-              <div className="mb-2 sm:mb-3 2xl:mb-6">
-                <div
-                  className="text-4xl sm:text-5xl lg:text-7xl 2xl:text-9xl font-bold mb-1 sm:mb-2 2xl:mb-4 tracking-wider"
-                  style={{ letterSpacing: "0.1em" }}
-                >
-                  {formatTime(time).replace(/\s/g, "\u00A0")}
-                </div>
-              </div>
-
-              <div className="text-base sm:text-xl 2xl:text-3xl">
-                <div className="font-semibold text-lg sm:text-2xl 2xl:text-4xl mb-1 2xl:mb-3">
-                  {formatDate(time)}
-                </div>
-                <div className="text-white/80 dark:text-white/70 capitalize text-sm sm:text-lg 2xl:text-2xl">
-                  {formatDay(time)}
-                </div>
               </div>
             </div>
           )}

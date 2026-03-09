@@ -710,6 +710,13 @@ export default function AsistenciaFacial({
         } catch (offlineError) {
           console.error('❌ [AsistenciaFacial] Error en flujo offline:', offlineError);
           setErrorMessage(`Error Offline: ${offlineError.message}`);
+          setResult({
+            success: false,
+            message: `Error Offline: ${offlineError.message}`,
+            noReconocida: offlineError.message?.includes("no reconocido") || offlineError.message?.includes("No se encontr")
+          });
+          setStep("error");
+          return;
         }
       }
 

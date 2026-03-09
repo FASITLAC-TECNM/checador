@@ -72,6 +72,11 @@ function bufferToFloat32Array(data) {
       try {
         const parsed = JSON.parse(data);
         if (Array.isArray(parsed)) return new Float32Array(parsed);
+        // Soporte para serialización de NodeJS Buffer: {"type":"Buffer","data":[...]}
+        if (parsed && parsed.type === 'Buffer' && Array.isArray(parsed.data)) {
+          const bytes = new Uint8Array(parsed.data);
+          return new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4);
+        }
       } catch {
         // No es JSON, intentar como base64
         const binary = atob(data);
@@ -129,8 +134,8 @@ export async function identificarPorPinOffline(usuarioIngresado, pinIngresado) {
       if (!empleado || empleado.estado_cuenta !== 'activo') continue;
 
       // El usuarioIngresado puede ser el username o el correo
-      const matchesUsuario = (empleado.usuario && empleado.usuario.toLowerCase() === usuarioIngresado.toLowerCase()) || 
-                             (empleado.correo && empleado.correo.toLowerCase() === usuarioIngresado.toLowerCase());
+      const matchesUsuario = (empleado.usuario && empleado.usuario.toLowerCase() === usuarioIngresado.toLowerCase()) ||
+        (empleado.correo && empleado.correo.toLowerCase() === usuarioIngresado.toLowerCase());
 
       if (!matchesUsuario) continue;
 
@@ -175,19 +180,19 @@ async function verificarPinLocal(pin, hash) {
         // Usamos crypto a través de una función asíncrona IPC si es necesario
         // Pero OfflineAuthService está en el renderer, así que NO podemos usar crypto nativo directamente.
         // Pero SÍ tenemos la Web Crypto API.
-        
+
         // Convertir salt hex a Uint8Array
         const saltBytes = new Uint8Array(saltHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-        
+
         // Encode pin
         const encoder = new TextEncoder();
         const pinBytes = encoder.encode(pin);
-        
+
         // Import pin as base key
         const baseKey = await window.crypto.subtle.importKey(
           'raw', pinBytes, 'PBKDF2', false, ['deriveBits']
         );
-        
+
         // Derive key using PBKDF2
         const derivedBits = await window.crypto.subtle.deriveBits(
           {
@@ -199,12 +204,12 @@ async function verificarPinLocal(pin, hash) {
           baseKey,
           256
         );
-        
+
         // Convert to hex
         const derivedHex = Array.from(new Uint8Array(derivedBits))
           .map(b => b.toString(16).padStart(2, '0'))
           .join('');
-          
+
         return derivedHex === storedHashHex;
       }
     } catch (err) {

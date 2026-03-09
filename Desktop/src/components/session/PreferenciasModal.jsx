@@ -70,13 +70,30 @@ export default function PreferenciasModal({ onClose, onBack, inline = false }) {
           metodos = JSON.parse(metodos);
         }
 
-        // Mapear el backend { huella: true, rostro: true, codigo: true } 
-        // a la estructura que usa este componente internamente
-        setMetodosAuth({
-          dactilar: { id: 'dactilar', activo: metodos?.huella ?? true },
-          facial: { id: 'facial', activo: metodos?.rostro ?? true },
-          pin: { id: 'pin', activo: metodos?.codigo ?? true }
-        });
+        let prioridad = configuracion.prioridad_biometrico;
+        if (typeof prioridad === 'string') {
+          prioridad = JSON.parse(prioridad);
+        }
+
+        const keyMap = { huella: 'dactilar', rostro: 'facial', codigo: 'pin' };
+        let initialMetodos = [];
+
+        if (Array.isArray(prioridad) && prioridad.length > 0) {
+          prioridad.sort((a, b) => a.nivel - b.nivel);
+          initialMetodos = prioridad.map(item => ({
+            id: keyMap[item.metodo],
+            activo: item.activo
+          })).filter(item => item.id);
+        } else {
+          // Fallback
+          initialMetodos = [
+            { id: 'facial', activo: metodos?.rostro ?? true },
+            { id: 'dactilar', activo: metodos?.huella ?? true },
+            { id: 'pin', activo: metodos?.codigo ?? true }
+          ];
+        }
+
+        setMetodosAuth(initialMetodos);
 
       } catch (err) {
         console.error("Error al cargar metodos de autenticación del dispositivo:", err);
@@ -98,13 +115,18 @@ export default function PreferenciasModal({ onClose, onBack, inline = false }) {
 
   const getMetodosArr = () => {
     if (!metodosAuth) return [];
+    if (Array.isArray(metodosAuth)) return metodosAuth;
     return Object.values(metodosAuth);
   };
 
   const handleCheckMethodToggle = (metodoId) => {
+    if (!Array.isArray(metodosAuth)) return;
+
     // Verificar que quede al menos un método activo
-    const activosCount = Object.values(metodosAuth).filter(m => m.activo).length;
-    const estaActivo = metodosAuth[metodoId].activo;
+    const activosCount = metodosAuth.filter(m => m.activo).length;
+    const metodoIndex = metodosAuth.findIndex(m => m.id === metodoId);
+    if (metodoIndex === -1) return;
+    const estaActivo = metodosAuth[metodoIndex].activo;
 
     if (estaActivo && activosCount <= 1) {
       setShowMinMethodWarning(true);
@@ -112,13 +134,31 @@ export default function PreferenciasModal({ onClose, onBack, inline = false }) {
       return;
     }
 
-    setMetodosAuth(prev => ({
-      ...prev,
-      [metodoId]: {
-        ...prev[metodoId],
-        activo: !prev[metodoId].activo,
-      },
-    }));
+    setMetodosAuth(prev => prev.map(m =>
+      m.id === metodoId ? { ...m, activo: !m.activo } : m
+    ));
+  };
+
+  const moveMethodUp = (index) => {
+    if (index === 0) return;
+    setMetodosAuth(prev => {
+      const newArr = [...prev];
+      const temp = newArr[index - 1];
+      newArr[index - 1] = newArr[index];
+      newArr[index] = temp;
+      return newArr;
+    });
+  };
+
+  const moveMethodDown = (index) => {
+    if (!Array.isArray(metodosAuth) || index === metodosAuth.length - 1) return;
+    setMetodosAuth(prev => {
+      const newArr = [...prev];
+      const temp = newArr[index + 1];
+      newArr[index + 1] = newArr[index];
+      newArr[index] = temp;
+      return newArr;
+    });
   };
 
   const handleSave = async () => {
@@ -132,14 +172,25 @@ export default function PreferenciasModal({ onClose, onBack, inline = false }) {
         const escritorioId = obtenerEscritorioIdGuardado();
 
         // Mapear de vuelta al formato del backend para guardar
+        const backKeyMap = { dactilar: 'huella', facial: 'rostro', pin: 'codigo' };
+
         const metodosBackend = {
-          huella: metodosAuth.dactilar.activo,
-          rostro: metodosAuth.facial.activo,
-          codigo: metodosAuth.pin.activo
+          huella: metodosAuth.find(m => m.id === 'dactilar')?.activo ?? true,
+          rostro: metodosAuth.find(m => m.id === 'facial')?.activo ?? true,
+          codigo: metodosAuth.find(m => m.id === 'pin')?.activo ?? true
         };
 
+        const prioridadBackend = metodosAuth.map((m, index) => ({
+          metodo: backKeyMap[m.id],
+          activo: m.activo,
+          nivel: index + 1
+        }));
+
         if (escritorioId) {
-          await actualizarConfiguracionEscritorio(escritorioId, { metodos_autenticacion: metodosBackend });
+          await actualizarConfiguracionEscritorio(escritorioId, {
+            metodos_autenticacion: metodosBackend,
+            prioridad_biometrico: prioridadBackend
+          });
 
           // Emitir evento para que otros componentes (ej. KioskScreen) se actualicen en tiempo real
           window.dispatchEvent(new CustomEvent('configuracion-actualizada'));
@@ -303,6 +354,26 @@ export default function PreferenciasModal({ onClose, onBack, inline = false }) {
                         key={metodo.id}
                         className="flex items-center gap-2 bg-bg-primary rounded-lg p-2 border border-border-subtle"
                       >
+                        {/* Controles para cambiar la prioridad */}
+                        <div className="flex flex-col gap-0 border-r border-border-subtle pr-2 mr-1">
+                          <button
+                            onClick={() => moveMethodUp(index)}
+                            disabled={index === 0}
+                            className={`p-0.5 rounded ${index === 0 ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'text-text-secondary hover:text-[#1976D2] hover:bg-bg-secondary'}`}
+                            title="Aumentar prioridad"
+                          >
+                            <ChevronUp className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => moveMethodDown(index)}
+                            disabled={index === metodosList.length - 1}
+                            className={`p-0.5 rounded ${index === metodosList.length - 1 ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : 'text-text-secondary hover:text-[#1976D2] hover:bg-bg-secondary'}`}
+                            title="Disminuir prioridad"
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                          </button>
+                        </div>
+
                         <Icon className={`w-4 h-4 ${metodoInfo.color}`} />
                         <span className={`flex-1 text-xs font-medium ${metodo.activo ? 'text-text-primary' : 'text-text-secondary line-through'}`}>
                           {metodoInfo.label}

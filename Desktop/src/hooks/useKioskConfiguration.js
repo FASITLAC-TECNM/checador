@@ -31,13 +31,31 @@ export const useKioskConfiguration = (isLoggedIn) => {
                 metodos = JSON.parse(metodos);
             }
 
-            // Mapear de la respuesta del nuevo backend {huella: true, rostro: true, codigo: true}
-            // A la estructura antigua {dactilar: {activo: true}, facial: {activo: true}, pin: {activo: true}}
-            const orden = {
-                facial: { activo: metodos?.rostro ?? true },
-                dactilar: { activo: metodos?.huella ?? true },
-                pin: { activo: metodos?.codigo ?? true },
-            };
+            let prioridad = configuracion.prioridad_biometrico;
+            if (typeof prioridad === 'string') {
+                prioridad = JSON.parse(prioridad);
+            }
+
+            // Mapeo de backend a frontend
+            const keyMap = { huella: 'dactilar', rostro: 'facial', codigo: 'pin' };
+            const orden = {};
+
+            if (Array.isArray(prioridad) && prioridad.length > 0) {
+                // Ordenar por nivel
+                prioridad.sort((a, b) => a.nivel - b.nivel);
+
+                prioridad.forEach(item => {
+                    const frontKey = keyMap[item.metodo];
+                    if (frontKey) {
+                        orden[frontKey] = { activo: item.activo };
+                    }
+                });
+            } else {
+                // Fallback a metodos_autenticacion si prioridad no existe
+                orden.facial = { activo: metodos?.rostro ?? true };
+                orden.dactilar = { activo: metodos?.huella ?? true };
+                orden.pin = { activo: metodos?.codigo ?? true };
+            }
 
             setOrdenCredenciales(orden);
         } catch (err) {
@@ -59,13 +77,23 @@ export const useKioskConfiguration = (isLoggedIn) => {
     useEffect(() => {
         cargarCredenciales();
 
+        const handleConfigUpdate = () => {
+            console.log("Evento 'configuracion-actualizada' detectado, recargando...");
+            cargarCredenciales(true);
+        };
+
+        window.addEventListener('configuracion-actualizada', handleConfigUpdate);
+
         // Polling silencioso cada 15 segundos
         const timer = setInterval(() => {
             console.log("Polling configuración de escritorio...");
             cargarCredenciales(true);
         }, 15000);
 
-        return () => clearInterval(timer);
+        return () => {
+            clearInterval(timer);
+            window.removeEventListener('configuracion-actualizada', handleConfigUpdate);
+        };
     }, []);
 
     // Recargar credenciales cuando el usuario cierra o abre sesión

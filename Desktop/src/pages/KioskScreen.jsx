@@ -62,19 +62,7 @@ export default function KioskScreen() {
     return () => clearInterval(noticeTimer);
   }, [notices.length]);
 
-  // Escuchar actualizaciones de configuración en tiempo real (ej. desde PreferenciasModal)
-  useEffect(() => {
-    const handleConfigUpdate = () => {
-      console.log("Actualización de configuración detectada, recargando...");
-      cargarCredenciales();
-    };
 
-    window.addEventListener('configuracion-actualizada', handleConfigUpdate);
-
-    return () => {
-      window.removeEventListener('configuracion-actualizada', handleConfigUpdate);
-    };
-  }, [cargarCredenciales]);
 
   // Manejar login exitoso
   const handleLoginSuccess = (usuario) => {

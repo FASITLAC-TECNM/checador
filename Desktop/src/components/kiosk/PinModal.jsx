@@ -120,7 +120,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-[#1976D2] hover:bg-[#1565C0] disabled:bg-[#90CAF9] text-white rounded-lg font-semibold text-base shadow-lg transition-all mt-2 flex items-center justify-center gap-2"
+                className="w-full py-3 md:py-4 2xl:py-5 bg-[#1976D2] hover:bg-[#1565C0] disabled:bg-[#90CAF9] text-white rounded-xl font-semibold text-base md:text-lg 2xl:text-xl shadow-lg transition-all mt-2 flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -212,7 +212,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   {onLoginRequest && (
                     <button
                       onClick={() => handleLoginRequest()}
-                      className="mt-4 w-full py-2.5 bg-[#1976D2] hover:bg-[#1565C0] text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
+                      className="mt-4 w-full py-2.5 md:py-3 2xl:py-4 bg-[#1976D2] hover:bg-[#1565C0] text-white rounded-xl font-medium text-sm md:text-base 2xl:text-lg flex items-center justify-center gap-2 transition-all"
                     >
                       <LogIn className="w-4 h-4" />
                       Iniciar Sesión
@@ -259,7 +259,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   {onLoginRequest && (
                     <button
                       onClick={() => handleLoginRequest()}
-                      className="mt-4 w-full py-2.5 bg-[#1976D2] hover:bg-[#1565C0] text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
+                      className="mt-4 w-full py-2.5 md:py-3 2xl:py-4 bg-[#1976D2] hover:bg-[#1565C0] text-white rounded-xl font-medium text-sm md:text-base 2xl:text-lg flex items-center justify-center gap-2 transition-all"
                     >
                       <LogIn className="w-4 h-4" />
                       Iniciar Sesión
@@ -356,7 +356,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   {onLoginRequest && result.usuario && (
                     <button
                       onClick={() => handleLoginRequest()}
-                      className="mt-4 w-full py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
+                      className="mt-4 w-full py-2.5 md:py-3 2xl:py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-xl font-medium text-sm md:text-base 2xl:text-lg flex items-center justify-center gap-2 transition-all"
                     >
                       <LogIn className="w-4 h-4" />
                       Iniciar Sesión

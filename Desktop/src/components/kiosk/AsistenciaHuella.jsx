@@ -1233,7 +1233,7 @@ export default function AsistenciaHuella({
 
                     <button
                       onClick={handleCloseModal}
-                      className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-sm font-medium transition-colors"
+                      className="px-4 py-2 md:px-5 md:py-3 2xl:px-6 2xl:py-4 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white rounded-xl text-sm md:text-base 2xl:text-lg font-medium transition-colors"
                     >
                       Intentar de nuevo
                     </button>
@@ -1302,7 +1302,7 @@ export default function AsistenciaHuella({
 
                     <button
                       onClick={handleCloseModal}
-                      className="mt-4 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-sm font-medium transition-colors"
+                      className="mt-4 px-4 py-2 md:px-5 md:py-3 2xl:px-6 2xl:py-4 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white rounded-xl text-sm md:text-base 2xl:text-lg font-medium transition-colors"
                     >
                       Intentar de nuevo
                     </button>

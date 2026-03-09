@@ -282,7 +282,7 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
       }}
     >
       <div
-        className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden transition-all duration-300"
+        className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-2xl 2xl:max-w-4xl max-h-[90vh] overflow-y-auto w-full transition-all duration-300"
         style={{
           transform: isClosing ? 'scale(0.95)' : 'scale(1)',
           opacity: isClosing ? 0 : 1
@@ -356,14 +356,14 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
           {/* Paso 2: Capturando */}
           {step === "capturing" && (
             <div className="space-y-4">
-              <div className="relative bg-black rounded-xl overflow-hidden w-full" style={{ aspectRatio: "4/3", minHeight: "300px" }}>
+              <div className="relative bg-black rounded-xl overflow-hidden w-full aspect-[4/3] min-h-[300px] 2xl:min-h-[500px]">
                 <video
                   id="registerVideo"
                   autoPlay
                   playsInline
                   muted
-                  className="w-full h-full object-cover"
-                  style={{ transform: "scaleX(-1)", minHeight: "300px" }}
+                  className="w-full h-full object-cover min-h-[300px] 2xl:min-h-[500px]"
+                  style={{ transform: "scaleX(-1)" }}
                 />
 
                 {/* Guias de captura - Ovalo facial con animaciones */}

@@ -329,7 +329,7 @@ export default function FacialAuthModal({ onClose, onAuthSuccess }) {
       }}
     >
       <div
-        className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden transition-all duration-300"
+        className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-lg 2xl:max-w-3xl max-h-[90vh] overflow-y-auto w-full transition-all duration-300"
         style={{
           transform: isClosing ? 'scale(0.95)' : 'scale(1)',
           opacity: isClosing ? 0 : 1
@@ -362,14 +362,14 @@ export default function FacialAuthModal({ onClose, onAuthSuccess }) {
           {/* Capturando */}
           {step === "capturing" && (
             <div className="space-y-4">
-              <div className="relative bg-black rounded-xl overflow-hidden w-full" style={{ aspectRatio: "4/3", minHeight: "280px" }}>
+              <div className="relative bg-black rounded-xl overflow-hidden w-full aspect-[4/3] min-h-[280px] 2xl:min-h-[450px]">
                 <video
                   id="authVideo"
                   autoPlay
                   playsInline
                   muted
-                  className="w-full h-full object-cover"
-                  style={{ transform: "scaleX(-1)", minHeight: "280px" }}
+                  className="w-full h-full object-cover min-h-[280px] 2xl:min-h-[450px]"
+                  style={{ transform: "scaleX(-1)" }}
                 />
 
                 {/* Guias de captura - Ovalo facial con animaciones */}

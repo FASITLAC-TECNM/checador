@@ -93,7 +93,7 @@ export default function EmployeeSelectionModal({ onClose, onSelect, biometriaTip
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-bg-primary rounded-xl shadow-2xl max-w-lg w-full flex flex-col h-[600px] overflow-hidden">
+            <div className="bg-bg-primary rounded-xl shadow-2xl max-w-lg 2xl:max-w-2xl w-full flex flex-col h-[600px] 2xl:h-[800px] overflow-hidden">
                 {/* Header */}
                 <div className="p-6 border-b border-border-subtle flex-shrink-0">
                     <div className="flex items-center justify-between mb-4">

@@ -1355,7 +1355,7 @@ export default function AsistenciaFacial({
 
                   <button
                     onClick={handleRetry}
-                    className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-sm font-medium transition-colors"
+                    className="px-4 py-2 md:px-5 md:py-3 2xl:px-6 2xl:py-4 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white rounded-xl text-sm md:text-base 2xl:text-lg font-medium transition-colors"
                   >
                     Intentar de nuevo
                   </button>
@@ -1383,7 +1383,7 @@ export default function AsistenciaFacial({
                       <button
                         onClick={procesarLoginBiometrico}
                         disabled={processingLogin || !loginHabilitado}
-                        className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mb-4"
+                        className="w-full px-4 py-3 md:py-4 2xl:py-5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-xl font-medium text-base md:text-lg 2xl:text-xl transition-colors flex items-center justify-center gap-2 mb-4"
                       >
                         {processingLogin ? (
                           <>
@@ -1417,13 +1417,13 @@ export default function AsistenciaFacial({
                   <div className="flex gap-3 justify-center">
                     <button
                       onClick={handleRetry}
-                      className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+                      className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-2 px-4 md:py-3 md:px-5 2xl:py-4 2xl:px-6 rounded-xl text-sm md:text-base 2xl:text-lg transition-colors"
                     >
                       Intentar de Nuevo
                     </button>
                     <button
                       onClick={handleCloseModal}
-                      className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-300 font-semibold py-2 px-4 rounded-lg transition-colors"
+                      className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-300 font-semibold py-2 px-4 md:py-3 md:px-5 2xl:py-4 2xl:px-6 rounded-xl text-sm md:text-base 2xl:text-lg transition-colors"
                     >
                       Cancelar
                     </button>

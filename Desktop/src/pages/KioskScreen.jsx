@@ -39,7 +39,7 @@ export default function KioskScreen() {
   const [isReaderConnected, setIsReaderConnected] = useState(false); // Estado del lector biométrico
   const [activeNoticeIndex, setActiveNoticeIndex] = useState(0); // Índice del aviso activo en el carrusel
 
-  const { ordenCredenciales, loadingCredenciales, activeMethods } = useKioskConfiguration(isLoggedIn);
+  const { ordenCredenciales, loadingCredenciales, activeMethods, cargarCredenciales } = useKioskConfiguration(isLoggedIn);
   useInactivityTimer();
   const { isCameraConnected, hasCameraRegistered } = useCameraStatus(!isLoggedIn); // Solo monitorear cuando no está en sesión
 
@@ -61,6 +61,20 @@ export default function KioskScreen() {
     }, 6000);
     return () => clearInterval(noticeTimer);
   }, [notices.length]);
+
+  // Escuchar actualizaciones de configuración en tiempo real (ej. desde PreferenciasModal)
+  useEffect(() => {
+    const handleConfigUpdate = () => {
+      console.log("Actualización de configuración detectada, recargando...");
+      cargarCredenciales();
+    };
+
+    window.addEventListener('configuracion-actualizada', handleConfigUpdate);
+
+    return () => {
+      window.removeEventListener('configuracion-actualizada', handleConfigUpdate);
+    };
+  }, [cargarCredenciales]);
 
   // Manejar login exitoso
   const handleLoginSuccess = (usuario) => {

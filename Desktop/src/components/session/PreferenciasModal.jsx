@@ -140,6 +140,9 @@ export default function PreferenciasModal({ onClose, onBack, inline = false }) {
 
         if (escritorioId) {
           await actualizarConfiguracionEscritorio(escritorioId, { metodos_autenticacion: metodosBackend });
+
+          // Emitir evento para que otros componentes (ej. KioskScreen) se actualicen en tiempo real
+          window.dispatchEvent(new CustomEvent('configuracion-actualizada'));
         }
       } catch (err) {
         console.error("Error al guardar metodos de autenticación:", err);

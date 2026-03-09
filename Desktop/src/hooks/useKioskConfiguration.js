@@ -18,9 +18,9 @@ export const useKioskConfiguration = (isLoggedIn) => {
     const activeMethods = getActiveMethods();
 
     // Cargar credenciales desde el backend
-    const cargarCredenciales = async () => {
+    const cargarCredenciales = async (silent = false) => {
         try {
-            setLoadingCredenciales(true);
+            if (!silent) setLoadingCredenciales(true);
             const escritorioId = obtenerEscritorioIdGuardado();
             if (!escritorioId) throw new Error("No hay ID de escritorio");
 
@@ -43,19 +43,29 @@ export const useKioskConfiguration = (isLoggedIn) => {
         } catch (err) {
             console.error("Error al cargar orden de credenciales:", err);
             // Fallback por defecto si falla el backend o no está autenticado
-            setOrdenCredenciales({
-                facial: { activo: true },
-                dactilar: { activo: true },
-                pin: { activo: true },
-            });
+            if (!silent) {
+                setOrdenCredenciales({
+                    facial: { activo: true },
+                    dactilar: { activo: true },
+                    pin: { activo: true },
+                });
+            }
         } finally {
-            setLoadingCredenciales(false);
+            if (!silent) setLoadingCredenciales(false);
         }
     };
 
-    // Cargar al montar el componente
+    // Cargar al montar el componente y establecer polling
     useEffect(() => {
         cargarCredenciales();
+
+        // Polling silencioso cada 15 segundos
+        const timer = setInterval(() => {
+            console.log("Polling configuración de escritorio...");
+            cargarCredenciales(true);
+        }, 15000);
+
+        return () => clearInterval(timer);
     }, []);
 
     // Recargar credenciales cuando el usuario cierra o abre sesión

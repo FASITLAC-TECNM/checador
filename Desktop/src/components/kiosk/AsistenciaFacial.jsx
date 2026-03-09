@@ -619,11 +619,19 @@ export default function AsistenciaFacial({
       console.error("Error:", error);
 
       // === FALLBACK OFFLINE ===
-      const isNetworkError = error.name === 'TypeError'
+      // NOTA: identificarPorFacial() captura todos los errores internamente y retorna
+      // { success: false, error: "..." }. El throw de línea 536 convierte ese mensaje
+      // en un Error, pero ya NO contiene el texto original "Failed to fetch".
+      // Por eso también chequeamos navigator.onLine y el mensaje genérico del servicio.
+      const isNetworkError = !navigator.onLine                           // sin conexión a nivel OS
+        || error.name === 'TypeError'
         || error.message.includes('Failed to fetch')
         || error.message.includes('NetworkError')
         || error.message.includes('ERR_INTERNET_DISCONNECTED')
-        || error.isApiOffline // API server returned 500+ error
+        || error.message.includes('fetch')
+        || error.message.includes('Error al identificar rostro')         // mensaje genérico cuando falla la red
+        || error.message.includes('Error HTTP: 0')                       // sin respuesta del servidor
+        || error.isApiOffline
         || error.message.includes('Server Error');
 
       if (isNetworkError && window.electronAPI && window.electronAPI.offlineDB) {
@@ -818,6 +826,11 @@ export default function AsistenciaFacial({
       });
 
       if (!authResponse.ok) {
+        if (authResponse.status >= 500) {
+          const error = new Error(`Server Error: ${authResponse.status}`);
+          error.isApiOffline = true;
+          throw error;
+        }
         const errorData = await authResponse.json().catch(() => ({}));
         throw new Error(errorData.message || "Error al autenticar");
       }
@@ -853,6 +866,50 @@ export default function AsistenciaFacial({
 
     } catch (error) {
       console.error("Error procesando login:", error);
+
+      // === FALLBACK OFFLINE LOGIN ===
+      const isNetworkError = !navigator.onLine
+        || error.name === 'TypeError'
+        || error.message.includes('Failed to fetch')
+        || error.message.includes('NetworkError')
+        || error.message.includes('ERR_INTERNET_DISCONNECTED')
+        || error.isApiOffline
+        || error.message.includes('Server Error');
+
+      if (isNetworkError && window.electronAPI && window.electronAPI.offlineDB) {
+        console.log('📴 [AsistenciaFacial] Sin conexión — intentando Login offline...');
+        try {
+          const empleadoId = result.empleadoId;
+          const empleadoFull = await window.electronAPI.offlineDB.getEmpleado(empleadoId);
+          if (empleadoFull) {
+            const usuarioOffline = {
+              id: empleadoFull.usuario_id,
+              nombre: empleadoFull.nombre,
+              username: empleadoFull.nombre,
+              es_empleado: true,
+              empleado_id: empleadoId,
+              roles: [],
+              permisos: [],
+              esAdmin: false,
+              offline: true,
+              metodoAutenticacion: "FACIAL_OFFLINE",
+              ...empleadoFull
+            };
+
+            guardarSesion(usuarioOffline);
+
+            if (onClose) onClose();
+
+            if (onLoginRequest) {
+              onLoginRequest(usuarioOffline);
+            }
+            return;
+          }
+        } catch (offlineErr) {
+          console.error('❌ [AsistenciaFacial] Error Login Offline:', offlineErr);
+        }
+      }
+
       setCountdown(6);
       countdownIntervalRef.current = setInterval(() => {
         setCountdown((prev) => {

@@ -1,4 +1,4 @@
-// services/deviceDetectionService.js - OPTIMIZADO
+// services/deviceDetectionService.js - ESTABLE
 
 const VIRTUAL_CAMERA_PATTERNS = [
   "obs",
@@ -25,35 +25,30 @@ const VIRTUAL_CAMERA_PATTERNS = [
   "game capture",
 ];
 
-// MEJORA 1: Cache para evitar procesamiento repetitivo
 const normalizationCache = new Map();
 const virtualCameraCache = new Map();
 
 export const deviceDetectionService = {
   /**
-   * MEJORA 2: Verificar si es una cámara virtual (con cache)
+   * Verificar si es una cámara virtual (con cache)
    */
   isVirtualCamera(name) {
     if (virtualCameraCache.has(name)) {
       return virtualCameraCache.get(name);
     }
-
     const nameLower = name.toLowerCase();
     const isVirtual = VIRTUAL_CAMERA_PATTERNS.some((pattern) =>
       nameLower.includes(pattern),
     );
-
     virtualCameraCache.set(name, isVirtual);
     return isVirtual;
   },
 
   /**
-   * MEJORA 3: Determinar el tipo de dispositivo (optimizado)
+   * Determinar el tipo de dispositivo
    */
   getDeviceType(name) {
     const nameLower = name.toLowerCase();
-
-    // Verificación más eficiente con early return
     if (
       nameLower.includes("fingerprint") ||
       nameLower.includes("huella") ||
@@ -62,61 +57,62 @@ export const deviceDetectionService = {
     ) {
       return "dactilar";
     }
-
     return "facial";
   },
 
   /**
-   * MEJORA 4: Normalizar nombre con cache para evitar reprocesamiento
+   * Normalizar nombre con cache para evitar reprocesamiento
    */
   normalizeNameForComparison(name) {
+    if (!name) return "";
     if (normalizationCache.has(name)) {
       return normalizationCache.get(name);
     }
-
     const normalized = name
       .toLowerCase()
-      .replace(/\s*\([^)]*\)\s*/g, "")           // Remove parentheses content
-      .replace(/[-_]/g, " ")                      // Hyphens and underscores to spaces
-      .replace(/\s+/g, " ")                       // Multiple spaces to single
-      .replace(/\b(hd|camera|webcam|usb|web|integrated|built-in|truevision|general)\b/gi, "")  // Remove common words
+      .replace(/\s*\([^)]*\)\s*/g, "")
+      .replace(/[-_]/g, " ")
+      .replace(/\s+/g, " ")
+      .replace(
+        /\b(hd|camera|webcam|usb|web|integrated|built-in|truevision|general)\b/gi,
+        "",
+      )
       .trim();
-
     normalizationCache.set(name, normalized);
     return normalized;
   },
 
   /**
-   * MEJORA 5: Detectar cámaras web con mejor manejo de permisos
+   * FIX 5: Detectar cámaras web con fallback: si Electron no devuelve nada,
+   * también intentamos la detección por browser para mayor robustez.
    */
   async detectWebcams() {
     try {
-      // Skip browser detection if Electron API is available - it provides better device info
-      if (window.electronAPI?.detectUSBDevices) {
-        console.log("[DeviceDetection] Skipping browser webcam detection - using Electron API");
-        return [];
-      }
-
       if (!navigator.mediaDevices?.enumerateDevices) {
         return [];
       }
 
-      // Verificar permisos antes de intentar
-      const permissionStatus = await this.checkCameraPermission();
+      // Si Electron API existe, la priorizamos pero no la usamos como única fuente:
+      // el fallback al browser ocurre en detectUSBDevices cuando retorna vacío.
+      // Aquí siempre enumeramos por browser para el caso de que Electron falle.
+      if (window.electronAPI?.detectUSBDevices) {
+        // Electron se encarga de USB; browser solo como respaldo de cámaras
+        // que Electron no liste (ej. cámaras integradas no USB puras).
+        // Seguimos enumerando pero luego mergeDetectedDevices deduplicará.
+      }
 
+      await this.checkCameraPermission();
       const mediaDevices = await navigator.mediaDevices.enumerateDevices();
 
-      // MEJORA 6: Procesamiento más eficiente con reduce
       const cameras = mediaDevices.reduce((acc, device, index) => {
         if (device.kind !== "videoinput") return acc;
 
         const label = device.label || `Cámara ${index + 1}`;
-
-        // Filtrar cámaras virtuales
         if (this.isVirtualCamera(label)) return acc;
 
         acc.push({
-          id: Date.now() + index,
+          // FIX 6: ID estable basado en deviceId del browser (no Date.now())
+          id: device.deviceId ? `browser-${device.deviceId}` : `browser-cam-${index}`,
           name: label,
           type: this.getDeviceType(label),
           connection: "USB",
@@ -125,7 +121,6 @@ export const deviceDetectionService = {
           deviceId: device.deviceId,
           detected: true,
         });
-
         return acc;
       }, []);
 
@@ -137,16 +132,14 @@ export const deviceDetectionService = {
   },
 
   /**
-   * MEJORA 7: Verificar permisos de cámara
+   * Verificar permisos de cámara
    */
   async checkCameraPermission() {
     try {
       if (!navigator.permissions) return "prompt";
-
       const result = await navigator.permissions.query({ name: "camera" });
       return result.state;
-    } catch (error) {
-      // Algunos navegadores no soportan permissions API
+    } catch {
       return "prompt";
     }
   },
@@ -168,7 +161,10 @@ export const deviceDetectionService = {
 
       return result.devices.map((d) => ({
         ...d,
+        // FIX 6: ID estable basado en instanceId si existe
+        id: d.instanceId ? `usb-${d.instanceId}` : `usb-${d.name}`,
         type: this.getDeviceType(d.name || ""),
+        detected: true,
       }));
     } catch (error) {
       console.error("Error detectando dispositivos USB:", error);
@@ -177,61 +173,51 @@ export const deviceDetectionService = {
   },
 
   /**
-   * MEJORA 8: Verificar si un dispositivo ya existe (optimizado)
+   * FIX 7: Nuevo helper para saber si dos dispositivos son el mismo.
+   * Usado por el hook para actualizar el estado detected (true/false).
    */
-  deviceExists(device, existingDevices) {
-    // Priority 1: Compare by instanceId (Electron provides this)
-    if (device.instanceId) {
-      const hasInstanceMatch = existingDevices.some(
-        (d) => d.instanceId && d.instanceId === device.instanceId
-      );
-      if (hasInstanceMatch) return true;
+  isSameDevice(deviceA, deviceB) {
+    // 1. Por instanceId (Electron)
+    if (deviceA.instanceId && deviceB.instanceId) {
+      return deviceA.instanceId === deviceB.instanceId;
     }
-
-    // Priority 2: Compare by deviceId (browser provides this)
-    if (device.deviceId) {
-      const hasDeviceIdMatch = existingDevices.some(
-        (d) => d.deviceId && d.deviceId === device.deviceId
-      );
-      if (hasDeviceIdMatch) return true;
+    // 2. Por deviceId (browser)
+    if (deviceA.deviceId && deviceB.deviceId) {
+      return deviceA.deviceId === deviceB.deviceId;
     }
-
-    // Priority 3: Compare by normalized name (fallback with exact match only)
-    const deviceNormalized = this.normalizeNameForComparison(device.name);
-
-    return existingDevices.some((d) => {
-      const existingNormalized = this.normalizeNameForComparison(d.name);
-      return existingNormalized === deviceNormalized;
-    });
+    // 3. Por nombre normalizado (fallback)
+    return (
+      this.normalizeNameForComparison(deviceA.name) ===
+      this.normalizeNameForComparison(deviceB.name)
+    );
   },
 
   /**
-   * MEJORA 9: Filtrar dispositivos nuevos con Set para mejor rendimiento
+   * Verificar si un dispositivo ya existe en la lista
+   */
+  deviceExists(device, existingDevices) {
+    return existingDevices.some((d) => this.isSameDevice(device, d));
+  },
+
+  /**
+   * Filtrar dispositivos nuevos (que no existen en la lista actual)
    */
   filterNewDevices(detectedDevices, currentDevices) {
-    // Create Sets for O(1) lookup using multiple identifiers
     const existingInstanceIds = new Set(
-      currentDevices.filter((d) => d.instanceId).map((d) => d.instanceId)
+      currentDevices.filter((d) => d.instanceId).map((d) => d.instanceId),
     );
     const existingDeviceIds = new Set(
-      currentDevices.filter((d) => d.deviceId).map((d) => d.deviceId)
+      currentDevices.filter((d) => d.deviceId).map((d) => d.deviceId),
     );
     const existingNames = new Set(
-      currentDevices.map((d) => this.normalizeNameForComparison(d.name))
+      currentDevices.map((d) => this.normalizeNameForComparison(d.name)),
     );
 
     return detectedDevices.filter((d) => {
       if (!d.name) return false;
-
-      // Check instanceId first
       if (d.instanceId && existingInstanceIds.has(d.instanceId)) return false;
-
-      // Check deviceId second
       if (d.deviceId && existingDeviceIds.has(d.deviceId)) return false;
-
-      // Check normalized name last
-      const normalized = this.normalizeNameForComparison(d.name);
-      return !existingNames.has(normalized);
+      return !existingNames.has(this.normalizeNameForComparison(d.name));
     });
   },
 
@@ -240,23 +226,21 @@ export const deviceDetectionService = {
    */
   mergeDetectedDevices(usbDevices, webcams) {
     const combined = [...usbDevices];
-
     for (const webcam of webcams) {
       if (!this.deviceExists(webcam, combined) && webcam.name) {
         combined.push(webcam);
       }
     }
-
     return combined;
   },
 
   /**
-   * Asignar IDs únicos a los dispositivos
+   * Asignar IDs numéricos únicos a dispositivos que no tienen uno estable
    */
   assignUniqueIds(devices, startingId) {
     return devices.map((d, index) => ({
       ...d,
-      id: startingId + index,
+      id: d.id || startingId + index,
     }));
   },
 
@@ -275,15 +259,12 @@ export const deviceDetectionService = {
         message: `Se detectaron ${newDevices.length} dispositivo(s) nuevo(s)`,
       };
     }
-
     if (detectedDevices.length > 0) {
       return {
         type: "info",
         message: "Los dispositivos detectados ya están en la lista",
       };
     }
-
-    // Si no se detectó nada
     if (!hasElectronAPI) {
       return {
         type: "info",
@@ -293,7 +274,6 @@ export const deviceDetectionService = {
             : "Detección limitada en modo web. Para detectar todos los dispositivos, use la aplicación de escritorio.",
       };
     }
-
     return {
       type: "info",
       message: "No se detectaron dispositivos conectados",
@@ -301,7 +281,7 @@ export const deviceDetectionService = {
   },
 
   /**
-   * MEJORA 10: Limpiar cache periódicamente para evitar memory leaks
+   * Limpiar cache periódicamente para evitar memory leaks
    */
   clearCache() {
     normalizationCache.clear();
@@ -309,20 +289,7 @@ export const deviceDetectionService = {
   },
 
   /**
-   * MEJORA 11: Limpiar cache con límite de tamaño
-   */
-  maintainCache(cache, maxSize = 100) {
-    if (cache.size > maxSize) {
-      const keysToDelete = Array.from(cache.keys()).slice(
-        0,
-        cache.size - maxSize,
-      );
-      keysToDelete.forEach((key) => cache.delete(key));
-    }
-  },
-
-  /**
-   * MEJORA 12: Detectar lectores biométricos vía WebSocket (más ligero)
+   * Detectar lectores biométricos vía WebSocket
    */
   async detectBiometricDevices() {
     return new Promise((resolve) => {
@@ -331,31 +298,34 @@ export const deviceDetectionService = {
         const timeout = setTimeout(() => {
           if (ws.readyState !== WebSocket.CLOSED) ws.close();
           resolve([]);
-        }, 2000); // 2 segundos timeout máximo
+        }, 2000);
 
         ws.onopen = () => {
-          // Solicitar estado inmediato
           ws.send(JSON.stringify({ command: "getStatus" }));
         };
 
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
-            if (data.type === "systemStatus" || data.type === "readerConnection") {
-              // Si hay lector conectado, devolverlo como dispositivo
+            if (
+              data.type === "systemStatus" ||
+              data.type === "readerConnection"
+            ) {
               if (data.readerConnected || data.connected) {
                 clearTimeout(timeout);
                 ws.close();
-                resolve([{
-                  id: "biometric-reader-1",
-                  name: "Lector de Huella (DigitalPersona)",
-                  type: "dactilar",
-                  connection: "USB", // Aunque es vía WS, físicamente es USB
-                  ip: "",
-                  port: "",
-                  detected: true,
-                  instanceId: "dp-4500-default" // ID estable para evitar duplicados
-                }]);
+                resolve([
+                  {
+                    id: "biometric-reader-dp4500",
+                    name: "Lector de Huella (DigitalPersona)",
+                    type: "dactilar",
+                    connection: "USB",
+                    ip: "",
+                    port: "",
+                    detected: true,
+                    instanceId: "dp-4500-default",
+                  },
+                ]);
               }
             }
           } catch (e) {
@@ -365,15 +335,12 @@ export const deviceDetectionService = {
 
         ws.onerror = () => {
           clearTimeout(timeout);
-          resolve([]); // Falló conexión, asumir no hay lector o servicio apagado
+          resolve([]);
         };
-
       } catch (error) {
         console.error("Error en detección biométrica:", error);
         resolve([]);
       }
     });
-
-  }
+  },
 };
-

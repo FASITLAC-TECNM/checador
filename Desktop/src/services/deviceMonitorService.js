@@ -211,27 +211,83 @@ class DeviceMonitorService {
     }
 
     /**
-     * Verifica estatus de cámara usando mediaDevices
+     * Verifica estatus de cámara usando mediaDevices.
+     * FIX: Solicita permiso primero para obtener labels reales,
+     * y usa matching flexible para tolerar diferencias en nombre.
      */
     async checkCameraStatus(device) {
         try {
+            // Las cámaras IP siempre se consideran conectadas si tienen IP
             if (device.connection === 'IP' && device.ip) return 'conectado';
 
-            if (!navigator.mediaDevices?.enumerateDevices) return 'error';
+            if (!navigator.mediaDevices?.enumerateDevices) return 'desconectado';
+
+            // FIX CRÍTICO: Solicitar acceso a la cámara para que el navegador
+            // devuelva labels reales. Sin este paso, enumerateDevices() retorna
+            // etiquetas vacías y la comparación SIEMPRE falla.
+            let stream = null;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            } catch {
+                // Sin permiso, intentar enumeración de todas formas (puede haber label si ya fue concedido antes)
+            }
 
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(d => d.kind === 'videoinput');
-            const normalize = (str) => str?.toLowerCase().replace(/[^a-z0-9]/g, '');
-            const targetName = normalize(device.nombre);
 
-            console.log(`[DeviceMonitor] Buscando cámara: "${device.nombre}" (Norm: ${targetName})`);
-            console.log(`[DeviceMonitor] Cámaras disponibles:`, videoDevices.map(d => `${d.label} (Norm: ${normalize(d.label)})`));
+            // Detener el stream inmediatamente para liberar la cámara
+            if (stream) {
+                stream.getTracks().forEach(t => t.stop());
+            }
 
-            const found = videoDevices.some(d => normalize(d.label).includes(targetName));
+            // Si no hay ninguna cámara conectada, definitivamente desconectado
+            if (videoDevices.length === 0) return 'desconectado';
 
-            return found ? 'conectado' : 'desconectado';
+            // Si hay cámara registrada por nombre, intentar coincidencia flexible
+            if (device.nombre) {
+                const normalize = (str) => str?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+                const targetName = normalize(device.nombre);
+
+                console.log(`[DeviceMonitor] Buscando cámara: "${device.nombre}" (norm: ${targetName})`);
+                console.log(`[DeviceMonitor] Cámaras detectadas:`, videoDevices.map(d => `"${d.label}" (norm: ${normalize(d.label)})`));
+
+                // Intentar coincidencia: ¿el label contiene el nombre registrado o viceversa?
+                const nameFound = videoDevices.some(d => {
+                    const label = normalize(d.label);
+                    if (!label) return false; // Sin label = sin permiso, saltar
+                    return label.includes(targetName) || targetName.includes(label);
+                });
+
+                if (nameFound) {
+                    console.log(`[DeviceMonitor] ✅ Cámara encontrada por nombre`);
+                    return 'conectado';
+                }
+
+                // FIX FALLBACK: Si el label está vacío (permisos no concedidos aún)
+                // pero hay al menos una cámara de video disponible, considerar conectado.
+                // El nombre registrado puede no coincidir exactamente con el label del OS.
+                const hasAnyLabel = videoDevices.some(d => d.label && d.label.length > 0);
+                if (!hasAnyLabel) {
+                    console.log(`[DeviceMonitor] ⚠️ Labels vacíos (sin permisos), asumiendo conectado con ${videoDevices.length} cámara(s)`);
+                    return 'conectado';
+                }
+
+                // Hay labels pero ninguno coincide con el nombre registrado
+                console.log(`[DeviceMonitor] ⚠️ Cámara registrada "${device.nombre}" no encontrada. Cámaras presentes: ${videoDevices.map(d => d.label).join(', ')}`);
+                // Si solo hay una cámara conectada, es casi seguro la misma
+                if (videoDevices.length === 1) {
+                    console.log(`[DeviceMonitor] ✅ Solo hay 1 cámara, asumiendo que es la registrada`);
+                    return 'conectado';
+                }
+
+                return 'desconectado';
+            }
+
+            // Sin nombre registrado: conectado si hay alguna cámara
+            return videoDevices.length > 0 ? 'conectado' : 'desconectado';
         } catch (error) {
-            return 'error';
+            console.error('[DeviceMonitor] Error verificando cámara:', error);
+            return 'desconectado';
         }
     }
 

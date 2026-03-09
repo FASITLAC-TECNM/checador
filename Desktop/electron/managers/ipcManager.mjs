@@ -1,4 +1,4 @@
-import { ipcMain } from "electron";
+import { ipcMain, app, BrowserWindow } from "electron";
 import os from "os";
 import fs from "fs";
 import path from "path";
@@ -40,7 +40,32 @@ function calculateEuclideanDistance(descriptor1, descriptor2) {
 /**
  * Registrar todos los manejadores de IPC
  */
+/**
+ * Notificar a todos los renderers que un dispositivo USB cambió
+ */
+function notifyUSBChange(eventType) {
+    const windows = BrowserWindow.getAllWindows();
+    for (const win of windows) {
+        if (!win.isDestroyed()) {
+            win.webContents.send("usb-device-change", { type: eventType });
+        }
+    }
+}
+
 export function registerIpcHandlers() {
+
+    // ==========================================
+    // Eventos de cambio de dispositivo USB en tiempo real
+    // ==========================================
+    app.on("device-added", (event, device) => {
+        console.log("[USB] Dispositivo conectado:", device?.deviceName || "desconocido");
+        notifyUSBChange("added");
+    });
+
+    app.on("device-removed", (event, device) => {
+        console.log("[USB] Dispositivo desconectado:", device?.deviceName || "desconocido");
+        notifyUSBChange("removed");
+    });
 
     // ==========================================
     // SDK DigitalPersona & Biometría

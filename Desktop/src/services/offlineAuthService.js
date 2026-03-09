@@ -57,7 +57,7 @@ function bufferToFloat32Array(data) {
     }
 
     // Si es un Uint8Array o Buffer de Node
-    if (data instanceof Uint8Array || Buffer.isBuffer(data)) {
+    if (data instanceof Uint8Array || (typeof Buffer !== 'undefined' && Buffer.isBuffer(data))) {
       return new Float32Array(data.buffer, data.byteOffset, data.byteLength / 4);
     }
 

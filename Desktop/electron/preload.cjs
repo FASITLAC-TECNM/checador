@@ -43,6 +43,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   detectUSBDevices: () => ipcRenderer.invoke('detect-usb-devices'),
   listAllUSBDevices: () => ipcRenderer.invoke('list-all-usb-devices'),
   checkBiometricServer: () => ipcRenderer.invoke('check-biometric-server'),
+  // Listener en tiempo real para cambios de dispositivo USB (conectar/desconectar)
+  // Retorna una función de cleanup que debe llamarse en el useEffect cleanup
+  onUSBDeviceChange: (callback) => {
+    const handler = (event, data) => callback(data);
+    ipcRenderer.on('usb-device-change', handler);
+    return () => ipcRenderer.removeListener('usb-device-change', handler);
+  },
 
   // Información del entorno
   isElectron: true,

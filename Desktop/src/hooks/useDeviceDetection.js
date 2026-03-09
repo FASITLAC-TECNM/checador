@@ -1,4 +1,4 @@
-// hooks/useDeviceDetection.js - OPTIMIZADO
+// hooks/useDeviceDetection.js - ESTABLE
 import { useState, useEffect, useRef, useCallback } from "react";
 import { deviceDetectionService } from "../services/deviceDetectionService";
 
@@ -7,8 +7,17 @@ export const useDeviceDetection = (devices, setDevices) => {
   const [detectionStatus, setDetectionStatus] = useState(null);
   const hasDetectedOnMount = useRef(false);
   const detectionTimeoutRef = useRef(null);
+  // Ref para acceder al valor actual de devices sin agregarlo como dependencia
+  const devicesRef = useRef(devices);
+  useEffect(() => {
+    devicesRef.current = devices;
+  }, [devices]);
 
-  // MEJORA 1: useCallback para evitar recrear la función en cada render
+  /**
+   * FIX 1: useCallback SIN 'devices' en dependencias.
+   * Usamos devicesRef.current y setDevices con callback funcional para
+   * evitar el bucle de re-detección que causaba inestabilidad.
+   */
   const detectAllDevices = useCallback(
     async (showStatus = true) => {
       setIsDetecting(true);
@@ -17,41 +26,59 @@ export const useDeviceDetection = (devices, setDevices) => {
       }
 
       try {
-        // 1. Detectar dispositivos en paralelo para mejor rendimiento
+        const currentDevices = devicesRef.current;
+
+        // Detectar todos los tipos de dispositivos en paralelo
         const [usbDevices, webcams, biometricDevices] = await Promise.all([
           deviceDetectionService.detectUSBDevices(),
           deviceDetectionService.detectWebcams(),
           deviceDetectionService.detectBiometricDevices(),
         ]);
 
-        // 2. Combinar dispositivos evitando duplicados
-        // Priorizamos los biométricos detectados por middleware sobre los USB genéricos con el mismo nombre
+        // Combinar dispositivos evitando duplicados
         const detectedDevices = deviceDetectionService.mergeDetectedDevices(
           [...biometricDevices, ...usbDevices],
           webcams,
         );
 
-        // 3. Filtrar dispositivos que ya existen en la lista actual
+        // FIX 2: Separar dispositivos en nuevos vs. ya existentes
         const newDevices = deviceDetectionService.filterNewDevices(
           detectedDevices,
-          devices,
+          currentDevices,
         );
 
-        // 4. Agregar nuevos dispositivos a la lista extrayendo device_id de hardware
-        if (newDevices.length > 0) {
-          const mappedNewDevices = newDevices.map(d => ({
-            ...d,
-            device_id: d.deviceId || d.instanceId || null
-          }));
+        // FIX 3: Actualizar estado de dispositivos existentes (conectado/desconectado)
+        // y agregar los nuevos en una sola operación atómica
+        setDevices((prevDevices) => {
+          // Marcar como desconectados los que ya no se detectan
+          const updatedExisting = prevDevices.map((existingDevice) => {
+            const stillDetected = detectedDevices.some((d) =>
+              deviceDetectionService.isSameDevice(d, existingDevice),
+            );
+            // Solo actualizamos si el estado cambió para evitar renders innecesarios
+            if (existingDevice.detected !== stillDetected) {
+              return { ...existingDevice, detected: stillDetected };
+            }
+            return existingDevice;
+          });
 
-          const devicesWithIds = deviceDetectionService.assignUniqueIds(
-            mappedNewDevices,
-            devices.length + 1,
-          );
-          setDevices([...devices, ...devicesWithIds]);
-        }
+          // Agregar dispositivos verdaderamente nuevos
+          if (newDevices.length > 0) {
+            const mappedNewDevices = newDevices.map((d) => ({
+              ...d,
+              device_id: d.deviceId || d.instanceId || null,
+              detected: true,
+            }));
+            const devicesWithIds = deviceDetectionService.assignUniqueIds(
+              mappedNewDevices,
+              updatedExisting.length + 1,
+            );
+            return [...updatedExisting, ...devicesWithIds];
+          }
 
-        // 5. Mostrar mensaje de estado si corresponde
+          return updatedExisting;
+        });
+
         if (showStatus) {
           const hasElectronAPI = !!(
             window.electronAPI && window.electronAPI.detectUSBDevices
@@ -80,18 +107,15 @@ export const useDeviceDetection = (devices, setDevices) => {
         setIsDetecting(false);
       }
     },
-    [devices, setDevices], // MEJORA 2: Dependencias correctas
+    [setDevices], // FIX 1: Solo setDevices como dependencia (es estable)
   );
 
   /**
-   * MEJORA 3: Detectar dispositivos automáticamente al montar el componente
-   * con cleanup apropiado
+   * Detección inicial al montar
    */
   useEffect(() => {
     if (!hasDetectedOnMount.current) {
       hasDetectedOnMount.current = true;
-
-      // Pequeño delay para que el componente se renderice primero
       detectionTimeoutRef.current = setTimeout(() => {
         detectAllDevices(false).then((detected) => {
           if (detected.length > 0) {
@@ -104,13 +128,46 @@ export const useDeviceDetection = (devices, setDevices) => {
       }, 500);
     }
 
-    // MEJORA 4: Cleanup function para limpiar timeout y cache
     return () => {
       if (detectionTimeoutRef.current) {
         clearTimeout(detectionTimeoutRef.current);
       }
-      // Limpiar cache al desmontar para evitar memory leaks
       deviceDetectionService.clearCache();
+    };
+  }, [detectAllDevices]);
+
+  /**
+   * FIX 4: Escuchar cambios de dispositivos en tiempo real.
+   * Cuando el usuario conecta o desconecta una cámara, el navegador y
+   * Electron lo notifican y re-detectamos automáticamente.
+   */
+  useEffect(() => {
+    // Listener del navegador (Web API)
+    const handleDeviceChange = () => {
+      console.log("[DeviceDetection] Cambio de dispositivo detectado (browser)");
+      detectAllDevices(true);
+    };
+
+    if (navigator.mediaDevices) {
+      navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
+    }
+
+    // Listener de Electron (si está disponible)
+    let removeElectronListener = null;
+    if (window.electronAPI?.onUSBDeviceChange) {
+      removeElectronListener = window.electronAPI.onUSBDeviceChange(() => {
+        console.log("[DeviceDetection] Cambio de dispositivo USB detectado (Electron)");
+        detectAllDevices(true);
+      });
+    }
+
+    return () => {
+      if (navigator.mediaDevices) {
+        navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
+      }
+      if (typeof removeElectronListener === "function") {
+        removeElectronListener();
+      }
     };
   }, [detectAllDevices]);
 

@@ -22,6 +22,7 @@ export function useFaceDetection() {
   const startNoseRef = useRef(null);
   const smoothedPoseRef = useRef(null); // Ref de filtro temporal (EMA)
   const startTimeRef = useRef(0);
+  const framesHeldRef = useRef(0); // Para requerir múltiples fotogramas sostenidos
   
   // Guardamos el punto actual (puede leerlo el componente)
   const [challengePoint, setChallengePoint] = useState(null);
@@ -137,6 +138,27 @@ export function useFaceDetection() {
           const normNoseX = rotatedNoseX / eyeDistance;
           const normNoseY = rotatedNoseY / eyeDistance;
 
+          // --- COMPROBACIÓN 3D ANTI-SPOOFING (PARALLAX FACIAL) ---
+          // Una foto plana inclinada mantiene la relación de aspecto estática de sus bordes sin importar el ángulo de la cámara.
+          // Un rostro real en 3D oculta un lado de la mandíbula al girar (Efecto Profile / Yaw).
+          const jaw = detections.landmarks.getJawOutline();
+          let parallaxRatio = 1.0; // 1.0 = Centro perfecto (mirando de frente)
+          
+          if (jaw && jaw.length === 17) {
+             const leftJawEdge = jaw[0];     // Borde extremo izquierdo de la cara
+             const rightJawEdge = jaw[16];   // Borde extremo derecho de la cara
+             
+             // Distancia en X desde la nariz hasta cada borde
+             const distToLeftEdge = noseTip.x - leftJawEdge.x;
+             const distToRightEdge = rightJawEdge.x - noseTip.x;
+             
+             // Evitar división por cero
+             if (distToRightEdge > 0 && distToLeftEdge > 0) {
+                 // Ratio de profundidad. Si gira a la izquierda el lado izquierdo se encoje y el derecho crece visiblemente.
+                 parallaxRatio = distToLeftEdge / distToRightEdge;
+             }
+          }
+
           // --- FILTRO DE ESTABILIZACIÓN (EMA) ---
           // Filtramos las pulsaciones rápidas (jitter de IA) o sacudidas irreales del papel
           const alpha = 0.3; // Factor de suavizado (menor = más suave/lento)
@@ -168,19 +190,61 @@ export function useFaceDetection() {
                const deltaY = (stableNoseY - startNoseRef.current.y) * eyeDistance;
                const rotationMoved3D = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-               // Evaluamos si hubo rotación pura 3D (20px relativos para evadir jitter)
-               if (rotationMoved3D > 20) {
+               // Evaluamos si hubo rotación pura 3D proporcional al tamaño de la cara
+               if (rotationMoved3D > eyeDistance * 0.22) {
                    let userAngle = Math.atan2(deltaY, deltaX);
                    if (userAngle < 0) userAngle += 2 * Math.PI;
 
                    let angleDiff = Math.abs(userAngle - actChallenge.angle);
                    if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
 
-                   // Tolerancia de ~45 grados (PI/4)
-                   if (angleDiff < Math.PI / 4) {
-                      challengeDoneRef.current = true;
-                      setDetectionProgress(100);
+                   // Tolerancia de dirección ~50 grados para el movimiento diagonal natural
+                   if (angleDiff < Math.PI / 3.6) {
+                      
+                      // *** NUEVO: VALIDACIÓN ESTRICTA DE PROFUNDIDAD 3D (YAW) ***
+                      // Si la "nariz" se movió MUCHO en el eje X (izquierda/derecha), EXIGIMOS
+                      // que la mandíbula se haya deformado acorde a ese movimiento (Rotación real en el cuello).
+                      let isTrue3D = true;
+                      
+                      // Si se movió fuertemente de forma horizontal...
+                      if (Math.abs(deltaX) > eyeDistance * 0.15) {
+                          // Si miró a la derecha (deltaX > 0), el lado derecho de la cara debió encogerse visualmente (Ratio < 0.75 aprox)
+                          // Si miró a la izquierda (deltaX < 0), el lado izquierdo de la cara debió encogerse (Ratio > 1.3 aprox)
+                          const isLookingRight = deltaX > 0;
+                          
+                          if (isLookingRight && parallaxRatio > 0.85) {
+                              isTrue3D = false; // La nariz se movió a la derecha pero el rostro sigue plano/simétrico = FOTO
+                          } else if (!isLookingRight && parallaxRatio < 1.15) {
+                              isTrue3D = false; // La nariz se movió a la izquierda pero el rostro sigue plano = FOTO
+                          }
+                      }
+                      
+                      if (isTrue3D) {
+                          framesHeldRef.current += 1;
+                          
+                          // REQUERIR 3 FOTOGRAMAS CONSECUTIVOS SOSTENIENDO LA MIRADA GENUINA
+                          if (framesHeldRef.current >= 3) {
+                              challengeDoneRef.current = true;
+                              setDetectionProgress(100);
+                          } else {
+                              setDetectionProgress(prev => Math.min(prev + 15, 95));
+                          }
+                      } else {
+                         // Falló prueba anti-spoofing parallax (Es una foto plana rotada/inclinada)
+                         framesHeldRef.current = 0;
+                         setDetectionError("Movimiento irreal detectado. Mueva el cuello, no la cámara.");
+                         
+                         // Borrar error tras 3 seg
+                         setTimeout(() => { if (isScanning.current) setDetectionError(null) }, 2500);
+                      }
+                      
+                   } else {
+                      // Se movió la cabeza en otra dirección equivocada
+                      framesHeldRef.current = 0;
                    }
+               } else {
+                   // Si regresa la cabeza al centro o el salto fue muy pequeño
+                   framesHeldRef.current = Math.max(0, framesHeldRef.current - 1);
                }
             }
           }
@@ -261,6 +325,7 @@ export function useFaceDetection() {
     startNoseRef.current = null;
     setChallengePoint(generateChallengePoint());
     startTimeRef.current = Date.now();
+    framesHeldRef.current = 0;
     isScanning.current = true; // Bandera maestra
     
     setFaceDetected(false);

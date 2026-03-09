@@ -60,6 +60,7 @@ export default function AsistenciaFacial({
   const startNoseRef = useRef(null); // Guardar posicion inicial de la nariz
   const smoothedPoseRef = useRef(null); // Guardar la posición suavizada actual (filtro EMA)
   const currentChallengeRef = useRef(null); // Referencia al challenge actual para el closure de setInterval
+  const framesHeldRef = useRef(0); // Para requerir múltiples fotogramas sostenidos
 
   // Hook de camara singleton
   const { initCamera, releaseCamera } = useCamera();
@@ -106,6 +107,7 @@ export default function AsistenciaFacial({
     startNoseRef.current = null;
     smoothedPoseRef.current = null;
     currentChallengeRef.current = null;
+    framesHeldRef.current = 0;
     setChallengePoint(null);
     setChallengeDone(false);
 
@@ -199,6 +201,22 @@ export default function AsistenciaFacial({
         const normNoseX = rotatedNoseX / eyeDistance;
         const normNoseY = rotatedNoseY / eyeDistance;
 
+        // --- COMPROBACIÓN 3D ANTI-SPOOFING (PARALLAX FACIAL) ---
+        const jaw = detections.landmarks.getJawOutline();
+        let parallaxRatio = 1.0;
+
+        if (jaw && jaw.length === 17) {
+          const leftJawEdge = jaw[0];
+          const rightJawEdge = jaw[16];
+
+          const distToLeftEdge = noseTip.x - leftJawEdge.x;
+          const distToRightEdge = rightJawEdge.x - noseTip.x;
+
+          if (distToRightEdge > 0 && distToLeftEdge > 0) {
+            parallaxRatio = distToLeftEdge / distToRightEdge;
+          }
+        }
+
         // --- FILTRO DE ESTABILIZACIÓN (EMA) ---
         // Filtramos las pulsaciones rápidas (jitter de IA) o sacudidas irreales del papel
         const alpha = 0.3; // Factor de suavizado (menor = más suave/lento)
@@ -226,8 +244,8 @@ export default function AsistenciaFacial({
         // Calcular magnitud de la rotación 3D (cuánto rotó la cabeza)
         const rotationMoved3D = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-        // Si la cabeza rotó de forma evidente (al menos 20px relativos a los ojos es una rotación muy clara) 
-        if (rotationMoved3D > 20) {
+        // Si la cabeza rotó de forma evidente proporcional al tamaño de los ojos
+        if (rotationMoved3D > eyeDistance * 0.22) {
           // Calcular ángulo de movimiento de la cabeza interactiva (-PI a PI)
           let userAngle = Math.atan2(deltaY, deltaX);
           if (userAngle < 0) userAngle += 2 * Math.PI; // Normalizar 0 a 2*PI
@@ -236,13 +254,37 @@ export default function AsistenciaFacial({
           let angleDiff = Math.abs(userAngle - currentChallengeRef.current.angle);
           if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
 
-          // Tolerancia de ~45 grados (PI/4)
-          if (angleDiff < Math.PI / 4) {
-            console.log("✅ Rotación 3D intencional correcta hacia el punto detectado");
-            challengeDoneRef.current = true;
-            setChallengeDone(true);
-            advanceToCapture();
+          // Tolerancia de ~50 grados para movimiento diagonal natural
+          if (angleDiff < Math.PI / 3.6) {
+
+            // VALIDACIÓN ESTRICTA DE PROFUNDIDAD 3D (YAW)
+            let isTrue3D = true;
+            if (Math.abs(deltaX) > eyeDistance * 0.15) {
+              const isLookingRight = deltaX > 0;
+              if (isLookingRight && parallaxRatio > 0.85) {
+                isTrue3D = false;
+              } else if (!isLookingRight && parallaxRatio < 1.15) {
+                isTrue3D = false;
+              }
+            }
+
+            if (isTrue3D) {
+              framesHeldRef.current += 1;
+              if (framesHeldRef.current >= 3) {
+                console.log("✅ Rotación 3D intencional correcta hacia el punto detectado");
+                challengeDoneRef.current = true;
+                setChallengeDone(true);
+                advanceToCapture();
+              }
+            } else {
+              framesHeldRef.current = 0;
+              setProximityMessage("Movimiento irreal. Gire el cuello, no la cámara.");
+            }
+          } else {
+            framesHeldRef.current = 0;
           }
+        } else {
+          framesHeldRef.current = Math.max(0, framesHeldRef.current - 1);
         }
 
       } catch (err) {

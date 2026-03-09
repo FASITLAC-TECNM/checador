@@ -14,7 +14,7 @@ const BiometricRegistration = () => {
 
   const API_BASE = 'https://9dm7dqf9-3002.usw3.devtunnels.ms';
 
-  // Obtener datos del usuario autenticado
+
   useEffect(() => {
     const fetchUsuarioActual = async () => {
 
@@ -53,7 +53,7 @@ const BiometricRegistration = () => {
     fetchUsuarioActual();
   }, []);
 
-  // Cargar credenciales existentes
+
   const loadCredenciales = async (empId) => {
 
     try {
@@ -79,7 +79,7 @@ const BiometricRegistration = () => {
     }
   };
 
-  // Registrar huella dactilar
+
   const registrarHuella = async () => {
     if (!empleadoId) {
       setMessage({ type: 'error', text: 'No se encontró el empleado_id' });
@@ -90,12 +90,12 @@ const BiometricRegistration = () => {
     setMessage({ type: '', text: '' });
 
     try {
-      // Simular conexión con lector biométrico
-      await new Promise(resolve => setTimeout(resolve, 1500));
 
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      // Simular template de huella (en producción vendría del SDK del lector)
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+
       const huellaTemplate = btoa(JSON.stringify({
         template: 'FINGERPRINT_MINUTIAE_' + Date.now(),
         quality: 95,
@@ -103,7 +103,7 @@ const BiometricRegistration = () => {
       }));
 
 
-      // Enviar a la API
+
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE}/api/credenciales/dactilar`, {
         method: 'POST',
@@ -132,7 +132,7 @@ const BiometricRegistration = () => {
     }
   };
 
-  // Registrar reconocimiento facial
+
   const registrarFacial = async () => {
     if (!empleadoId) {
       setMessage({ type: 'error', text: 'No se encontró el empleado_id' });
@@ -143,7 +143,7 @@ const BiometricRegistration = () => {
     setMessage({ type: '', text: '' });
 
     try {
-      // Solicitar permiso de cámara
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'user',
@@ -152,38 +152,38 @@ const BiometricRegistration = () => {
         }
       });
 
-      // Crear elemento de video
+
       const video = document.createElement('video');
       video.srcObject = stream;
       video.play();
 
-      // Esperar a que el video esté listo
-      await new Promise(resolve => {
+
+      await new Promise((resolve) => {
         video.onloadedmetadata = () => {
           resolve();
         };
       });
 
-      // Esperar 2 segundos para estabilizar la imagen
-      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
 
-      // Capturar frame
+
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0);
 
-      // Convertir a base64
+
       const fotoBase64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
 
-      // Detener cámara
-      stream.getTracks().forEach(track => {
+
+      stream.getTracks().forEach((track) => {
         track.stop();
       });
 
-      // Enviar a la API
+
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE}/api/credenciales/facial`, {
         method: 'POST',
@@ -208,16 +208,16 @@ const BiometricRegistration = () => {
     } catch (error) {
       setMessage({
         type: 'error',
-        text: error.name === 'NotAllowedError'
-          ? 'Permiso de cámara denegado'
-          : 'Error al acceder a la cámara'
+        text: error.name === 'NotAllowedError' ?
+        'Permiso de cámara denegado' :
+        'Error al acceder a la cámara'
       });
     } finally {
       setLoading(false);
     }
   };
 
-  // Registrar PIN
+
   const registrarPIN = async () => {
     if (!empleadoId) {
       setMessage({ type: 'error', text: 'No se encontró el empleado_id' });
@@ -269,7 +269,7 @@ const BiometricRegistration = () => {
     }
   };
 
-  // Eliminar credencial
+
   const eliminarCredencial = async (tipo) => {
     if (!window.confirm(`¿Estás seguro de eliminar ${tipo === 'dactilar' ? 'la huella dactilar' : tipo === 'facial' ? 'el reconocimiento facial' : 'el PIN'}?`)) {
       return;
@@ -310,22 +310,22 @@ const BiometricRegistration = () => {
             Registra tus métodos de autenticación para acceso rápido al sistema
           </p>
 
-          {/* Mensajes */}
-          {message.text && (
-            <div className={`p-4 rounded-lg mb-6 flex items-center gap-3 ${message.type === 'success' ? 'bg-green-50 text-green-800 border-2 border-green-200' : 'bg-red-50 text-red-800 border-2 border-red-200'
-              }`}>
-              {message.type === 'success' ? (
-                <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
-              ) : (
-                <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              )}
+          {}
+          {message.text &&
+          <div className={`p-4 rounded-lg mb-6 flex items-center gap-3 ${message.type === 'success' ? 'bg-green-50 text-green-800 border-2 border-green-200' : 'bg-red-50 text-red-800 border-2 border-red-200'}`
+          }>
+              {message.type === 'success' ?
+            <CheckCircle2 className="w-5 h-5 flex-shrink-0" /> :
+
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            }
               <span className="font-medium">{message.text}</span>
             </div>
-          )}
+          }
 
-          {/* Estado de credenciales */}
-          {empleadoId && (
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 mb-6 border border-blue-200">
+          {}
+          {empleadoId &&
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 mb-6 border border-blue-200">
               <h3 className="font-bold text-gray-800 mb-4 text-lg flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-blue-600" />
                 Estado de tus credenciales
@@ -340,15 +340,15 @@ const BiometricRegistration = () => {
                     <span className={`font-bold ${credenciales.tiene_dactilar ? 'text-green-600' : 'text-gray-400'}`}>
                       {credenciales.tiene_dactilar ? '✓ Registrada' : '✗ No registrada'}
                     </span>
-                    {credenciales.tiene_dactilar && (
-                      <button
-                        onClick={() => eliminarCredencial('dactilar')}
-                        className="ml-2 p-1 text-red-500 hover:bg-red-50 rounded"
-                        disabled={loading}
-                      >
+                    {credenciales.tiene_dactilar &&
+                  <button
+                    onClick={() => eliminarCredencial('dactilar')}
+                    className="ml-2 p-1 text-red-500 hover:bg-red-50 rounded"
+                    disabled={loading}>
+                    
                         <Trash2 className="w-4 h-4" />
                       </button>
-                    )}
+                  }
                   </div>
                 </div>
                 <div className="flex items-center justify-between bg-white p-3 rounded-lg">
@@ -360,15 +360,15 @@ const BiometricRegistration = () => {
                     <span className={`font-bold ${credenciales.tiene_facial ? 'text-green-600' : 'text-gray-400'}`}>
                       {credenciales.tiene_facial ? '✓ Registrado' : '✗ No registrado'}
                     </span>
-                    {credenciales.tiene_facial && (
-                      <button
-                        onClick={() => eliminarCredencial('facial')}
-                        className="ml-2 p-1 text-red-500 hover:bg-red-50 rounded"
-                        disabled={loading}
-                      >
+                    {credenciales.tiene_facial &&
+                  <button
+                    onClick={() => eliminarCredencial('facial')}
+                    className="ml-2 p-1 text-red-500 hover:bg-red-50 rounded"
+                    disabled={loading}>
+                    
                         <Trash2 className="w-4 h-4" />
                       </button>
-                    )}
+                  }
                   </div>
                 </div>
                 <div className="flex items-center justify-between bg-white p-3 rounded-lg">
@@ -380,87 +380,87 @@ const BiometricRegistration = () => {
                     <span className={`font-bold ${credenciales.tiene_pin ? 'text-green-600' : 'text-gray-400'}`}>
                       {credenciales.tiene_pin ? '✓ Configurado' : '✗ No configurado'}
                     </span>
-                    {credenciales.tiene_pin && (
-                      <button
-                        onClick={() => eliminarCredencial('pin')}
-                        className="ml-2 p-1 text-red-500 hover:bg-red-50 rounded"
-                        disabled={loading}
-                      >
+                    {credenciales.tiene_pin &&
+                  <button
+                    onClick={() => eliminarCredencial('pin')}
+                    className="ml-2 p-1 text-red-500 hover:bg-red-50 rounded"
+                    disabled={loading}>
+                    
                         <Trash2 className="w-4 h-4" />
                       </button>
-                    )}
+                  }
                   </div>
                 </div>
               </div>
             </div>
-          )}
+          }
 
-          {/* Botones de registro */}
+          {}
           <div className="space-y-3">
             <button
               onClick={registrarHuella}
               disabled={loading || !empleadoId}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-3 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg"
-            >
-              {loading ? (
-                <>
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-3 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg">
+              
+              {loading ?
+              <>
                   <Loader2 className="w-5 h-5 animate-spin" />
                   Procesando...
-                </>
-              ) : (
-                <>
+                </> :
+
+              <>
                   <Fingerprint className="w-6 h-6" />
                   {credenciales.tiene_dactilar ? 'Actualizar' : 'Registrar'} Huella Dactilar
                 </>
-              )}
+              }
             </button>
 
             <button
               onClick={registrarFacial}
               disabled={loading || !empleadoId}
-              className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-3 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg"
-            >
-              {loading ? (
-                <>
+              className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-3 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg">
+              
+              {loading ?
+              <>
                   <Loader2 className="w-5 h-5 animate-spin" />
                   Procesando...
-                </>
-              ) : (
-                <>
+                </> :
+
+              <>
                   <Camera className="w-6 h-6" />
                   {credenciales.tiene_facial ? 'Actualizar' : 'Registrar'} Reconocimiento Facial
                 </>
-              )}
+              }
             </button>
 
             <button
               onClick={registrarPIN}
               disabled={loading || !empleadoId}
-              className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-3 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg"
-            >
-              {loading ? (
-                <>
+              className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-3 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg">
+              
+              {loading ?
+              <>
                   <Loader2 className="w-5 h-5 animate-spin" />
                   Procesando...
-                </>
-              ) : (
-                <>
+                </> :
+
+              <>
                   <Lock className="w-6 h-6" />
                   {credenciales.tiene_pin ? 'Cambiar' : 'Configurar'} PIN
                 </>
-              )}
+              }
             </button>
           </div>
 
-          {!empleadoId && !message.text && (
-            <div className="mt-6 p-4 bg-yellow-50 text-yellow-800 rounded-xl border-2 border-yellow-200 flex items-center gap-3">
+          {!empleadoId && !message.text &&
+          <div className="mt-6 p-4 bg-yellow-50 text-yellow-800 rounded-xl border-2 border-yellow-200 flex items-center gap-3">
               <Loader2 className="w-5 h-5 animate-spin flex-shrink-0" />
               <span className="font-medium">Cargando información del empleado...</span>
             </div>
-          )}
+          }
         </div>
 
-        {/* Información adicional */}
+        {}
         <div className="bg-white rounded-2xl shadow-lg p-6 border-2 border-blue-100">
           <p className="font-bold text-blue-800 mb-3 text-lg flex items-center gap-2">
             <AlertCircle className="w-5 h-5" />
@@ -486,8 +486,8 @@ const BiometricRegistration = () => {
           </ul>
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 };
 
 export default BiometricRegistration;

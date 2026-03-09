@@ -7,62 +7,62 @@ import {
   TouchableOpacity,
   Platform,
   ActivityIndicator,
-  Alert,
-} from 'react-native';
+  Alert } from
+'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Importar servicios de consulta
+
 import { checkBiometricSupport } from '../../services/biometricservice';
 import { getCredencialesByEmpleado } from '../../services/credencialesService';
 
-// Offline Services
+
 import sqliteManager from '../../services/offline/sqliteManager.mjs';
 import syncManager from '../../services/offline/syncManager.mjs';
 
-// ─── Constantes de estado ────────────────────────────────────────────────────
+
 const ESTADOS = {
   activo: {
     bg: '#16a34a',
     texto: '#fff',
     icono: '#fff',
     etiqueta: 'Habilitada',
-    iconoEstado: 'checkmark-circle',
+    iconoEstado: 'checkmark-circle'
   },
   inactivo: {
     bg: '#6b7280',
     texto: '#fff',
     icono: '#fff',
     etiqueta: 'Sin registrar',
-    iconoEstado: 'ellipse-outline',
+    iconoEstado: 'ellipse-outline'
   },
   noDisponible: {
     bg: '#dc2626',
     texto: '#fff',
     icono: '#fff',
     etiqueta: 'No disponible',
-    iconoEstado: 'ban',
-  },
+    iconoEstado: 'ban'
+  }
 };
 
 export const SecurityScreen = ({ darkMode, onBack, userData }) => {
-  // ─── Estado de credenciales ───────────────────────────────────────────
+
   const [hasFingerprint, setHasFingerprint] = useState(false);
   const [hasFacial, setHasFacial] = useState(false);
   const [hasPin, setHasPin] = useState(false);
 
-  // ─── Carga inicial ────────────────────────────────────────────────────
+
   const [isLoadingCredentials, setIsLoadingCredentials] = useState(true);
 
-  // ─── Soporte de hardware ──────────────────────────────────────────────
+
   const [biometricSupport, setBiometricSupport] = useState(null);
 
-  // ─── Modo offline ─────────────────────────────────────────────────────
+
   const [isOffline, setIsOffline] = useState(false);
 
   const styles = darkMode ? securityStylesDark : securityStyles;
 
-  // ─── Eliminación de datos biométricos (Ley ARCO) ──────────────────────
+
   const handleEliminarDatos = () => {
     Alert.alert(
       'Eliminación de datos biométricos',
@@ -76,14 +76,14 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
     initializeSecurity();
   }, []);
 
-  // ─── Inicialización: solo carga y muestra credenciales ──────────────────
+
   const initializeSecurity = async () => {
     try {
       const support = await checkBiometricSupport();
       setBiometricSupport(support);
 
       const empleadoId =
-        userData?.empleado?.id || userData?.empleado_id || userData?.id;
+      userData?.empleado?.id || userData?.empleado_id || userData?.id;
 
       if (!empleadoId) {
         setIsLoadingCredentials(false);
@@ -92,17 +92,17 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
 
       const token = await AsyncStorage.getItem('userToken');
 
-      // Verificar conectividad real
+
       let onlineNow = false;
       try {
         onlineNow = await syncManager.isOnline();
       } catch (netErr) {
-        console.log('[Security] No se pudo verificar red:', netErr.message);
+        (function () {})('[Security] No se pudo verificar red:', netErr.message);
       }
 
       let cargoOnline = false;
 
-      // Intentar cargar desde el servidor si hay red y token
+
       if (onlineNow && token) {
         try {
           const credenciales = await getCredencialesByEmpleado(empleadoId, token);
@@ -113,34 +113,34 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
             cargoOnline = true;
           }
         } catch (e) {
-          console.log('[Security] Error cargando credenciales online:', e.message);
+          (function () {})('[Security] Error cargando credenciales online:', e.message);
         }
       }
 
-      // Fallback: cargar desde SQLite
+
       if (!cargoOnline) {
         try {
           const creds = await sqliteManager.getAllCredenciales();
-          const misCreds = creds.filter(c => c.empleado_id === empleadoId);
+          const misCreds = creds.filter((c) => c.empleado_id === empleadoId);
 
-          setHasFingerprint(misCreds.some(c => c.dactilar_template));
-          setHasFacial(misCreds.some(c => c.facial_descriptor));
-          setHasPin(misCreds.some(c => c.pin_hash));
+          setHasFingerprint(misCreds.some((c) => c.dactilar_template));
+          setHasFacial(misCreds.some((c) => c.facial_descriptor));
+          setHasPin(misCreds.some((c) => c.pin_hash));
 
           if (!onlineNow) setIsOffline(true);
         } catch (dbErr) {
-          console.log('[Security] Error cargando credenciales offline:', dbErr.message);
+          (function () {})('[Security] Error cargando credenciales offline:', dbErr.message);
           if (!onlineNow) setIsOffline(true);
         }
       }
     } catch (error) {
-      console.error('[Security] Error en initializeSecurity:', error);
+      (function () {})('[Security] Error en initializeSecurity:', error);
     } finally {
       setIsLoadingCredentials(false);
     }
   };
 
-  // ─── Determinar estado visual de cada credencial ─────────────────────────
+
   const getEstado = (tipo) => {
     switch (tipo) {
       case 'dactilar':
@@ -156,7 +156,7 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
     }
   };
 
-  // ─── Loading ────────────────────────────────────────────────────────────
+
   if (isLoadingCredentials) {
     return (
       <View style={styles.container}>
@@ -178,44 +178,44 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
             Cargando configuración de seguridad...
           </Text>
         </View>
-      </View>
-    );
+      </View>);
+
   }
 
-  // ─── Datos de los métodos ──────────────────────────────────────────────
-  const metodos = [
-    {
-      id: 'dactilar',
-      nombre: 'Huella Digital',
-      icono: 'finger-print',
-      estado: getEstado('dactilar'),
-    },
-    {
-      id: 'facial',
-      nombre: 'Facial',
-      icono: 'scan',
-      estado: getEstado('facial'),
-    },
-    {
-      id: 'pin',
-      nombre: 'PIN',
-      icono: 'keypad',
-      estado: getEstado('pin'),
-    },
-  ];
 
-  // ─── RENDER PRINCIPAL ───────────────────────────────────────────────────
+  const metodos = [
+  {
+    id: 'dactilar',
+    nombre: 'Huella Digital',
+    icono: 'finger-print',
+    estado: getEstado('dactilar')
+  },
+  {
+    id: 'facial',
+    nombre: 'Facial',
+    icono: 'scan',
+    estado: getEstado('facial')
+  },
+  {
+    id: 'pin',
+    nombre: 'PIN',
+    icono: 'keypad',
+    estado: getEstado('pin')
+  }];
+
+
+
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {}
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <TouchableOpacity
             onPress={onBack}
             style={styles.backButton}
             activeOpacity={0.6}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
           <View style={styles.headerTextContainer}>
@@ -230,27 +230,27 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Info Card */}
+        showsVerticalScrollIndicator={false}>
+        
+        {}
         <View style={styles.infoCard}>
           <Ionicons
             name={isOffline ? 'cloud-offline' : 'shield-checkmark'}
             size={32}
-            color={isOffline ? '#f59e0b' : (darkMode ? '#93c5fd' : '#2563eb')}
-          />
+            color={isOffline ? '#f59e0b' : darkMode ? '#93c5fd' : '#2563eb'} />
+          
           <Text style={styles.infoTitle}>
             {isOffline ? 'Modo sin conexión' : 'Mis credenciales'}
           </Text>
           <Text style={styles.infoText}>
-            {isOffline
-              ? 'Mostrando estado local. Conéctate al servidor para ver información actualizada.'
-              : 'Aquí puedes ver qué métodos de autenticación tienes registrados en el sistema.'
+            {isOffline ?
+            'Mostrando estado local. Conéctate al servidor para ver información actualizada.' :
+            'Aquí puedes ver qué métodos de autenticación tienes registrados en el sistema.'
             }
           </Text>
         </View>
 
-        {/* Tarjetas de estado */}
+        {}
         <View style={styles.metodosContainer}>
           {metodos.map((metodo) => {
             const cfg = ESTADOS[metodo.estado];
@@ -258,14 +258,14 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
             return (
               <View
                 key={metodo.id}
-                style={[styles.tarjetaMetodo, { backgroundColor: cfg.bg }]}
-              >
-                {/* Icono del método */}
+                style={[styles.tarjetaMetodo, { backgroundColor: cfg.bg }]}>
+                
+                {}
                 <View style={styles.botonIconContainer}>
                   <Ionicons name={metodo.icono} size={30} color={cfg.icono} />
                 </View>
 
-                {/* Nombre y etiqueta */}
+                {}
                 <View style={styles.textoContainer}>
                   <Text style={[styles.botonNombre, { color: cfg.texto }]}>
                     {metodo.nombre}
@@ -275,36 +275,36 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
                   </Text>
                 </View>
 
-                {/* Indicador de estado */}
+                {}
                 <View style={styles.botonIndicador}>
                   <Ionicons
                     name={cfg.iconoEstado}
                     size={28}
                     color={
-                      metodo.estado === 'activo'
-                        ? '#fff'
-                        : 'rgba(255,255,255,0.55)'
-                    }
-                  />
+                    metodo.estado === 'activo' ?
+                    '#fff' :
+                    'rgba(255,255,255,0.55)'
+                    } />
+                  
                 </View>
-              </View>
-            );
+              </View>);
+
           })}
         </View>
 
-        {/* Separador */}
+        {}
         <View style={styles.separador}>
           <View style={styles.separadorLinea} />
           <Text style={styles.separadorTexto}>Privacidad</Text>
           <View style={styles.separadorLinea} />
         </View>
 
-        {/* Botón eliminación de datos biométricos */}
+        {}
         <TouchableOpacity
           style={styles.eliminarBoton}
           onPress={handleEliminarDatos}
-          activeOpacity={0.75}
-        >
+          activeOpacity={0.75}>
+          
           <View style={styles.eliminarIconContainer}>
             <Ionicons name="trash-outline" size={22} color="#dc2626" />
           </View>
@@ -315,26 +315,26 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
           <Ionicons name="chevron-forward" size={20} color={darkMode ? '#6b7280' : '#9ca3af'} />
         </TouchableOpacity>
       </ScrollView>
-    </View>
-  );
+    </View>);
+
 };
 
-// ─── ESTILOS LIGHT ──────────────────────────────────────────────────────────
+
 const securityStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f8fafc'
   },
   header: {
     backgroundColor: '#2563eb',
     paddingTop: Platform.OS === 'android' ? 14 : 46,
     paddingBottom: 16,
-    paddingHorizontal: 16,
+    paddingHorizontal: 16
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'space-between'
   },
   backButton: {
     width: 40,
@@ -342,63 +342,63 @@ const securityStyles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   headerTextContainer: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: 'center'
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#fff',
+    color: '#fff'
   },
   headerSubtitle: {
     fontSize: 13,
     color: '#bfdbfe',
-    marginTop: 2,
+    marginTop: 2
   },
   headerPlaceholder: {
-    width: 40,
+    width: 40
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
+    gap: 12
   },
   loadingText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#6b7280'
   },
   scrollContent: {
     paddingHorizontal: 18,
     paddingTop: 16,
-    paddingBottom: 90,
+    paddingBottom: 90
   },
   infoCard: {
     backgroundColor: '#dbeafe',
     borderRadius: 16,
     padding: 18,
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 16
   },
   infoTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#1f2937',
     marginTop: 8,
-    marginBottom: 5,
+    marginBottom: 5
   },
   infoText: {
     fontSize: 13,
     color: '#4b5563',
     textAlign: 'center',
-    lineHeight: 19,
+    lineHeight: 19
   },
   metodosContainer: {
     gap: 10,
-    marginBottom: 16,
+    marginBottom: 16
   },
   tarjetaMetodo: {
     flexDirection: 'row',
@@ -410,7 +410,7 @@ const securityStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.12,
     shadowRadius: 5,
-    elevation: 3,
+    elevation: 3
   },
   botonIconContainer: {
     width: 44,
@@ -419,38 +419,38 @@ const securityStyles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 14
   },
   textoContainer: {
     flex: 1,
-    gap: 2,
+    gap: 2
   },
   botonNombre: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '600'
   },
   etiquetaEstado: {
     fontSize: 12,
-    opacity: 0.85,
+    opacity: 0.85
   },
   botonIndicador: {},
   separador: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 14,
-    gap: 10,
+    gap: 10
   },
   separadorLinea: {
     flex: 1,
     height: 1,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#e2e8f0'
   },
   separadorTexto: {
     fontSize: 12,
     fontWeight: '600',
     color: '#94a3b8',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 1
   },
   eliminarBoton: {
     flexDirection: 'row',
@@ -465,7 +465,7 @@ const securityStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 6,
-    elevation: 2,
+    elevation: 2
   },
   eliminarIconContainer: {
     width: 40,
@@ -474,73 +474,73 @@ const securityStyles = StyleSheet.create({
     backgroundColor: '#fee2e2',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 12
   },
   eliminarTextoContainer: {
     flex: 1,
-    gap: 2,
+    gap: 2
   },
   eliminarTitulo: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#dc2626',
+    color: '#dc2626'
   },
   eliminarSubtitulo: {
     fontSize: 11,
-    color: '#9ca3af',
-  },
+    color: '#9ca3af'
+  }
 });
 
-// ─── ESTILOS DARK ───────────────────────────────────────────────────────────
+
 const securityStylesDark = StyleSheet.create({
   ...securityStyles,
   container: {
     ...securityStyles.container,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#0f172a'
   },
   header: {
     ...securityStyles.header,
-    backgroundColor: '#1e40af',
+    backgroundColor: '#1e40af'
   },
   infoCard: {
     ...securityStyles.infoCard,
-    backgroundColor: '#1e3a8a',
+    backgroundColor: '#1e3a8a'
   },
   infoTitle: {
     ...securityStyles.infoTitle,
-    color: '#f9fafb',
+    color: '#f9fafb'
   },
   infoText: {
     ...securityStyles.infoText,
-    color: '#cbd5e1',
+    color: '#cbd5e1'
   },
   loadingText: {
     ...securityStyles.loadingText,
-    color: '#9ca3af',
+    color: '#9ca3af'
   },
   separadorLinea: {
     ...securityStyles.separadorLinea,
-    backgroundColor: '#334155',
+    backgroundColor: '#334155'
   },
   separadorTexto: {
     ...securityStyles.separadorTexto,
-    color: '#64748b',
+    color: '#64748b'
   },
   eliminarBoton: {
     ...securityStyles.eliminarBoton,
     backgroundColor: '#1e293b',
-    borderColor: '#7f1d1d',
+    borderColor: '#7f1d1d'
   },
   eliminarIconContainer: {
     ...securityStyles.eliminarIconContainer,
-    backgroundColor: '#450a0a',
+    backgroundColor: '#450a0a'
   },
   eliminarTitulo: {
     ...securityStyles.eliminarTitulo,
-    color: '#f87171',
+    color: '#f87171'
   },
   eliminarSubtitulo: {
     ...securityStyles.eliminarSubtitulo,
-    color: '#6b7280',
-  },
+    color: '#6b7280'
+  }
 });

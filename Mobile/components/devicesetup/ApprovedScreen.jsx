@@ -5,8 +5,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
-  Platform
-} from 'react-native';
+  Platform } from
+'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -26,7 +26,7 @@ export const ApprovedScreen = ({ email, empresaNombre, deviceInfo, onComplete })
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
 
-      {/* Header Azul con Stepper completado */}
+      {}
       <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? insets.top + 16 : insets.top + 8 }]}>
         <Text style={styles.headerTitle}>{approved.title}</Text>
         <Text style={styles.headerSubtitle}>{approved.subtitle}</Text>
@@ -46,17 +46,17 @@ export const ApprovedScreen = ({ email, empresaNombre, deviceInfo, onComplete })
         </View>
       </View>
 
-      {/* Content — Static, centered */}
+      {}
       <View style={styles.content}>
-        {/* Icon de éxito */}
+        {}
         <View style={styles.successIcon}>
           <Ionicons name={approved.icon} size={56} color="#10b981" />
         </View>
 
-        {/* Mensaje */}
+        {}
         <Text style={styles.message}>{approved.message}</Text>
 
-        {/* Checklist compacto */}
+        {}
         <View style={styles.checklist}>
           <View style={styles.checkItem}>
             <Ionicons name="business" size={16} color="#10b981" />
@@ -94,7 +94,7 @@ export const ApprovedScreen = ({ email, empresaNombre, deviceInfo, onComplete })
         </View>
       </View>
 
-      {/* Footer */}
+      {}
       <View style={[styles.footer, { paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 20) : insets.bottom + 12 }]}>
         <View style={styles.infoBox}>
           <Ionicons name="information-circle" size={14} color="#065f46" />
@@ -105,42 +105,42 @@ export const ApprovedScreen = ({ email, empresaNombre, deviceInfo, onComplete })
         <TouchableOpacity
           style={styles.completeButton}
           onPress={onComplete}
-          activeOpacity={0.8}
-        >
+          activeOpacity={0.8}>
+          
           <Text style={styles.completeButtonText}>Comenzar a Usar</Text>
           <Ionicons name="arrow-forward" size={18} color="#fff" />
         </TouchableOpacity>
       </View>
-    </View>
-  );
+    </View>);
+
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#f9fafb'
   },
   header: {
     backgroundColor: '#2563eb',
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingBottom: 16
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 2,
+    marginBottom: 2
   },
   headerSubtitle: {
     fontSize: 12,
     color: '#dbeafe',
-    marginBottom: 14,
+    marginBottom: 14
   },
   stepperContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
+    paddingVertical: 4
   },
   stepComplete: {
     width: 28,
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: '#10b981',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   stepLine: {
     flex: 1,
@@ -156,13 +156,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#10b981',
     marginHorizontal: 8,
     maxWidth: 80,
-    borderRadius: 2,
+    borderRadius: 2
   },
   content: {
     flex: 1,
     padding: 20,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   successIcon: {
     width: 80,
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#a7f3d0'
   },
   message: {
     fontSize: 13,
@@ -181,10 +181,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
     lineHeight: 18,
-    paddingHorizontal: 10,
+    paddingHorizontal: 10
   },
   checklist: {
-    width: '100%',
+    width: '100%'
   },
   checkItem: {
     flexDirection: 'row',
@@ -194,28 +194,28 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#a7f3d0'
   },
   checkContent: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: 10
   },
   checkTitle: {
     fontSize: 12,
     fontWeight: '600',
     color: '#065f46',
-    marginBottom: 1,
+    marginBottom: 1
   },
   checkValue: {
     fontSize: 11,
-    color: '#047857',
+    color: '#047857'
   },
   footer: {
     backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: '#e5e7eb'
   },
   infoBox: {
     flexDirection: 'row',
@@ -226,13 +226,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     gap: 6,
     borderWidth: 1,
-    borderColor: '#a7f3d0',
+    borderColor: '#a7f3d0'
   },
   infoText: {
     flex: 1,
     fontSize: 11,
     color: '#065f46',
-    lineHeight: 15,
+    lineHeight: 15
   },
   completeButton: {
     backgroundColor: '#10b981',
@@ -246,11 +246,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 5
   },
   completeButtonText: {
     color: '#fff',
     fontSize: 15,
-    fontWeight: 'bold',
-  },
+    fontWeight: 'bold'
+  }
 });

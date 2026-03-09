@@ -10,8 +10,8 @@ import {
   StatusBar,
   Platform,
   ActivityIndicator,
-  Image,
-} from 'react-native';
+  Image } from
+'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getMiEmpresa } from '../../services/empresaService';
@@ -47,9 +47,9 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
       setIsLoading(true);
 
       const empresaId = userData?.empresa_id ||
-        userData?.empresa?.id ||
-        userData?.empleado?.empresa_id ||
-        null;
+      userData?.empresa?.id ||
+      userData?.empleado?.empresa_id ||
+      null;
 
       if (!empresaId) {
         setIsLoading(false);
@@ -58,7 +58,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
 
       const token = await AsyncStorage.getItem('userToken');
 
-      // Intentar online primero
+
       let cargoOnline = false;
       if (token) {
         try {
@@ -66,68 +66,68 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
           if (response.success && response.data) {
             setEmpresaData(response.data);
             cargoOnline = true;
-            // Guardar en caché local
-            await sqliteManager.upsertEmpresa(response.data).catch(e =>
- console.warn('️ No se pudo cachear empresa:', e.message) 
+
+            await sqliteManager.upsertEmpresa(response.data).catch((e) =>
+            function () {}('️ No se pudo cachear empresa:', e.message)
             );
           }
         } catch (e) {
- console.warn('️ No se pudo cargar empresa online:', e.message); 
+          (function () {})('️ No se pudo cargar empresa online:', e.message);
         }
       }
 
-      // Fallback: cargar desde SQLite
+
       if (!cargoOnline) {
         try {
           const empresaLocal = await sqliteManager.getEmpresaLocal(empresaId);
           if (empresaLocal) {
             setEmpresaData(empresaLocal);
- console.log(' [Offline] Empresa cargada desde caché local'); 
+            (function () {})(' [Offline] Empresa cargada desde caché local');
           }
         } catch (e) {
- console.warn('️ Error cargando empresa desde SQLite:', e.message); 
+          (function () {})('️ Error cargando empresa desde SQLite:', e.message);
         }
       }
 
     } catch (error) {
-      console.error('Error en cargarDatosEmpresa:', error);
+      (function () {})('Error en cargarDatosEmpresa:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   const faqs = [
-    {
-      id: 1,
-      pregunta: "¿Cómo registro mi entrada?",
-      respuesta: "Para registrar tu entrada, ve a la pantalla de Inicio y presiona el botón central. Asegúrate de estar dentro del área permitida y tener el GPS activado.",
-      icon: "log-in"
-    },
-    {
-      id: 2,
-      pregunta: "¿Por qué no funciona mi ubicación?",
-      respuesta: "Verifica que tengas el GPS activado en tu dispositivo. También asegúrate de que la app tenga permisos de ubicación. Ve a Configuración > Privacidad > Ubicación.",
-      icon: "location"
-    },
-    {
-      id: 3,
-      pregunta: "¿Cómo configuro Face ID o huella digital?",
-      respuesta: "Ve a Configuración > Seguridad > Método de Acceso. Podrás configurar PIN, huella digital o Face ID. Asegúrate de tener estos métodos configurados en tu dispositivo primero.",
-      icon: "scan"
-    },
-    {
-      id: 4,
-      pregunta: "¿Cómo veo mi historial de registros?",
-      respuesta: "Ve a la opcion de Historial para ver todos tus registros de entrada y salida.",
-      icon: "time"
-    },
-    {
-      id: 5,
-      pregunta: "La app se cierra inesperadamente",
-      respuesta: "Intenta cerrar completamente la app y volver a abrirla. Si el problema persiste, verifica que tengas la última versión instalada o contacta a FASITLAC.",
-      icon: "alert-circle"
-    }
-  ];
+  {
+    id: 1,
+    pregunta: "¿Cómo registro mi entrada?",
+    respuesta: "Para registrar tu entrada, ve a la pantalla de Inicio y presiona el botón central. Asegúrate de estar dentro del área permitida y tener el GPS activado.",
+    icon: "log-in"
+  },
+  {
+    id: 2,
+    pregunta: "¿Por qué no funciona mi ubicación?",
+    respuesta: "Verifica que tengas el GPS activado en tu dispositivo. También asegúrate de que la app tenga permisos de ubicación. Ve a Configuración > Privacidad > Ubicación.",
+    icon: "location"
+  },
+  {
+    id: 3,
+    pregunta: "¿Cómo configuro Face ID o huella digital?",
+    respuesta: "Ve a Configuración > Seguridad > Método de Acceso. Podrás configurar PIN, huella digital o Face ID. Asegúrate de tener estos métodos configurados en tu dispositivo primero.",
+    icon: "scan"
+  },
+  {
+    id: 4,
+    pregunta: "¿Cómo veo mi historial de registros?",
+    respuesta: "Ve a la opcion de Historial para ver todos tus registros de entrada y salida.",
+    icon: "time"
+  },
+  {
+    id: 5,
+    pregunta: "La app se cierra inesperadamente",
+    respuesta: "Intenta cerrar completamente la app y volver a abrirla. Si el problema persiste, verifica que tengas la última versión instalada o contacta a FASITLAC.",
+    icon: "alert-circle"
+  }];
+
 
   const getContactOptions = () => {
     const options = [];
@@ -144,24 +144,24 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
         color: "#25D366",
         action: () => {
           const message = `Hola, soy ${userData?.nombre || 'Usuario'}, necesito ayuda con la App de Asistencia.`;
-          const url = Platform.OS === 'ios'
-            ? `https://api.whatsapp.com/send?phone=${phoneClean}&text=${encodeURIComponent(message)}`
-            : `whatsapp://send?phone=${phoneClean}&text=${encodeURIComponent(message)}`;
+          const url = Platform.OS === 'ios' ?
+          `https://api.whatsapp.com/send?phone=${phoneClean}&text=${encodeURIComponent(message)}` :
+          `whatsapp://send?phone=${phoneClean}&text=${encodeURIComponent(message)}`;
 
-          Linking.canOpenURL(url)
-            .then((supported) => {
-              if (supported) {
-                return Linking.openURL(url);
-              } else {
-                Alert.alert(
-                  "WhatsApp no disponible",
-                  "WhatsApp no está instalado en tu dispositivo"
-                );
-              }
-            })
-            .catch(() => {
-              Alert.alert("Error", "No se pudo abrir WhatsApp");
-            });
+          Linking.canOpenURL(url).
+          then((supported) => {
+            if (supported) {
+              return Linking.openURL(url);
+            } else {
+              Alert.alert(
+                "WhatsApp no disponible",
+                "WhatsApp no está instalado en tu dispositivo"
+              );
+            }
+          }).
+          catch(() => {
+            Alert.alert("Error", "No se pudo abrir WhatsApp");
+          });
         }
       });
     }
@@ -199,16 +199,16 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
             "Llamar a Soporte",
             `¿Deseas llamar a ${empresaData.telefono}?`,
             [
-              { text: "Cancelar", style: "cancel" },
-              {
-                text: "Llamar",
-                onPress: () => {
-                  Linking.openURL(`tel:${phoneClean}`).catch(() => {
-                    Alert.alert("Error", "No se pudo realizar la llamada");
-                  });
-                }
+            { text: "Cancelar", style: "cancel" },
+            {
+              text: "Llamar",
+              onPress: () => {
+                Linking.openURL(`tel:${phoneClean}`).catch(() => {
+                  Alert.alert("Error", "No se pudo realizar la llamada");
+                });
               }
-            ]
+            }]
+
           );
         }
       });
@@ -228,8 +228,8 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
       <View style={styles.container}>
         <StatusBar
           barStyle="light-content"
-          backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
-        />
+          backgroundColor={darkMode ? "#1e40af" : "#2563eb"} />
+        
 
         <View style={styles.header}>
           <View style={styles.headerContent}>
@@ -248,16 +248,16 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
           <ActivityIndicator size="large" color="#2563eb" />
           <Text style={styles.loadingText}>Cargando información...</Text>
         </View>
-      </View>
-    );
+      </View>);
+
   }
 
   return (
     <View style={styles.container}>
       <StatusBar
         barStyle="light-content"
-        backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
-      />
+        backgroundColor={darkMode ? "#1e40af" : "#2563eb"} />
+      
 
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -276,24 +276,24 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+        showsVerticalScrollIndicator={false}>
+        
         <View style={styles.quickHelpCard}>
           <View style={styles.quickHelpGradient}>
             <View style={styles.quickHelpIconContainer}>
-              {empresaData?.logo ? (
-                <Image
-                  source={{ uri: obtenerUrlLogo(empresaData.logo) }}
-                  style={styles.empresaLogo}
-                  resizeMode="contain"
-                />
-              ) : (
-                <Ionicons
-                  name="help-circle"
-                  size={48}
-                  color={darkMode ? '#93c5fd' : '#2563eb'}
-                />
-              )}
+              {empresaData?.logo ?
+              <Image
+                source={{ uri: obtenerUrlLogo(empresaData.logo) }}
+                style={styles.empresaLogo}
+                resizeMode="contain" /> :
+
+
+              <Ionicons
+                name="help-circle"
+                size={48}
+                color={darkMode ? '#93c5fd' : '#2563eb'} />
+
+              }
             </View>
             <Text style={styles.quickHelpTitle}>
               ¿Necesitas ayuda inmediata?
@@ -304,27 +304,27 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
           </View>
         </View>
 
-        {contactOptions.length > 0 ? (
-          <View style={styles.section}>
+        {contactOptions.length > 0 ?
+        <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Ionicons
-                name="chatbubbles"
-                size={18}
-                color={darkMode ? '#3794fd' : '#6366f1'}
-              />
+              name="chatbubbles"
+              size={18}
+              color={darkMode ? '#3794fd' : '#6366f1'} />
+            
               <Text style={styles.sectionTitle}>Contáctanos</Text>
             </View>
 
-            {contactOptions.map((option, index) => (
-              <TouchableOpacity
-                key={option.id}
-                style={[
-                  styles.contactOption,
-                  index === contactOptions.length - 1 && styles.contactOptionLast
-                ]}
-                onPress={option.action}
-                activeOpacity={0.7}
-              >
+            {contactOptions.map((option, index) =>
+          <TouchableOpacity
+            key={option.id}
+            style={[
+            styles.contactOption,
+            index === contactOptions.length - 1 && styles.contactOptionLast]
+            }
+            onPress={option.action}
+            activeOpacity={0.7}>
+            
                 <View style={[styles.contactIconCircle, { backgroundColor: `${option.color}15` }]}>
                   <Ionicons name={option.icon} size={24} color={option.color} />
                 </View>
@@ -334,10 +334,10 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
               </TouchableOpacity>
-            ))}
-          </View>
-        ) : (
-          <View style={styles.noContactCard}>
+          )}
+          </View> :
+
+        <View style={styles.noContactCard}>
             <Ionicons name="information-circle" size={48} color="#f59e0b" />
             <Text style={styles.noContactTitle}>
               Información de contacto no disponible
@@ -346,74 +346,74 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
               Consulta las preguntas frecuentes o contacta a tu administrador.
             </Text>
           </View>
-        )}
+        }
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons
               name="help-buoy"
               size={18}
-              color={darkMode ? '#3794fd' : '#6366f1'}
-            />
+              color={darkMode ? '#3794fd' : '#6366f1'} />
+            
             <Text style={styles.sectionTitle}>Preguntas Frecuentes</Text>
           </View>
 
-          {faqs.map((faq) => (
-            <TouchableOpacity
-              key={faq.id}
-              style={[
-                styles.faqCard,
-                expandedFaq === faq.id && styles.faqCardExpanded
-              ]}
-              onPress={() => toggleFaq(faq.id)}
-              activeOpacity={0.7}
-            >
+          {faqs.map((faq) =>
+          <TouchableOpacity
+            key={faq.id}
+            style={[
+            styles.faqCard,
+            expandedFaq === faq.id && styles.faqCardExpanded]
+            }
+            onPress={() => toggleFaq(faq.id)}
+            activeOpacity={0.7}>
+            
               <View style={styles.faqHeader}>
                 <View style={styles.faqIconCircle}>
                   <Ionicons
-                    name={faq.icon}
-                    size={20}
-                    color={darkMode ? '#818cf8' : '#6366f1'}
-                  />
+                  name={faq.icon}
+                  size={20}
+                  color={darkMode ? '#818cf8' : '#6366f1'} />
+                
                 </View>
                 <Text style={styles.faqQuestion}>{faq.pregunta}</Text>
                 <Ionicons
-                  name={expandedFaq === faq.id ? "chevron-up" : "chevron-down"}
-                  size={20}
-                  color="#9ca3af"
-                />
+                name={expandedFaq === faq.id ? "chevron-up" : "chevron-down"}
+                size={20}
+                color="#9ca3af" />
+              
               </View>
 
-              {expandedFaq === faq.id && (
-                <View style={styles.faqAnswerContainer}>
+              {expandedFaq === faq.id &&
+            <View style={styles.faqAnswerContainer}>
                   <View style={styles.faqDivider} />
                   <Text style={styles.faqAnswer}>{faq.respuesta}</Text>
                 </View>
-              )}
+            }
             </TouchableOpacity>
-          ))}
+          )}
         </View>
         <View style={styles.bottomSpacer} />
       </ScrollView>
-    </View>
-  );
+    </View>);
+
 };
 
 const supportStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#f8fafc'
   },
   header: {
     backgroundColor: '#2563eb',
     paddingTop: Platform.OS === 'android' ? 16 : 50,
     paddingBottom: 20,
-    paddingHorizontal: 16,
+    paddingHorizontal: 16
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'space-between'
   },
   backButton: {
     width: 40,
@@ -421,40 +421,40 @@ const supportStyles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   headerTextContainer: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: 'center'
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#fff',
+    color: '#fff'
   },
   headerSubtitle: {
     fontSize: 14,
     color: '#e0f2fe',
-    marginTop: 2,
+    marginTop: 2
   },
   headerPlaceholder: {
-    width: 40,
+    width: 40
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: 40
   },
   loadingText: {
     marginTop: 16,
     fontSize: 14,
     color: '#6b7280',
-    textAlign: 'center',
+    textAlign: 'center'
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 20
   },
   quickHelpCard: {
     borderRadius: 20,
@@ -465,11 +465,11 @@ const supportStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 4
   },
   quickHelpGradient: {
     padding: 24,
-    alignItems: 'center',
+    alignItems: 'center'
   },
   quickHelpIconContainer: {
     width: 80,
@@ -478,24 +478,24 @@ const supportStyles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 16
   },
   empresaLogo: {
     width: 60,
-    height: 60,
+    height: 60
   },
   quickHelpTitle: {
     fontSize: 20,
     fontWeight: '700',
     color: '#1f2937',
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: 'center'
   },
   quickHelpText: {
     fontSize: 14,
     color: '#4b5563',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 20
   },
   section: {
     backgroundColor: '#fff',
@@ -506,28 +506,28 @@ const supportStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
-    elevation: 2,
+    elevation: 2
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 18,
-    gap: 8,
+    gap: 8
   },
   sectionTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1f2937',
+    color: '#1f2937'
   },
   contactOption: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: '#f3f4f6'
   },
   contactOptionLast: {
-    borderBottomWidth: 0,
+    borderBottomWidth: 0
   },
   contactIconCircle: {
     width: 48,
@@ -535,20 +535,20 @@ const supportStyles = StyleSheet.create({
     borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 14
   },
   contactTextContainer: {
-    flex: 1,
+    flex: 1
   },
   contactTitle: {
     fontSize: 15,
     fontWeight: '600',
     color: '#1f2937',
-    marginBottom: 3,
+    marginBottom: 3
   },
   contactSubtitle: {
     fontSize: 13,
-    color: '#6b7280',
+    color: '#6b7280'
   },
   noContactCard: {
     backgroundColor: '#fffbeb',
@@ -557,7 +557,7 @@ const supportStyles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#fef3c7',
+    borderColor: '#fef3c7'
   },
   noContactTitle: {
     fontSize: 16,
@@ -565,13 +565,13 @@ const supportStyles = StyleSheet.create({
     color: '#92400e',
     marginTop: 12,
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: 'center'
   },
   noContactText: {
     fontSize: 14,
     color: '#78350f',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 20
   },
   faqCard: {
     backgroundColor: '#f9fafb',
@@ -579,15 +579,15 @@ const supportStyles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#f3f4f6',
+    borderColor: '#f3f4f6'
   },
   faqCardExpanded: {
     backgroundColor: '#eff6ff',
-    borderColor: '#dbeafe',
+    borderColor: '#dbeafe'
   },
   faqHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   faqIconCircle: {
     width: 36,
@@ -596,56 +596,56 @@ const supportStyles = StyleSheet.create({
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 12
   },
   faqQuestion: {
     flex: 1,
     fontSize: 15,
     fontWeight: '600',
     color: '#1f2937',
-    lineHeight: 20,
+    lineHeight: 20
   },
   faqAnswerContainer: {
-    marginTop: 12,
+    marginTop: 12
   },
   faqDivider: {
     height: 1,
     backgroundColor: '#e5e7eb',
-    marginBottom: 12,
+    marginBottom: 12
   },
   faqAnswer: {
     fontSize: 14,
     color: '#4b5563',
     lineHeight: 20,
-    paddingLeft: 48,
+    paddingLeft: 48
   },
   infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 12
   },
   infoLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 10
   },
   infoLabel: {
     fontSize: 14,
     color: '#6b7280',
-    fontWeight: '500',
+    fontWeight: '500'
   },
   infoValue: {
     fontSize: 14,
     fontWeight: '700',
     color: '#1f2937',
     maxWidth: '50%',
-    textAlign: 'right',
+    textAlign: 'right'
   },
   infoDivider: {
     height: 1,
     backgroundColor: '#f3f4f6',
-    marginVertical: 4,
+    marginVertical: 4
   },
   statusBadge: {
     flexDirection: 'row',
@@ -654,121 +654,121 @@ const supportStyles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
-    gap: 6,
+    gap: 6
   },
   statusDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#10b981',
+    backgroundColor: '#10b981'
   },
   statusText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#059669',
+    color: '#059669'
   },
   bottomSpacer: {
-    height: 100,
-  },
+    height: 100
+  }
 });
 
 const supportStylesDark = StyleSheet.create({
   ...supportStyles,
   container: {
     ...supportStyles.container,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#0f172a'
   },
   header: {
     ...supportStyles.header,
-    backgroundColor: '#1e40af',
+    backgroundColor: '#1e40af'
   },
   loadingText: {
     ...supportStyles.loadingText,
-    color: '#9ca3af',
+    color: '#9ca3af'
   },
   quickHelpCard: {
     ...supportStyles.quickHelpCard,
-    backgroundColor: '#1e3a8a',
+    backgroundColor: '#1e3a8a'
   },
   quickHelpTitle: {
     ...supportStyles.quickHelpTitle,
-    color: '#f9fafb',
+    color: '#f9fafb'
   },
   quickHelpText: {
     ...supportStyles.quickHelpText,
-    color: '#d1d5db',
+    color: '#d1d5db'
   },
   section: {
     ...supportStyles.section,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#1e293b'
   },
   sectionTitle: {
     ...supportStyles.sectionTitle,
-    color: '#f9fafb',
+    color: '#f9fafb'
   },
   contactOption: {
     ...supportStyles.contactOption,
-    borderBottomColor: '#374151',
+    borderBottomColor: '#374151'
   },
   contactTitle: {
     ...supportStyles.contactTitle,
-    color: '#f9fafb',
+    color: '#f9fafb'
   },
   contactSubtitle: {
     ...supportStyles.contactSubtitle,
-    color: '#9ca3af',
+    color: '#9ca3af'
   },
   noContactCard: {
     ...supportStyles.noContactCard,
     backgroundColor: '#422006',
-    borderColor: '#713f12',
+    borderColor: '#713f12'
   },
   noContactTitle: {
     ...supportStyles.noContactTitle,
-    color: '#fde047',
+    color: '#fde047'
   },
   noContactText: {
     ...supportStyles.noContactText,
-    color: '#fef08a',
+    color: '#fef08a'
   },
   faqCard: {
     ...supportStyles.faqCard,
     backgroundColor: '#334155',
-    borderColor: '#475569',
+    borderColor: '#475569'
   },
   faqCardExpanded: {
     ...supportStyles.faqCardExpanded,
     backgroundColor: '#1e3a8a',
-    borderColor: '#2563eb',
+    borderColor: '#2563eb'
   },
   faqIconCircle: {
     ...supportStyles.faqIconCircle,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#1e293b'
   },
   faqQuestion: {
     ...supportStyles.faqQuestion,
-    color: '#f9fafb',
+    color: '#f9fafb'
   },
   faqDivider: {
     ...supportStyles.faqDivider,
-    backgroundColor: '#475569',
+    backgroundColor: '#475569'
   },
   faqAnswer: {
     ...supportStyles.faqAnswer,
-    color: '#d1d5db',
+    color: '#d1d5db'
   },
   infoValue: {
     ...supportStyles.infoValue,
-    color: '#f9fafb',
+    color: '#f9fafb'
   },
   infoLabel: {
     ...supportStyles.infoLabel,
-    color: '#9ca3af',
+    color: '#9ca3af'
   },
   infoDivider: {
     ...supportStyles.infoDivider,
-    backgroundColor: '#374151',
-  },
+    backgroundColor: '#374151'
+  }
 });
 
 export default SupportScreen;

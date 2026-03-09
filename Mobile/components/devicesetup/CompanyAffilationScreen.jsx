@@ -11,8 +11,8 @@ import {
   Platform,
   Alert,
   Keyboard,
-  TouchableWithoutFeedback
-} from 'react-native';
+  TouchableWithoutFeedback } from
+'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { verificarEmpresa } from '../../services/solicitudMovilService';
@@ -45,18 +45,18 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
     setIsLoading(true);
 
     try {
- console.log(' Verificando empresa:', trimmedCode); 
+      (function () {})(' Verificando empresa:', trimmedCode);
 
       let currentIp = '127.0.0.1';
       try {
         currentIp = await Network.getIpAddressAsync();
       } catch (e) {
-        console.warn('No se pudo obtener la IP local', e);
+        (function () {})('No se pudo obtener la IP local', e);
       }
 
       const empresaInfo = await verificarEmpresa(trimmedCode, currentIp);
 
- console.log(' Resultado verificación:', { 
+      (function () {})(' Resultado verificación:', {
         ...empresaInfo,
         ipDetectada: currentIp
       });
@@ -80,7 +80,7 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
       }
 
       if (empresaInfo.fueraDeRed) {
- console.warn('️ Dispositivo bloqueado: IP fuera de red permitida', { 
+        (function () {})('️ Dispositivo bloqueado: IP fuera de red permitida', {
           ipLocal: currentIp,
           alertasRed: empresaInfo.alertasRed
         });
@@ -93,9 +93,9 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
         return;
       }
 
- console.log(' Empresa y red válidas, continuando...'); 
+      (function () {})(' Empresa y red válidas, continuando...');
 
- // Todo bien, continuar al siguiente paso con una animación de verificación 
+
       setIsVerified(true);
       setVerifiedCompanyName(empresaInfo.nombre);
       setIsLoading(false);
@@ -109,7 +109,7 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
       }, 1500);
 
     } catch (error) {
- console.error(' Error al verificar empresa:', error); 
+      (function () {})(' Error al verificar empresa:', error);
 
       Alert.alert(
         'Error de Conexión',
@@ -123,12 +123,12 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
 
-      {/* Header Azul con Stepper */}
+      {}
       <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? insets.top + 16 : insets.top + 8 }]}>
         <Text style={styles.headerTitle}>{affiliation.title}</Text>
         <Text style={styles.headerSubtitle}>{affiliation.subtitle}</Text>
 
-        {/* Stepper */}
+        {}
         <View style={styles.stepperContainer}>
           <View style={styles.stepActive}>
             <Text style={styles.stepActiveText}>1</Text>
@@ -144,19 +144,19 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
         </View>
       </View>
 
-      {/* Content — Static, centered */}
+      {}
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <View style={styles.content}>
-            {/* Icon */}
+            {}
             <View style={styles.iconContainer}>
               <Ionicons name={affiliation.icon} size={44} color="#2563eb" />
             </View>
 
-            {/* Input Card */}
+            {}
             <View style={styles.inputCard}>
               <Text style={styles.inputLabel}>Identificador de la Empresa</Text>
               <Text style={styles.formatHint}>Ingresa el código único proporcionado por tu empresa.</Text>
@@ -170,17 +170,17 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
                   setIsVerified(false);
                 }}
                 autoCapitalize="none"
-                editable={!isLoading && !isVerified}
-              />
-              {isVerified && (
-                <View style={styles.verifiedContainer}>
+                editable={!isLoading && !isVerified} />
+              
+              {isVerified &&
+              <View style={styles.verifiedContainer}>
                   <Ionicons name="checkmark-circle" size={20} color="#10b981" />
                   <Text style={styles.verifiedText}>{verifiedCompanyName}</Text>
                 </View>
-              )}
+              }
             </View>
 
-            {/* Help Text */}
+            {}
             <View style={styles.helpContainer}>
               <Text style={styles.helpText}>{affiliation.helpText}</Text>
               <TouchableOpacity disabled={isLoading}>
@@ -191,15 +191,15 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
 
-      {/* Footer */}
+      {}
       <View style={[styles.footer, { paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 20) : insets.bottom + 12 }]}>
         <View style={styles.buttonRow}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={onPrevious}
             activeOpacity={0.8}
-            disabled={isLoading}
-          >
+            disabled={isLoading}>
+            
             <Ionicons name="arrow-back" size={18} color="#6b7280" />
             <Text style={styles.backButtonText}>Anterior</Text>
           </TouchableOpacity>
@@ -208,57 +208,57 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
             style={[styles.nextButton, (!companyCode || isLoading || isVerified) && styles.nextButtonDisabled]}
             onPress={handleNext}
             disabled={!companyCode || isLoading || isVerified}
-            activeOpacity={0.8}
-          >
-            {isLoading ? (
-              <>
+            activeOpacity={0.8}>
+            
+            {isLoading ?
+            <>
                 <ActivityIndicator color="#fff" size="small" />
                 <Text style={[styles.nextButtonText, { marginLeft: 8 }]}>Verificando...</Text>
-              </>
-            ) : isVerified ? (
-              <>
+              </> :
+            isVerified ?
+            <>
                 <Text style={styles.nextButtonText}>Ingresando</Text>
                 <Ionicons name="checkmark" size={18} color="#fff" />
-              </>
-            ) : (
-              <>
+              </> :
+
+            <>
                 <Text style={styles.nextButtonText}>Verificar</Text>
                 <Ionicons name="arrow-forward" size={18} color="#fff" />
               </>
-            )}
+            }
           </TouchableOpacity>
         </View>
       </View>
-    </View>
-  );
+    </View>);
+
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#f9fafb'
   },
   header: {
     backgroundColor: '#2563eb',
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingBottom: 16
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 2,
+    marginBottom: 2
   },
   headerSubtitle: {
     fontSize: 12,
     color: '#dbeafe',
-    marginBottom: 14,
+    marginBottom: 14
   },
   stepperContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
+    paddingVertical: 4
   },
   stepComplete: {
     width: 28,
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: '#10b981',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   stepActive: {
     width: 28,
@@ -274,12 +274,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: '#ffffff',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   stepActiveText: {
     color: '#2563eb',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: 'bold'
   },
   stepInactive: {
     width: 28,
@@ -287,12 +287,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   stepInactiveText: {
     color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: 'bold'
   },
   stepLine: {
     flex: 1,
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#10b981',
     marginHorizontal: 8,
     maxWidth: 80,
-    borderRadius: 2,
+    borderRadius: 2
   },
   stepLineInactive: {
     flex: 1,
@@ -308,16 +308,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
     marginHorizontal: 8,
     maxWidth: 80,
-    borderRadius: 2,
+    borderRadius: 2
   },
   keyboardAvoid: {
-    flex: 1,
+    flex: 1
   },
   content: {
     flex: 1,
     padding: 20,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   iconContainer: {
     width: 76,
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 28,
     borderWidth: 1,
-    borderColor: '#dbeafe',
+    borderColor: '#dbeafe'
   },
   inputCard: {
     width: '100%',
@@ -342,21 +342,21 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
     borderWidth: 1,
-    borderColor: '#f0f0f4',
+    borderColor: '#f0f0f4'
   },
   inputLabel: {
     fontSize: 15,
     fontWeight: '600',
     color: '#374151',
     marginBottom: 6,
-    textAlign: 'center',
+    textAlign: 'center'
   },
   formatHint: {
     fontSize: 12,
     color: '#6b7280',
     textAlign: 'center',
     marginBottom: 14,
-    fontStyle: 'italic',
+    fontStyle: 'italic'
   },
   input: {
     backgroundColor: '#f9fafb',
@@ -367,48 +367,48 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
-    letterSpacing: 1, // Reducido para que quepan identificadores largos (antes 4)
-    color: '#1f2937',
+    letterSpacing: 1,
+    color: '#1f2937'
   },
   inputVerified: {
     borderColor: '#10b981',
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#f0fdf4'
   },
   verifiedContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 12,
-    gap: 6,
+    gap: 6
   },
   verifiedText: {
     color: '#10b981',
     fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: 14
   },
   helpContainer: {
-    alignItems: 'center',
+    alignItems: 'center'
   },
   helpText: {
     fontSize: 12,
     color: '#6b7280',
-    marginBottom: 4,
+    marginBottom: 4
   },
   supportText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#2563eb',
+    color: '#2563eb'
   },
   footer: {
     backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingTop: 14,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: '#e5e7eb'
   },
   buttonRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 12
   },
   backButton: {
     flex: 1,
@@ -420,12 +420,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 6
   },
   backButtonText: {
     color: '#6b7280',
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '600'
   },
   nextButton: {
     flex: 2,
@@ -440,16 +440,16 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
     shadowRadius: 6,
-    elevation: 4,
+    elevation: 4
   },
   nextButtonDisabled: {
     backgroundColor: '#9ca3af',
     shadowOpacity: 0,
-    elevation: 0,
+    elevation: 0
   },
   nextButtonText: {
     color: '#fff',
     fontSize: 14,
-    fontWeight: 'bold',
-  },
+    fontWeight: 'bold'
+  }
 });

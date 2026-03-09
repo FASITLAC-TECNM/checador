@@ -45,11 +45,11 @@ export const OnboardingNavigator = ({ onComplete, userData, onLogout }) => {
 
   const checkExistingDevice = async () => {
     try {
-      // Verificar si ya existe una solicitud previa de este dispositivo
+
       const [solicitudId, tokenSolicitud] = await Promise.all([
-        AsyncStorage.getItem(STORAGE_KEYS.SOLICITUD_ID),
-        AsyncStorage.getItem(STORAGE_KEYS.TOKEN_SOLICITUD)
-      ]);
+      AsyncStorage.getItem(STORAGE_KEYS.SOLICITUD_ID),
+      AsyncStorage.getItem(STORAGE_KEYS.TOKEN_SOLICITUD)]
+      );
 
       if (solicitudId && tokenSolicitud) {
 
@@ -58,7 +58,7 @@ export const OnboardingNavigator = ({ onComplete, userData, onLogout }) => {
           const estadoLower = response.estado?.toLowerCase();
 
           if (estadoLower === 'aceptado') {
-            // Ya fue aprobado, marcar como completado
+
             await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETED, 'true');
 
             const savedData = {
@@ -74,32 +74,32 @@ export const OnboardingNavigator = ({ onComplete, userData, onLogout }) => {
             onComplete(savedData);
             return;
           } else if (estadoLower === 'pendiente') {
-            // Continuar esperando aprobación
-            setOnboardingData(prev => ({
+
+            setOnboardingData((prev) => ({
               ...prev,
               tokenSolicitud,
               idSolicitud: solicitudId
             }));
-            setCurrentStep(3); // Ir a PendingApprovalScreen
+            setCurrentStep(3);
             setIsLoading(false);
             return;
           } else if (estadoLower === 'rechazado') {
-            // Fue rechazada
-            setOnboardingData(prev => ({
+
+            setOnboardingData((prev) => ({
               ...prev,
               motivoRechazo: response.observaciones || 'No especificado'
             }));
-            setCurrentStep(5); // Ir a RejectedScreen
+            setCurrentStep(5);
             setIsLoading(false);
             return;
           }
         } catch (error) {
-          // Si hay error, limpiar y empezar de nuevo
+
           await clearDeviceData();
         }
       }
 
-      // No hay solicitud anterior o fue eliminada, empezar desde el inicio
+
       setIsLoading(false);
 
     } catch (error) {
@@ -110,16 +110,16 @@ export const OnboardingNavigator = ({ onComplete, userData, onLogout }) => {
   const saveDeviceData = async (data) => {
     try {
       await Promise.all([
-        AsyncStorage.setItem(STORAGE_KEYS.DEVICE_ID, data.idDispositivo?.toString() || ''),
-        AsyncStorage.setItem(STORAGE_KEYS.SOLICITUD_ID, data.idSolicitud?.toString() || ''),
-        AsyncStorage.setItem(STORAGE_KEYS.TOKEN_SOLICITUD, data.tokenSolicitud || ''),
-        AsyncStorage.setItem(STORAGE_KEYS.USER_EMAIL, data.email || ''),
-        AsyncStorage.setItem(STORAGE_KEYS.EMPRESA_ID, data.empresaId || ''),
-        AsyncStorage.setItem(STORAGE_KEYS.EMPRESA_NOMBRE, data.empresaNombre || ''),
-        AsyncStorage.setItem(STORAGE_KEYS.DEVICE_INFO, JSON.stringify(data.deviceInfo || {})),
-        AsyncStorage.setItem(STORAGE_KEYS.APPROVAL_DATE, data.fechaAprobacion || ''),
-        AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETED, 'true')
-      ]);
+      AsyncStorage.setItem(STORAGE_KEYS.DEVICE_ID, data.idDispositivo?.toString() || ''),
+      AsyncStorage.setItem(STORAGE_KEYS.SOLICITUD_ID, data.idSolicitud?.toString() || ''),
+      AsyncStorage.setItem(STORAGE_KEYS.TOKEN_SOLICITUD, data.tokenSolicitud || ''),
+      AsyncStorage.setItem(STORAGE_KEYS.USER_EMAIL, data.email || ''),
+      AsyncStorage.setItem(STORAGE_KEYS.EMPRESA_ID, data.empresaId || ''),
+      AsyncStorage.setItem(STORAGE_KEYS.EMPRESA_NOMBRE, data.empresaNombre || ''),
+      AsyncStorage.setItem(STORAGE_KEYS.DEVICE_INFO, JSON.stringify(data.deviceInfo || {})),
+      AsyncStorage.setItem(STORAGE_KEYS.APPROVAL_DATE, data.fechaAprobacion || ''),
+      AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETED, 'true')]
+      );
     } catch (error) {
       throw error;
     }
@@ -128,27 +128,27 @@ export const OnboardingNavigator = ({ onComplete, userData, onLogout }) => {
   const clearDeviceData = async () => {
     try {
       await Promise.all([
-        AsyncStorage.removeItem(STORAGE_KEYS.DEVICE_ID),
-        AsyncStorage.removeItem(STORAGE_KEYS.SOLICITUD_ID),
-        AsyncStorage.removeItem(STORAGE_KEYS.TOKEN_SOLICITUD),
-        AsyncStorage.removeItem(STORAGE_KEYS.USER_EMAIL),
-        AsyncStorage.removeItem(STORAGE_KEYS.EMPRESA_ID),
-        AsyncStorage.removeItem(STORAGE_KEYS.EMPRESA_NOMBRE),
-        AsyncStorage.removeItem(STORAGE_KEYS.DEVICE_INFO),
-        AsyncStorage.removeItem(STORAGE_KEYS.APPROVAL_DATE),
-        AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED)
-      ]);
+      AsyncStorage.removeItem(STORAGE_KEYS.DEVICE_ID),
+      AsyncStorage.removeItem(STORAGE_KEYS.SOLICITUD_ID),
+      AsyncStorage.removeItem(STORAGE_KEYS.TOKEN_SOLICITUD),
+      AsyncStorage.removeItem(STORAGE_KEYS.USER_EMAIL),
+      AsyncStorage.removeItem(STORAGE_KEYS.EMPRESA_ID),
+      AsyncStorage.removeItem(STORAGE_KEYS.EMPRESA_NOMBRE),
+      AsyncStorage.removeItem(STORAGE_KEYS.DEVICE_INFO),
+      AsyncStorage.removeItem(STORAGE_KEYS.APPROVAL_DATE),
+      AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED)]
+      );
     } catch (error) {
     }
   };
 
   const handleNext = (data) => {
-    setOnboardingData(prev => ({ ...prev, ...data }));
-    setCurrentStep(prev => prev + 1);
+    setOnboardingData((prev) => ({ ...prev, ...data }));
+    setCurrentStep((prev) => prev + 1);
   };
 
   const handlePrevious = () => {
-    setCurrentStep(prev => prev - 1);
+    setCurrentStep((prev) => prev - 1);
   };
 
   const handleApproved = async (approvalData) => {
@@ -174,10 +174,10 @@ export const OnboardingNavigator = ({ onComplete, userData, onLogout }) => {
   };
 
   const handleRetry = async () => {
-    // Limpiar la solicitud rechazada y empezar de nuevo
+
     await clearDeviceData();
 
-    setOnboardingData(prev => ({
+    setOnboardingData((prev) => ({
       ...prev,
       tokenSolicitud: '',
       idSolicitud: null,
@@ -196,9 +196,9 @@ export const OnboardingNavigator = ({ onComplete, userData, onLogout }) => {
         'Error',
         'No se pudieron guardar los datos. Por favor intenta nuevamente.',
         [
-          { text: 'Reintentar', onPress: handleComplete },
-          { text: 'Cancelar', style: 'cancel' }
-        ]
+        { text: 'Reintentar', onPress: handleComplete },
+        { text: 'Cancelar', style: 'cancel' }]
+
       );
     }
   };
@@ -209,94 +209,94 @@ export const OnboardingNavigator = ({ onComplete, userData, onLogout }) => {
         <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
         <ActivityIndicator size="large" color="#2563eb" />
         <Text style={styles.loadingText}>Verificando estado del dispositivo...</Text>
-      </SafeAreaView>
-    );
+      </SafeAreaView>);
+
   }
 
   return (
     <SafeAreaProvider>
       <View style={styles.container}>
-        {/* Paso 0: Bienvenida */}
-        {currentStep === 0 && (
-          <WelcomeScreen
-            onNext={() => setCurrentStep(1)}
-            userName={userData?.nombre}
-          />
-        )}
+        {}
+        {currentStep === 0 &&
+        <WelcomeScreen
+          onNext={() => setCurrentStep(1)}
+          userName={userData?.nombre} />
 
-        {/* Paso 1: Afiliación a Empresa */}
-        {currentStep === 1 && (
-          <CompanyAffiliationScreen
-            onNext={handleNext}
-            onPrevious={() => setCurrentStep(0)}
-            initialEmpresaId={onboardingData.empresaId}
-          />
-        )}
+        }
 
-        {/* Paso 2: Configuración de Dispositivo */}
-        {currentStep === 2 && (
-          <DeviceConfigScreen
-            empresaId={onboardingData.empresaId}
-            empresaNombre={onboardingData.empresaNombre}
-            onNext={handleNext}
-            onPrevious={() => setCurrentStep(1)}
-            initialEmail={onboardingData.email}
-            userData={userData}
-          />
-        )}
+        {}
+        {currentStep === 1 &&
+        <CompanyAffiliationScreen
+          onNext={handleNext}
+          onPrevious={() => setCurrentStep(0)}
+          initialEmpresaId={onboardingData.empresaId} />
 
-        {/* Paso 3: Esperando Aprobación */}
-        {currentStep === 3 && (
-          <PendingApprovalScreen
-            tokenSolicitud={onboardingData.tokenSolicitud}
-            idSolicitud={onboardingData.idSolicitud}
-            onApproved={handleApproved}
-            onRejected={handleRejected}
-          />
-        )}
+        }
 
-        {/* Paso 4: Aprobado */}
-        {currentStep === 4 && (
-          <ApprovedScreen
-            email={onboardingData.email}
-            empresaNombre={onboardingData.empresaNombre}
-            deviceInfo={onboardingData.deviceInfo}
-            onComplete={handleComplete}
-          />
-        )}
+        {}
+        {currentStep === 2 &&
+        <DeviceConfigScreen
+          empresaId={onboardingData.empresaId}
+          empresaNombre={onboardingData.empresaNombre}
+          onNext={handleNext}
+          onPrevious={() => setCurrentStep(1)}
+          initialEmail={onboardingData.email}
+          userData={userData} />
 
-        {/* Paso 5: Rechazado */}
-        {currentStep === 5 && (
-          <RejectedScreen
-            motivoRechazo={onboardingData.motivoRechazo}
-            onRetry={handleRetry}
-            onCancel={async () => {
-              // Limpiar datos y devolver a Login directament (sin alert)
-              await clearDeviceData();
-              await AsyncStorage.removeItem('userToken');
-              await AsyncStorage.removeItem('userData');
-              if (onLogout) onLogout();
-            }}
-          />
-        )}
+        }
+
+        {}
+        {currentStep === 3 &&
+        <PendingApprovalScreen
+          tokenSolicitud={onboardingData.tokenSolicitud}
+          idSolicitud={onboardingData.idSolicitud}
+          onApproved={handleApproved}
+          onRejected={handleRejected} />
+
+        }
+
+        {}
+        {currentStep === 4 &&
+        <ApprovedScreen
+          email={onboardingData.email}
+          empresaNombre={onboardingData.empresaNombre}
+          deviceInfo={onboardingData.deviceInfo}
+          onComplete={handleComplete} />
+
+        }
+
+        {}
+        {currentStep === 5 &&
+        <RejectedScreen
+          motivoRechazo={onboardingData.motivoRechazo}
+          onRetry={handleRetry}
+          onCancel={async () => {
+
+            await clearDeviceData();
+            await AsyncStorage.removeItem('userToken');
+            await AsyncStorage.removeItem('userData');
+            if (onLogout) onLogout();
+          }} />
+
+        }
       </View>
-    </SafeAreaProvider>
-  );
+    </SafeAreaProvider>);
+
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#f9fafb'
   },
   loadingContainer: {
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'center'
   },
   loadingText: {
     marginTop: 16,
     fontSize: 14,
     color: '#64748b',
-    fontWeight: '500',
-  },
+    fontWeight: '500'
+  }
 });

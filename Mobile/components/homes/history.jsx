@@ -8,8 +8,8 @@ import {
   StatusBar,
   ActivityIndicator,
   RefreshControl,
-  Platform,
-} from 'react-native';
+  Platform } from
+'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getAsistenciasEmpleado } from '../../services/asistenciasService';
 import sqliteManager from '../../services/offline/sqliteManager.mjs';
@@ -25,17 +25,17 @@ export const HistoryScreen = ({ darkMode, userData }) => {
     puntuales: 0,
     retardos: 0,
     faltas: 0,
-    total: 0,
+    total: 0
   });
 
   const monthNames = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-  ];
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
   const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
   const styles = darkMode ? historyStylesDark : historyStyles;
 
-  // ── Cargar asistencias del mes ───────────────────────────────────────────
+
   const cargarAsistencias = useCallback(async () => {
     if (!userData?.empleado_id || !userData?.token) {
       setLoading(false);
@@ -49,7 +49,7 @@ export const HistoryScreen = ({ darkMode, userData }) => {
       const ultimoDia = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
       const filtros = {
         fecha_inicio: primerDia.toISOString().split('T')[0],
-        fecha_fin: ultimoDia.toISOString().split('T')[0],
+        fecha_fin: ultimoDia.toISOString().split('T')[0]
       };
 
       let cargoOnline = false;
@@ -63,14 +63,14 @@ export const HistoryScreen = ({ darkMode, userData }) => {
           setAsistencias(ordenadas);
           calcularEstadisticas(ordenadas);
           cargoOnline = true;
-          await sqliteManager.upsertAsistenciasMes(userData.empleado_id, mesKey, response.data).catch(() => { });
+          await sqliteManager.upsertAsistenciasMes(userData.empleado_id, mesKey, response.data).catch(() => {});
         } else {
           setAsistencias([]);
           setEstadisticas({ puntuales: 0, retardos: 0, faltas: 0, total: 0 });
           cargoOnline = true;
         }
       } catch (_) {
-        // fallback offline
+
       }
 
       if (!cargoOnline) {
@@ -93,21 +93,21 @@ export const HistoryScreen = ({ darkMode, userData }) => {
     }
   }, [userData, currentMonth]);
 
-  // ── Estadísticas dinámicas de asistencias para N-Tolerancias ─
+
   const calcularEstadisticas = (data) => {
-    let puntuales = 0, retardos = 0, faltas = 0;
-    data.forEach(r => {
+    let puntuales = 0,retardos = 0,faltas = 0;
+    data.forEach((r) => {
       if (r.tipo !== 'entrada') return;
-      if (r.estado === 'puntual') puntuales++;
-      else if (r.estado.startsWith('retardo')) retardos++;
-      else if (r.estado.startsWith('falta')) faltas++;
+      if (r.estado === 'puntual') puntuales++;else
+      if (r.estado.startsWith('retardo')) retardos++;else
+      if (r.estado.startsWith('falta')) faltas++;
     });
     setEstadisticas({ puntuales, retardos, faltas, total: puntuales + retardos + faltas });
   };
 
-  useEffect(() => { cargarAsistencias(); }, [cargarAsistencias]);
+  useEffect(() => {cargarAsistencias();}, [cargarAsistencias]);
 
-  const onRefresh = () => { setRefreshing(true); cargarAsistencias(); };
+  const onRefresh = () => {setRefreshing(true);cargarAsistencias();};
 
   const cambiarMes = (dir) => {
     const nuevo = new Date(currentMonth);
@@ -116,7 +116,7 @@ export const HistoryScreen = ({ darkMode, userData }) => {
     setSelectedDate(null);
   };
 
-  // ── Calendario ────────────────────────────────────────────────────────────
+
   const diasCalendario = useMemo(() => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
@@ -128,61 +128,61 @@ export const HistoryScreen = ({ darkMode, userData }) => {
     return dias;
   }, [currentMonth]);
 
-  // Estado por día para el calendario (prioridad: falta > retardo > puntual)
+
   const estadosPorDia = useMemo(() => {
     const mapa = {};
-    asistencias.forEach(r => {
+    asistencias.forEach((r) => {
       if (r.tipo !== 'entrada') return;
       const fecha = new Date(r.fecha_registro);
       if (fecha.getMonth() !== currentMonth.getMonth() || fecha.getFullYear() !== currentMonth.getFullYear()) return;
       const dia = fecha.getDate();
       const esFalta = r.estado === 'falta' || r.estado === 'falta_por_retardo';
       const esRetardo = r.estado === 'retardo_a' || r.estado === 'retardo_b' || r.estado === 'retardo';
-      if (esFalta) mapa[dia] = 'falta';
-      else if (esRetardo && mapa[dia] !== 'falta') mapa[dia] = 'retardo';
-      else if (r.estado === 'puntual' && !mapa[dia]) mapa[dia] = 'puntual';
+      if (esFalta) mapa[dia] = 'falta';else
+      if (esRetardo && mapa[dia] !== 'falta') mapa[dia] = 'retardo';else
+      if (r.estado === 'puntual' && !mapa[dia]) mapa[dia] = 'puntual';
     });
     return mapa;
   }, [asistencias, currentMonth]);
 
   const seleccionarDia = useCallback((dia) => {
     if (!dia) return;
-    setSelectedDate(prev => {
+    setSelectedDate((prev) => {
       const fecha = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia);
       if (prev && prev.toDateString() === fecha.toDateString()) return null;
       return fecha;
     });
   }, [currentMonth]);
 
-  // ── Agrupar registros por día en secciones ────────────────────────────────
-  const sections = useMemo(() => {
-    const filtrados = selectedDate
-      ? asistencias.filter(r => new Date(r.fecha_registro).toDateString() === selectedDate.toDateString())
-      : asistencias;
 
-    // Agrupar por fecha local (YYYY-MM-DD)
+  const sections = useMemo(() => {
+    const filtrados = selectedDate ?
+    asistencias.filter((r) => new Date(r.fecha_registro).toDateString() === selectedDate.toDateString()) :
+    asistencias;
+
+
     const grupos = {};
-    filtrados.forEach(r => {
+    filtrados.forEach((r) => {
       const fecha = new Date(r.fecha_registro);
       const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
       if (!grupos[key]) grupos[key] = { key, fecha, registros: [] };
       grupos[key].registros.push(r);
     });
 
-    // Ordenar secciones DESC por fecha
-    return Object.values(grupos)
-      .sort((a, b) => b.fecha - a.fecha)
-      .map(g => ({ title: g.key, fecha: g.fecha, data: g.registros }));
+
+    return Object.values(grupos).
+    sort((a, b) => b.fecha - a.fecha).
+    map((g) => ({ title: g.key, fecha: g.fecha, data: g.registros }));
   }, [asistencias, selectedDate]);
 
-  // ── Helpers de formato ────────────────────────────────────────────────────
+
   const formatearHora = useCallback((fechaStr) => {
     return new Date(fechaStr).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
   }, []);
 
   const formatearTituloDia = useCallback((fecha) => {
     const hoy = new Date();
-    const ayer = new Date(); ayer.setDate(hoy.getDate() - 1);
+    const ayer = new Date();ayer.setDate(hoy.getDate() - 1);
     if (fecha.toDateString() === hoy.toDateString()) return 'Hoy';
     if (fecha.toDateString() === ayer.toDateString()) return 'Ayer';
     const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -191,9 +191,9 @@ export const HistoryScreen = ({ darkMode, userData }) => {
 
   const obtenerColorEstado = useCallback((estado) => {
     switch (estado) {
-      case 'puntual': return '#10b981';
-      case 'salida_puntual': return '#2563eb';
-      case 'salida_temprano': return '#7c3aed';
+      case 'puntual':return '#10b981';
+      case 'salida_puntual':return '#2563eb';
+      case 'salida_temprano':return '#7c3aed';
     }
     if (estado?.startsWith('retardo')) return '#f59e0b';
     if (estado?.startsWith('falta')) return '#ef4444';
@@ -215,7 +215,7 @@ export const HistoryScreen = ({ darkMode, userData }) => {
 
   const hoyStr = useMemo(() => new Date().toDateString(), []);
 
-  // ── Render registro ───────────────────────────────────────────────────────
+
   const renderRecord = useCallback(({ item: r }) => {
     const color = r.tipo === 'entrada' ? obtenerColorEstado(r.estado) : '#2563eb';
     return (
@@ -224,222 +224,222 @@ export const HistoryScreen = ({ darkMode, userData }) => {
           <Ionicons
             name={r.tipo === 'entrada' ? 'log-in-outline' : 'log-out-outline'}
             size={20}
-            color={color}
-          />
+            color={color} />
+          
         </View>
 
         <View style={styles.recordContent}>
           <Text style={styles.recordType}>
             {r.tipo === 'entrada' ? 'Entrada' : 'Salida'}
           </Text>
-          {r.tipo === 'entrada' && r.estado && (
-            <Text style={[styles.recordEstado, { color }]}>
+          {r.tipo === 'entrada' && r.estado &&
+          <Text style={[styles.recordEstado, { color }]}>
               {obtenerLabelEstado(r.estado)}
             </Text>
-          )}
+          }
         </View>
 
         <Text style={styles.recordHora}>{formatearHora(r.fecha_registro)}</Text>
-      </View>
-    );
+      </View>);
+
   }, [styles, formatearHora, obtenerColorEstado, obtenerLabelEstado]);
 
-  // ── Render encabezado de sección (día) ───────────────────────────────────
+
   const renderSectionHeader = useCallback(({ section }) => {
-    const entradas = section.data.filter(r => r.tipo === 'entrada');
-    const tieneProblema = entradas.some(r =>
-      r.estado === 'falta' || r.estado === 'falta_por_retardo'
+    const entradas = section.data.filter((r) => r.tipo === 'entrada');
+    const tieneProblema = entradas.some((r) =>
+    r.estado === 'falta' || r.estado === 'falta_por_retardo'
     );
-    const tieneRetardo = !tieneProblema && entradas.some(r =>
-      r.estado === 'retardo_a' || r.estado === 'retardo_b' || r.estado === 'retardo'
+    const tieneRetardo = !tieneProblema && entradas.some((r) =>
+    r.estado === 'retardo_a' || r.estado === 'retardo_b' || r.estado === 'retardo'
     );
 
     return (
       <View style={styles.sectionHeader}>
         <View style={[
-          styles.sectionDot,
-          {
-            backgroundColor: tieneProblema ? '#ef4444'
-              : tieneRetardo ? '#f59e0b'
-                : entradas.length > 0 ? '#10b981'
-                  : '#94a3b8',
-          }
-        ]} />
+        styles.sectionDot,
+        {
+          backgroundColor: tieneProblema ? '#ef4444' :
+          tieneRetardo ? '#f59e0b' :
+          entradas.length > 0 ? '#10b981' :
+          '#94a3b8'
+        }]
+        } />
         <Text style={styles.sectionTitle}>{formatearTituloDia(section.fecha)}</Text>
         <Text style={styles.sectionCount}>
           {section.data.length} {section.data.length === 1 ? 'registro' : 'registros'}
         </Text>
-      </View>
-    );
+      </View>);
+
   }, [styles, formatearTituloDia]);
 
   const keyExtractor = useCallback((item, index) => item.id?.toString() || index.toString(), []);
 
-  // ── ListHeaderComponent ───────────────────────────────────────────────────
-  const ListHeader = () => (
-    <>
-      {/* Navegación mes */}
+
+  const ListHeader = () =>
+  <>
+      {}
       <View style={styles.monthSelector}>
         <TouchableOpacity style={styles.monthButton} onPress={() => cambiarMes(-1)}>
           <Ionicons name="chevron-back" size={24} color={styles.monthButtonText.color} />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.monthLabel} onPress={() => setShowCalendar(v => !v)}>
+        <TouchableOpacity style={styles.monthLabel} onPress={() => setShowCalendar((v) => !v)}>
           <Text style={styles.monthText}>
             {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
           </Text>
           <Ionicons
-            name={showCalendar ? 'chevron-up' : 'chevron-down'}
-            size={18}
-            color={styles.monthText.color}
-            style={{ marginLeft: 6 }}
-          />
+          name={showCalendar ? 'chevron-up' : 'chevron-down'}
+          size={18}
+          color={styles.monthText.color}
+          style={{ marginLeft: 6 }} />
+        
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.monthButton}
-          onPress={() => cambiarMes(1)}
-          disabled={currentMonth >= new Date()}
-        >
+        style={styles.monthButton}
+        onPress={() => cambiarMes(1)}
+        disabled={currentMonth >= new Date()}>
+        
           <Ionicons
-            name="chevron-forward"
-            size={24}
-            color={currentMonth >= new Date() ? '#9ca3af' : styles.monthButtonText.color}
-          />
+          name="chevron-forward"
+          size={24}
+          color={currentMonth >= new Date() ? '#9ca3af' : styles.monthButtonText.color} />
+        
         </TouchableOpacity>
       </View>
 
-      {/* Calendario */}
-      {showCalendar && (
-        <View style={styles.calendarContainer}>
+      {}
+      {showCalendar &&
+    <View style={styles.calendarContainer}>
           <View style={styles.weekDays}>
-            {dayNames.map((d, i) => (
-              <View key={i} style={styles.weekDay}>
+            {dayNames.map((d, i) =>
+        <View key={i} style={styles.weekDay}>
                 <Text style={styles.weekDayText}>{d}</Text>
               </View>
-            ))}
+        )}
           </View>
           <View style={styles.daysGrid}>
             {diasCalendario.map((dia, index) => {
-              const estado = dia ? (estadosPorDia[dia] || null) : null;
-              const isSelected = selectedDate && dia === selectedDate.getDate()
-                && selectedDate.getMonth() === currentMonth.getMonth();
-              const isToday = dia &&
-                hoyStr === new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia).toDateString();
-              const dotColor = estado === 'falta' ? '#ef4444'
-                : estado === 'retardo' ? '#f59e0b'
-                  : estado === 'puntual' ? '#10b981' : null;
+          const estado = dia ? estadosPorDia[dia] || null : null;
+          const isSelected = selectedDate && dia === selectedDate.getDate() &&
+          selectedDate.getMonth() === currentMonth.getMonth();
+          const isToday = dia &&
+          hoyStr === new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia).toDateString();
+          const dotColor = estado === 'falta' ? '#ef4444' :
+          estado === 'retardo' ? '#f59e0b' :
+          estado === 'puntual' ? '#10b981' : null;
 
-              return (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.dayCell}
-                  onPress={() => seleccionarDia(dia)}
-                  disabled={!dia}
-                >
-                  {dia && (
-                    <View style={[
-                      styles.dayContent,
-                      isSelected && styles.dayContentSelected,
-                      isToday && !isSelected && styles.dayContentToday,
-                    ]}>
+          return (
+            <TouchableOpacity
+              key={index}
+              style={styles.dayCell}
+              onPress={() => seleccionarDia(dia)}
+              disabled={!dia}>
+              
+                  {dia &&
+              <View style={[
+              styles.dayContent,
+              isSelected && styles.dayContentSelected,
+              isToday && !isSelected && styles.dayContentToday]
+              }>
                       <Text style={[
-                        styles.dayText,
-                        isSelected && styles.dayTextSelected,
-                        isToday && !isSelected && styles.dayTextToday,
-                      ]}>
+                styles.dayText,
+                isSelected && styles.dayTextSelected,
+                isToday && !isSelected && styles.dayTextToday]
+                }>
                         {dia}
                       </Text>
-                      {dotColor && !isSelected && (
-                        <View style={[styles.dayIndicator, { backgroundColor: dotColor }]} />
-                      )}
+                      {dotColor && !isSelected &&
+                <View style={[styles.dayIndicator, { backgroundColor: dotColor }]} />
+                }
                     </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
+              }
+                </TouchableOpacity>);
+
+        })}
           </View>
         </View>
-      )}
+    }
 
-      {/* Título de lista */}
+      {}
       <View style={styles.recordsHeader}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Text style={styles.recordsTitle}>
-            {selectedDate
-              ? `${selectedDate.getDate()} de ${monthNames[selectedDate.getMonth()]}`
-              : `${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`
-            }
+            {selectedDate ?
+          `${selectedDate.getDate()} de ${monthNames[selectedDate.getMonth()]}` :
+          `${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`
+          }
           </Text>
-          {selectedDate && (
-            <TouchableOpacity onPress={() => setSelectedDate(null)}>
+          {selectedDate &&
+        <TouchableOpacity onPress={() => setSelectedDate(null)}>
               <Text style={{ fontSize: 13, fontWeight: '600', color: '#2563eb' }}>Ver mes</Text>
             </TouchableOpacity>
-          )}
+        }
         </View>
         <Text style={styles.recordsCount}>
           {asistencias.length} registros en el mes
         </Text>
       </View>
-    </>
-  );
+    </>;
 
-  const ListEmpty = () => (
-    <View style={styles.emptyState}>
+
+  const ListEmpty = () =>
+  <View style={styles.emptyState}>
       <Ionicons name="calendar-outline" size={48} color="#cbd5e1" />
       <Text style={styles.emptyText}>Sin registros</Text>
       <Text style={styles.emptySubtext}>
         {selectedDate ? 'No hay registros para este día' : 'No hay registros este mes'}
       </Text>
-    </View>
-  );
+    </View>;
+
 
   return (
     <View style={styles.container}>
       <StatusBar
         barStyle="light-content"
-        backgroundColor={darkMode ? '#1e40af' : '#2563eb'}
-      />
+        backgroundColor={darkMode ? '#1e40af' : '#2563eb'} />
+      
 
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Historial</Text>
         <Text style={styles.headerSubtitle}>Registro de asistencias</Text>
       </View>
 
-      {loading ? (
-        <View style={styles.centerContent}>
+      {loading ?
+      <View style={styles.centerContent}>
           <ActivityIndicator size="large" color="#2563eb" />
-        </View>
-      ) : (
-        <SectionList
-          sections={sections}
-          renderItem={renderRecord}
-          renderSectionHeader={renderSectionHeader}
-          keyExtractor={keyExtractor}
-          ListHeaderComponent={ListHeader}
-          ListEmptyComponent={ListEmpty}
-          ListFooterComponent={<View style={{ height: 100 }} />}
-          showsVerticalScrollIndicator={false}
-          stickySectionHeadersEnabled={false}
-          initialNumToRender={12}
-          maxToRenderPerBatch={10}
-          windowSize={5}
-          removeClippedSubviews
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor="#2563eb"
-              colors={['#2563eb']}
-            />
-          }
-        />
-      )}
-    </View>
-  );
+        </View> :
+
+      <SectionList
+        sections={sections}
+        renderItem={renderRecord}
+        renderSectionHeader={renderSectionHeader}
+        keyExtractor={keyExtractor}
+        ListHeaderComponent={ListHeader}
+        ListEmptyComponent={ListEmpty}
+        ListFooterComponent={<View style={{ height: 100 }} />}
+        showsVerticalScrollIndicator={false}
+        stickySectionHeadersEnabled={false}
+        initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews
+        refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#2563eb"
+          colors={['#2563eb']} />
+
+        } />
+
+      }
+    </View>);
+
 };
 
-// ── Estilos ────────────────────────────────────────────────────────────────
+
 const historyStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f8fafc' },
   centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -447,7 +447,7 @@ const historyStyles = StyleSheet.create({
     backgroundColor: '#2563eb',
     paddingTop: Platform.OS === 'android' ? 16 : 50,
     paddingBottom: 20,
-    paddingHorizontal: 20,
+    paddingHorizontal: 20
   },
   headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff' },
   headerSubtitle: { fontSize: 12, color: '#e0f2fe', fontWeight: '500', marginTop: 2 },
@@ -466,7 +466,7 @@ const historyStyles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowRadius: 3
   },
   monthButton: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   monthButtonText: { color: '#2563eb' },
@@ -483,7 +483,7 @@ const historyStyles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowRadius: 3
   },
   weekDays: { flexDirection: 'row', marginBottom: 10 },
   weekDay: { flex: 1, alignItems: 'center' },
@@ -492,7 +492,7 @@ const historyStyles = StyleSheet.create({
   dayCell: { width: '14.28%', aspectRatio: 1, justifyContent: 'center', alignItems: 'center' },
   dayContent: {
     width: '80%', height: '80%', borderRadius: 12,
-    justifyContent: 'center', alignItems: 'center', position: 'relative',
+    justifyContent: 'center', alignItems: 'center', position: 'relative'
   },
   dayContentSelected: { backgroundColor: '#2563eb' },
   dayContentToday: { borderWidth: 2, borderColor: '#2563eb' },
@@ -505,7 +505,7 @@ const historyStyles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     paddingHorizontal: 16,
-    marginTop: 12,
+    marginTop: 12
   },
   statCard: {
     flex: 1,
@@ -517,7 +517,7 @@ const historyStyles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
-    shadowRadius: 2,
+    shadowRadius: 2
   },
   statNumber: { fontSize: 22, fontWeight: '800', color: '#1f2937' },
   statLabel: { fontSize: 11, color: '#64748b', marginTop: 2, fontWeight: '500' },
@@ -526,19 +526,19 @@ const historyStyles = StyleSheet.create({
   recordsTitle: { fontSize: 18, fontWeight: '700', color: '#1f2937', marginBottom: 3 },
   recordsCount: { fontSize: 12, color: '#64748b' },
 
-  // Sección de día
+
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    marginTop: 4,
+    marginTop: 4
   },
   sectionDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
   sectionTitle: { flex: 1, fontSize: 14, fontWeight: '700', color: '#374151' },
   sectionCount: { fontSize: 12, color: '#9ca3af' },
 
-  // Registro individual
+
   recordItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -551,11 +551,11 @@ const historyStyles = StyleSheet.create({
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowRadius: 2
   },
   recordIconContainer: {
     width: 40, height: 40, borderRadius: 10,
-    justifyContent: 'center', alignItems: 'center', marginRight: 12,
+    justifyContent: 'center', alignItems: 'center', marginRight: 12
   },
   recordContent: { flex: 1 },
   recordType: { fontSize: 15, fontWeight: '600', color: '#1f2937' },
@@ -564,7 +564,7 @@ const historyStyles = StyleSheet.create({
 
   emptyState: { alignItems: 'center', paddingVertical: 60, marginHorizontal: 16 },
   emptyText: { fontSize: 16, fontWeight: '600', color: '#475569', marginTop: 12 },
-  emptySubtext: { fontSize: 14, color: '#94a3b8', marginTop: 4 },
+  emptySubtext: { fontSize: 14, color: '#94a3b8', marginTop: 4 }
 });
 
 const historyStylesDark = StyleSheet.create({
@@ -592,7 +592,7 @@ const historyStylesDark = StyleSheet.create({
   recordEstado: { ...historyStyles.recordEstado },
   recordHora: { ...historyStyles.recordHora, color: '#e2e8f0' },
   emptyText: { ...historyStyles.emptyText, color: '#cbd5e1' },
-  emptySubtext: { ...historyStyles.emptySubtext, color: '#64748b' },
+  emptySubtext: { ...historyStyles.emptySubtext, color: '#64748b' }
 });
 
 export default HistoryScreen;

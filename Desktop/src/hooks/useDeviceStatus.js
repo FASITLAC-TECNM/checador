@@ -31,9 +31,11 @@ export const useDeviceStatus = (devices, setDevices, options = {}) => {
   /**
    * PATCH /api/biometrico/:id/estado — fire and forget
    */
+  // Se ha añadido la propiedad isActivo como parámetro para validar si se debe actualizar el estado
   const updateEstadoEnBD = useCallback(
-    (deviceId, nuevoEstado) => {
-      if (!deviceId || String(deviceId).startsWith("NEW_")) return;
+    (deviceId, nuevoEstado, isActivo = true) => {
+      // Si el dispositivo no tiene un ID válido, es nuevo o está inactivo, abortamos
+      if (!deviceId || String(deviceId).startsWith("NEW_") || !isActivo) return;
       const token = getAuthToken();
       // No await — fire and forget para no bloquear
       fetch(`${API_URL}/biometrico/${deviceId}/estado`, {
@@ -43,7 +45,7 @@ export const useDeviceStatus = (devices, setDevices, options = {}) => {
           ...(token && { Authorization: `Bearer ${token}` }),
         },
         body: JSON.stringify({ estado: nuevoEstado }),
-      }).catch(() => {}); // silencioso
+      }).catch(() => { }); // silencioso
     },
     [getAuthToken]
   );
@@ -109,7 +111,7 @@ export const useDeviceStatus = (devices, setDevices, options = {}) => {
           // 2. Si no tienen ID o no coincidieron, caer al viejo sistema por nombre (fallback)
           const detName = normalizeName(detected.name);
           if (!detName) return false;
-          
+
           return (
             regName === detName ||
             regName.includes(detName) ||
@@ -121,7 +123,7 @@ export const useDeviceStatus = (devices, setDevices, options = {}) => {
 
         if (device.estado !== newEstado) {
           hasChanges = true;
-          changedDevices.push({ id: device.id, estado: newEstado });
+          changedDevices.push({ id: device.id, estado: newEstado, es_activo: device.es_activo ?? true });
           return { ...device, estado: newEstado };
         }
         return device;
@@ -130,8 +132,8 @@ export const useDeviceStatus = (devices, setDevices, options = {}) => {
       if (hasChanges && isMountedRef.current) {
         // Double check against current state to be absolutely sure
         if (JSON.stringify(updatedDevices) !== JSON.stringify(devicesRef.current)) {
-           setDevices(updatedDevices);
-           changedDevices.forEach((c) => updateEstadoEnBD(c.id, c.estado));
+          setDevices(updatedDevices);
+          changedDevices.forEach((c) => updateEstadoEnBD(c.id, c.estado));
         }
       }
 
@@ -222,7 +224,7 @@ export const useDeviceStatus = (devices, setDevices, options = {}) => {
     };
 
     navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
-    
+
     return () => {
       navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
     };

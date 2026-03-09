@@ -51,16 +51,20 @@ export default function DispositivosModal({ onClose, onBack, escritorioId, inlin
       const result = await response.json();
       const data = result.data || result;
 
-      // Mapear los datos de la BD a la estructura del componente
-      const mappedDevices = Array.isArray(data) ? data.map(d => ({
-        id: d.id,
-        nombre: d.nombre || "",
-        tipo: d.tipo || "facial",
-        puerto: d.puerto || "",
-        ip: d.ip || "",
-        estado: d.estado || "desconectado",
-        es_activo: d.es_activo ?? true,
-      })) : [];
+      // Mapear los datos de la BD a la estructura del componente y omitir inactivos
+      const mappedDevices = Array.isArray(data)
+        ? data
+          .filter(d => d.es_activo === true || d.es_activo === 1 || d.es_activo === undefined)
+          .map(d => ({
+            id: d.id,
+            nombre: d.nombre || "",
+            tipo: d.tipo || "facial",
+            puerto: d.puerto || "",
+            ip: d.ip || "",
+            estado: d.estado || "desconectado",
+            es_activo: d.es_activo ?? true,
+          }))
+        : [];
 
       setDevices(mappedDevices);
     } catch (err) {

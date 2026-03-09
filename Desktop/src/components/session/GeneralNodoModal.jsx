@@ -50,22 +50,29 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false, isAd
 
   const confirmResetNode = async () => {
     setShowConfirmDelete(false);
+    setIsSaving(true);
+
     try {
       if (escritorioId) {
         await desactivarEscritorio(escritorioId);
       }
-    } catch (error) {
-      console.error("Error al desactivar el escritorio en el servidor:", error);
-    }
 
-    localStorage.clear();
-    if (window.electronAPI && window.electronAPI.configRemove) {
-      window.electronAPI.configRemove("appConfigured");
+      localStorage.clear();
+      if (window.electronAPI && window.electronAPI.configRemove) {
+        window.electronAPI.configRemove("appConfigured");
+      }
+
+      showToast("Nodo y dispositivos biométricos eliminados correctamente. La aplicación se recargará.", "success");
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+
+    } catch (error) {
+      console.error("Error al desactivar el escritorio o biométricos en el servidor:", error);
+      showToast("Hubo un error al eliminar el nodo en el servidor.", "error");
+      setIsSaving(false);
     }
-    showToast("Nodo eliminado correctamente. La aplicación se recargará.", "success");
-    setTimeout(() => {
-      window.location.reload();
-    }, 1500);
   };
 
   // Cargar datos del escritorio al montar el componente

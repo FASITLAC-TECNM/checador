@@ -118,7 +118,14 @@ export const AuthProvider = ({ children }) => {
   };
 
   const isAdmin = () => {
-    return user?.esAdmin || false;
+    if (!user) return false;
+    // Evaluar diferentes formas en las que llega del backend (snake_case, camelCase o en un array de roles)
+    return !!(
+      user.esAdmin ||
+      user.es_admin ||
+      (Array.isArray(user.roles) && user.roles.some((r) => r.es_admin || r.esAdmin || r.nombre === 'Administrador' || r.nombre === 'admin')) ||
+      user.rol === 'admin' || user.rol === 'Administrador'
+    );
   };
 
   // Login por PIN (para empleados)

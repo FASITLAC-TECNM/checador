@@ -36,7 +36,7 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
             countdownRef.current = null;
         }
 
-        if (result?.success || result?.noPuedeRegistrar || result?.noEsEmpleado || result?.sinHorario) {
+        if (result) {
             let count = 6;
             setCountdown(count);
 
@@ -328,11 +328,18 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
                 (error.message.includes('jornada') && error.message.includes('completada'))
             );
 
-            setErrorMessage(error.message || "Error al registrar asistencia");
+            let finalErrorMessage = error.message || "Error al registrar asistencia";
+            let isFaltaDirecta = false;
+            if (finalErrorMessage.includes("falta directa")) {
+                finalErrorMessage = "Registro denegado: Se te ha registrado una falta directa en este turno. No puedes registrar asistencia.";
+                isFaltaDirecta = true;
+            }
+
+            setErrorMessage(finalErrorMessage);
 
             setResult({
                 success: false,
-                message: error.message || "Error al registrar asistencia",
+                message: finalErrorMessage,
                 usuario: usuarioData,
                 token: token,
                 empleado: empleadoData,

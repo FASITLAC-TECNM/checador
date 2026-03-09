@@ -339,11 +339,18 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                 <>
                   <X className="w-16 h-16 mx-auto mb-3 text-red-600 dark:text-red-400" />
                   <p className="text-red-800 dark:text-red-300 font-bold text-lg mb-1">
-                    Error
+                    {result?.message?.includes("Registro denegado") ? "Registro Denegado" : "Error"}
                   </p>
                   <p className="text-gray-700 dark:text-gray-300 text-sm">
-                    {result.message}
+                    {result?.message?.replace("Registro denegado: ", "")}
                   </p>
+
+                  <div className="mt-4 flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm">
+                    <Timer className="w-4 h-4" />
+                    <span>
+                      Esta ventana se cerrará en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
+                    </span>
+                  </div>
 
                   {/* Botón para iniciar sesión si hay datos de usuario (aunque hubo error) */}
                   {onLoginRequest && result.usuario && (

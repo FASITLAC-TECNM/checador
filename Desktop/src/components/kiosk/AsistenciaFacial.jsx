@@ -674,11 +674,16 @@ export default function AsistenciaFacial({
         (error.message.includes('jornada') && error.message.includes('completada'))
       );
 
-      setErrorMessage(error.message || "Error al registrar asistencia");
+      let finalErrorMessage = error.message || "Error al registrar asistencia";
+      if (finalErrorMessage.includes("falta directa")) {
+        finalErrorMessage = "Registro denegado: Se te ha registrado una falta directa en este turno. No puedes registrar asistencia.";
+      }
+
+      setErrorMessage(finalErrorMessage);
       const empleadoIdLocal = empleadoData ? (empleadoData.id_empleado || empleadoData.id) : null;
       setResult({
         success: false,
-        message: error.message || "Error al registrar asistencia",
+        message: finalErrorMessage,
         empleado: empleadoData,
         usuario: empleadoData,
         empleadoId: empleadoIdLocal,
@@ -697,6 +702,7 @@ export default function AsistenciaFacial({
     const debeIniciarCountdown = result?.success ||
       result?.noPuedeRegistrar ||
       result?.noReconocida ||
+      (result && !result.success && result.empleadoId) ||
       (backgroundMode && result && !result.success);
 
     if (debeIniciarCountdown) {
@@ -1316,21 +1322,66 @@ export default function AsistenciaFacial({
                 <>
                   <XCircle className="w-16 h-16 mx-auto mb-3 text-red-600 dark:text-red-400" />
                   <p className="text-red-800 dark:text-red-300 font-bold text-lg mb-1">
-                    Error
+                    {(result?.message?.includes("Registro denegado") || errorMessage?.includes("Registro denegado")) ? "Registro Denegado" : "Error"}
                   </p>
                   <p className="text-gray-700 dark:text-gray-300 text-sm mb-4">
-                    {errorMessage || result?.message || "Error al registrar asistencia"}
+                    {(errorMessage?.replace("Registro denegado: ", "") || result?.message?.replace("Registro denegado: ", "") || "Error al registrar asistencia")}
                   </p>
+
+                  {result?.empleadoId && (
+                    <>
+                      {/* Separador */}
+                      <div className="border-t border-gray-200 dark:border-gray-700 my-4" />
+
+                      {/* Opcion de abrir sesion */}
+                      <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
+                        ¿Deseas abrir tu sesión de todas formas?
+                      </p>
+
+                      <button
+                        onClick={procesarLoginBiometrico}
+                        disabled={processingLogin || !loginHabilitado}
+                        className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mb-4"
+                      >
+                        {processingLogin ? (
+                          <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Cargando datos...
+                          </>
+                        ) : !loginHabilitado ? (
+                          <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Preparando...
+                          </>
+                        ) : (
+                          <>
+                            <LogIn className="w-5 h-5" />
+                            Abrir Sesión
+                          </>
+                        )}
+                      </button>
+
+                      {!processingLogin && (
+                        <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm mb-4">
+                          <Timer className="w-4 h-4" />
+                          <span>
+                            Esta ventana se cerrará en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  )}
+
                   <div className="flex gap-3 justify-center">
                     <button
                       onClick={handleRetry}
-                      className="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
+                      className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-2 px-4 rounded-lg transition-colors"
                     >
                       Intentar de Nuevo
                     </button>
                     <button
                       onClick={handleCloseModal}
-                      className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 font-semibold py-2 px-6 rounded-lg transition-colors"
+                      className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-300 font-semibold py-2 px-4 rounded-lg transition-colors"
                     >
                       Cancelar
                     </button>

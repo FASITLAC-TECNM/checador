@@ -475,7 +475,14 @@ export default function AsistenciaHuella({
       }
 
       // Si no es error de red o falló el offline, mostrar error normal
-      addMessage(`❌ Error: ${error.message}`, "error");
+      let finalErrorMessage = error.message || "Error al registrar asistencia";
+      let isFaltaDirecta = false;
+      if (finalErrorMessage.includes("falta directa")) {
+        finalErrorMessage = "Registro denegado: Se te ha registrado una falta directa en este turno. No puedes registrar asistencia.";
+        isFaltaDirecta = true;
+      }
+
+      addMessage(isFaltaDirecta ? `❌ ${finalErrorMessage}` : `❌ Error: ${finalErrorMessage}`, "error");
 
       // Detectar errores devueltos por devueltos de API
       const responseData = error.responseData;
@@ -487,7 +494,7 @@ export default function AsistenciaHuella({
       // Preparar el resultado de error
       const resultadoError = {
         success: false,
-        message: error.message,
+        message: finalErrorMessage,
         empleadoId: empleadoId,
         empleado: empleadoData,
         noPuedeRegistrar: responseData?.noPuedeRegistrar || isBlockCompletedError,
@@ -1236,7 +1243,7 @@ export default function AsistenciaHuella({
                   <>
                     <XCircle className="w-16 h-16 mx-auto mb-3 text-red-600 dark:text-red-400" />
                     <p className="text-red-800 dark:text-red-300 font-bold text-lg mb-1">
-                      Error en el Registro
+                      {result?.message?.includes("Registro denegado") ? "Registro Denegado" : "Error en el Registro"}
                     </p>
                     {result.empleado?.nombre && (
                       <p className="text-gray-700 dark:text-gray-300 text-lg mb-2">
@@ -1244,7 +1251,7 @@ export default function AsistenciaHuella({
                       </p>
                     )}
                     <p className="text-gray-700 dark:text-gray-300 text-sm">
-                      {result.message}
+                      {result?.message?.replace("Registro denegado: ", "")}
                     </p>
 
                     {/* Mostrar opción de abrir sesión si tenemos el empleadoId */}

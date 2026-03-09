@@ -319,7 +319,7 @@ export default function AdminDashboard({
 
                     {/* Config Sections - Admin only */}
                     {activeSection === "general" && isAdmin && (
-                        <GeneralNodoModal inline />
+                        <GeneralNodoModal inline isAdminProp={isAdmin} />
                     )}
                     {activeSection === "dispositivos" && isAdmin && (
                         <DispositivosModal inline escritorioId={escritorioId} />

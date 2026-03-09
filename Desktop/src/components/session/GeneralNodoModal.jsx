@@ -10,9 +10,9 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import DynamicLoader from "../common/DynamicLoader";
 
-export default function GeneralNodoModal({ onClose, onBack, inline = false }) {
+export default function GeneralNodoModal({ onClose, onBack, inline = false, isAdminProp }) {
   const { user, isAdmin: checkIsAdmin } = useAuth();
-  const isAdmin = typeof checkIsAdmin === "function" ? checkIsAdmin() : false;
+  const isAdmin = isAdminProp !== undefined ? isAdminProp : (typeof checkIsAdmin === "function" ? checkIsAdmin() : false);
 
   const [isDetecting, setIsDetecting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);

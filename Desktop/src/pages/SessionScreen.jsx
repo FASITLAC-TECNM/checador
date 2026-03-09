@@ -122,6 +122,11 @@ export default function SessionScreen({ onLogout, usuario, isReaderConnected = f
   // Verificar si es un empleado
   const isEmployee = datosCompletos?.es_empleado || (userRFC && userNSS);
 
+  // Verificar si es administrador
+  const isAdmin = !!datosCompletos?.esAdmin || !!datosCompletos?.es_admin ||
+    (Array.isArray(datosCompletos?.roles) && datosCompletos.roles.some(r => r.es_admin));
+
+
   useEffect(() => {
     const timer = setInterval(() => {
       setTime(new Date());
@@ -241,6 +246,7 @@ export default function SessionScreen({ onLogout, usuario, isReaderConnected = f
             setShowGeneralNodoModal(false);
             setShowConfigModal(true);
           }}
+          isAdminProp={isAdmin}
           initialConfig={{
             nodeName: nombreNodo,
             nodeDescription: descripcionNodo,

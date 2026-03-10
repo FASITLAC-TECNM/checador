@@ -27,24 +27,17 @@ const MaintenanceScreen = ({ isChecking, onRetry }) => {
                     <p className="text-text-secondary text-base mb-8 max-w-sm leading-relaxed mx-auto">
                         Estamos realizando tareas programadas de actualización para asegurar el óptimo funcionamiento de la plataforma.
                         <br /><br />
-                        El servicio se restablecerá en breve.
+                        El servicio se restablecerá automáticamente en breve.
                     </p>
 
                     <div className="w-full mt-2 flex flex-col gap-3">
                         {/* Server Status Indicator */}
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 py-4 px-6 rounded-xl border border-amber-200 dark:border-amber-900/50 w-full font-medium">
-                            {isChecking ? (
-                                <>
-                                    <RefreshCw className="w-5 h-5 animate-spin" />
-                                    <span>Verificando conexión con el servidor...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <RefreshCw className="w-5 h-5 text-amber-500/80" />
-                                    <span>La pantalla se actualizará automáticamente</span>
-                                </>
-                            )}
-                        </div>
+                        {isChecking && (
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 py-4 px-6 rounded-xl border border-amber-200 dark:border-amber-900/50 w-full font-medium">
+                                <RefreshCw className="w-5 h-5 animate-spin" />
+                                <span>Verificando conexión con el servidor...</span>
+                            </div>
+                        )}
 
                         {/* Botón manual de reintento */}
                         <button

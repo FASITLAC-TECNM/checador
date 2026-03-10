@@ -59,23 +59,16 @@ export function setAuthToken(token, empleadoId = null) {
 
 
 export async function isOnline() {
-  if (isBackendDown) return false;
   const state = await NetInfo.fetch();
-
   return state.isConnected && (state.isInternetReachable === true || state.isInternetReachable === null);
 }
 
 export function markBackendDown() {
-  isBackendDown = true;
+  // Deshabilitado por petición del usuario
 }
 
 export function markBackendUp() {
-  const wasDown = isBackendDown;
-  isBackendDown = false;
-  if (wasDown) {
-    // Optionally trigger an immediate sync when backend recovers
-    setTimeout(() => performSync('reconnect'), 1000);
-  }
+  // Deshabilitado por petición del usuario
 }
 
 

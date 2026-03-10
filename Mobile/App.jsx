@@ -104,38 +104,9 @@ export default function App() {
       } catch (e) { }
     }, 20000);
 
-    // Periodic health check for backend downtime fallback
+    // Mantenimiento desactivado el health check agresivo que forzaba offline modo
     healthCheckInterval.current = setInterval(async () => {
-      try {
-        const netState = await NetInfo.fetch();
-        if (netState.isConnected && netState.isInternetReachable) {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-          try {
-            const res = await fetch(`${API_URL_BASE}/asistencia/health`, { signal: controller.signal });
-            clearTimeout(timeoutId);
-            if (res.ok) {
-              healthFailCount.current = 0;
-              syncManager.markBackendUp();
-            } else {
-              healthFailCount.current += 1;
-              if (healthFailCount.current >= HEALTH_CONSECUTIVE_FAILURES_THRESHOLD) {
-                syncManager.markBackendDown();
-              }
-            }
-          } catch (fetchErr) {
-            clearTimeout(timeoutId);
-            healthFailCount.current += 1;
-            if (healthFailCount.current >= HEALTH_CONSECUTIVE_FAILURES_THRESHOLD) {
-              syncManager.markBackendDown();
-            }
-          }
-        } else {
-          // No internet at all — don't touch isBackendDown; NetInfo handles this case
-        }
-      } catch (e) {
-      }
+      // El chequeo de health check fue desactivado ya que forzaba el modo offline sin sentido
     }, 20000);
 
     return () => {
@@ -694,10 +665,8 @@ export default function App() {
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
-      if (isLoggedIn && !isOfflineSession && state.isConnected === false) {
-        (function () { })('⚠️ [App] Conexión perdida en sesión ONLINE. Pasando a modo offline transparente...');
-        setIsOfflineSession(true);
-      } else if (isLoggedIn && state.isConnected && state.isInternetReachable) {
+      // Remover el setIsOfflineSession(true) forzado
+      if (isLoggedIn && state.isConnected && state.isInternetReachable) {
         setIsOfflineSession(false);
       }
     });

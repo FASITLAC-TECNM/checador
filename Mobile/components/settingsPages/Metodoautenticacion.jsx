@@ -9,16 +9,18 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
-  Platform } from
-'react-native';
+  Platform
+} from
+  'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PinInputModal } from './PinInputModal';
-import { capturarHuellaDigital } from '../services/biometric.service';
+import { capturarHuellaDigital } from '../services/biometricservice';
 import { processFaceData, validateFaceQuality, generateFacialTemplate } from '../services/facialCameraService';
-import { guardarDactilar, guardarPin, guardarFacial } from '../services/credenciales.service';
+import { guardarDactilar, guardarPin, guardarFacial } from '../services/credencialesService';
 import { getApiEndpoint } from '../config/api';
 import { getOrdenCredenciales } from '../services/configurationService';
 import { FacialCaptureScreen } from '../services/FacialCaptureScreen';
+import sqliteManager from '../../services/offline/sqliteManager.mjs';
 
 const API_URL = getApiEndpoint('/api');
 
@@ -57,7 +59,8 @@ export const MetodoAutenticacionModal = ({
   const [credenciales, setCredenciales] = useState({
     tiene_dactilar: false,
     tiene_facial: false,
-    tiene_pin: false
+    tiene_pin: false,
+    _offlineMode: false
   });
 
   const [soporteHardware, setSoporteHardware] = useState({
@@ -84,7 +87,7 @@ export const MetodoAutenticacionModal = ({
       setLoading(true);
 
 
-      const { checkBiometricSupport } = await import('../services/biometric.service');
+      const { checkBiometricSupport } = await import('../services/biometricservice');
       const support = await checkBiometricSupport();
 
       setSoporteHardware({
@@ -97,30 +100,56 @@ export const MetodoAutenticacionModal = ({
         const ordenResult = await getOrdenCredenciales(userData?.token);
         if (ordenResult.success && ordenResult.ordenCredenciales) {
           setOrdenCredenciales(ordenResult.ordenCredenciales);
+        } else {
+          // Online fetch returned nothing — try SQLite cache
+          const cached = await sqliteManager.getOrdenCredenciales();
+          if (cached) setOrdenCredenciales(cached);
         }
       } catch (error) {
-
+        // Network fails totally — try SQLite cache directly
+        try {
+          const cached = await sqliteManager.getOrdenCredenciales();
+          if (cached) setOrdenCredenciales(cached);
+        } catch { /* ignore */ }
       }
 
 
       const empleadoId = userData?.empleado?.id || userData?.empleado_id || userData?.id;
       if (empleadoId && userData?.token) {
-        const response = await fetch(
-          `${API_URL}/credenciales/empleado/${empleadoId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${userData.token}`,
-              'Content-Type': 'application/json'
+        try {
+          const response = await fetch(
+            `${API_URL}/credenciales/empleado/${empleadoId}`,
+            {
+              headers: {
+                Authorization: `Bearer ${userData.token}`,
+                'Content-Type': 'application/json'
+              }
             }
+          );
+          if (!response.ok) throw new Error('Offline fetch required');
+          const data = await response.json();
+          if (data.success && data.data) {
+            setCredenciales(data.data);
           }
-        );
-        const data = await response.json();
-        if (data.success && data.data) {
-          setCredenciales(data.data);
+        } catch (networkError) {
+          (function () { })('Buscando credenciales offline debido a fallo de red local', networkError);
+          try {
+            const creds = await sqliteManager.getAllCredenciales();
+            const misCreds = creds.filter((c) => c.empleado_id === empleadoId);
+
+            setCredenciales({
+              tiene_dactilar: misCreds.some((c) => c.dactilar_template),
+              tiene_facial: misCreds.some((c) => c.facial_descriptor),
+              tiene_pin: misCreds.some((c) => c.pin_hash),
+              _offlineMode: true
+            });
+          } catch (offlineErr) {
+            (function () { })('Error obteniendo credenciales de sqliteManager', offlineErr);
+          }
         }
       }
     } catch (error) {
-      (function () {})('Error en cargarConfiguracion:', error);
+      (function () { })('Error en cargarConfiguracion:', error);
     } finally {
       setLoading(false);
     }
@@ -132,7 +161,8 @@ export const MetodoAutenticacionModal = ({
 
   const getEstado = (tipo) => {
 
-    if (ordenCredenciales && ordenCredenciales[tipo] && !ordenCredenciales[tipo].activo) {
+    const confMethod = ordenCredenciales ? ordenCredenciales.find(m => m.metodo === tipo) : null;
+    if (confMethod && !confMethod.activo) {
       return 'noDisponible';
     }
 
@@ -144,7 +174,6 @@ export const MetodoAutenticacionModal = ({
 
       case 'facial':
         if (credenciales.tiene_facial) return 'activo';
-        if (!soporteHardware.facial) return 'noDisponible';
         return 'inactivo';
 
       case 'pin':
@@ -174,53 +203,53 @@ export const MetodoAutenticacionModal = ({
         'Registrar Huella',
         'Coloca tu dedo en el sensor biométrico cuando se te solicite',
         [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-          onPress: () => setProcesando(false)
-        },
-        {
-          text: 'Continuar',
-          onPress: async () => {
-            try {
-              const empleadoId =
-              userData?.empleado?.id || userData?.empleado_id || userData?.id;
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+            onPress: () => setProcesando(false)
+          },
+          {
+            text: 'Continuar',
+            onPress: async () => {
+              try {
+                const empleadoId =
+                  userData?.empleado?.id || userData?.empleado_id || userData?.id;
 
-              const resultado = await capturarHuellaDigital(empleadoId);
+                const resultado = await capturarHuellaDigital(empleadoId);
 
-              if (!resultado.success) {
-                throw new Error('No se pudo capturar la huella');
-              }
-
-              await guardarDactilar(
-                empleadoId,
-                resultado.template,
-                userData.token
-              );
-
-
-              setCredenciales((prev) => ({ ...prev, tiene_dactilar: true }));
-
-              Alert.alert('¡Éxito!', 'Huella digital registrada correctamente', [
-              {
-                text: 'OK',
-                onPress: () => {
-                  if (onSuccess) onSuccess('dactilar');
-                  onClose();
+                if (!resultado.success) {
+                  throw new Error('No se pudo capturar la huella');
                 }
-              }]
-              );
-            } catch (error) {
-              Alert.alert(
-                'Error',
-                error.message ||
-                'No se pudo registrar la huella. Verifica que tu dispositivo tenga sensor biométrico.'
-              );
-            } finally {
-              setProcesando(false);
+
+                await guardarDactilar(
+                  empleadoId,
+                  resultado.template,
+                  userData.token
+                );
+
+
+                setCredenciales((prev) => ({ ...prev, tiene_dactilar: true }));
+
+                Alert.alert('¡Éxito!', 'Huella digital registrada correctamente', [
+                  {
+                    text: 'OK',
+                    onPress: () => {
+                      if (onSuccess) onSuccess('dactilar');
+                      onClose();
+                    }
+                  }]
+                );
+              } catch (error) {
+                Alert.alert(
+                  'Error',
+                  error.message ||
+                  'No se pudo registrar la huella. Verifica que tu dispositivo tenga sensor biométrico.'
+                );
+              } finally {
+                setProcesando(false);
+              }
             }
-          }
-        }]
+          }]
 
       );
     } catch (error) {
@@ -255,9 +284,9 @@ export const MetodoAutenticacionModal = ({
 
     try {
       const empleadoId =
-      userData?.empleado?.id || userData?.empleado_id || userData?.id;
+        userData?.empleado?.id || userData?.empleado_id || userData?.id;
 
-      (function () {})(' Captura facial completada para login');
+      (function () { })(' Captura facial completada para login');
 
 
       if (!captureData.faceDetectionUsed || !captureData.validated) {
@@ -269,20 +298,20 @@ export const MetodoAutenticacionModal = ({
       const validation = validateFaceQuality(faceFeatures);
 
       if (!validation.isValid) {
-        (function () {})('️ Validación de calidad falló:', validation.errors);
+        (function () { })('️ Validación de calidad falló:', validation.errors);
         Alert.alert(
           '⚠️ Calidad insuficiente',
           validation.errors.join('\n') + '\n\n¿Deseas intentar de nuevo?',
           [
-          { text: 'Cancelar', style: 'cancel', onPress: () => setProcesando(false) },
-          { text: 'Reintentar', onPress: () => setMostrarCapturaFacial(true) }]
+            { text: 'Cancelar', style: 'cancel', onPress: () => setProcesando(false) },
+            { text: 'Reintentar', onPress: () => setMostrarCapturaFacial(true) }]
 
         );
         setProcesando(false);
         return;
       }
 
-      (function () {})(' Validación facial exitosa, generando template...');
+      (function () { })(' Validación facial exitosa, generando template...');
 
 
       const resultado = await generateFacialTemplate(
@@ -291,29 +320,40 @@ export const MetodoAutenticacionModal = ({
         empleadoId
       );
 
-      (function () {})(' Guardando en el servidor...');
+      (function () { })(' Guardando en el servidor u offline...');
 
 
-      await guardarFacial(
-        empleadoId,
-        resultado.template,
-        userData.token
-      );
+      try {
+        await guardarFacial(
+          empleadoId,
+          resultado.template,
+          userData.token
+        );
+      } catch (saveError) {
+        (function () { })('Buscando credenciales offline porque guardarFacial falló', saveError);
+
+        await sqliteManager.upsertCredenciales([{
+          id: `local_${empleadoId}`,
+          empleado_id: empleadoId,
+          facial_descriptor: JSON.stringify(resultado.template)
+        }]);
+
+      }
 
 
       setCredenciales((prev) => ({ ...prev, tiene_facial: true }));
 
       Alert.alert('¡Éxito!', 'Reconocimiento facial registrado correctamente', [
-      {
-        text: 'OK',
-        onPress: () => {
-          if (onSuccess) onSuccess('facial');
-          onClose();
-        }
-      }]
+        {
+          text: 'OK',
+          onPress: () => {
+            if (onSuccess) onSuccess('facial');
+            onClose();
+          }
+        }]
       );
     } catch (error) {
-      (function () {})(' Error en registro facial:', error);
+      (function () { })(' Error en registro facial:', error);
       Alert.alert(
         'Error',
         error.message || 'No se pudo registrar el reconocimiento facial'
@@ -337,7 +377,7 @@ export const MetodoAutenticacionModal = ({
       setProcesando(true);
 
       const empleadoId =
-      userData?.empleado?.id || userData?.empleado_id || userData?.id;
+        userData?.empleado?.id || userData?.empleado_id || userData?.id;
 
       await guardarPin(empleadoId, pin, userData.token);
 
@@ -347,14 +387,14 @@ export const MetodoAutenticacionModal = ({
         '¡Éxito!',
         credenciales.tiene_pin ? 'PIN actualizado correctamente' : 'PIN configurado correctamente',
         [
-        {
-          text: 'OK',
-          onPress: () => {
-            setShowPinModal(false);
-            if (onSuccess) onSuccess('pin');
-            onClose();
-          }
-        }]
+          {
+            text: 'OK',
+            onPress: () => {
+              setShowPinModal(false);
+              if (onSuccess) onSuccess('pin');
+              onClose();
+            }
+          }]
 
       );
     } catch (error) {
@@ -389,20 +429,16 @@ export const MetodoAutenticacionModal = ({
 
 
   let metodos;
-  if (ordenCredenciales) {
-
-    metodos = Object.keys(ordenCredenciales).
-    filter((key) => ordenCredenciales[key]?.activo !== false).
-    sort((a, b) => {
-      const prioridadA = ordenCredenciales[a]?.prioridad || 999;
-      const prioridadB = ordenCredenciales[b]?.prioridad || 999;
-      return prioridadA - prioridadB;
-    }).
-    map((key) => metodosDisponibles[key]).
-    filter(Boolean);
+  if (ordenCredenciales && Array.isArray(ordenCredenciales)) {
+    metodos = ordenCredenciales
+      .filter((item) => item.activo !== false)
+      .sort((a, b) => a.nivel - b.nivel)
+      .map((item) => metodosDisponibles[item.metodo])
+      .filter((metodo) => metodo && (!credenciales._offlineMode || metodo.id !== 'pin_solo_online'));
   } else {
-
-    metodos = Object.values(metodosDisponibles);
+    // Fallback
+    metodos = Object.values(metodosDisponibles)
+      .filter((metodo) => metodo && (!credenciales._offlineMode || metodo.id !== 'pin_solo_online'));
   }
 
 
@@ -425,17 +461,17 @@ export const MetodoAutenticacionModal = ({
         animationType="slide"
         transparent={true}
         onRequestClose={onClose}>
-        
+
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            {}
+            { }
             <View style={styles.header}>
               <TouchableOpacity
                 onPress={onClose}
                 style={styles.closeButton}
                 activeOpacity={0.6}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                
+
                 <Ionicons name="close" size={24} color="#fff" />
               </TouchableOpacity>
 
@@ -449,108 +485,108 @@ export const MetodoAutenticacionModal = ({
               </Text>
             </View>
 
-            {}
+            { }
             <ScrollView
               style={styles.scrollView}
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.scrollContent}>
-              
+
               {loading ?
-              <View style={styles.loadingContainer}>
+                <View style={styles.loadingContainer}>
                   <ActivityIndicator size="large" color="#3b82f6" />
                   <Text style={styles.loadingText}>Cargando opciones...</Text>
                 </View> :
 
-              <View style={styles.metodosContainer}>
+                <View style={styles.metodosContainer}>
                   {metodos.map((metodo) => {
-                  const estado = getEstado(metodo.id);
-                  const colores = ESTADO[estado];
-                  const estaPresionado = presionado === metodo.id;
+                    const estado = getEstado(metodo.id);
+                    const colores = ESTADO[estado];
+                    const estaPresionado = presionado === metodo.id;
 
-                  return (
-                    <TouchableOpacity
-                      key={metodo.id}
-                      activeOpacity={1}
-                      disabled={procesando}
-                      onPressIn={() => setPresionado(metodo.id)}
-                      onPressOut={() => setPresionado(null)}
-                      onPress={() => metodo.handler()}
-                      style={[
-                      styles.botonMetodo,
-                      {
-                        backgroundColor: estaPresionado ?
-                        colores.bgPressed :
-                        colores.bg
-                      }]
-                      }
-                      hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}>
-                      
-                        {}
+                    return (
+                      <TouchableOpacity
+                        key={metodo.id}
+                        activeOpacity={1}
+                        disabled={procesando}
+                        onPressIn={() => setPresionado(metodo.id)}
+                        onPressOut={() => setPresionado(null)}
+                        onPress={() => metodo.handler()}
+                        style={[
+                          styles.botonMetodo,
+                          {
+                            backgroundColor: estaPresionado ?
+                              colores.bgPressed :
+                              colores.bg
+                          }]
+                        }
+                        hitSlop={{ top: 4, bottom: 4, left: 0, right: 0 }}>
+
+                        { }
                         <View style={styles.botonIconContainer}>
                           <Ionicons
-                          name={metodo.icono}
-                          size={32}
-                          color={colores.icono} />
-                        
+                            name={metodo.icono}
+                            size={32}
+                            color={colores.icono} />
+
                         </View>
 
-                        {}
+                        { }
                         <Text
-                        style={[
-                        styles.botonNombre,
-                        { color: colores.texto }]
-                        }>
-                        
+                          style={[
+                            styles.botonNombre,
+                            { color: colores.texto }]
+                          }>
+
                           {metodo.nombre}
                         </Text>
 
-                        {}
+                        { }
                         <View style={styles.botonIndicador}>
                           {estado === 'activo' ?
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={24}
-                          color="#fff" /> :
+                            <Ionicons
+                              name="checkmark-circle"
+                              size={24}
+                              color="#fff" /> :
 
-                        estado === 'noDisponible' ?
-                        <Ionicons
-                          name="ban"
-                          size={24}
-                          color="rgba(255,255,255,0.7)" /> :
+                            estado === 'noDisponible' ?
+                              <Ionicons
+                                name="ban"
+                                size={24}
+                                color="rgba(255,255,255,0.7)" /> :
 
 
-                        <Ionicons
-                          name="add-circle-outline"
-                          size={24}
-                          color="rgba(255,255,255,0.8)" />
+                              <Ionicons
+                                name="add-circle-outline"
+                                size={24}
+                                color="rgba(255,255,255,0.8)" />
 
-                        }
+                          }
                         </View>
                       </TouchableOpacity>);
 
-                })}
+                  })}
                 </View>
               }
 
-              {}
+              { }
               {!loading &&
-              <View style={styles.leyendaContainer}>
+                <View style={styles.leyendaContainer}>
                   <View style={styles.leyendaFila}>
                     <View
-                    style={[styles.leyendaPunto, { backgroundColor: '#16a34a' }]} />
-                  
+                      style={[styles.leyendaPunto, { backgroundColor: '#16a34a' }]} />
+
                     <Text style={styles.leyendaTexto}>Registrado</Text>
                   </View>
                   <View style={styles.leyendaFila}>
                     <View
-                    style={[styles.leyendaPunto, { backgroundColor: '#6b7280' }]} />
-                  
+                      style={[styles.leyendaPunto, { backgroundColor: '#6b7280' }]} />
+
                     <Text style={styles.leyendaTexto}>Disponible</Text>
                   </View>
                   <View style={styles.leyendaFila}>
                     <View
-                    style={[styles.leyendaPunto, { backgroundColor: '#dc2626' }]} />
-                  
+                      style={[styles.leyendaPunto, { backgroundColor: '#dc2626' }]} />
+
                     <Text style={styles.leyendaTexto}>No disponible en este dispositivo</Text>
                   </View>
                 </View>
@@ -560,7 +596,7 @@ export const MetodoAutenticacionModal = ({
         </View>
       </Modal>
 
-      {}
+      { }
       <PinInputModal
         visible={showPinModal}
         onClose={() => {
@@ -572,7 +608,7 @@ export const MetodoAutenticacionModal = ({
         subtitle="Ingresa un PIN de 6 dígitos"
         darkMode={darkMode}
         requireConfirmation={true} />
-      
+
     </>);
 
 };

@@ -100,6 +100,7 @@ export async function fullPull(empleadoId) {
     departamentos: { success: false, count: 0 },
     horario: { success: false, count: 0 },
     incidencias: { success: false, count: 0 },
+    configuracion: { success: false, count: 0 },
     duration: 0
   };
 
@@ -180,11 +181,11 @@ export async function fullPull(empleadoId) {
       if (data.departamentos && data.departamentos.length > 0) {
         const deptos = data.departamentos.map((d) => {
 
-          let lat = null,lng = null,radio = null;
+          let lat = null, lng = null, radio = null;
           if (d.ubicacion) {
             const ub = typeof d.ubicacion === 'string' ?
-            (() => {try {return JSON.parse(d.ubicacion);} catch {return {};}})() :
-            d.ubicacion;
+              (() => { try { return JSON.parse(d.ubicacion); } catch { return {}; } })() :
+              d.ubicacion;
             lat = ub.latitud ?? ub.lat ?? null;
             lng = ub.longitud ?? ub.lng ?? null;
             radio = ub.radio ?? null;
@@ -197,8 +198,8 @@ export async function fullPull(empleadoId) {
             nombre: d.nombre,
 
             ubicacion: d.ubicacion ?
-            typeof d.ubicacion === 'string' ? d.ubicacion : JSON.stringify(d.ubicacion) :
-            null,
+              typeof d.ubicacion === 'string' ? d.ubicacion : JSON.stringify(d.ubicacion) :
+              null,
 
             latitud: lat,
             longitud: lng,
@@ -284,6 +285,30 @@ export async function fullPull(empleadoId) {
 
     } catch (avisoError) {
       results.avisos = { success: false, error: avisoError.message };
+    }
+
+
+    // ── Caché de configuración (orden y estado de credenciales) ──
+    try {
+      const cfgData = await apiFetch('/configuracion').catch(() => null);
+      if (cfgData) {
+        const cfg = cfgData.data || cfgData;
+        let orden = cfg.orden_credenciales || cfg.credenciales_orden;
+        if (typeof orden === 'string') {
+          try { orden = JSON.parse(orden); } catch { orden = null; }
+        }
+        if (Array.isArray(orden)) {
+          const ALIAS_MAP = { huella: 'dactilar', rostro: 'facial', codigo: 'pin' };
+          const ordenNorm = orden.map((item, i) => {
+            if (typeof item === 'string') return { metodo: ALIAS_MAP[item] || item, activo: true, nivel: i + 1 };
+            return { metodo: ALIAS_MAP[item.metodo] || item.metodo || '', activo: item.activo !== false, nivel: item.nivel || i + 1 };
+          });
+          await sqliteManager.saveOrdenCredenciales(ordenNorm);
+          results.configuracion = { success: true, count: 1 };
+        }
+      }
+    } catch (cfgError) {
+      results.configuracion = { success: false, error: cfgError.message };
     }
 
   } catch (error) {

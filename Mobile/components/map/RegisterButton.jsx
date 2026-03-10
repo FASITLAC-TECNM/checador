@@ -69,16 +69,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
   const datosRegistroRef = useRef({
     ubicacion: null,
-    departamento: null
+    departamento: null,
+    metodo: null,
+    payloadBiometrico: null
   });
   const notificadoEstadoRef = useRef(null);
-
-
-
-
   const notifDiariaRef = useRef({ fecha: '', entrada: false, salida: false });
-
-
   const horarioInfoRef = useRef(null);
   const ultimoRegistroHoyRef = useRef(null);
   const registrosHoyTodosRef = useRef([]);
@@ -97,9 +93,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     cargarCredencialesYOrden();
     syncManager.initAutoSync();
   }, []);
-
-
-
 
   useEffect(() => {
     const cargarEstadoNotifDiaria = async () => {
@@ -125,7 +118,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     cargarEstadoNotifDiaria();
   }, []);
 
-
   const cargarCredencialesYOrden = async () => {
     try {
       const credsResponse = await getCredencialesByEmpleado(
@@ -141,15 +133,28 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       setCredencialesUsuario(creds);
 
       const ordenResponse = await getOrdenCredenciales(userData.token);
-      const orden = ordenResponse.ordenCredenciales || ['pin', 'dactilar', 'facial'];
-      const ordenArray = Array.isArray(orden) ?
-        orden :
-        Object.entries(orden).
-          sort((a, b) => (a[1]?.prioridad ?? 99) - (b[1]?.prioridad ?? 99)).
-          map(([key]) => key);
 
-      setOrdenCredenciales(ordenArray);
-      await construirMetodosDisponibles(creds, ordenArray);
+      // Normalizar a array de objetos {metodo, activo, nivel}
+      const ordenRaw = ordenResponse.ordenCredenciales || [
+        { metodo: 'pin', activo: true, nivel: 1 },
+        { metodo: 'dactilar', activo: true, nivel: 2 },
+        { metodo: 'facial', activo: true, nivel: 3 }
+      ];
+
+      // Always keep objects — preserve activo flag
+      const ordenObjetos = Array.isArray(ordenRaw)
+        ? ordenRaw.map((item, index) =>
+          typeof item === 'string'
+            ? { metodo: item, activo: true, nivel: index + 1 }
+            : { metodo: item.metodo, activo: item.activo !== false, nivel: item.nivel || index + 1 }
+        ).sort((a, b) => a.nivel - b.nivel)
+        : Object.entries(ordenRaw)
+          .map(([key, val], i) => ({ metodo: key, activo: val?.activo !== false, nivel: val?.prioridad || val?.nivel || i + 1 }))
+          .sort((a, b) => a.nivel - b.nivel);
+
+      // Store only method names for display ordering
+      setOrdenCredenciales(ordenObjetos.map(o => o.metodo));
+      await construirMetodosDisponibles(creds, ordenObjetos);
 
     } catch (error) {
       (function () { })('Using offline credentials');
@@ -169,7 +174,20 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         };
 
         setCredencialesUsuario(offlineCreds);
-        await construirMetodosDisponibles(offlineCreds, ['pin', 'dactilar']);
+
+        // Read cached credential order from SQLite (saved during last online sync)
+        let ordenOffline = null;
+        try {
+          ordenOffline = await sqliteManager.getOrdenCredenciales();
+        } catch { /* ignore */ }
+
+        // ordenOffline is [{metodo, activo, nivel}] or null
+        const ordenFallback = ordenOffline || [
+          { metodo: 'pin', activo: true, nivel: 1 },
+          { metodo: 'dactilar', activo: true, nivel: 2 },
+          { metodo: 'facial', activo: true, nivel: 3 }
+        ];
+        await construirMetodosDisponibles(offlineCreds, ordenFallback);
 
       } catch (offlineError) {
         setCredencialesUsuario({
@@ -181,6 +199,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }
   };
 
+  // orden: array of {metodo, activo, nivel} objects (or strings for offline fallback)
   const construirMetodosDisponibles = async (credenciales, orden) => {
 
     let biometricSupported = false;
@@ -209,13 +228,25 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         id: 'facial',
         nombre: 'Facial',
         icono: 'scan',
-        disponible: credenciales?.tiene_facial || false
+        disponible: credenciales?._offlineMode ? true : (credenciales?.tiene_facial || false)
       }
     };
 
-    const metodosOrdenados = orden.
-      map((key) => metodosBase[key]).
-      filter((metodo) => metodo && metodo.disponible);
+    // Normalize orden to objects: support both string[] (offline) and {metodo,activo,nivel}[]
+    const ordenNorm = Array.isArray(orden)
+      ? orden.map((item, i) =>
+        typeof item === 'string'
+          ? { metodo: item, activo: true, nivel: i + 1 }
+          : item
+      )
+      : [];
+
+    const metodosOrdenados = ordenNorm
+      // Filter out methods disabled by the admin config
+      .filter(o => o.activo !== false)
+      .sort((a, b) => (a.nivel ?? 99) - (b.nivel ?? 99))
+      .map(o => metodosBase[o.metodo])
+      .filter(metodo => metodo && metodo.disponible);
 
     setMetodosDisponibles(metodosOrdenados);
   };
@@ -230,6 +261,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   };
 
   const handleAutenticacionPin = useCallback(() => {
+    datosRegistroRef.current.metodo = 'PIN';
     setMostrarAutenticacion(false);
     setTimeout(() => {
       setMostrarPinAuth(true);
@@ -885,6 +917,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
   const handleAutenticacionHuella = async () => {
     try {
+      datosRegistroRef.current.metodo = 'HUELLA';
       setMostrarAutenticacion(false);
       setRegistrando(true);
 
@@ -922,6 +955,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
   const handleAutenticacionFacial = async () => {
     try {
+      datosRegistroRef.current.metodo = 'FACIAL';
       setMostrarAutenticacion(false);
       setMostrarCapturaFacial(true);
     } catch (error) {
@@ -965,36 +999,48 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       const empleadoId = userData?.empleado?.id || userData?.empleado_id || userData?.id;
 
-      const response = await fetch(`${API_URL}/credenciales/facial/verify-image`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userData.token}`
-        },
-        body: JSON.stringify({
-          empleado_id: empleadoId,
-          imagen_base64: captureData.photoBase64
-        })
-      });
+      let verifyOffline = false;
+      try {
+        const response = await fetch(`${API_URL}/credenciales/facial/verify-image`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${userData.token}`
+          },
+          body: JSON.stringify({
+            empleado_id: empleadoId,
+            imagen_base64: captureData.photoBase64
+          })
+        });
 
-      const verification = await response.json();
+        const verification = await response.json();
 
-      if (!response.ok || !verification.success) {
-        (function () { })(' Verificación facial falló en el servidor:', verification);
-        Alert.alert(
-          'Identidad no verificada',
-          verification.message || 'El rostro capturado no coincide con tu registro.',
-          [
-            { text: 'Cancelar', style: 'cancel', onPress: () => setRegistrando(false) },
-            { text: 'Reintentar', onPress: () => setMostrarCapturaFacial(true) }]
+        if (!response.ok || !verification.success) {
+          (function () { })(' Verificación facial falló en el servidor:', verification);
+          Alert.alert(
+            'Identidad no verificada',
+            verification.message || 'El rostro capturado no coincide con tu registro.',
+            [
+              { text: 'Cancelar', style: 'cancel', onPress: () => setRegistrando(false) },
+              { text: 'Reintentar', onPress: () => setMostrarCapturaFacial(true) }]
 
-        );
-        setRegistrando(false);
-        return;
+          );
+          setRegistrando(false);
+          return;
+        }
+
+        (function () { })(` Identidad verificada (${verification.data?.matchScore || 100}% similitud), procediendo con el registro`);
+      } catch (networkError) {
+        const esErrorDeRed = networkError.message.includes('Network') || networkError.message.includes('fetch');
+        if (esErrorDeRed || !isOnline) {
+          verifyOffline = true;
+          (function () { })(' Error de red en verificación facial. Procedimiento offline.');
+        } else {
+          throw networkError;
+        }
       }
 
-      (function () { })(` Identidad verificada (${verification.data?.matchScore || 100}% similitud), procediendo con el registro`);
-
+      datosRegistroRef.current.payloadBiometrico = captureData.photoBase64;
       await procederConRegistro();
     } catch (error) {
       (function () { })(' Error en autenticación facial:', error);
@@ -1171,11 +1217,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           ...payload,
           tipo: tipoActual,
           estado: 'pendiente',
-          metodo_registro: 'PIN',
+          metodo_registro: datosRegistroRef.current.metodo || 'PIN',
           fecha_registro: new Date().toISOString(),
           ubicacion: payload.ubicacion || [ubicacionFinal.lat, ubicacionFinal.lng],
           ip: payload.ip,
-          wifi: payload.wifi
+          wifi: payload.wifi,
+          payload_biometrico: datosRegistroRef.current.payloadBiometrico
         });
 
 
@@ -1667,7 +1714,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
             <View style={styles.authMethodsContainer}>
               {metodosDisponibles.
-                filter((metodo) => metodo.id !== 'facial' || !credencialesUsuario?._offlineMode).
                 map((metodo) =>
                   <TouchableOpacity
                     key={metodo.id}

@@ -47,6 +47,7 @@ const DEVICE_VERIFICATION_INTERVAL = 15000;
 const NOTIF_POLL_INTERVAL = 60000;
 const NOTIF_DIARIA_KEY = '@notif_asistencia_disponible';
 const API_URL_BASE = getApiEndpoint('/api');
+const HEALTH_CONSECUTIVE_FAILURES_THRESHOLD = 2; // how many fails in a row before going offline
 
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -64,6 +65,8 @@ export default function App() {
   const userDataRefreshInterval = useRef(null);
   const notifPollInterval = useRef(null);
   const maintenanceInterval = useRef(null);
+  const healthCheckInterval = useRef(null);
+  const healthFailCount = useRef(0);
   const notifDiariaRef = useRef({ fecha: '', entrada: false, salida: false });
 
 
@@ -101,11 +104,46 @@ export default function App() {
       } catch (e) { }
     }, 20000);
 
+    // Periodic health check for backend downtime fallback
+    healthCheckInterval.current = setInterval(async () => {
+      try {
+        const netState = await NetInfo.fetch();
+        if (netState.isConnected && netState.isInternetReachable) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+          try {
+            const res = await fetch(`${API_URL_BASE}/asistencia/health`, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            if (res.ok) {
+              healthFailCount.current = 0;
+              syncManager.markBackendUp();
+            } else {
+              healthFailCount.current += 1;
+              if (healthFailCount.current >= HEALTH_CONSECUTIVE_FAILURES_THRESHOLD) {
+                syncManager.markBackendDown();
+              }
+            }
+          } catch (fetchErr) {
+            clearTimeout(timeoutId);
+            healthFailCount.current += 1;
+            if (healthFailCount.current >= HEALTH_CONSECUTIVE_FAILURES_THRESHOLD) {
+              syncManager.markBackendDown();
+            }
+          }
+        } else {
+          // No internet at all — don't touch isBackendDown; NetInfo handles this case
+        }
+      } catch (e) {
+      }
+    }, 20000);
+
     return () => {
       subscription?.remove();
       clearInterval(verificationInterval.current);
       clearInterval(userDataRefreshInterval.current);
       clearInterval(maintenanceInterval.current);
+      clearInterval(healthCheckInterval.current);
     };
   }, []);
 
@@ -656,10 +694,11 @@ export default function App() {
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
-
       if (isLoggedIn && !isOfflineSession && state.isConnected === false) {
-        (function () { })('⚠️ [App] Conexión perdida en sesión ONLINE. Cerrando sesión por seguridad...');
-        handleLogout();
+        (function () { })('⚠️ [App] Conexión perdida en sesión ONLINE. Pasando a modo offline transparente...');
+        setIsOfflineSession(true);
+      } else if (isLoggedIn && state.isConnected && state.isInternetReachable) {
+        setIsOfflineSession(false);
       }
     });
     return () => unsubscribe();

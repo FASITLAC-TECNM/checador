@@ -103,15 +103,23 @@ export default function AsistenciaHuella({
         clearTimeout(reconnectTimeoutRef.current);
       }
       if (wsRef.current) {
+        const socket = wsRef.current;
         // Enviar stopCapture antes de cerrar la conexión para asegurar que el lector se libere
-        if (wsRef.current.readyState === WebSocket.OPEN) {
+        if (socket.readyState === WebSocket.OPEN) {
           try {
-            wsRef.current.send(JSON.stringify({ command: "stopCapture" }));
+            socket.send(JSON.stringify({ command: "stopCapture" }));
           } catch (e) {
             console.error("Error enviando stopCapture en AsistenciaHuella:", e);
           }
+          // Retrasar el cierre para permitir el envío del socket antes de desconectar
+          setTimeout(() => {
+            if (socket.readyState === WebSocket.OPEN) {
+              socket.close();
+            }
+          }, 150);
+        } else {
+          socket.close();
         }
-        wsRef.current.close();
       }
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current);

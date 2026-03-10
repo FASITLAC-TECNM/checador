@@ -21,6 +21,7 @@ let storedEmpleadoId = null;
 let isPushingSessions = false;
 let isPushingIncidencias = false;
 let isSyncing = false;
+let isBackendDown = false;
 
 const API_URL = getApiEndpoint('/api');
 const CLEANUP_KEY = '@sqlite_last_cleanup';
@@ -58,9 +59,23 @@ export function setAuthToken(token, empleadoId = null) {
 
 
 export async function isOnline() {
+  if (isBackendDown) return false;
   const state = await NetInfo.fetch();
 
   return state.isConnected && (state.isInternetReachable === true || state.isInternetReachable === null);
+}
+
+export function markBackendDown() {
+  isBackendDown = true;
+}
+
+export function markBackendUp() {
+  const wasDown = isBackendDown;
+  isBackendDown = false;
+  if (wasDown) {
+    // Optionally trigger an immediate sync when backend recovers
+    setTimeout(() => performSync('reconnect'), 1000);
+  }
 }
 
 
@@ -118,7 +133,7 @@ export async function pushSessions() {
   }
 
   const online = await isOnline();
-  if (!online) {isPushingSessions = false;return { success: false, error: 'Offline' };}
+  if (!online) { isPushingSessions = false; return { success: false, error: 'Offline' }; }
 
   try {
     const pending = await sqliteManager.getPendingSessions(50);
@@ -202,7 +217,7 @@ export async function pushSessions() {
       }
     }
 
-    await pushService.pushEvents().catch(() => {});
+    await pushService.pushEvents().catch(() => { });
 
 
     return { success: true, count: result.sincronizados?.length };
@@ -317,21 +332,21 @@ export async function performSync(reason = 'manual') {
     await cleanupDiario();
 
 
-    await pushSessions().catch(() => {});
+    await pushSessions().catch(() => { });
 
 
     if (authToken) {
-      await pushData().catch(() => {});
+      await pushData().catch(() => { });
     }
 
 
     if (authToken) {
-      await pushIncidencias().catch(() => {});
+      await pushIncidencias().catch(() => { });
     }
 
 
     if (authToken) {
-      await pushService.pushEvents().catch(() => {});
+      await pushService.pushEvents().catch(() => { });
     }
 
 
@@ -405,5 +420,7 @@ export default {
   pushIncidencias,
   performSync,
   initAutoSync,
-  isOnline
+  isOnline,
+  markBackendDown,
+  markBackendUp
 };

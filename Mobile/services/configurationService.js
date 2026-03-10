@@ -49,24 +49,35 @@ export const getConfiguracion = async (token) => {
       }
     }
 
+    // Map aliases from desktop naming to mobile naming
+    const ALIAS_MAP = {
+      'huella': 'dactilar',
+      'rostro': 'facial',
+      'codigo': 'pin',
+      'code': 'pin',
+      'face': 'facial',
+      'fingerprint': 'dactilar'
+    };
+
     // Normalizar a formato uniforme [{ metodo: 'pin', activo: true, nivel: 1 }, ...]
     let ordenNormalizado = [];
     if (Array.isArray(ordenCredenciales)) {
       ordenNormalizado = ordenCredenciales.map((item, index) => {
         if (typeof item === 'string') {
-          return { metodo: item, activo: true, nivel: index + 1 };
+          const metodo = ALIAS_MAP[item] || item;
+          return { metodo, activo: true, nivel: index + 1 };
         }
+        const metodo = ALIAS_MAP[item.metodo] || item.metodo || '';
         return {
-          metodo: item.metodo || '',
+          metodo,
           activo: item.activo !== false,
           nivel: item.nivel || item.prioridad || index + 1
         };
       });
     } else if (typeof ordenCredenciales === 'object' && ordenCredenciales !== null) {
-      // Formato antiguo: { pin: { activo: true, prioridad: 1 }, dactilar: ... }
       ordenNormalizado = Object.entries(ordenCredenciales)
         .map(([key, value]) => ({
-          metodo: key,
+          metodo: ALIAS_MAP[key] || key,
           activo: value?.activo !== false,
           nivel: value?.prioridad || value?.nivel || 99
         }))
@@ -153,9 +164,16 @@ export const getOrdenCredenciales = async (token) => {
     const response = await getConfiguracion(token);
 
     if (response.success && response.data.orden_credenciales) {
+      const orden = response.data.orden_credenciales;
+      // Persist to SQLite cache for offline use
+      try {
+        const sqliteManager = (await import('./offline/sqliteManager.mjs')).default;
+        await sqliteManager.saveOrdenCredenciales(orden);
+      } catch { /* non-critical */ }
+
       return {
         success: true,
-        ordenCredenciales: response.data.orden_credenciales
+        ordenCredenciales: orden
       };
     }
 
@@ -165,6 +183,15 @@ export const getOrdenCredenciales = async (token) => {
     };
 
   } catch (error) {
+    // Network failed — try the SQLite cache
+    try {
+      const sqliteManager = (await import('./offline/sqliteManager.mjs')).default;
+      const cached = await sqliteManager.getOrdenCredenciales();
+      if (cached) {
+        return { success: true, ordenCredenciales: cached };
+      }
+    } catch { /* ignore */ }
+
     return {
       success: true,
       ordenCredenciales: null

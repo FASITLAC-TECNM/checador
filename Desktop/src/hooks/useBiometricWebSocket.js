@@ -202,7 +202,12 @@ export default function useBiometricWebSocket(onMessage) {
         clearTimeout(reconnectTimeoutRef.current);
       }
       if (wsRef.current) {
-        wsRef.current.close();
+        const socket = wsRef.current;
+        setTimeout(() => {
+          if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CLOSING) {
+            socket.close();
+          }
+        }, 150);
       }
     };
   }, []);

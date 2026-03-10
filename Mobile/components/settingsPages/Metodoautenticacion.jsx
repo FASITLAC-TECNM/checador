@@ -100,9 +100,17 @@ export const MetodoAutenticacionModal = ({
         const ordenResult = await getOrdenCredenciales(userData?.token);
         if (ordenResult.success && ordenResult.ordenCredenciales) {
           setOrdenCredenciales(ordenResult.ordenCredenciales);
+        } else {
+          // Online fetch returned nothing — try SQLite cache
+          const cached = await sqliteManager.getOrdenCredenciales();
+          if (cached) setOrdenCredenciales(cached);
         }
       } catch (error) {
-
+        // Network fails totally — try SQLite cache directly
+        try {
+          const cached = await sqliteManager.getOrdenCredenciales();
+          if (cached) setOrdenCredenciales(cached);
+        } catch { /* ignore */ }
       }
 
 

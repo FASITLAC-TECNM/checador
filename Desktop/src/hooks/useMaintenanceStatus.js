@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { API_CONFIG } from "../config/apiEndPoint";
+import { obtenerConfiguracionEscritorio } from "../services/configuracionEscritorioService";
+import { obtenerEscritorioIdGuardado } from "../services/escritorioService";
 
 export const useMaintenanceStatus = () => {
     const [isMaintenance, setIsMaintenance] = useState(false);
@@ -8,23 +9,28 @@ export const useMaintenanceStatus = () => {
     useEffect(() => {
         const checkMaintenance = async () => {
             try {
+                const escritorioId = obtenerEscritorioIdGuardado();
+                if (!escritorioId) {
+                    // Si no hay escritorio, no verificamos el mantenimiento
+                    return;
+                }
+
                 setIsCheckingMaintenance(true);
-                const response = await fetch(`${API_CONFIG.BASE_URL}/api/configuracion/public/status`);
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.success && data.maintenance !== undefined) {
-                        setIsMaintenance(data.maintenance);
-                    }
+
+                const configuracion = await obtenerConfiguracionEscritorio(escritorioId);
+
+                if (configuracion && configuracion.es_mantenimiento !== undefined) {
+                    setIsMaintenance(Boolean(configuracion.es_mantenimiento));
                 }
             } catch (error) {
-                console.warn("No se pudo verificar el estado de mantenimiento:", error);
+                console.warn("No se pudo verificar el estado de mantenimiento específico del nodo:", error);
             } finally {
                 setIsCheckingMaintenance(false);
             }
         };
 
         checkMaintenance();
-        const interval = setInterval(checkMaintenance, 60000);
+        const interval = setInterval(checkMaintenance, 15000);
 
         return () => clearInterval(interval);
     }, []);

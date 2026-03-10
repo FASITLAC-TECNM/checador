@@ -49,20 +49,42 @@ export const getConfiguracion = async (token) => {
       }
     }
 
-
+    // Normalizar a formato uniforme [{ metodo: 'pin', activo: true, nivel: 1 }, ...]
+    let ordenNormalizado = [];
     if (Array.isArray(ordenCredenciales)) {
-      const nuevoOrden = {};
-      ordenCredenciales.forEach((metodo, index) => {
-        nuevoOrden[metodo] = { prioridad: index + 1, activo: true };
+      ordenNormalizado = ordenCredenciales.map((item, index) => {
+        if (typeof item === 'string') {
+          return { metodo: item, activo: true, nivel: index + 1 };
+        }
+        return {
+          metodo: item.metodo || '',
+          activo: item.activo !== false,
+          nivel: item.nivel || item.prioridad || index + 1
+        };
       });
-      ordenCredenciales = nuevoOrden;
+    } else if (typeof ordenCredenciales === 'object' && ordenCredenciales !== null) {
+      // Formato antiguo: { pin: { activo: true, prioridad: 1 }, dactilar: ... }
+      ordenNormalizado = Object.entries(ordenCredenciales)
+        .map(([key, value]) => ({
+          metodo: key,
+          activo: value?.activo !== false,
+          nivel: value?.prioridad || value?.nivel || 99
+        }))
+        .sort((a, b) => a.nivel - b.nivel);
+    } else {
+      // Default
+      ordenNormalizado = [
+        { metodo: 'pin', activo: true, nivel: 1 },
+        { metodo: 'dactilar', activo: true, nivel: 2 },
+        { metodo: 'facial', activo: true, nivel: 3 }
+      ];
     }
 
     const configuracion = {
       ...config,
       paleta_colores: paletaColores,
-      credenciales_orden: ordenCredenciales,
-      orden_credenciales: ordenCredenciales
+      credenciales_orden: ordenNormalizado,
+      orden_credenciales: ordenNormalizado
     };
 
     return {

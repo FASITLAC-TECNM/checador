@@ -39,7 +39,7 @@ export function updateToken(token) {
 
 
 export async function postEvent(titulo, tipo, descripcion, empleadoId, prioridad = 'media') {
-  (function () {})(`[DEBUG PUSH] postEvent Called: ${titulo}`);
+  (function () { })(`[DEBUG PUSH] postEvent Called: ${titulo}`);
   try {
 
     if (!authToken) {
@@ -101,8 +101,8 @@ async function pushBatch(records) {
     if (record.ubicacion) {
       try {
         ubicacion = typeof record.ubicacion === 'string' ?
-        JSON.parse(record.ubicacion) :
-        record.ubicacion;
+          JSON.parse(record.ubicacion) :
+          record.ubicacion;
       } catch {
         ubicacion = null;
       }
@@ -113,8 +113,8 @@ async function pushBatch(records) {
     if (record.wifi) {
       try {
         wifi = typeof record.wifi === 'string' ?
-        JSON.parse(record.wifi) :
-        record.wifi;
+          JSON.parse(record.wifi) :
+          record.wifi;
       } catch {
         wifi = null;
       }
@@ -133,7 +133,8 @@ async function pushBatch(records) {
       ip: record.ip || null,
       wifi,
       fecha_registro: new Date(record.fecha_registro).getTime(),
-      fecha_captura: new Date(record.fecha_registro).toISOString()
+      fecha_captura: new Date(record.fecha_registro).toISOString(),
+      imagen_base64: record.payload_biometrico ? JSON.parse(record.payload_biometrico) : null
     };
   });
 
@@ -184,8 +185,8 @@ async function pushBatch(records) {
   } catch (error) {
     clearTimeout(timeoutId);
     const errorMsg = error.name === 'AbortError' ?
-    'Timeout de conexión' :
-    `Network error: ${error.message}`;
+      'Timeout de conexión' :
+      `Network error: ${error.message}`;
     return { success: false, error: errorMsg };
   }
 }
@@ -226,7 +227,7 @@ export async function pushPendingRecords() {
 
     for (const sync of sincronizados) {
       const record = pending.find((r) =>
-      r.idempotency_key === sync.id_local || r.local_id.toString() === sync.id_local
+        r.idempotency_key === sync.id_local || r.local_id.toString() === sync.id_local
       );
       if (record) {
         await sqliteManager.markAsSynced(record.local_id, sync.id_servidor, sync.estado || null);
@@ -235,14 +236,14 @@ export async function pushPendingRecords() {
         try {
           const emp = await sqliteManager.getEmpleado(record.empleado_id);
           if (emp && emp.nombre) nombreGuardado = emp.nombre;
-        } catch (e) {}
+        } catch (e) { }
 
-        (function () {})(`[DEBUG PUSH] Firing postEvent for record: ${record.local_id}`);
+        (function () { })(`[DEBUG PUSH] Firing postEvent for record: ${record.local_id}`);
 
 
         const estadoSincronizado = sync.estado && sync.estado !== 'pendiente' ?
-        sync.estado :
-        record.estado && record.estado !== 'pendiente' ? record.estado : 'sincronizado';
+          sync.estado :
+          record.estado && record.estado !== 'pendiente' ? record.estado : 'sincronizado';
         await postEvent(
           `Registro de ${record.tipo} - ${estadoSincronizado}`,
           'ASISTENCIA',
@@ -256,7 +257,7 @@ export async function pushPendingRecords() {
 
     for (const rej of rechazados) {
       const record = pending.find((r) =>
-      r.idempotency_key === rej.id_local || r.local_id.toString() === rej.id_local
+        r.idempotency_key === rej.id_local || r.local_id.toString() === rej.id_local
       );
       if (record) {
         const definitivo = ['CAMPOS_FALTANTES', 'EMPLEADO_NO_EXISTE', 'DUPLICADO'].includes(rej.codigo);

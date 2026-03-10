@@ -64,6 +64,7 @@ export default function App() {
   const userDataRefreshInterval = useRef(null);
   const notifPollInterval = useRef(null);
   const maintenanceInterval = useRef(null);
+  const healthCheckInterval = useRef(null);
   const notifDiariaRef = useRef({ fecha: '', entrada: false, salida: false });
 
 
@@ -101,11 +102,37 @@ export default function App() {
       } catch (e) { }
     }, 20000);
 
+    // Periodic health check for backend downtime fallback
+    healthCheckInterval.current = setInterval(async () => {
+      try {
+        const netState = await NetInfo.fetch();
+        if (netState.isConnected && netState.isInternetReachable) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+          try {
+            const res = await fetch(`${API_URL_BASE}/health`, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            if (res.ok) {
+              syncManager.markBackendUp();
+            } else {
+              syncManager.markBackendDown();
+            }
+          } catch (fetchErr) {
+            clearTimeout(timeoutId);
+            syncManager.markBackendDown();
+          }
+        }
+      } catch (e) {
+      }
+    }, 15000);
+
     return () => {
       subscription?.remove();
       clearInterval(verificationInterval.current);
       clearInterval(userDataRefreshInterval.current);
       clearInterval(maintenanceInterval.current);
+      clearInterval(healthCheckInterval.current);
     };
   }, []);
 
@@ -656,10 +683,11 @@ export default function App() {
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
-
       if (isLoggedIn && !isOfflineSession && state.isConnected === false) {
-        (function () { })('⚠️ [App] Conexión perdida en sesión ONLINE. Cerrando sesión por seguridad...');
-        handleLogout();
+        (function () { })('⚠️ [App] Conexión perdida en sesión ONLINE. Pasando a modo offline transparente...');
+        setIsOfflineSession(true);
+      } else if (isLoggedIn && state.isConnected && state.isInternetReachable) {
+        setIsOfflineSession(false);
       }
     });
     return () => unsubscribe();

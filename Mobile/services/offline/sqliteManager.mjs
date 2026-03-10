@@ -409,17 +409,30 @@ export async function getPendingCount() {
 
 export async function getRegistrosHoy(empleadoId) {
   if (!db) await initDatabase();
-  const hoy = new Date().toISOString().split('T')[0];
 
-  return await db.getAllAsync(
+  const dosDiasAtras = new Date();
+  dosDiasAtras.setDate(dosDiasAtras.getDate() - 2);
+  const limiteIso = dosDiasAtras.toISOString();
+
+  const records = await db.getAllAsync(
     `SELECT tipo, estado, fecha_registro FROM offline_asistencias
-         WHERE empleado_id = ? AND fecha_registro LIKE ? || '%'
+         WHERE empleado_id = ? AND fecha_registro >= ?
          UNION
          SELECT tipo, estado, fecha_registro FROM cache_asistencias
-         WHERE empleado_id = ? AND fecha_registro LIKE ? || '%'
+         WHERE empleado_id = ? AND fecha_registro >= ?
          ORDER BY fecha_registro ASC`,
-    [empleadoId, hoy, empleadoId, hoy]
+    [empleadoId, limiteIso, empleadoId, limiteIso]
   );
+
+  const hoyString = new Date().toDateString();
+  return records.filter(r => {
+    try {
+      if (!r.fecha_registro) return false;
+      return new Date(r.fecha_registro).toDateString() === hoyString;
+    } catch (e) {
+      return false;
+    }
+  });
 }
 
 

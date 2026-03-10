@@ -727,10 +727,16 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           try {
             const hoy = new Date().toISOString().split('T')[0];
             const yearActual = new Date().getFullYear();
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
             const festivoResp = await fetch(
               `${API_URL}/dias-festivos?year=${yearActual}`,
-              { headers: { 'Authorization': `Bearer ${userData.token}`, 'Content-Type': 'application/json' } }
+              {
+                headers: { 'Authorization': `Bearer ${userData.token}`, 'Content-Type': 'application/json' },
+                signal: controller.signal
+              }
             );
+            clearTimeout(timeoutId);
             if (festivoResp.ok) {
               const festivoData = await festivoResp.json();
               const festivosObligatorios = (festivoData.data || []).filter(
@@ -1369,11 +1375,17 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
 
         const bloqueSinEntrada = bloques.find((b) => {
-          return !regsTodos.some((r) => {
+          const tieneEntrada = regsTodos.some((r) => {
             if (r.tipo !== 'entrada') return false;
             const m = getMinutosLocales(r.fecha_registro);
             return m >= b.entrada - anticipoEntrada && m <= b.salida + posteriorSalida;
           });
+
+          if (tieneEntrada) return false;
+
+          if (minsAhora > b.salida + posteriorSalida) return false;
+
+          return true;
         });
 
         if (bloqueSinEntrada) {
@@ -1385,8 +1397,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             return;
           }
         } else {
-
-          Alert.alert('Aviso', 'Ya has registrado todas tus entradas para hoy o no tienes más turnos disponibles.');
+          const faltanMasTurnosHoy = bloques.some(b => minsAhora <= b.salida + posteriorSalida);
+          if (!faltanMasTurnosHoy) {
+            Alert.alert('Aviso', 'Ya ha finalizado tu jornada de hoy. No es posible registrar más entradas.');
+          } else {
+            Alert.alert('Aviso', 'Ya has registrado todas tus entradas para hoy o no tienes más turnos disponibles.');
+          }
           return;
         }
       }

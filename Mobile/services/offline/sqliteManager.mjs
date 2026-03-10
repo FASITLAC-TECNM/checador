@@ -223,6 +223,13 @@ async function runMigrations() {
       updated_at TEXT NOT NULL
     );
 
+    -- Caché de configuración global (incluyendo orden y estado de credenciales)
+    CREATE TABLE IF NOT EXISTS cache_configuracion (
+      clave TEXT PRIMARY KEY,
+      valor TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     -- Cola de incidencias creadas offline pendientes de sync
     CREATE TABLE IF NOT EXISTS offline_incidencias (
       local_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -276,11 +283,10 @@ async function runMigrations() {
 
 
   for (const col of [
-  'ALTER TABLE offline_asistencias ADD COLUMN ubicacion TEXT',
-  'ALTER TABLE offline_asistencias ADD COLUMN ip TEXT',
-  'ALTER TABLE offline_asistencias ADD COLUMN wifi TEXT'])
-  {
-    try {await db.execAsync(col);} catch (e) {}
+    'ALTER TABLE offline_asistencias ADD COLUMN ubicacion TEXT',
+    'ALTER TABLE offline_asistencias ADD COLUMN ip TEXT',
+    'ALTER TABLE offline_asistencias ADD COLUMN wifi TEXT']) {
+    try { await db.execAsync(col); } catch (e) { }
   }
 
 
@@ -307,16 +313,16 @@ export async function saveOfflineAsistencia(data) {
   let ubicacionStr = null;
   if (data.ubicacion) {
     ubicacionStr = typeof data.ubicacion === 'string' ?
-    data.ubicacion :
-    JSON.stringify(data.ubicacion);
+      data.ubicacion :
+      JSON.stringify(data.ubicacion);
   }
 
 
   let wifiStr = null;
   if (data.wifi) {
     wifiStr = typeof data.wifi === 'string' ?
-    data.wifi :
-    JSON.stringify(data.wifi);
+      data.wifi :
+      JSON.stringify(data.wifi);
   }
 
   try {
@@ -326,18 +332,18 @@ export async function saveOfflineAsistencia(data) {
          departamento_id, fecha_registro, payload_biometrico, ubicacion, ip, wifi)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-      idempotencyKey,
-      data.empleado_id,
-      data.tipo,
-      data.estado,
-      data.dispositivo_origen || 'movil',
-      data.metodo_registro,
-      data.departamento_id || null,
-      data.fecha_registro || new Date().toISOString(),
-      data.payload_biometrico ? JSON.stringify(data.payload_biometrico) : null,
-      ubicacionStr,
-      data.ip || null,
-      wifiStr]
+        idempotencyKey,
+        data.empleado_id,
+        data.tipo,
+        data.estado,
+        data.dispositivo_origen || 'movil',
+        data.metodo_registro,
+        data.departamento_id || null,
+        data.fecha_registro || new Date().toISOString(),
+        data.payload_biometrico ? JSON.stringify(data.payload_biometrico) : null,
+        ubicacionStr,
+        data.ip || null,
+        wifiStr]
 
     );
 
@@ -430,20 +436,20 @@ export async function saveOnlineAsistenciaToCache(data) {
              (id, empleado_id, tipo, estado, fecha_registro, dispositivo_origen, departamento_id, departamento_nombre, mes_key, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now','localtime'))`,
       [
-      data.id || `local_online_${Date.now()}`,
-      data.empleado_id,
-      data.tipo,
-      data.estado || null,
-      data.fecha_registro,
-      data.dispositivo_origen || 'movil',
-      data.departamento_id || null,
-      data.departamento_nombre || null,
-      mesKey]
+        data.id || `local_online_${Date.now()}`,
+        data.empleado_id,
+        data.tipo,
+        data.estado || null,
+        data.fecha_registro,
+        data.dispositivo_origen || 'movil',
+        data.departamento_id || null,
+        data.departamento_nombre || null,
+        mesKey]
 
     );
   } catch (error) {
 
-    (function () {})('saveOnlineAsistenciaToCache error (no crítico):', error.message);
+    (function () { })('saveOnlineAsistenciaToCache error (no crítico):', error.message);
   }
 }
 
@@ -521,14 +527,14 @@ export async function upsertEmpleados(empleados) {
            foto = excluded.foto,
            updated_at = excluded.updated_at`,
         [
-        emp.empleado_id || emp.id,
-        emp.usuario_id,
-        emp.nombre,
-        emp.usuario || null,
-        emp.correo || null,
-        estadoCuenta,
-        emp.es_empleado !== false ? 1 : 0,
-        emp.foto || null]
+          emp.empleado_id || emp.id,
+          emp.usuario_id,
+          emp.nombre,
+          emp.usuario || null,
+          emp.correo || null,
+          estadoCuenta,
+          emp.es_empleado !== false ? 1 : 0,
+          emp.foto || null]
 
       );
     }
@@ -555,11 +561,11 @@ export async function upsertCredenciales(credenciales) {
            facial_descriptor = excluded.facial_descriptor,
            updated_at = excluded.updated_at`,
         [
-        cred.id,
-        cred.empleado_id,
-        cred.pin_hash || cred.pin || null,
-        cred.dactilar_template || cred.dactilar || null,
-        cred.facial_descriptor || cred.facial || null]
+          cred.id,
+          cred.empleado_id,
+          cred.pin_hash || cred.pin || null,
+          cred.dactilar_template || cred.dactilar || null,
+          cred.facial_descriptor || cred.facial || null]
 
       );
     }
@@ -581,10 +587,10 @@ export async function upsertHorario(empleadoId, horario) {
        es_activo = excluded.es_activo,
        updated_at = excluded.updated_at`,
     [
-    horario.id || horario.horario_id,
-    empleadoId,
-    typeof horario.configuracion === 'string' ? horario.configuracion : JSON.stringify(horario.configuracion),
-    horario.es_activo ? 1 : 0]
+      horario.id || horario.horario_id,
+      empleadoId,
+      typeof horario.configuracion === 'string' ? horario.configuracion : JSON.stringify(horario.configuracion),
+      horario.es_activo ? 1 : 0]
 
   );
 }
@@ -593,8 +599,8 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
   if (!db) await initDatabase();
 
   const diasAplica = tolerancia.dias_aplica || tolerancia.dias_aplicables ?
-  typeof tolerancia.dias_aplica === 'string' ? tolerancia.dias_aplica : JSON.stringify(tolerancia.dias_aplica || tolerancia.dias_aplicables) :
-  null;
+    typeof tolerancia.dias_aplica === 'string' ? tolerancia.dias_aplica : JSON.stringify(tolerancia.dias_aplica || tolerancia.dias_aplicables) :
+    null;
 
   try {
     await db.runAsync(
@@ -613,16 +619,16 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
       dias_aplica = excluded.dias_aplica,
       updated_at = excluded.updated_at`,
       [
-      empleadoId,
-      tolerancia.nombre || null,
-      tolerancia.minutos_retardo ?? 10,
-      tolerancia.minutos_falta ?? 30,
-      tolerancia.permite_registro_anticipado !== false ? 1 : 0,
-      tolerancia.minutos_anticipado_max ?? 60,
-      tolerancia.aplica_tolerancia_entrada !== false ? 1 : 0,
-      tolerancia.aplica_tolerancia_salida ? 1 : 0,
-      tolerancia.max_retardos ?? 0,
-      diasAplica]
+        empleadoId,
+        tolerancia.nombre || null,
+        tolerancia.minutos_retardo ?? 10,
+        tolerancia.minutos_falta ?? 30,
+        tolerancia.permite_registro_anticipado !== false ? 1 : 0,
+        tolerancia.minutos_anticipado_max ?? 60,
+        tolerancia.aplica_tolerancia_entrada !== false ? 1 : 0,
+        tolerancia.aplica_tolerancia_salida ? 1 : 0,
+        tolerancia.max_retardos ?? 0,
+        diasAplica]
 
     );
   } catch (ignore) {
@@ -641,18 +647,18 @@ export async function upsertDepartamentos(empleadoId, departamentos) {
   try {
     for (const dep of departamentos) {
       const ubicacionStr = dep.ubicacion ?
-      typeof dep.ubicacion === 'string' ? dep.ubicacion : JSON.stringify(dep.ubicacion) :
-      null;
+        typeof dep.ubicacion === 'string' ? dep.ubicacion : JSON.stringify(dep.ubicacion) :
+        null;
 
       await db.runAsync(`
                 INSERT OR REPLACE INTO cache_departamentos (empleado_id, departamento_id, nombre, ubicacion, es_activo, updated_at)
                 VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))
              `, [
-      empleadoId,
-      dep.departamento_id,
-      dep.nombre,
-      ubicacionStr,
-      dep.es_activo ? 1 : 0]
+        empleadoId,
+        dep.departamento_id,
+        dep.nombre,
+        ubicacionStr,
+        dep.es_activo ? 1 : 0]
       );
     }
   } catch (error) {
@@ -726,7 +732,7 @@ export async function getHorario(empleadoId) {
   if (row && row.configuracion) {
     try {
       row.configuracion = JSON.parse(row.configuracion);
-    } catch (e) {}
+    } catch (e) { }
   }
   return row;
 }
@@ -737,7 +743,7 @@ export async function getTolerancia(empleadoId) {
   if (row && row.dias_aplica) {
     try {
       row.dias_aplica = JSON.parse(row.dias_aplica);
-    } catch (e) {}
+    } catch (e) { }
   }
   return row || {
     minutos_retardo: 10,
@@ -785,15 +791,15 @@ export async function upsertAsistenciasMes(empleadoId, mesKey, asistencias) {
         `INSERT OR REPLACE INTO cache_asistencias (id, empleado_id, tipo, estado, fecha_registro, dispositivo_origen, departamento_id, departamento_nombre, mes_key, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))`,
         [
-        reg.id,
-        empleadoId,
-        reg.tipo,
-        reg.estado || null,
-        reg.fecha_registro,
-        reg.dispositivo_origen || null,
-        reg.departamento_id || null,
-        reg.departamento_nombre || null,
-        mesKey]
+          reg.id,
+          empleadoId,
+          reg.tipo,
+          reg.estado || null,
+          reg.fecha_registro,
+          reg.dispositivo_origen || null,
+          reg.departamento_id || null,
+          reg.departamento_nombre || null,
+          mesKey]
 
       );
     }
@@ -824,15 +830,15 @@ export async function upsertIncidencias(empleadoId, incidencias) {
         `INSERT OR REPLACE INTO cache_incidencias (id, empleado_id, tipo, motivo, observaciones, fecha_inicio, fecha_fin, estado, empleado_nombre, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))`,
         [
-        inc.id,
-        inc.empleado_id || empleadoId,
-        inc.tipo,
-        inc.motivo || null,
-        inc.observaciones || null,
-        inc.fecha_inicio || null,
-        inc.fecha_fin || null,
-        inc.estado || 'pendiente',
-        inc.empleado_nombre || null]
+          inc.id,
+          inc.empleado_id || empleadoId,
+          inc.tipo,
+          inc.motivo || null,
+          inc.observaciones || null,
+          inc.fecha_inicio || null,
+          inc.fecha_fin || null,
+          inc.estado || 'pendiente',
+          inc.empleado_nombre || null]
 
       );
     }
@@ -857,13 +863,13 @@ export async function saveOfflineIncidencia(data) {
          (idempotency_key, empleado_id, tipo, motivo, fecha_inicio, fecha_fin, estado)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [
-    idempotencyKey,
-    data.empleado_id,
-    data.tipo,
-    data.motivo || null,
-    data.fecha_inicio || null,
-    data.fecha_fin || null,
-    'pendiente']
+      idempotencyKey,
+      data.empleado_id,
+      data.tipo,
+      data.motivo || null,
+      data.fecha_inicio || null,
+      data.fecha_fin || null,
+      'pendiente']
 
   );
 
@@ -911,12 +917,12 @@ export async function upsertEmpresa(empresa) {
     `INSERT OR REPLACE INTO cache_empresa (id, nombre, logo, telefono, correo, es_activo, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))`,
     [
-    empresa.id,
-    empresa.nombre || null,
-    empresa.logo || null,
-    empresa.telefono || null,
-    empresa.correo || null,
-    empresa.es_activo !== false ? 1 : 0]
+      empresa.id,
+      empresa.nombre || null,
+      empresa.logo || null,
+      empresa.telefono || null,
+      empresa.correo || null,
+      empresa.es_activo !== false ? 1 : 0]
 
   );
 }
@@ -941,11 +947,11 @@ export async function upsertAvisosGlobales(avisos) {
       `INSERT OR REPLACE INTO cache_avisos (id, tipo, empleado_id, titulo, contenido, fecha_registro, fecha_asignacion, remitente_nombre, updated_at)
              VALUES (?, 'global', NULL, ?, ?, ?, NULL, ?, datetime('now', 'localtime'))`,
       [
-      aviso.id,
-      aviso.titulo || null,
-      aviso.contenido || null,
-      aviso.fecha_registro || null,
-      aviso.remitente_nombre || null]
+        aviso.id,
+        aviso.titulo || null,
+        aviso.contenido || null,
+        aviso.fecha_registro || null,
+        aviso.remitente_nombre || null]
 
     );
   }
@@ -968,13 +974,13 @@ export async function upsertAvisosEmpleado(empleadoId, avisos) {
       `INSERT OR REPLACE INTO cache_avisos (id, tipo, empleado_id, titulo, contenido, fecha_registro, fecha_asignacion, remitente_nombre, updated_at)
              VALUES (?, 'personal', ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))`,
       [
-      aviso.id,
-      empleadoId,
-      aviso.titulo || null,
-      aviso.contenido || null,
-      aviso.fecha_registro || null,
-      aviso.fecha_asignacion || null,
-      aviso.remitente_nombre || null]
+        aviso.id,
+        empleadoId,
+        aviso.titulo || null,
+        aviso.contenido || null,
+        aviso.fecha_registro || null,
+        aviso.fecha_asignacion || null,
+        aviso.remitente_nombre || null]
 
     );
   }
@@ -1060,12 +1066,12 @@ export async function saveOfflineEvent(data) {
     `INSERT INTO offline_events (titulo, tipo_evento, descripcion, empleado_id, prioridad, detalles)
          VALUES (?, ?, ?, ?, ?, ?)`,
     [
-    data.titulo,
-    data.tipo_evento,
-    data.descripcion || null,
-    data.empleado_id || null,
-    data.prioridad || 'media',
-    data.detalles ? JSON.stringify(data.detalles) : null]
+      data.titulo,
+      data.tipo_evento,
+      data.descripcion || null,
+      data.empleado_id || null,
+      data.prioridad || 'media',
+      data.detalles ? JSON.stringify(data.detalles) : null]
 
   );
 }
@@ -1237,6 +1243,45 @@ export function getDatabase() {
   return db;
 }
 
+// ─── Configuración: orden y estado de credenciales ───────────────────────────
+
+/**
+ * Guarda el orden de credenciales en el caché local de SQLite.
+ * @param {Array<{metodo: string, activo: boolean, nivel: number}>} orden
+ */
+export async function saveOrdenCredenciales(orden) {
+  try {
+    const database = await initDatabase();
+    const now = new Date().toISOString();
+    await database.runAsync(
+      `INSERT INTO cache_configuracion (clave, valor, updated_at)
+       VALUES ('orden_credenciales', ?, ?)
+       ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor, updated_at = excluded.updated_at`,
+      [JSON.stringify(orden), now]
+    );
+  } catch (e) {
+    // Silent - no critical
+  }
+}
+
+/**
+ * Recupera el orden de credenciales desde el caché local de SQLite.
+ * Devuelve null si no hay datos guardados.
+ * @returns {Promise<Array<{metodo: string, activo: boolean, nivel: number}>|null>}
+ */
+export async function getOrdenCredencialesCache() {
+  try {
+    const database = await initDatabase();
+    const row = await database.getFirstAsync(
+      `SELECT valor FROM cache_configuracion WHERE clave = 'orden_credenciales'`
+    );
+    if (!row) return null;
+    return JSON.parse(row.valor);
+  } catch (e) {
+    return null;
+  }
+}
+
 export default {
   initDatabase,
   closeDatabase,
@@ -1302,5 +1347,8 @@ export default {
   getSyncMetadata,
   getAllSyncMetadata,
 
-  cleanupSyncedRecords
+  cleanupSyncedRecords,
+
+  saveOrdenCredenciales,
+  getOrdenCredenciales: getOrdenCredencialesCache
 };

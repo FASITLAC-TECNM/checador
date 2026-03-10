@@ -11,8 +11,9 @@ import {
   Platform,
   StatusBar,
   TextInput,
-  Modal } from
-'react-native';
+  Modal
+} from
+  'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -21,11 +22,13 @@ import {
   guardarPin,
   guardarDactilar,
   guardarFacial,
-  eliminarCredencial } from
-'../../services/credencialesService';
+  eliminarCredencial
+} from
+  '../../services/credencialesService';
 import {
-  checkBiometricSupport } from
-'../../services/biometricservice';
+  checkBiometricSupport
+} from
+  '../../services/biometricservice';
 import { PinInputModal } from '../settingsPages/PinModal';
 
 
@@ -75,7 +78,7 @@ export const AdminCredencialesScreen = ({ empleado, userData, darkMode, onBack }
       try {
         const support = await checkBiometricSupport();
         setBiometricSupport(support);
-      } catch {}
+      } catch { }
       await cargarCredenciales();
     };
     init();
@@ -123,21 +126,21 @@ export const AdminCredencialesScreen = ({ empleado, userData, darkMode, onBack }
       `Eliminar ${label}`,
       `¿Eliminar la credencial de ${label.toLowerCase()} de ${empleado.nombre}?`,
       [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            const token = await AsyncStorage.getItem('userToken');
-            await eliminarCredencial(empleado.id, tipo, token);
-            Alert.alert('Eliminado', `${label} eliminada correctamente.`);
-            await cargarCredenciales();
-          } catch (e) {
-            Alert.alert('Error', e.message || 'No se pudo eliminar la credencial.');
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const token = await AsyncStorage.getItem('userToken');
+              await eliminarCredencial(empleado.id, tipo, token);
+              Alert.alert('Eliminado', `${label} eliminada correctamente.`);
+              await cargarCredenciales();
+            } catch (e) {
+              Alert.alert('Error', e.message || 'No se pudo eliminar la credencial.');
+            }
           }
-        }
-      }]
+        }]
 
     );
   };
@@ -147,131 +150,123 @@ export const AdminCredencialesScreen = ({ empleado, userData, darkMode, onBack }
     const estado = getEstado(tiene);
     return (
       <View style={styles.credCard}>
-                <View style={styles.credHeader}>
-                    <View style={[styles.credIconWrap, { backgroundColor: tiene ? '#dcfce7' : darkMode ? '#374151' : '#f3f4f6' }]}>
-                        <Ionicons name={icono} size={24} color={tiene ? '#16a34a' : darkMode ? '#9ca3af' : '#6b7280'} />
-                    </View>
-                    <View style={styles.credInfo}>
-                        <Text style={styles.credLabel}>{label}</Text>
-                        <View style={[styles.estadoBadge, { backgroundColor: estado.bg }]}>
-                            <Ionicons name={estado.icono} size={11} color={estado.texto} />
-                            <Text style={[styles.estadoText, { color: estado.texto }]}>{estado.etiqueta}</Text>
-                        </View>
-                    </View>
-                    {procesando && <ActivityIndicator size="small" color="#2563eb" />}
-                </View>
+        <View style={styles.credHeader}>
+          <View style={[styles.credIconWrap, { backgroundColor: tiene ? '#dcfce7' : darkMode ? '#374151' : '#f3f4f6' }]}>
+            <Ionicons name={icono} size={24} color={tiene ? '#16a34a' : darkMode ? '#9ca3af' : '#6b7280'} />
+          </View>
+          <View style={styles.credInfo}>
+            <Text style={styles.credLabel}>{label}</Text>
+            <View style={[styles.estadoBadge, { backgroundColor: estado.bg }]}>
+              <Ionicons name={estado.icono} size={11} color={estado.texto} />
+              <Text style={[styles.estadoText, { color: estado.texto }]}>{estado.etiqueta}</Text>
+            </View>
+          </View>
+          {procesando && <ActivityIndicator size="small" color="#2563eb" />}
+        </View>
 
-                <View style={styles.credActions}>
-                    <TouchableOpacity
+        <View style={styles.credActions}>
+          <TouchableOpacity
             style={[styles.actionBtn, styles.actionBtnPrimary]}
             onPress={onRegistrar}
             disabled={procesando}>
-            
-                        <Ionicons name={tiene ? 'refresh' : 'add'} size={15} color="#fff" />
-                        <Text style={styles.actionBtnTextPrimary}>{tiene ? 'Actualizar' : 'Registrar'}</Text>
-                    </TouchableOpacity>
 
-                    {tiene &&
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.actionBtnDanger]}
-            onPress={() => onEliminar(tipo, label)}
-            disabled={procesando}>
-            
-                            <Ionicons name="trash-outline" size={15} color="#dc2626" />
-                            <Text style={styles.actionBtnTextDanger}>Eliminar</Text>
-                        </TouchableOpacity>
+            <Ionicons name={tiene ? 'refresh' : 'add'} size={15} color="#fff" />
+            <Text style={styles.actionBtnTextPrimary}>{tiene ? 'Actualizar' : 'Registrar'}</Text>
+          </TouchableOpacity>
+
+          {tiene &&
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.actionBtnDanger]}
+              onPress={() => onEliminar(tipo, label)}
+              disabled={procesando}>
+
+              <Ionicons name="trash-outline" size={15} color="#dc2626" />
+              <Text style={styles.actionBtnTextDanger}>Eliminar</Text>
+            </TouchableOpacity>
           }
-                </View>
-            </View>);
+        </View>
+      </View>);
 
   };
 
   return (
     <View style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor={darkMode ? '#1e40af' : '#2563eb'} />
+      <StatusBar barStyle="light-content" backgroundColor={darkMode ? '#1e40af' : '#2563eb'} />
 
-            {}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <Ionicons name="arrow-back" size={22} color="#fff" />
-                </TouchableOpacity>
-                <View style={styles.headerText}>
-                    <Text style={styles.headerTitle} numberOfLines={1}>{empleado.nombre}</Text>
-                    <Text style={styles.headerSubtitle} numberOfLines={1}>{empleado.correo}</Text>
-                </View>
-                <TouchableOpacity onPress={cargarCredenciales} style={styles.backBtn}>
-                    <Ionicons name="refresh" size={20} color="#fff" />
-                </TouchableOpacity>
-            </View>
+      { }
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onBack} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Ionicons name="arrow-back" size={22} color="#fff" />
+        </TouchableOpacity>
+        <View style={styles.headerText}>
+          <Text style={styles.headerTitle} numberOfLines={1}>{empleado.nombre}</Text>
+          <Text style={styles.headerSubtitle} numberOfLines={1}>{empleado.correo}</Text>
+        </View>
+        <TouchableOpacity onPress={cargarCredenciales} style={styles.backBtn}>
+          <Ionicons name="refresh" size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
 
-            {loading ?
-      <View style={styles.centered}>
-                    <ActivityIndicator size="large" color="#2563eb" />
-                    <Text style={styles.loadingText}>Cargando credenciales...</Text>
-                </View> :
+      {loading ?
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text style={styles.loadingText}>Cargando credenciales...</Text>
+        </View> :
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                    <Text style={styles.sectionLabel}>Credenciales registradas</Text>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <Text style={styles.sectionLabel}>Credenciales registradas</Text>
 
-                    {}
-                    <CredencialCard
-          tipo="dactilar"
-          label="Huella Dactilar"
-          icono="finger-print"
-          tiene={hasFingerprint}
-          procesando={procesandoHuella}
-          onRegistrar={handleRegistrarHuella}
-          onEliminar={handleEliminar} />
-        
+          { }
+          <CredencialCard
+            tipo="dactilar"
+            label="Huella Dactilar"
+            icono="finger-print"
+            tiene={hasFingerprint}
+            procesando={procesandoHuella}
+            onRegistrar={handleRegistrarHuella}
+            onEliminar={handleEliminar} />
 
-                    {}
-                    <CredencialCard
-          tipo="facial"
-          label="Facial"
-          icono="scan"
-          tiene={hasFacial}
-          procesando={procesandoFacial}
-          onRegistrar={handleRegistrarFacial}
-          onEliminar={handleEliminar} />
-        
 
-                    {}
-                    <CredencialCard
-          tipo="pin"
-          label="PIN"
-          icono="keypad"
-          tiene={hasPin}
-          procesando={procesandoPin}
-          onRegistrar={handleRegistrarPin}
-          onEliminar={handleEliminar} />
-        
+          { }
+          <CredencialCard
+            tipo="facial"
+            label="Facial"
+            icono="scan"
+            tiene={hasFacial}
+            procesando={procesandoFacial}
+            onRegistrar={handleRegistrarFacial}
+            onEliminar={handleEliminar} />
 
-                    <View style={styles.infoBox}>
-                        <Ionicons name="information-circle-outline" size={16} color={darkMode ? '#93c5fd' : '#2563eb'} />
-                        <Text style={styles.infoText}>
-                            El reconocimiento facial requiere que el empleado lo registre desde su propio dispositivo.
-                        </Text>
-                    </View>
-                </ScrollView>
+
+          { }
+          <CredencialCard
+            tipo="pin"
+            label="PIN"
+            icono="keypad"
+            tiene={hasPin}
+            procesando={procesandoPin}
+            onRegistrar={handleRegistrarPin}
+            onEliminar={handleEliminar} />
+        </ScrollView>
       }
 
-            {}
-            <PinInputModal
+      { }
+      <PinInputModal
         visible={showPinModal}
         onClose={() => setShowPinModal(false)}
         onConfirm={handleConfirmarPin}
         darkMode={darkMode} />
-      
 
-            {}
-            {showFacialCapture &&
-      <FacialCaptureScreen
-        onCapture={handleFacialCapture}
-        onCancel={() => setShowFacialCapture(false)}
-        darkMode={darkMode} />
+
+      { }
+      {showFacialCapture &&
+        <FacialCaptureScreen
+          onCapture={handleFacialCapture}
+          onCancel={() => setShowFacialCapture(false)}
+          darkMode={darkMode} />
 
       }
-        </View>);
+    </View>);
 
 };
 

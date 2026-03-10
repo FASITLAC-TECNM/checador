@@ -133,20 +133,28 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       setCredencialesUsuario(creds);
 
       const ordenResponse = await getOrdenCredenciales(userData.token);
-      const orden = ordenResponse.ordenCredenciales || [
+
+      // Normalizar a array de objetos {metodo, activo, nivel}
+      const ordenRaw = ordenResponse.ordenCredenciales || [
         { metodo: 'pin', activo: true, nivel: 1 },
         { metodo: 'dactilar', activo: true, nivel: 2 },
         { metodo: 'facial', activo: true, nivel: 3 }
       ];
 
-      const ordenArray = Array.isArray(orden) ?
-        orden.map(item => typeof item === 'string' ? item : item.metodo) :
-        Object.entries(orden).
-          sort((a, b) => (a[1]?.prioridad ?? 99) - (b[1]?.prioridad ?? 99)).
-          map(([key]) => key);
+      // Always keep objects — preserve activo flag
+      const ordenObjetos = Array.isArray(ordenRaw)
+        ? ordenRaw.map((item, index) =>
+          typeof item === 'string'
+            ? { metodo: item, activo: true, nivel: index + 1 }
+            : { metodo: item.metodo, activo: item.activo !== false, nivel: item.nivel || index + 1 }
+        ).sort((a, b) => a.nivel - b.nivel)
+        : Object.entries(ordenRaw)
+          .map(([key, val], i) => ({ metodo: key, activo: val?.activo !== false, nivel: val?.prioridad || val?.nivel || i + 1 }))
+          .sort((a, b) => a.nivel - b.nivel);
 
-      setOrdenCredenciales(ordenArray);
-      await construirMetodosDisponibles(creds, ordenArray);
+      // Store only method names for display ordering
+      setOrdenCredenciales(ordenObjetos.map(o => o.metodo));
+      await construirMetodosDisponibles(creds, ordenObjetos);
 
     } catch (error) {
       (function () { })('Using offline credentials');
@@ -166,7 +174,20 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         };
 
         setCredencialesUsuario(offlineCreds);
-        await construirMetodosDisponibles(offlineCreds, ['pin', 'dactilar', 'facial']);
+
+        // Read cached credential order from SQLite (saved during last online sync)
+        let ordenOffline = null;
+        try {
+          ordenOffline = await sqliteManager.getOrdenCredenciales();
+        } catch { /* ignore */ }
+
+        // ordenOffline is [{metodo, activo, nivel}] or null
+        const ordenFallback = ordenOffline || [
+          { metodo: 'pin', activo: true, nivel: 1 },
+          { metodo: 'dactilar', activo: true, nivel: 2 },
+          { metodo: 'facial', activo: true, nivel: 3 }
+        ];
+        await construirMetodosDisponibles(offlineCreds, ordenFallback);
 
       } catch (offlineError) {
         setCredencialesUsuario({
@@ -178,6 +199,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }
   };
 
+  // orden: array of {metodo, activo, nivel} objects (or strings for offline fallback)
   const construirMetodosDisponibles = async (credenciales, orden) => {
 
     let biometricSupported = false;
@@ -210,9 +232,21 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       }
     };
 
-    const metodosOrdenados = orden.
-      map((key) => metodosBase[key]).
-      filter((metodo) => metodo && metodo.disponible);
+    // Normalize orden to objects: support both string[] (offline) and {metodo,activo,nivel}[]
+    const ordenNorm = Array.isArray(orden)
+      ? orden.map((item, i) =>
+        typeof item === 'string'
+          ? { metodo: item, activo: true, nivel: i + 1 }
+          : item
+      )
+      : [];
+
+    const metodosOrdenados = ordenNorm
+      // Filter out methods disabled by the admin config
+      .filter(o => o.activo !== false)
+      .sort((a, b) => (a.nivel ?? 99) - (b.nivel ?? 99))
+      .map(o => metodosBase[o.metodo])
+      .filter(metodo => metodo && metodo.disponible);
 
     setMetodosDisponibles(metodosOrdenados);
   };

@@ -300,6 +300,7 @@ export const cerrarSesion = async () => {
   localStorage.removeItem("usuarioActual");
   localStorage.removeItem("ultimoLogin");
   localStorage.removeItem("metodoAutenticacion");
+  localStorage.removeItem("auth_token");
 };
 
 /**

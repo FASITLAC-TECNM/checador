@@ -84,6 +84,9 @@ export const useCameraStatus = (enabled = true) => {
       if (!isMountedRef.current) return;
 
       setHasCameraRegistered(hasRegistered);
+      
+      // CACHE registration status
+      localStorage.setItem("cached_camera_registered", JSON.stringify(hasRegistered));
 
       if (!hasRegistered) {
         // No hay cámara registrada en la BD → deshabilitar botón
@@ -112,9 +115,22 @@ export const useCameraStatus = (enabled = true) => {
       console.error("[useCameraStatus] Error verificando cámaras:", error);
       // En caso de error de red, intentar detección local
       const locallyDetected = await detectLocalCamera();
+      
+      // RECUPERAR registro del caché
+      const cachedRegisteredItem = localStorage.getItem("cached_camera_registered");
+      let cachedRegistered = false;
+      if (cachedRegisteredItem) {
+        try {
+          cachedRegistered = JSON.parse(cachedRegisteredItem);
+        } catch {
+           cachedRegistered = false;
+        }
+      }
+
       if (isMountedRef.current) {
-        setHasCameraRegistered(locallyDetected); // Asumir registrada si hay cámara
-        setIsCameraConnected(locallyDetected);
+        setHasCameraRegistered(cachedRegistered); 
+        // Solo la habilitamos si localmente fue detectada Y antes ya sabíamos que sí estaba registrada en la BD.
+        setIsCameraConnected(cachedRegistered && locallyDetected);
       }
     }
   }, [getAuthToken, getEscritorioId]);

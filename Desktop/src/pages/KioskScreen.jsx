@@ -618,7 +618,7 @@ export default function KioskScreen() {
       )}
 
       {/* Modal de AsistenciaFacial para registro de asistencia con reconocimiento facial */}
-      {showAsistenciaFacial && (
+      {showAsistenciaFacial && hasCameraRegistered && (
         <AsistenciaFacial
           isOpen={showAsistenciaFacial}
           onClose={() => setShowAsistenciaFacial(false)}

@@ -385,6 +385,22 @@ export default function AsistenciaFacial({
   useEffect(() => {
     if (!shouldMaintainConnection) return;
 
+    // Verificar si la cámara está registrada antes de intentar usarla
+    let isRegistered = false;
+    try {
+      isRegistered = JSON.parse(localStorage.getItem("cached_camera_registered") || "false");
+    } catch {
+      isRegistered = false;
+    }
+
+    if (!isRegistered) {
+      console.warn("🚫 [AsistenciaFacial] Cámara no registrada. Abortando inicio de cámara.");
+      setErrorMessage("La cámara no está registrada en el sistema. Contacte al administrador.");
+      setStep("error");
+      if (backgroundMode) setShowModal(true);
+      return;
+    }
+
     loadModels();
 
     // Iniciar camara directamente, igual que FacialAuthModal

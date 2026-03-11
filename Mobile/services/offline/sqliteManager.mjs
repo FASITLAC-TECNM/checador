@@ -134,6 +134,7 @@ async function runMigrations() {
       aplica_tolerancia_salida INTEGER DEFAULT 0,
       max_retardos INTEGER DEFAULT 0,
       dias_aplica TEXT,
+      reglas_tolerancia TEXT,
       updated_at TEXT NOT NULL
     );
 
@@ -279,6 +280,11 @@ async function runMigrations() {
     await db.execAsync('ALTER TABLE cache_departamentos ADD COLUMN ubicacion TEXT');
   } catch (e) {
 
+  }
+
+  try {
+    await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN reglas_tolerancia TEXT');
+  } catch (e) {
   }
 
 
@@ -615,11 +621,16 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
     typeof tolerancia.dias_aplica === 'string' ? tolerancia.dias_aplica : JSON.stringify(tolerancia.dias_aplica || tolerancia.dias_aplicables) :
     null;
 
+  let reglasTolerancia = null;
+  if (tolerancia.reglas) {
+    reglasTolerancia = typeof tolerancia.reglas === 'string' ? tolerancia.reglas : JSON.stringify(tolerancia.reglas);
+  }
+
   try {
     await db.runAsync(
       `INSERT INTO cache_tolerancias
-      (empleado_id, nombre, minutos_retardo, minutos_falta, permite_anticipado, minutos_anticipado_max, aplica_tolerancia_entrada, aplica_tolerancia_salida, max_retardos, dias_aplica, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
+      (empleado_id, nombre, minutos_retardo, minutos_falta, permite_anticipado, minutos_anticipado_max, aplica_tolerancia_entrada, aplica_tolerancia_salida, max_retardos, dias_aplica, reglas_tolerancia, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
     ON CONFLICT(empleado_id) DO UPDATE SET
       nombre = excluded.nombre,
       minutos_retardo = excluded.minutos_retardo,
@@ -630,6 +641,7 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
       aplica_tolerancia_salida = excluded.aplica_tolerancia_salida,
       max_retardos = excluded.max_retardos,
       dias_aplica = excluded.dias_aplica,
+      reglas_tolerancia = excluded.reglas_tolerancia,
       updated_at = excluded.updated_at`,
       [
         empleadoId,
@@ -641,12 +653,15 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
         tolerancia.aplica_tolerancia_entrada !== false ? 1 : 0,
         tolerancia.aplica_tolerancia_salida ? 1 : 0,
         tolerancia.max_retardos ?? 0,
-        diasAplica]
+        diasAplica,
+        reglasTolerancia]
 
     );
   } catch (ignore) {
     try {
       await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN max_retardos INTEGER DEFAULT 0');
+      // Intenta migrar la columna reglas_tolerancia también por si acaso
+      try { await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN reglas_tolerancia TEXT'); } catch (e) { }
       await upsertTolerancia(empleadoId, tolerancia);
     } catch (e) {
 
@@ -758,6 +773,11 @@ export async function getTolerancia(empleadoId) {
       row.dias_aplica = JSON.parse(row.dias_aplica);
     } catch (e) { }
   }
+  if (row && row.reglas_tolerancia) {
+    try {
+      row.reglas_tolerancia = JSON.parse(row.reglas_tolerancia);
+    } catch (e) { }
+  }
   return row || {
     minutos_retardo: 10,
     minutos_falta: 30,
@@ -767,7 +787,8 @@ export async function getTolerancia(empleadoId) {
     minutos_posterior_salida: 0,
     aplica_tolerancia_entrada: 1,
     aplica_tolerancia_salida: 0,
-    dias_aplica: null
+    dias_aplica: null,
+    reglas_tolerancia: []
   };
 }
 

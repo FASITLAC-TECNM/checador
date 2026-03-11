@@ -281,6 +281,15 @@ export const guardarSesion = (usuario) => {
   localStorage.setItem("usuarioActual", JSON.stringify(usuario));
   localStorage.setItem("ultimoLogin", new Date().toISOString());
   localStorage.setItem("metodoAutenticacion", usuario.metodoAutenticacion || "BIOMETRICO");
+
+  // Persistir explícitamente el token de autenticación para que el quiosco
+  // lo mantenga al instalarse en máquinas secundarias
+  if (usuario.token) {
+    localStorage.setItem("auth_token", usuario.token);
+  }
+  if (usuario.auth_token) {
+    localStorage.setItem("auth_token", usuario.auth_token);
+  }
 };
 
 /**
@@ -300,7 +309,7 @@ export const cerrarSesion = async () => {
   localStorage.removeItem("usuarioActual");
   localStorage.removeItem("ultimoLogin");
   localStorage.removeItem("metodoAutenticacion");
-  localStorage.removeItem("auth_token");
+  // localStorage.removeItem("auth_token"); // Evitar borrar para conexion al backend devTunnels
 };
 
 /**

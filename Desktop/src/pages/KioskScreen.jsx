@@ -109,11 +109,13 @@ export default function KioskScreen() {
       await cerrarSesion(usuarioActual?.id);
     } catch (error) {
       console.error("Error al cerrar sesión:", error);
-      // Limpiar manualmente si falla
+      // Limpiar storage para evitar que recargue la sesión un usuario
+      // que se quedó logueado antes en el kiosco, PERO mantenemos el auth_token
+      // para las llamadas API a DevTunnels.
       localStorage.removeItem("usuarioActual");
       localStorage.removeItem("ultimoLogin");
+      // localStorage.removeItem("auth_token"); // REMOVED to persist DevTunnels connection
       localStorage.removeItem("metodoAutenticacion");
-      localStorage.removeItem("auth_token");
     }
   };
 

@@ -31,7 +31,7 @@ export const useAppConfiguration = () => {
         // Limpiar todo el estado de configuración (usando storage para Electron)
         await storage.removeItem("appConfigured");
         await storage.removeItem("escritorio_id");
-        await storage.removeItem("auth_token");
+        // await storage.removeItem("auth_token"); // Omitted to keep DevTunnels connection
         await storage.removeItem("solicitud_id");
         await storage.removeItem("solicitud_token");
         setCurrentPage("affiliation");

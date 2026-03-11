@@ -104,7 +104,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error("Error al cerrar sesion:", error);
     } finally {
-      localStorage.removeItem("auth_token");
+      // localStorage.removeItem("auth_token"); // OMITTED to persist for kiosk DevTunnels
       localStorage.removeItem("user_data");
       setUser(null);
       setError(null);

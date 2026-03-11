@@ -8,8 +8,9 @@ import {
   Switch,
   StatusBar,
   Platform,
-  Image } from
-'react-native';
+  Image
+} from
+  'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PersonalInfoScreen } from './personalinfo';
 import { TermsAndConditionsScreen } from './TermsAndConditionsScreen';
@@ -52,10 +53,10 @@ export const SettingsScreen = ({
 
   const esEmpleado = userData.es_empleado && userData.empleado_id;
   const rolMostrar = esEmpleado ?
-  'Empleado' :
-  userData.roles && userData.roles.length > 0 ?
-  userData.roles[0].nombre :
-  userData.esAdmin ? 'Administrador' : 'Usuario';
+    'Empleado' :
+    userData.roles && userData.roles.length > 0 ?
+      userData.roles[0].nombre :
+      userData.esAdmin ? 'Administrador' : 'Usuario';
 
   const emailMostrar = userData.correo || email || 'usuario@correo.com';
 
@@ -113,9 +114,9 @@ export const SettingsScreen = ({
         barStyle="light-content"
         backgroundColor={darkMode ? "#1e40af" : "#2563eb"}
         translucent={false} />
-      
 
-      {}
+
+      { }
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Configuración</Text>
         <Text style={styles.headerSubtitle}>Gestiona tu cuenta y preferencias</Text>
@@ -124,26 +125,26 @@ export const SettingsScreen = ({
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
-        
-        {}
+
+        { }
         <View style={styles.profileCard}>
           <View style={styles.profileGradient}>
             <View style={styles.profileHeader}>
               <View style={styles.avatarWrapper}>
                 <View style={styles.avatarContainer}>
                   {fotoUrl ?
-                  <Image
-                    source={{ uri: fotoUrl }}
-                    style={styles.avatarImage} /> :
+                    <Image
+                      source={{ uri: fotoUrl }}
+                      style={styles.avatarImage} /> :
 
 
-                  <View style={styles.avatarPlaceholder}>
+                    <View style={styles.avatarPlaceholder}>
                       <Ionicons name="person" size={48} color="#fff" />
                     </View>
                   }
                   <View style={[
-                  styles.statusIndicator,
-                  { backgroundColor: '#10b981' }]
+                    styles.statusIndicator,
+                    { backgroundColor: '#10b981' }]
                   } />
                 </View>
               </View>
@@ -154,17 +155,17 @@ export const SettingsScreen = ({
 
                 <View style={styles.badgesContainer}>
                   <View style={[
-                  styles.roleBadge,
-                  esEmpleado && styles.roleBadgeEmployee]
+                    styles.roleBadge,
+                    esEmpleado && styles.roleBadgeEmployee]
                   }>
                     <Ionicons
                       name={esEmpleado ? "briefcase" : "person"}
                       size={12}
                       color={esEmpleado ? '#166534' : '#2563eb'} />
-                    
+
                     <Text style={[
-                    styles.roleText,
-                    esEmpleado && styles.roleTextEmployee]
+                      styles.roleText,
+                      esEmpleado && styles.roleTextEmployee]
                     }>
                       {rolMostrar}
                     </Text>
@@ -175,7 +176,7 @@ export const SettingsScreen = ({
           </View>
         </View>
 
-        {}
+        { }
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="image" size={18} color={darkMode ? '#3794fd' : '#6897ff'} />
@@ -189,7 +190,7 @@ export const SettingsScreen = ({
                   name={darkMode ? "moon" : "sunny"}
                   size={22}
                   color={darkMode ? '#fcda1c' : '#ffd900'} />
-                
+
               </View>
               <View style={styles.settingTextContainer}>
                 <Text style={styles.settingTitle}>Modo {darkMode ? 'Oscuro' : 'Claro'}</Text>
@@ -204,11 +205,11 @@ export const SettingsScreen = ({
               trackColor={{ false: '#d1d5db', true: '#6366f1' }}
               thumbColor={darkMode ? '#fff' : '#f3f4f6'}
               ios_backgroundColor="#d1d5db" />
-            
+
           </View>
         </View>
 
-        {}
+        { }
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="person-circle" size={18} color={darkMode ? '#3794fd' : '#6366f1'} />
@@ -219,7 +220,7 @@ export const SettingsScreen = ({
             style={styles.settingItem}
             onPress={() => setShowPersonalInfo(true)}
             activeOpacity={0.7}>
-            
+
             <View style={styles.settingLeft}>
               <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#1e3a8a' : '#dbeafe' }]}>
                 <Ionicons name="person-outline" size={22} color={darkMode ? '#93c5fd' : '#2563eb'} />
@@ -236,7 +237,7 @@ export const SettingsScreen = ({
             style={styles.settingItem}
             onPress={() => setShowSecurity(true)}
             activeOpacity={0.7}>
-            
+
             <View style={styles.settingLeft}>
               <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#4c1d95' : '#ede9fe' }]}>
                 <Ionicons name="lock-closed-outline" size={22} color={darkMode ? '#a78bfa' : '#7c3aed'} />
@@ -259,7 +260,7 @@ export const SettingsScreen = ({
             style={styles.settingItem}
             onPress={() => setShowNotifications(true)}
             activeOpacity={0.7}>
-            
+
             <View style={styles.settingLeft}>
               <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#a0552a' : '#fef3c7' }]}>
                 <Ionicons name="notifications-outline" size={22} color={darkMode ? '#f5ce4f' : '#d97706'} />
@@ -275,7 +276,7 @@ export const SettingsScreen = ({
             style={styles.settingItem}
             onPress={() => setShowSupport(true)}
             activeOpacity={0.7}>
-            
+
             <View style={styles.settingLeft}>
               <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#164e63' : '#cffafe' }]}>
                 <Ionicons name="help-circle-outline" size={22} color={darkMode ? '#67e8f9' : '#0891b2'} />
@@ -299,7 +300,7 @@ export const SettingsScreen = ({
             style={styles.settingItem}
             onPress={() => setShowTerms(true)}
             activeOpacity={0.7}>
-            
+
             <View style={styles.settingLeft}>
               <View style={[styles.iconCircle, { backgroundColor: darkMode ? '#4b5563' : '#f3f4f6' }]}>
                 <Ionicons name="document-text-outline" size={22} color={darkMode ? '#ffffff' : '#374151'} />
@@ -318,7 +319,7 @@ export const SettingsScreen = ({
               name="information-circle"
               size={18}
               color={darkMode ? '#3794fd' : '#6366f1'} />
-            
+
             <Text style={styles.sectionTitle}>Información de la App</Text>
           </View>
           <View style={styles.infoRow}>
@@ -334,17 +335,17 @@ export const SettingsScreen = ({
               <Ionicons name="construct" size={18} color="#6b7280" />
               <Text style={styles.infoLabel}>Build</Text>
             </View>
-            <Text style={styles.infoValue}>15/02/2026</Text>
+            <Text style={styles.infoValue}>10/03/2026</Text>
           </View>
           <View style={styles.infoDivider} />
         </View>
 
-        {}
+        { }
         <TouchableOpacity
           style={styles.logoutButton}
           onPress={onLogout}
           activeOpacity={0.85}>
-          
+
           <View style={styles.logoutGradient}>
             <Ionicons name="log-out-outline" size={24} color="#fff" />
             <Text style={styles.logoutText}>Cerrar Sesión</Text>

@@ -624,7 +624,7 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
         tolerancia.minutos_retardo ?? 10,
         tolerancia.minutos_falta ?? 30,
         tolerancia.permite_registro_anticipado !== false ? 1 : 0,
-        tolerancia.minutos_anticipado_max ?? 60,
+        tolerancia.minutos_anticipado_max ?? 0,
         tolerancia.aplica_tolerancia_entrada !== false ? 1 : 0,
         tolerancia.aplica_tolerancia_salida ? 1 : 0,
         tolerancia.max_retardos ?? 0,

@@ -60,15 +60,8 @@ export function setAuthToken(token, empleadoId = null) {
 
 export async function isOnline() {
   const state = await NetInfo.fetch();
+
   return state.isConnected && (state.isInternetReachable === true || state.isInternetReachable === null);
-}
-
-export function markBackendDown() {
-  // Deshabilitado por petición del usuario
-}
-
-export function markBackendUp() {
-  // Deshabilitado por petición del usuario
 }
 
 
@@ -318,6 +311,11 @@ export async function performSync(reason = 'manual') {
     return;
   }
 
+  // Si el backend está caído (según health check) y no es sync inicial, omitir
+  if (isBackendDown && reason !== 'initial') {
+    return;
+  }
+
   isSyncing = true;
 
   try {
@@ -364,12 +362,13 @@ export async function performSync(reason = 'manual') {
   }
 }
 
+export function markBackendDown() {
+  isBackendDown = true;
+}
 
-
-
-
-
-
+export function markBackendUp() {
+  isBackendDown = false;
+}
 
 export function initAutoSync() {
 

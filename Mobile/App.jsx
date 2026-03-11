@@ -68,6 +68,7 @@ export default function App() {
   const healthCheckInterval = useRef(null);
   const healthFailCount = useRef(0);
   const notifDiariaRef = useRef({ fecha: '', entrada: false, salida: false });
+  const offlineDebounceTimer = useRef(null);
 
 
   useNavigationBarColor(darkMode);
@@ -104,9 +105,44 @@ export default function App() {
       } catch (e) { }
     }, 20000);
 
-    // Mantenimiento desactivado el health check agresivo que forzaba offline modo
+    // Health check liviano: solo informa a syncManager, nunca fuerza offline al usuario
     healthCheckInterval.current = setInterval(async () => {
-      // El chequeo de health check fue desactivado ya que forzaba el modo offline sin sentido
+      try {
+        const netState = await syncManager.isOnline();
+        if (!netState) {
+          // Sin red → no tiene sentido pinchar el backend
+          healthFailCount.current = 0;
+          syncManager.markBackendUp();
+          return;
+        }
+
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), 5000);
+        let ok = false;
+        try {
+          const res = await fetch(`${API_URL_BASE}/health`, {
+            method: 'GET',
+            signal: controller.signal
+          });
+          ok = res.ok || res.status < 500; // 4xx = backend responde aunque sea con error de auth
+        } catch (_) {
+          ok = false;
+        } finally {
+          clearTimeout(tid);
+        }
+
+        if (ok) {
+          healthFailCount.current = 0;
+          syncManager.markBackendUp();
+        } else {
+          healthFailCount.current += 1;
+          if (healthFailCount.current >= HEALTH_CONSECUTIVE_FAILURES_THRESHOLD) {
+            syncManager.markBackendDown();
+          }
+        }
+      } catch (_) {
+        // Error inesperado → no hacer nada, no penalizar
+      }
     }, 20000);
 
     return () => {
@@ -665,13 +701,44 @@ export default function App() {
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
-      // Remover el setIsOfflineSession(true) forzado
-      if (isLoggedIn && state.isConnected && state.isInternetReachable) {
-        setIsOfflineSession(false);
+      const connected = state.isConnected && (state.isInternetReachable === true || state.isInternetReachable === null);
+
+      if (connected) {
+        // Cancelar cualquier timer de desconexión pendiente
+        if (offlineDebounceTimer.current) {
+          clearTimeout(offlineDebounceTimer.current);
+          offlineDebounceTimer.current = null;
+        }
+
+        if (isLoggedIn && isOfflineSession) {
+          // Se recuperó la conexión: marcar online y refrescar datos
+          setIsOfflineSession(false);
+          syncManager.markBackendUp();
+          healthFailCount.current = 0;
+          // Disparar sync y refresh de datos en background
+          syncManager.performSync('reconnect').catch(() => {});
+          refreshUserData().catch(() => {});
+        }
+      } else {
+        // Sin conexión: esperar 4 segundos antes de marcar offline
+        // (evita falsos positivos por cambios momentáneos de red)
+        if (!offlineDebounceTimer.current) {
+          offlineDebounceTimer.current = setTimeout(() => {
+            offlineDebounceTimer.current = null;
+            if (isLoggedIn) {
+              handleLogout();
+            }
+          }, 4000);
+        }
       }
     });
-    return () => unsubscribe();
-  }, [isLoggedIn, isOfflineSession]);
+    return () => {
+      unsubscribe();
+      if (offlineDebounceTimer.current) {
+        clearTimeout(offlineDebounceTimer.current);
+      }
+    };
+  }, [isLoggedIn, isOfflineSession, handleLogout]);
 
   const handleOnboardingComplete = async () => {
     await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETED, 'true');

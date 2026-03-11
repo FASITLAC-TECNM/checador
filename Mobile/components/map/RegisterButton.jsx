@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -613,7 +613,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
 
 
-      const INTERVALO_FUSION = 60;
+      // No fusionar turnos a menos que sean literalmente continuos (sin descanso intermedio)
+      const INTERVALO_FUSION = 0;
       const rangos = turnosHoy.
         map((t) => {
           const [he, me] = (t.entrada || '00:00').split(':').map(Number);
@@ -990,7 +991,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       if (!validation.isValid) {
         (function () { })('️ Validación de calidad falló:', validation.errors);
         Alert.alert(
-          '⚠️ Calidad insuficiente',
+          'Calidad insuficiente',
           validation.errors.join('\n') + '\n\n¿Deseas intentar de nuevo?',
           [
             { text: 'Cancelar', style: 'cancel', onPress: () => setRegistrando(false) },
@@ -1311,7 +1312,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           `${tipoMayuscula} registrada como ${estadoTexto}`,
           `Departamento: ${departamento.nombre}`,
           `Hora: ${horaStr}`,
-          esOffline ? '\nSe sincronizará automáticamente cuando haya conexión.' : ''].
+          esOffline ? '\nSe sincronizará y se analizará tu asistencia automáticamente cuando haya conexión de la base de datos o internet.' : ''].
           filter(Boolean).join('\n'),
         [{ text: 'OK' }]
       );
@@ -1347,6 +1348,52 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }
 
 
+    const continuarProcesoRegistro = () => {
+      if (!puedeRegistrar || !dentroDelArea || !departamentoSeleccionado) {
+        let mensaje = 'No puedes registrar en este momento';
+
+        if (!dentroDelArea) {
+          mensaje = 'Debes estar dentro de un área permitida';
+        } else if (!departamentoSeleccionado) {
+          mensaje = 'Selecciona un departamento para registrar';
+        } else if (estadoHorario === 'falta_previa') {
+          mensaje = 'Tu entrada fue marcada como falta en este turno. No es necesario registrar salida.';
+        } else if (jornadaCompletada || estadoHorario === 'bloque_completo') {
+          mensaje = 'Ya completaste tu jornada de hoy';
+        } else if (estadoHorario === 'tiempo_insuficiente') {
+          mensaje = `Aún no puedes salir.\n\n${mensajeEspera}`;
+        } else if (estadoHorario === 'fuera_horario' || estadoHorario === 'sin_horario') {
+          mensaje = 'Estás fuera de tu horario laboral';
+        } else if (!horarioInfo.trabaja) {
+          mensaje = 'No tienes horario configurado para hoy';
+        }
+        Alert.alert('No disponible', mensaje, [{ text: 'Entendido' }]);
+        return;
+      }
+
+      if (!ubicacionActual || !ubicacionActual.lat || !ubicacionActual.lng) {
+        Alert.alert('Error', 'No se pudo obtener tu ubicación. Verifica que el GPS esté activado.');
+        return;
+      }
+
+      if (!credencialesUsuario?.tiene_pin && !credencialesUsuario?.tiene_dactilar) {
+        Alert.alert(
+          'Configuración Requerida',
+          'Debes configurar al menos un método de autenticación (PIN o Huella) antes de registrar asistencias.\n\nVe a Configuración > Seguridad para configurar.',
+          [{ text: 'Entendido' }]
+        );
+        return;
+      }
+
+      datosRegistroRef.current = {
+        ubicacion: ubicacionActual,
+        departamento: departamentoSeleccionado
+      };
+
+      setRegistrando(true);
+      setMostrarAutenticacion(true);
+    };
+
     if (!usandoEstadoBackend && horarioInfo && horarioInfo.bloques && !jornadaCompletada) {
       const ahora = new Date();
       const minsAhora = ahora.getHours() * 60 + ahora.getMinutes();
@@ -1380,36 +1427,31 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             const m = getMinutosLocales(r.fecha_registro);
             return m >= b.entrada - anticipoEntrada && m <= b.salida + posteriorSalida;
           });
-
-          if (tieneEntrada) return false;
-
-          if (minsAhora > b.salida + posteriorSalida) return false;
-
-          return true;
+          // Sin límite de tiempo máximo: permitir entrada aunque haya pasado la hora
+          return !tieneEntrada;
         });
 
         if (bloqueSinEntrada) {
           if (minsAhora < bloqueSinEntrada.entrada - anticipoEntrada) {
             Alert.alert(
-              'Aún no es momento',
-              `Tu próxima entrada es a las ${_minsToHHMM(bloqueSinEntrada.entrada)}.\nPodrás registrarte a partir de las ${_minsToHHMM(bloqueSinEntrada.entrada - anticipoEntrada)}.`
+              'Aviso',
+              `Tu próxima entrada es a las ${_minsToHHMM(bloqueSinEntrada.entrada)}.\nEstás registrando entrada anticipada.`,
+              [{ text: 'Entendido', onPress: continuarProcesoRegistro }]
             );
             return;
           }
         } else {
-          const faltanMasTurnosHoy = bloques.some(b => minsAhora <= b.salida + posteriorSalida);
-          if (!faltanMasTurnosHoy) {
-            Alert.alert('Aviso', 'Ya ha finalizado tu jornada de hoy. No es posible registrar más entradas.');
-          } else {
-            Alert.alert('Aviso', 'Ya has registrado todas tus entradas para hoy o no tienes más turnos disponibles.');
-          }
+          Alert.alert(
+            'Aviso',
+            'Parece que ya has registrado todas tus entradas programadas para hoy.\nSe procederá con el registro adicional.',
+            [{ text: 'OK', onPress: continuarProcesoRegistro }]
+          );
           return;
         }
       }
 
       if (tipoSiguienteRegistro === 'salida') {
         const MARGEN_SALIDA = 5;
-
 
         const bloqueActivoSalida = bloques.find((b) => minsAhora <= b.salida + posteriorSalida);
 
@@ -1419,62 +1461,22 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           if (minsAhora < horaSalidaPermitida) {
             Alert.alert(
               'Aviso',
-              `Tu salida es a las ${_minsToHHMM(bloqueActivoSalida.salida)}.\nAún no es momento de registrarte. El sistema se habilitará a las ${_minsToHHMM(horaSalidaPermitida)}.`
+              `Aún no es momento de registrarte, tu salida es a las ${_minsToHHMM(bloqueActivoSalida.salida)}.\n\nEl sistema se habilitará a las ${_minsToHHMM(horaSalidaPermitida)}.`
             );
             return;
           }
         } else {
-
-          Alert.alert('Aviso', 'Tu jornada ha terminado o el tiempo para registrar tu salida ya finalizó.');
+          Alert.alert(
+            'Aviso',
+            'Tu jornada ha terminado o el tiempo para registrar tu salida ya finalizó.\nSe procederá con el registro adicional.',
+            [{ text: 'OK', onPress: continuarProcesoRegistro }]
+          );
           return;
         }
       }
     }
 
-
-    if (!puedeRegistrar || !dentroDelArea || !departamentoSeleccionado) {
-      let mensaje = 'No puedes registrar en este momento';
-
-      if (!dentroDelArea) {
-        mensaje = 'Debes estar dentro de un área permitida';
-      } else if (!departamentoSeleccionado) {
-        mensaje = 'Selecciona un departamento para registrar';
-      } else if (estadoHorario === 'falta_previa') {
-        mensaje = 'Tu entrada fue marcada como falta en este turno. No es necesario registrar salida.';
-      } else if (jornadaCompletada || estadoHorario === 'bloque_completo') {
-        mensaje = 'Ya completaste tu jornada de hoy';
-      } else if (estadoHorario === 'tiempo_insuficiente') {
-        mensaje = `Aún no puedes salir.\n\n${mensajeEspera}`;
-      } else if (estadoHorario === 'fuera_horario' || estadoHorario === 'sin_horario') {
-        mensaje = 'Estás fuera de tu horario laboral';
-      } else if (!horarioInfo.trabaja) {
-        mensaje = 'No tienes horario configurado para hoy';
-      }
-      Alert.alert('No disponible', mensaje, [{ text: 'Entendido' }]);
-      return;
-    }
-
-    if (!ubicacionActual || !ubicacionActual.lat || !ubicacionActual.lng) {
-      Alert.alert('Error', 'No se pudo obtener tu ubicación. Verifica que el GPS esté activado.');
-      return;
-    }
-
-    if (!credencialesUsuario?.tiene_pin && !credencialesUsuario?.tiene_dactilar) {
-      Alert.alert(
-        'Configuración Requerida',
-        'Debes configurar al menos un método de autenticación (PIN o Huella) antes de registrar asistencias.\n\nVe a Configuración > Seguridad para configurar.',
-        [{ text: 'Entendido' }]
-      );
-      return;
-    }
-
-    datosRegistroRef.current = {
-      ubicacion: ubicacionActual,
-      departamento: departamentoSeleccionado
-    };
-
-    setRegistrando(true);
-    setMostrarAutenticacion(true);
+    continuarProcesoRegistro();
   };
 
   const getButtonColor = () => {

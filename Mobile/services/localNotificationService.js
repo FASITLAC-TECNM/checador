@@ -95,54 +95,40 @@ export const notificarRegistro = async (tipo, estado) => {
     const esSalida = tipo === 'salida';
     let titulo = esSalida ? 'Salida Registrada' : 'Entrada Registrada';
     let cuerpo = '';
-    let emoji = '';
 
     if (esSalida) {
-
       switch (estado) {
         case 'salida_temprana':
-          emoji = '⚠️';
           cuerpo = 'Salida anticipada registrada';
           break;
         case 'salida_tarde':
-          emoji = '⚠️';
           cuerpo = 'Salida tardía registrada';
           break;
         case 'salida_puntual':
         default:
-          emoji = '👋';
           cuerpo = 'Salida registrada correctamente';
       }
     } else {
-
       switch (estado) {
         case 'entrada_temprana':
-          emoji = '⏰';
           cuerpo = 'Entrada anticipada registrada';
           break;
         case 'puntual':
-          emoji = '✅';
           cuerpo = 'Entrada registrada - Puntual';
           break;
         case 'falta_por_retardo':
-          emoji = '❌';
           cuerpo = 'Entrada registrada - Falta por retardo';
           break;
         case 'falta':
-          emoji = '❌';
           cuerpo = 'Entrada registrada - Fuera de tolerancia';
           break;
         case 'pendiente':
-          emoji = '🔄';
           cuerpo = 'Registro pendiente de sincronización';
           break;
         default:
-
           if (estado?.startsWith('retardo')) {
-            emoji = '⚠️';
             cuerpo = `Entrada con retardo registrada (${estado.replace('_', ' ')})`;
           } else {
-            emoji = '📋';
             cuerpo = `Registro: ${estado?.replace(/_/g, ' ') || 'completado'}`;
           }
       }
@@ -150,7 +136,7 @@ export const notificarRegistro = async (tipo, estado) => {
 
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: `${emoji} ${titulo}`,
+        title: titulo,
         body: cuerpo,
         data: { type: 'asistencia', tipo, estado }
       },
@@ -169,12 +155,10 @@ export const notificarEstadoAsistencia = async (tipoRegistro) => {
     if (!cfg.asistencia_proxima) return;
 
     const esEntrada = tipoRegistro === 'entrada';
-    const titulo = esEntrada ?
-    '🕐 Listo para registrar entrada' :
-    '🕐 Listo para registrar salida';
+    const titulo = esEntrada ? 'Listo para registrar entrada' : 'Listo para registrar salida';
     const cuerpo = esEntrada ?
-    'Ya puedes registrar tu entrada de asistencia' :
-    'Ya puedes registrar tu salida';
+      'Ya puedes registrar tu entrada de asistencia' :
+      'Ya puedes registrar tu salida';
 
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -208,10 +192,10 @@ export const notificarIncidencia = async (tipoIncidencia, estado) => {
     }[tipoIncidencia] || tipoIncidencia;
 
     if (estado === 'aprobado') {
-      titulo = '✅ Incidencia Aprobada';
+      titulo = 'Incidencia Aprobada';
       cuerpo = `Tu ${tipoLabel} ha sido aprobada`;
     } else if (estado === 'rechazado') {
-      titulo = '❌ Incidencia Rechazada';
+      titulo = 'Incidencia Rechazada';
       cuerpo = `Tu ${tipoLabel} ha sido rechazada`;
     } else {
       return;
@@ -239,7 +223,7 @@ export const notificarAviso = async (titulo) => {
 
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: '📢 Nuevo Aviso',
+        title: 'Nuevo Aviso',
         body: titulo,
         data: { type: 'aviso' }
       },

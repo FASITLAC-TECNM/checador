@@ -379,9 +379,13 @@ export function registerIpcHandlers() {
             const devices = [];
             if (process.platform === "win32") {
                 try {
-                    const psScript = `Get-PnpDevice -Status OK | Where-Object { $_.Class -match 'USB|Biometric|Camera|Image|SmartCard|HID|Sensor|WPD|Media|Ports|Authentication' -or $_.InstanceId -like 'USB*' } | Select-Object Class, FriendlyName, InstanceId, Status | ConvertTo-Json -Compress`;
+                    // Script optimizado: Filtra las clases desde el inicio para que Windows no tenga que 
+                    // cargar todo el árbol de dispositivos (lo cual causa lentitud y el timeout de SIGTERM).
+                    const psScript = `Get-PnpDevice -Class USB, Biometric, Camera, Image, SmartCard, HIDClass, Sensor, WPD, Media, Ports, Authentication -ErrorAction SilentlyContinue | Where-Object Status -eq 'OK' | Select-Object Class, FriendlyName, InstanceId, Status | ConvertTo-Json -Compress`;
                     const encodedCommand = Buffer.from(psScript, "utf16le").toString("base64");
-                    const { stdout } = await exec(`powershell -NoProfile -EncodedCommand ${encodedCommand}`, { encoding: "utf8", timeout: 15000, windowsHide: true });
+
+                    // Incrementamos un poco el timeout a 20s como prevención adicional. Y suprimimos Output de Error
+                    const { stdout } = await exec(`powershell -NoProfile -EncodedCommand ${encodedCommand} 2>$null`, { encoding: "utf8", timeout: 20000, windowsHide: true });
 
                     if (stdout && stdout.trim()) {
                         const parsed = JSON.parse(stdout);
@@ -415,8 +419,13 @@ export function registerIpcHandlers() {
                         }
                     }
                 } catch (psError) {
-                    console.error("PS Error", psError);
-                    // Fallback WMIC omitted for brevity/simplicity in refactor, can add if critical but PS covers most cases
+                    // Atrapamos silenciosamente el error SIGTERM (usualmente código null, signal SIGTERM)
+                    // para no ensuciar la consola de Electron con el rastro gigante de NodeJS.
+                    if (psError.signal === 'SIGTERM' || psError.killed) {
+                        console.warn("[USB] Advertencia: PowerShell tardó demasiado en responder (Timeout). Omitiendo detección de puertos temporalmente.");
+                    } else {
+                        console.warn("[USB] Error no fatal al ejecutar PowerShell:", psError.message);
+                    }
                 }
             }
 
@@ -431,7 +440,7 @@ export function registerIpcHandlers() {
 
             return { success: true, devices: uniqueDevices, count: uniqueDevices.length };
         } catch (error) {
-            console.error("[USB] Error detectando dispositivos:", error);
+            console.error("[USB] Error general detectando dispositivos:", error.message);
             return { success: false, devices: [], error: error.message };
         }
     });

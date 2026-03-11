@@ -958,6 +958,9 @@ export default function AsistenciaFacial({
     setLoginHabilitado(false);
     isProcessingRef.current = false;
 
+    // En cualquier caso terminamos soltando la cámara para que no se quede encendida permanentemente.
+    releaseCamera();
+
     if (backgroundMode) {
       setShowModal(false);
       setResult(null);
@@ -965,7 +968,6 @@ export default function AsistenciaFacial({
       setErrorMessage("");
     } else {
       setIsClosing(true);
-      releaseCamera();
       setTimeout(() => {
         if (onClose) onClose();
       }, 300);

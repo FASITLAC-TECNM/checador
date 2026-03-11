@@ -144,7 +144,7 @@ export default function DispositivosModal({ onClose, onBack, escritorioId, inlin
 
   // Monitorear estado de conexión de los dispositivos en tiempo real
   const { isChecking: isCheckingStatus } = useDeviceStatus(devices, setDevices, {
-    interval: 10000, // Verificar cada 10 segundos
+    interval: 3000, // Reducido: Verificar cada 3 segundos como máximo
     enabled: !loading && devices.length > 0,
   });
 

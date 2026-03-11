@@ -10,6 +10,20 @@ class DeviceMonitorService {
         this.biometricConnected = false;
         this.isWsConnecting = false;
         this.reconnectTimeout = null;
+        this.checkDevicesTimeout = null;
+        this.removeElectronListener = null;
+    }
+
+    /**
+     * Versión con debounce de checkDevices para agrupar múltiples eventos rápidos
+     */
+    debouncedCheckDevices(delay = 1000) {
+        if (this.checkDevicesTimeout) {
+            clearTimeout(this.checkDevicesTimeout);
+        }
+        this.checkDevicesTimeout = setTimeout(() => {
+            this.checkDevices();
+        }, delay);
     }
 
     /**
@@ -26,12 +40,19 @@ class DeviceMonitorService {
         // 1. Conectar WebSocket persistente para eventos en tiempo real
         this.connectWebSocket();
 
+        // 1.5. Escuchar eventos USB nativos de Electron
+        if (window.electronAPI?.onUSBDeviceChange) {
+            this.removeElectronListener = window.electronAPI.onUSBDeviceChange(() => {
+                console.log("[DeviceMonitor] 🔌 Cambio de dispositivo USB detectado (Electron)");
+                this.debouncedCheckDevices(500);
+            });
+        }
+
         // 2. Escuchar cambios de hardware en el navegador (para cámaras USB)
         if (navigator.mediaDevices) {
             navigator.mediaDevices.ondevicechange = () => {
                 console.log("[DeviceMonitor] 📷 Cambio de hardware detectado (navegador)");
-                // Pequeño delay para dar tiempo al navegador de actualizar la lista
-                setTimeout(() => this.checkDevices(), 1000);
+                this.debouncedCheckDevices(1000);
             };
         }
 
@@ -58,6 +79,16 @@ class DeviceMonitorService {
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
             this.reconnectTimeout = null;
+        }
+
+        if (this.checkDevicesTimeout) {
+            clearTimeout(this.checkDevicesTimeout);
+            this.checkDevicesTimeout = null;
+        }
+
+        if (typeof this.removeElectronListener === 'function') {
+            this.removeElectronListener();
+            this.removeElectronListener = null;
         }
 
         if (navigator.mediaDevices) {
@@ -211,9 +242,8 @@ class DeviceMonitorService {
     }
 
     /**
-     * Verifica estatus de cámara usando mediaDevices.
-     * FIX: Solicita permiso primero para obtener labels reales,
-     * y usa matching flexible para tolerar diferencias en nombre.
+     * Verifica estatus de cámara de forma pasiva.
+     * Ya no solicita stream (getUserMedia) para evitar parpadeos en el LED de la cámara.
      */
     async checkCameraStatus(device) {
         try {
@@ -222,68 +252,10 @@ class DeviceMonitorService {
 
             if (!navigator.mediaDevices?.enumerateDevices) return 'desconectado';
 
-            // FIX CRÍTICO: Solicitar acceso a la cámara para que el navegador
-            // devuelva labels reales. Sin este paso, enumerateDevices() retorna
-            // etiquetas vacías y la comparación SIEMPRE falla.
-            let stream = null;
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-            } catch {
-                // Sin permiso, intentar enumeración de todas formas (puede haber label si ya fue concedido antes)
-            }
-
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(d => d.kind === 'videoinput');
 
-            // Detener el stream inmediatamente para liberar la cámara
-            if (stream) {
-                stream.getTracks().forEach(t => t.stop());
-            }
-
-            // Si no hay ninguna cámara conectada, definitivamente desconectado
-            if (videoDevices.length === 0) return 'desconectado';
-
-            // Si hay cámara registrada por nombre, intentar coincidencia flexible
-            if (device.nombre) {
-                const normalize = (str) => str?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
-                const targetName = normalize(device.nombre);
-
-                console.log(`[DeviceMonitor] Buscando cámara: "${device.nombre}" (norm: ${targetName})`);
-                console.log(`[DeviceMonitor] Cámaras detectadas:`, videoDevices.map(d => `"${d.label}" (norm: ${normalize(d.label)})`));
-
-                // Intentar coincidencia: ¿el label contiene el nombre registrado o viceversa?
-                const nameFound = videoDevices.some(d => {
-                    const label = normalize(d.label);
-                    if (!label) return false; // Sin label = sin permiso, saltar
-                    return label.includes(targetName) || targetName.includes(label);
-                });
-
-                if (nameFound) {
-                    console.log(`[DeviceMonitor] ✅ Cámara encontrada por nombre`);
-                    return 'conectado';
-                }
-
-                // FIX FALLBACK: Si el label está vacío (permisos no concedidos aún)
-                // pero hay al menos una cámara de video disponible, considerar conectado.
-                // El nombre registrado puede no coincidir exactamente con el label del OS.
-                const hasAnyLabel = videoDevices.some(d => d.label && d.label.length > 0);
-                if (!hasAnyLabel) {
-                    console.log(`[DeviceMonitor] ⚠️ Labels vacíos (sin permisos), asumiendo conectado con ${videoDevices.length} cámara(s)`);
-                    return 'conectado';
-                }
-
-                // Hay labels pero ninguno coincide con el nombre registrado
-                console.log(`[DeviceMonitor] ⚠️ Cámara registrada "${device.nombre}" no encontrada. Cámaras presentes: ${videoDevices.map(d => d.label).join(', ')}`);
-                // Si solo hay una cámara conectada, es casi seguro la misma
-                if (videoDevices.length === 1) {
-                    console.log(`[DeviceMonitor] ✅ Solo hay 1 cámara, asumiendo que es la registrada`);
-                    return 'conectado';
-                }
-
-                return 'desconectado';
-            }
-
-            // Sin nombre registrado: conectado si hay alguna cámara
+            // Si hay al menos una cámara conectada, asumimos modo conectado
             return videoDevices.length > 0 ? 'conectado' : 'desconectado';
         } catch (error) {
             console.error('[DeviceMonitor] Error verificando cámara:', error);

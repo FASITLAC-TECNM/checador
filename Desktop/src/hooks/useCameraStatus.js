@@ -21,7 +21,7 @@ async function detectLocalCamera() {
     ]);
 
     const allDetected = deviceDetectionService.mergeDetectedDevices(usbDevices, webcams);
-    
+
     // Extraer solo los IDs físicos para sincronización
     const localIds = new Set();
     for (const d of allDetected) {
@@ -83,17 +83,17 @@ export const useCameraStatus = (enabled = true) => {
 
       // Si no hay ninguna cámara configurada en BD, no se puede usar.
       if (!registeredCamera) {
-          if (isMountedRef.current) {
-             setHasCameraRegistered(false);
-             setIsCameraConnected(false);
-             localStorage.setItem("cached_camera_registered", "false");
-          }
-          return;
+        if (isMountedRef.current) {
+          setHasCameraRegistered(false);
+          setIsCameraConnected(false);
+          localStorage.setItem("cached_camera_registered", "false");
+        }
+        return;
       }
 
       // 2. Obtener los IDs de hardware conectados localmente en este momento
       const localDeviceIds = await detectLocalCamera();
-      
+
       // FALLBACK OFFLINE o SIN CÁMARAS LOCALES (fisicamente no hay ninguna enchufada)
       if (localDeviceIds.length === 0) {
         if (isMountedRef.current) {
@@ -103,10 +103,10 @@ export const useCameraStatus = (enabled = true) => {
         }
         // Avisamos al backend que limpie estados
         await fetchApi(`${API_CONFIG.ENDPOINTS.BIOMETRICO}/sync-status`, {
-            method: 'POST',
-            headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
-            body: JSON.stringify({ escritorio_id: escritorioId, device_ids: [] })
-        }).catch(() => {});
+          method: 'POST',
+          headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
+          body: JSON.stringify({ escritorio_id: escritorioId, device_ids: [] })
+        }).catch(() => { });
         return;
       }
 
@@ -115,18 +115,18 @@ export const useCameraStatus = (enabled = true) => {
       // entonces asumimos que "la que está conectada" ahorita es la oficial y se la anclamos para el futuro.
       // Solo tomamos el primer dispositivo de video válido.
       if (!registeredCamera.device_id && localDeviceIds.length > 0) {
-          const idToAssign = localDeviceIds[0];
-          try {
-             await fetchApi(`${API_CONFIG.ENDPOINTS.BIOMETRICO}/${registeredCamera.id}`, {
-                 method: 'PUT',
-                 headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
-                 body: JSON.stringify({ device_id: idToAssign })
-             });
-             console.log(`[useCameraStatus] Cámara vinculada automáticamente al hardware ID: ${idToAssign}`);
-             registeredCamera.device_id = idToAssign; // Actualizamos localmente
-          } catch (e) {
-             console.error("[useCameraStatus] Error vinculando cámara al primer uso:", e);
-          }
+        const idToAssign = localDeviceIds[0];
+        try {
+          await fetchApi(`${API_CONFIG.ENDPOINTS.BIOMETRICO}/${registeredCamera.id}`, {
+            method: 'PUT',
+            headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
+            body: JSON.stringify({ device_id: idToAssign })
+          });
+          console.log(`[useCameraStatus] Cámara vinculada automáticamente al hardware ID: ${idToAssign}`);
+          registeredCamera.device_id = idToAssign; // Actualizamos localmente
+        } catch (e) {
+          console.error("[useCameraStatus] Error vinculando cámara al primer uso:", e);
+        }
       }
 
       // 4. Enviar los IDs locales al backend para sincronizar el estado
@@ -154,7 +154,7 @@ export const useCameraStatus = (enabled = true) => {
 
       const approvedCameraDevices = syncedDevices.filter(d => d.tipo === "facial" && d.es_activo);
       const hasApproved = approvedCameraDevices.length > 0;
-      
+
       localStorage.setItem("cached_camera_registered", JSON.stringify(hasApproved));
 
       if (isMountedRef.current) {
@@ -164,24 +164,24 @@ export const useCameraStatus = (enabled = true) => {
 
     } catch (error) {
       console.error("[useCameraStatus] Error verificando/sincronizando cámaras:", error);
-      
+
       // FALLBACK DE RED (El backend falló o no hay internet)
       const localDeviceIds = await detectLocalCamera();
       const locallyDetected = localDeviceIds.length > 0;
-      
+
       // RECUPERAR registro del caché
       const cachedRegisteredItem = localStorage.getItem("cached_camera_registered");
       let cachedRegistered = false;
       if (cachedRegisteredItem) {
         try {
-           cachedRegistered = JSON.parse(cachedRegisteredItem);
+          cachedRegistered = JSON.parse(cachedRegisteredItem);
         } catch {
-           cachedRegistered = false;
+          cachedRegistered = false;
         }
       }
 
       if (isMountedRef.current) {
-        setHasCameraRegistered(cachedRegistered); 
+        setHasCameraRegistered(cachedRegistered);
         // En offline, si sabíamos que estaba registrada y ahorita hay _alguna_ física
         // dejamos prender la UI, asumiendo buena fe (no podemos validar ID criptográfico sin backend).
         setIsCameraConnected(cachedRegistered && locallyDetected);

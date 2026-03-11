@@ -18,6 +18,7 @@ export const useDeviceStatus = (devices, setDevices, options = {}) => {
   const isMountedRef = useRef(true);
   const intervalRef = useRef(null);
   const initialCheckDoneRef = useRef(false);
+  const debounceTimeoutRef = useRef(null);
 
   // Mantener ref sincronizado con devices
   useEffect(() => {
@@ -105,20 +106,17 @@ export const useDeviceStatus = (devices, setDevices, options = {}) => {
             return device.device_id === detectedId;
           }
 
-          // 2. Si el dispositivo está registrado pero NO tiene device_id (aún no se ha anclado el hardware),
-          // o el detectado no tiene ID, caemos al viejo sistema por nombre (fallback)
-          if (!device.device_id || !detectedId) {
-            const detName = normalizeName(detected.name);
-            if (!detName) return false;
+          // 2. Fallback por nombre:
+          // Si el dispositivo está registrado pero NO tiene device_id (aún no se ha anclado el hardware),
+          // o el detectado no tiene ID físico.
+          const detName = normalizeName(detected.name);
+          if (!detName) return false;
 
-            return (
-              regName === detName ||
-              regName.includes(detName) ||
-              detName.includes(regName)
-            );
-          }
-
-          return false;
+          return (
+            regName === detName ||
+            regName.includes(detName) ||
+            detName.includes(regName)
+          );
         });
 
         const newEstado = connected ? "conectado" : "desconectado";
@@ -172,11 +170,21 @@ export const useDeviceStatus = (devices, setDevices, options = {}) => {
   }, [normalizeName, setDevices, updateEstadoEnBD]);
   // ↑ NO depende de 'devices' — usa devicesRef.current
 
+  // Envoltorio con debounce para eventos rápidos de hardware
+  const debouncedCheck = useCallback((delay = 1000) => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    debounceTimeoutRef.current = setTimeout(() => {
+      checkDeviceStatuses();
+    }, delay);
+  }, [checkDeviceStatuses]);
+
   // Verificación inicial (una sola vez)
   useEffect(() => {
     if (enabled && devices.length > 0 && !initialCheckDoneRef.current) {
       initialCheckDoneRef.current = true;
-      const timeout = setTimeout(checkDeviceStatuses, 2000);
+      const timeout = setTimeout(checkDeviceStatuses, 500); // Reducido de 2000 a 500 para mayor velocidad inicial
       return () => clearTimeout(timeout);
     }
   }, [enabled, devices.length, checkDeviceStatuses]);
@@ -218,19 +226,38 @@ export const useDeviceStatus = (devices, setDevices, options = {}) => {
 
   // Evento nativo del navegador para hot-plug de dispositivos multimedia (cámaras/micrófonos)
   useEffect(() => {
-    if (!enabled || !navigator.mediaDevices) return;
+    if (!enabled) return;
 
     const handleDeviceChange = () => {
       console.log("[useDeviceStatus] Detectado cambio en dispositivos multimedia (Hot-Plug)");
-      checkDeviceStatuses();
+      debouncedCheck(300); // Reducido para mayor reactividad
     };
 
-    navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+    if (navigator.mediaDevices) {
+      navigator.mediaDevices.addEventListener('devicechange', handleDeviceChange);
+    }
+
+    // Integrar también los eventos nativos de Electron para el modal
+    let removeElectronListener = null;
+    if (window.electronAPI?.onUSBDeviceChange) {
+      removeElectronListener = window.electronAPI.onUSBDeviceChange(() => {
+        console.log("[useDeviceStatus] 🔌 Cambio de dispositivo USB detectado (Electron)");
+        debouncedCheck(300); // Reducido para mayor reactividad
+      });
+    }
 
     return () => {
-      navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+      if (navigator.mediaDevices) {
+        navigator.mediaDevices.removeEventListener('devicechange', handleDeviceChange);
+      }
+      if (typeof removeElectronListener === 'function') {
+        removeElectronListener();
+      }
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
     };
-  }, [enabled, checkDeviceStatuses]);
+  }, [enabled, debouncedCheck]);
 
   return {
     isChecking,

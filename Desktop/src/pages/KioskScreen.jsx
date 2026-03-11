@@ -16,10 +16,9 @@ import AsistenciaHuella from "../components/kiosk/AsistenciaHuella";
 import AsistenciaFacial from "../components/kiosk/AsistenciaFacial";
 import DynamicLoader from "../components/common/DynamicLoader";
 
-// Hooks
 import { useKioskConfiguration } from "../hooks/useKioskConfiguration";
 import { useInactivityTimer } from "../hooks/useInactivityTimer";
-import { useCameraStatus } from "../hooks/useCameraStatus";
+import { useGlobalDeviceStatus } from "../context/DeviceMonitoringContext";
 
 export default function KioskScreen() {
 
@@ -36,12 +35,22 @@ export default function KioskScreen() {
   const [showBitacora, setShowBitacora] = useState(false);
   const [showBiometricReader, setShowBiometricReader] = useState(false);
   const [showAsistenciaFacial, setShowAsistenciaFacial] = useState(false);
-  const [isReaderConnected, setIsReaderConnected] = useState(false); // Estado del lector biométrico
   const [activeNoticeIndex, setActiveNoticeIndex] = useState(0); // Índice del aviso activo en el carrusel
 
   const { ordenCredenciales, loadingCredenciales, activeMethods, cargarCredenciales } = useKioskConfiguration(isLoggedIn);
   useInactivityTimer();
-  const { isCameraConnected, hasCameraRegistered } = useCameraStatus(!isLoggedIn); // Solo monitorear cuando no está en sesión
+
+  // Consumir el estado GLOBAL de todos los dispositivos
+  const { devices } = useGlobalDeviceStatus();
+
+  // Calcular estado de cámaras basado en dispositivos registrados / configurados
+  const registeredCameras = devices.filter(d => d.tipo === "facial" && d.es_activo);
+  const hasCameraRegistered = activeMethods.includes('facial');
+  const isCameraConnected = registeredCameras.some(d => d.estado === "conectado");
+
+  // Calcular estado del lector de huellas basado en dispositivos registrados
+  const registeredReaders = devices.filter(d => d.tipo === "dactilar" && d.es_activo);
+  const isReaderConnected = registeredReaders.some(d => d.estado === "conectado");
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -248,15 +257,11 @@ export default function KioskScreen() {
     return info[methodKey];
   };
 
-  // Determinar el orden visual de los métodos: si el principal está desconectado, subir el primero conectado
-  const visualActiveMethods = [...activeMethods];
-  if (visualActiveMethods.length > 1) {
-    const firstConnectedIndex = visualActiveMethods.findIndex(methodKey => !getMethodInfo(methodKey).isDisabled);
-    if (firstConnectedIndex > 0) {
-      const firstConnected = visualActiveMethods.splice(firstConnectedIndex, 1)[0];
-      visualActiveMethods.unshift(firstConnected);
-    }
-  }
+  // Determinar el orden visual de los métodos: priorizar los conectados manteniendo su jerarquía original
+  const methodsAvailable = activeMethods.filter(methodKey => !getMethodInfo(methodKey).isDisabled);
+  const methodsDisabled = activeMethods.filter(methodKey => getMethodInfo(methodKey).isDisabled);
+
+  const visualActiveMethods = [...methodsAvailable, ...methodsDisabled];
 
   // Si está logueado, mostrar SessionScreen
   if (isLoggedIn) {
@@ -613,7 +618,7 @@ export default function KioskScreen() {
           onClose={() => setShowBiometricReader(false)}
           onSuccess={handleFingerprintSuccess}
           onLoginRequest={handleFingerprintLoginRequest}
-          onReaderStatusChange={setIsReaderConnected}
+          onReaderStatusChange={() => { }} // Ahora usamos el estado global isReaderConnected
         />
       )}
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { X, Smartphone, Plus, Trash2, Save, Loader2, AlertCircle, RefreshCw, Search, CheckCircle2, Usb } from "lucide-react";
 import { getApiEndpoint } from "../../config/apiEndPoint";
 import { deviceDetectionService } from "../../services/deviceDetectionService";
-import { useDeviceStatus } from "../../hooks/useDeviceStatus";
+import { useGlobalDeviceStatus } from "../../context/DeviceMonitoringContext";
 import DynamicLoader from "../common/DynamicLoader";
 
 const API_URL = getApiEndpoint("/api");
@@ -142,11 +142,8 @@ export default function DispositivosModal({ onClose, onBack, escritorioId, inlin
     fetchDevices();
   }, [escritorioId]);
 
-  // Monitorear estado de conexión de los dispositivos en tiempo real
-  const { isChecking: isCheckingStatus } = useDeviceStatus(devices, setDevices, {
-    interval: 3000, // Reducido: Verificar cada 3 segundos como máximo
-    enabled: !loading && devices.length > 0,
-  });
+  // Consumir el contexto global para conocer el estado en tiempo real (evitar doble monitoreo)
+  const { devices: globalDevices } = useGlobalDeviceStatus();
 
   const addDevice = () => {
     setDevices([
@@ -353,114 +350,120 @@ export default function DispositivosModal({ onClose, onBack, escritorioId, inlin
                     <p>No hay dispositivos registrados</p>
                   </div>
                 ) : (
-                  devices.map((device) => (
-                    <div
-                      key={device.id}
-                      className={`bg-bg-primary border-2 rounded-xl p-4 transition-all duration-200 ${device.isNew
-                        ? "border-emerald-300 bg-emerald-50/30 dark:border-emerald-700 dark:bg-emerald-900/10"
-                        : "border-border-subtle"
-                        }`}
-                    >
-                      {device.isNew && (
-                        <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs mb-2">
-                          <Usb className="w-3 h-3" />
-                          <span>Detectado automáticamente</span>
-                        </div>
-                      )}
+                  devices.map((device) => {
+                    // Obtener estado en tiempo real desde el contexto global para dispositivos guardados
+                    const globalDeviceMatch = globalDevices.find(gd => gd.id === device.id);
+                    const realTimeEstado = device.isNew ? device.estado : (globalDeviceMatch ? globalDeviceMatch.estado : device.estado);
 
-                      {/* Fila 1: Nombre, Estado, Eliminar */}
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <h4 className="font-bold text-text-primary text-sm flex items-center gap-2">
-                            <Smartphone className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" />
-                            {device.nombre || "Dispositivo"}
-                          </h4>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1.5 ${getEstadoColor(device.estado)}`}>
-                            {device.estado === "conectado" && (
-                              <span className="relative flex h-2 w-2">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                              </span>
-                            )}
-                            {device.estado}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => removeDevice(device.id)}
-                          className="text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 p-1.5 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                    return (
+                      <div
+                        key={device.id}
+                        className={`bg-bg-primary border-2 rounded-xl p-4 transition-all duration-200 ${device.isNew
+                          ? "border-emerald-300 bg-emerald-50/30 dark:border-emerald-700 dark:bg-emerald-900/10"
+                          : "border-border-subtle"
+                          }`}
+                      >
+                        {device.isNew && (
+                          <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs mb-2">
+                            <Usb className="w-3 h-3" />
+                            <span>Detectado automáticamente</span>
+                          </div>
+                        )}
 
-                      {/* Fila 2: Nombre y Tipo */}
-                      <div className="grid grid-cols-2 gap-3 mb-3">
-                        <div>
-                          <label className="block text-xs font-medium text-text-secondary mb-1">
-                            Nombre del Dispositivo
-                          </label>
-                          <input
-                            type="text"
-                            value={device.nombre}
-                            onChange={(e) =>
-                              updateDevice(device.id, "nombre", e.target.value)
-                            }
-                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-[#1976D2] focus:border-transparent transition-all duration-200 text-text-primary placeholder:text-text-disabled"
-                            placeholder="Ej: Lector de Huella"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-medium text-text-secondary mb-1">
-                            Tipo
-                          </label>
-                          <select
-                            value={device.tipo}
-                            onChange={(e) =>
-                              updateDevice(device.id, "tipo", e.target.value)
-                            }
-                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-[#1976D2] focus:border-transparent transition-all duration-200 text-text-primary"
+                        {/* Fila 1: Nombre, Estado, Eliminar */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <h4 className="font-bold text-text-primary text-sm flex items-center gap-2">
+                              <Smartphone className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" />
+                              {device.nombre || "Dispositivo"}
+                            </h4>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1.5 ${getEstadoColor(realTimeEstado)}`}>
+                              {realTimeEstado === "conectado" && (
+                                <span className="relative flex h-2 w-2">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                </span>
+                              )}
+                              {realTimeEstado}
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => removeDevice(device.id)}
+                            className="text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 p-1.5 rounded-lg transition-colors"
                           >
-                            <option value="facial">Facial</option>
-                            <option value="dactilar">Dactilar</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Fila 3: Puerto e IP */}
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-medium text-text-secondary mb-1">
-                            Puerto
-                          </label>
-                          <input
-                            type="text"
-                            value={device.puerto}
-                            onChange={(e) =>
-                              updateDevice(device.id, "puerto", e.target.value)
-                            }
-                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#1976D2] focus:border-transparent transition-all duration-200 text-text-primary placeholder:text-text-disabled"
-                            placeholder="Ej: USB-001"
-                          />
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
 
-                        <div>
-                          <label className="block text-xs font-medium text-text-secondary mb-1">
-                            IP
-                          </label>
-                          <input
-                            type="text"
-                            value={device.ip}
-                            onChange={(e) =>
-                              updateDevice(device.id, "ip", e.target.value)
-                            }
-                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#1976D2] focus:border-transparent transition-all duration-200 text-text-primary placeholder:text-text-disabled"
-                            placeholder="Ej: 192.168.1.100"
-                          />
+                        {/* Fila 2: Nombre y Tipo */}
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                          <div>
+                            <label className="block text-xs font-medium text-text-secondary mb-1">
+                              Nombre del Dispositivo
+                            </label>
+                            <input
+                              type="text"
+                              value={device.nombre}
+                              onChange={(e) =>
+                                updateDevice(device.id, "nombre", e.target.value)
+                              }
+                              className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-[#1976D2] focus:border-transparent transition-all duration-200 text-text-primary placeholder:text-text-disabled"
+                              placeholder="Ej: Lector de Huella"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-medium text-text-secondary mb-1">
+                              Tipo
+                            </label>
+                            <select
+                              value={device.tipo}
+                              onChange={(e) =>
+                                updateDevice(device.id, "tipo", e.target.value)
+                              }
+                              className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-[#1976D2] focus:border-transparent transition-all duration-200 text-text-primary"
+                            >
+                              <option value="facial">Facial</option>
+                              <option value="dactilar">Dactilar</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Fila 3: Puerto e IP */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs font-medium text-text-secondary mb-1">
+                              Puerto
+                            </label>
+                            <input
+                              type="text"
+                              value={device.puerto}
+                              onChange={(e) =>
+                                updateDevice(device.id, "puerto", e.target.value)
+                              }
+                              className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#1976D2] focus:border-transparent transition-all duration-200 text-text-primary placeholder:text-text-disabled"
+                              placeholder="Ej: USB-001"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-medium text-text-secondary mb-1">
+                              IP
+                            </label>
+                            <input
+                              type="text"
+                              value={device.ip}
+                              onChange={(e) =>
+                                updateDevice(device.id, "ip", e.target.value)
+                              }
+                              className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#1976D2] focus:border-transparent transition-all duration-200 text-text-primary placeholder:text-text-disabled"
+                              placeholder="Ej: 192.168.1.100"
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </>

@@ -38,7 +38,7 @@ import EmployeeSelectionModal from "../components/session/EmployeeSelectionModal
 
 // Hooks
 import { useEmployeeData } from "../hooks/useEmployeeData";
-import { useCameraStatus } from "../hooks/useCameraStatus";
+import { useGlobalDeviceStatus } from "../context/DeviceMonitoringContext";
 
 export default function SessionScreen({ onLogout, usuario, isReaderConnected = false }) {
   const [time, setTime] = useState(new Date());
@@ -61,10 +61,13 @@ export default function SessionScreen({ onLogout, usuario, isReaderConnected = f
   // Custom hook para datos del empleado
   const { datosCompletos, loadingEmpleado, departamentos, notices, setNotices } = useEmployeeData(usuario);
 
-  // isReaderConnected viene como prop desde KioskScreen
+  // Consumir el estado GLOBAL de todos los dispositivos
+  const { devices } = useGlobalDeviceStatus();
 
   // Obtener estado de cámara registrada y conectada
-  const { isCameraConnected, hasCameraRegistered } = useCameraStatus();
+  const registeredCameras = devices.filter(d => d.tipo === "facial" && d.es_activo);
+  const hasCameraRegistered = registeredCameras.length > 0;
+  const isCameraConnected = registeredCameras.some(d => d.estado === 'conectado');
 
   const [nombreNodo, setNombreNodo] = useState("Entrada Principal");
   const [descripcionNodo, setDescripcionNodo] = useState(

@@ -12,13 +12,18 @@ const getAuthToken = () => localStorage.getItem("auth_token");
  */
 export const obtenerConfiguracionEscritorio = async (escritorioId) => {
     const token = getAuthToken();
-    if (!token) throw new Error("No hay sesión activa");
     if (!escritorioId) throw new Error("ID de escritorio no proporcionado");
 
     const url = getApiEndpoint(`${CONFIG_ESCRITORIO_ENDPOINT}/${escritorioId}`);
+
+    const headers = {};
+    if (token) {
+        headers.Authorization = `Bearer ${token}`;
+    }
+
     const response = await fetch(url, {
         method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
     });
 
     if (!response.ok) {

@@ -3,6 +3,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { SoundProvider } from "./context/SoundContext";
 import { AuthProvider } from "./context/AuthContext";
 import { CameraProvider } from "./context/CameraContext";
+import { DeviceMonitoringProvider } from "./context/DeviceMonitoringContext";
 import AffiliationRequest from "./pages/AffiliationRequest";
 import KioskScreen from "./pages/KioskScreen";
 import SessionScreen from "./pages/SessionScreen";
@@ -100,17 +101,19 @@ function App() {
     <ThemeProvider>
       <SoundProvider>
         <AuthProvider>
-          <CameraProvider>
-            <div className="App">
-              {currentPage === "affiliation" && (
-                <AffiliationRequest onComplete={handleAffiliationComplete} />
-              )}
-              {currentPage === "kiosk" && <KioskScreen />}
-              {currentPage === "session" && (
-                <SessionScreen onLogout={() => setCurrentPage("kiosk")} />
-              )}
-            </div>
-          </CameraProvider>
+          <DeviceMonitoringProvider>
+            <CameraProvider>
+              <div className="App">
+                {currentPage === "affiliation" && (
+                  <AffiliationRequest onComplete={handleAffiliationComplete} />
+                )}
+                {currentPage === "kiosk" && <KioskScreen />}
+                {currentPage === "session" && (
+                  <SessionScreen onLogout={() => setCurrentPage("kiosk")} />
+                )}
+              </div>
+            </CameraProvider>
+          </DeviceMonitoringProvider>
         </AuthProvider>
       </SoundProvider>
     </ThemeProvider>

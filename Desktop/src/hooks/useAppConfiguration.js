@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import storage from "../utils/storage";
-import { deviceMonitorService } from "../services/deviceMonitorService";
 
 export const useAppConfiguration = () => {
     const [currentPage, setCurrentPage] = useState("loading");
@@ -11,11 +10,6 @@ export const useAppConfiguration = () => {
             try {
                 const isConfigured = await storage.getItem("appConfigured");
                 setCurrentPage(isConfigured ? "kiosk" : "affiliation");
-
-                // Iniciar monitoreo de dispositivos si ya está configurado
-                if (isConfigured) {
-                    deviceMonitorService.startMonitoring(60000); // Chequear cada minuto
-                }
             } catch (error) {
                 console.error("Error verificando configuración:", error);
                 // En caso de error, asumir que no está configurado
@@ -26,11 +20,6 @@ export const useAppConfiguration = () => {
         };
 
         checkConfiguration();
-
-        // Limpieza al desmontar
-        return () => {
-            deviceMonitorService.stopMonitoring();
-        };
     }, []);
 
     const handleAffiliationComplete = async () => {

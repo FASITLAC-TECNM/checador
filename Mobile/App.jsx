@@ -212,7 +212,8 @@ export default function App() {
 
 
   const startNotifPoll = () => {
-    notifPoll();
+    // NO ejecutar inmediatamente al login — esperar 2 minutos para evitar
+    // notificaciones falsas justo al arrancar cuando todavia no es hora
     notifPollInterval.current = setInterval(notifPoll, NOTIF_POLL_INTERVAL);
   };
 
@@ -220,6 +221,57 @@ export default function App() {
     if (notifPollInterval.current) {
       clearInterval(notifPollInterval.current);
       notifPollInterval.current = null;
+    }
+  };
+
+  // Verifica si la hora actual cae dentro de la ventana permitida para notificar
+  // Solo notifica en un rango de [-15 min, +30 min] respecto a la hora del horario
+  const estaEnVentanaTiempo = async (empleadoId, tipo) => {
+    try {
+      const horarioLocal = await sqliteManager.getHorario(empleadoId);
+      if (!horarioLocal?.configuracion) return true; // Sin horario, permitir
+
+      let config = typeof horarioLocal.configuracion === 'string'
+        ? JSON.parse(horarioLocal.configuracion)
+        : horarioLocal.configuracion;
+
+      const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+      const diaHoy = dias[new Date().getDay()];
+      const keyHoy = Object.keys(config.configuracion_semanal || {}).find(
+        k => k.toLowerCase() === diaHoy
+      );
+      if (!keyHoy) return false; // No trabaja hoy
+
+      const turnos = (config.configuracion_semanal[keyHoy] || []).map(t => ({
+        entrada: t.inicio || t.entrada,
+        salida: t.fin || t.salida
+      }));
+      if (turnos.length === 0) return false;
+
+      const ahora = new Date();
+      const minsAhora = ahora.getHours() * 60 + ahora.getMinutes();
+
+      const parseMinutos = (hhMM) => {
+        if (!hhMM) return null;
+        const [h, m] = hhMM.split(':').map(Number);
+        return h * 60 + m;
+      };
+
+      // Buscar si algún turno tiene una hora de entrada/salida cercana
+      for (const turno of turnos) {
+        const minsTurno = tipo === 'entrada'
+          ? parseMinutos(turno.entrada)
+          : parseMinutos(turno.salida);
+        if (minsTurno === null) continue;
+
+        // Ventana: 5 min antes hasta 5 min despues de la hora programada
+        if (minsAhora >= minsTurno - 5 && minsAhora <= minsTurno + 5) {
+          return { enVentana: true, turnoClave: `${tipo}_${minsTurno}` };
+        }
+      }
+      return { enVentana: false, turnoClave: null };
+    } catch {
+      return { enVentana: true, turnoClave: `${tipo}_fallback` }; // En caso de error, permitir la notificacion
     }
   };
 
@@ -237,17 +289,14 @@ export default function App() {
       const online = await syncManager.isOnline();
       const hoy = new Date().toISOString().split('T')[0];
 
-
       const guardRaw = await AsyncStorage.getItem(NOTIF_DIARIA_KEY).catch(() => null);
-      const guard = guardRaw ? JSON.parse(guardRaw) : { fecha: '', entrada: false, salida: false };
-      if (guard.fecha !== hoy) {
-
-        notifDiariaRef.current = { fecha: hoy, entrada: false, salida: false };
+      const guard = guardRaw ? JSON.parse(guardRaw) : { fecha: '', notificados: [] };
+      if (guard.fecha !== hoy || !Array.isArray(guard.notificados)) {
+        notifDiariaRef.current = { fecha: hoy, notificados: [] };
         await AsyncStorage.setItem(NOTIF_DIARIA_KEY, JSON.stringify(notifDiariaRef.current)).catch(() => { });
       } else {
         notifDiariaRef.current = guard;
       }
-
 
       if (online) {
         try {
@@ -259,14 +308,14 @@ export default function App() {
             const pf = await preflightRes.json();
             if (pf.success && pf.habilitado) {
               const tipo = pf.tipo;
-              if (tipo === 'entrada' && !notifDiariaRef.current.entrada) {
-                notifDiariaRef.current = { ...notifDiariaRef.current, entrada: true };
-                await AsyncStorage.setItem(NOTIF_DIARIA_KEY, JSON.stringify(notifDiariaRef.current)).catch(() => { });
-                await notificarEstadoAsistencia('entrada');
-              } else if (tipo === 'salida' && !notifDiariaRef.current.salida) {
-                notifDiariaRef.current = { ...notifDiariaRef.current, salida: true };
-                await AsyncStorage.setItem(NOTIF_DIARIA_KEY, JSON.stringify(notifDiariaRef.current)).catch(() => { });
-                await notificarEstadoAsistencia('salida');
+              // Solo notificar si estamos cerca de la hora programada
+              const ventana = await estaEnVentanaTiempo(empleadoId, tipo);
+              if (ventana.enVentana) {
+                if (!notifDiariaRef.current.notificados.includes(ventana.turnoClave)) {
+                  notifDiariaRef.current.notificados.push(ventana.turnoClave);
+                  await AsyncStorage.setItem(NOTIF_DIARIA_KEY, JSON.stringify(notifDiariaRef.current)).catch(() => { });
+                  await notificarEstadoAsistencia(tipo);
+                }
               }
             }
           }
@@ -317,29 +366,20 @@ export default function App() {
 
           await detectarAvisosNuevos(avisosParaNotificar);
         } catch (_) { }
-
-
+      } else {
+        // Offline: verificar si es momento de notificar usando el horario local
         try {
-          const horRes = await fetch(
-            `${API_URL_BASE}/empleados/${empleadoId}/horario`,
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-          if (horRes.ok) {
-            const horData = await horRes.json();
-            const horario = horData.data || horData.horario || horData;
-            if (horario?.configuracion) {
-              let cfg = typeof horario.configuracion === 'string' ?
-                JSON.parse(horario.configuracion) :
-                horario.configuracion;
-              const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
-              const diaHoy = dias[new Date().getDay()];
-              const key = Object.keys(cfg.configuracion_semanal || {}).find((k) => k.toLowerCase() === diaHoy);
-              const turnos = key ? cfg.configuracion_semanal[key].map((t) => ({
-                entrada: t.inicio || t.entrada,
-                salida: t.fin || t.salida
-              })) : [];
-              if (turnos.length > 0) {
-                await scheduleAttendanceNotifications(empleadoId, {}, { turnos });
+          const registrosHoy = await sqliteManager.getRegistrosHoy(empleadoId);
+          const ultimoRegistro = registrosHoy.length > 0 ? registrosHoy[registrosHoy.length - 1] : null;
+          const tipoFaltante = !ultimoRegistro || ultimoRegistro.tipo === 'salida' ? 'entrada' : 'salida';
+
+          if (tipoFaltante) {
+            const ventana = await estaEnVentanaTiempo(empleadoId, tipoFaltante);
+            if (ventana.enVentana) {
+              if (!notifDiariaRef.current.notificados.includes(ventana.turnoClave)) {
+                notifDiariaRef.current.notificados.push(ventana.turnoClave);
+                await AsyncStorage.setItem(NOTIF_DIARIA_KEY, JSON.stringify(notifDiariaRef.current)).catch(() => { });
+                await notificarEstadoAsistencia(tipoFaltante);
               }
             }
           }

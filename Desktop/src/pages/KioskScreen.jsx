@@ -334,131 +334,131 @@ export default function KioskScreen() {
                       : "cursor-default"
                     }`}
                 >
-                  <div className="mb-6 flex flex-col items-center w-full">
+                  <h2 className="text-3xl sm:text-4xl lg:text-5xl 2xl:text-8xl font-bold mb-10 sm:mb-12 2xl:mb-20 tracking-tight">
+                    Registrar Asistencia
+                  </h2>
+
+                  <div className="flex justify-center mb-8 sm:mb-12 2xl:mb-16">
+                    <Icon className={`w-24 h-24 sm:w-32 sm:h-32 lg:w-36 lg:h-36 2xl:w-56 2xl:h-56 ${isDisabled ? "text-gray-300" : "text-white"}`} strokeWidth={1.2} />
+                  </div>
+
+                  <div className="mt-auto flex flex-col items-center w-full">
                     <div
-                      className="text-4xl sm:text-5xl lg:text-7xl 2xl:text-9xl font-bold mb-1 tracking-wider"
-                      style={{ letterSpacing: "0.1em" }}
+                      className="text-6xl sm:text-7xl lg:text-8xl 2xl:text-[10rem] font-bold mb-4 tracking-tighter"
                     >
-                      {formatTime(time).replace(/\s/g, "\u00A0")}
+                      {formatTime(time).toLowerCase()}
                     </div>
-                    <div className="text-base sm:text-xl 2xl:text-3xl font-medium opacity-90">
-                      {formatDay(time).charAt(0).toUpperCase() + formatDay(time).slice(1)} - {formatDate(time)}
+                    <div className="text-2xl sm:text-3xl 2xl:text-5xl font-bold opacity-100 tracking-tight">
+                      {formatDate(time)}
+                    </div>
+                    <div className="text-xl sm:text-2xl 2xl:text-4xl font-medium opacity-70 mt-2">
+                      {formatDay(time).charAt(0).toUpperCase() + formatDay(time).slice(1)}
                     </div>
                   </div>
 
-                  <div className="flex-1 flex flex-col justify-center items-center">
-                    <h2 className="text-xl sm:text-2xl lg:text-3xl 2xl:text-5xl font-bold mb-4 sm:mb-6 2xl:mb-8">
-                      {method.label}
-                    </h2>
-
-                    <div className="flex justify-center mb-4 sm:mb-6 2xl:mb-8">
-                      <Icon className={`w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 2xl:w-48 2xl:h-48 ${isDisabled ? "text-gray-300" : "text-white"}`} strokeWidth={1.5} />
-                    </div>
-                    {isDisabled && (
-                      <p className="text-sm sm:text-lg 2xl:text-2xl text-gray-300 bg-black/30 px-6 py-2 rounded-full backdrop-blur-sm mt-4">
-                        {method.disabledMessage}
-                      </p>
-                    )}
-                  </div>
+                  {isDisabled && (
+                    <p className="text-sm sm:text-lg 2xl:text-2xl text-gray-300 bg-black/30 px-6 py-2 rounded-full backdrop-blur-sm mt-8">
+                      {method.disabledMessage}
+                    </p>
+                  )}
                 </div>
               );
             })()
           ) : (
             /* Múltiples métodos / Prioridades aplicadas */
-            <div className="relative bg-gradient-to-br from-[#1976D2] to-[#001A70] dark:from-slate-700 dark:to-slate-800 rounded-3xl shadow-2xl h-full text-white text-center flex flex-col items-center justify-center p-4 sm:p-8">
+            (() => {
+              const methodKey = visualActiveMethods[0];
+              const method = getMethodInfo(methodKey);
+              const Icon = method.icon;
+              const isClickable = method.handler && !method.isVisualOnly && !method.isDisabled;
+              const isDisabled = method.isDisabled;
 
-              {/* Reloj arriba */}
-              <div className="mb-2 sm:mb-4 flex flex-col items-center w-full">
+              return (
                 <div
-                  className="text-3xl sm:text-5xl lg:text-6xl 2xl:text-7xl font-bold mb-1 tracking-wider"
-                  style={{ letterSpacing: "0.1em" }}
+                  onClick={isClickable ? method.handler : undefined}
+                  title={isDisabled ? method.disabledMessage : ""}
+                  className={`relative bg-gradient-to-br from-[#1976D2] to-[#001A70] dark:from-slate-700 dark:to-slate-800 rounded-3xl shadow-2xl h-full text-white text-center flex flex-col items-center justify-center p-4 sm:p-8 transition-all ${isDisabled
+                    ? "opacity-60 cursor-not-allowed"
+                    : isClickable
+                      ? "cursor-pointer hover:shadow-3xl hover:scale-[1.005]"
+                      : "cursor-default"
+                    }`}
                 >
-                  {formatTime(time).replace(/\s/g, "\u00A0")}
-                </div>
-                <div className="text-sm sm:text-lg 2xl:text-xl font-medium opacity-90">
-                  {formatDay(time).charAt(0).toUpperCase() + formatDay(time).slice(1)} - {formatDate(time)}
-                </div>
-              </div>
+                  {/* Registrar Asistencia arriba */}
+                  <h2 className="text-2xl sm:text-4xl 2xl:text-6xl font-bold mb-4 sm:mb-8 tracking-tight pointer-events-none">
+                    Registrar Asistencia
+                  </h2>
 
-              {/* Botón Principal (Prioridad 1) */}
-              <div className="flex-1 w-full max-w-sm mb-4 flex flex-col items-center justify-center min-h-0">
-                {(() => {
-                  const methodKey = visualActiveMethods[0];
-                  const method = getMethodInfo(methodKey);
-                  const Icon = method.icon;
-                  const isClickable = method.handler && !method.isVisualOnly && !method.isDisabled;
-                  const isDisabled = method.isDisabled;
-                  return (
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (isClickable) method.handler();
-                      }}
-                      title={isDisabled ? method.disabledMessage : ""}
-                      className={`w-full max-w-sm flex flex-col items-center justify-center p-4 sm:p-6 gap-2 sm:gap-4 transition-all ${isDisabled
-                        ? "opacity-60 cursor-not-allowed"
-                        : ""
-                        } ${isClickable && !isDisabled
-                          ? "hover:scale-[1.03] cursor-pointer"
-                          : !isDisabled
-                            ? "cursor-default"
-                            : ""
-                        }`}
-                    >
-                      <h2 className={`text-2xl sm:text-4xl font-bold ${isDisabled ? "text-gray-300 dark:text-gray-400" : "text-white"}`}>
-                        {method.label}
-                      </h2>
-                      <Icon
-                        className={`w-28 h-28 sm:w-40 sm:h-40 lg:w-48 lg:h-48 mt-4 ${isDisabled ? "text-gray-300 dark:text-gray-400" : "text-white"}`}
-                        strokeWidth={1.5}
-                      />
-                      {isDisabled && (
-                        <span className="text-xs sm:text-sm text-gray-300 dark:text-gray-400 bg-black/30 px-3 py-1 rounded-full backdrop-blur-sm mt-1 font-medium">
-                          {method.disabledMessage}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-
-              {/* Botones Secundarios */}
-              <div className="absolute bottom-4 right-4 sm:bottom-8 sm:right-8 flex flex-row justify-end gap-3 sm:gap-4">
-                {visualActiveMethods.slice(1).map((methodKey) => {
-                  const method = getMethodInfo(methodKey);
-                  const Icon = method.icon;
-                  const isClickable = method.handler && !method.isVisualOnly && !method.isDisabled;
-                  const isDisabled = method.isDisabled;
-                  return (
-                    <div
-                      key={methodKey}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (isClickable) method.handler();
-                      }}
-                      title={isDisabled ? method.disabledMessage : ""}
-                      className={`backdrop-blur-md border rounded-2xl shadow-lg transition-all flex flex-row items-center justify-center px-3 sm:px-5 py-2 sm:py-3 gap-2 sm:gap-3 ${isDisabled
-                        ? "bg-gray-500/30 dark:bg-gray-600/30 border-gray-400/30 dark:border-gray-500/30 opacity-60 cursor-not-allowed"
-                        : "bg-white/15 dark:bg-black/20 border-white/20 dark:border-white/10"
-                        } ${isClickable && !isDisabled
-                          ? "hover:bg-white/25 dark:hover:bg-white/10 hover:shadow-xl hover:-translate-y-1 cursor-pointer"
-                          : !isDisabled
-                            ? "cursor-default"
-                            : ""
-                        }`}
-                    >
-                      <Icon
-                        className={`w-5 h-5 sm:w-6 sm:h-6 ${isDisabled ? "text-gray-300 dark:text-gray-400" : "text-white"}`}
-                        strokeWidth={2}
-                      />
-                      <span className={`text-xs sm:text-sm font-bold whitespace-nowrap ${isDisabled ? "text-gray-300 dark:text-gray-400" : "text-white"}`}>
-                        {method.label}
+                  {/* Icono Central */}
+                  <div className="flex-1 w-full max-w-sm flex flex-col items-center justify-center min-h-0 pointer-events-none">
+                    <Icon
+                      className={`w-32 h-32 sm:w-44 sm:h-44 lg:w-52 lg:h-52 ${isDisabled ? "text-gray-300 dark:text-gray-400" : "text-white"}`}
+                      strokeWidth={1.2}
+                    />
+                    {isDisabled && (
+                      <span className="text-xs sm:text-sm text-gray-300 dark:text-gray-400 bg-black/30 px-3 py-1 rounded-full backdrop-blur-sm mt-1 font-medium">
+                        {method.disabledMessage}
                       </span>
+                    )}
+                  </div>
+
+                  {/* Reloj abajo */}
+                  <div className="mt-6 sm:mt-10 flex flex-col items-center w-full pointer-events-none">
+                    <div
+                      className="text-4xl sm:text-6xl lg:text-7xl 2xl:text-[8rem] font-bold mb-2 tracking-tighter"
+                    >
+                      {formatTime(time).toLowerCase()}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+                    <div className="text-lg sm:text-2xl 2xl:text-4xl font-bold opacity-100 tracking-tight">
+                      {formatDate(time)}
+                    </div>
+                    <div className="text-base sm:text-xl 2xl:text-3xl font-medium opacity-70 mt-1">
+                      {formatDay(time).charAt(0).toUpperCase() + formatDay(time).slice(1)}
+                    </div>
+                  </div>
+
+                  {/* Botones Secundarios Overlay - Detener propagación para no activar el botón principal */}
+                  <div
+                    className="absolute bottom-4 right-4 sm:bottom-8 sm:right-8 flex flex-row justify-end gap-3 sm:gap-4 z-20"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {visualActiveMethods.slice(1).map((mKey) => {
+                      const mInfo = getMethodInfo(mKey);
+                      const MIcon = mInfo.icon;
+                      const mIsClickable = mInfo.handler && !mInfo.isVisualOnly && !mInfo.isDisabled;
+                      const mIsDisabled = mInfo.isDisabled;
+                      return (
+                        <div
+                          key={mKey}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (mIsClickable) mInfo.handler();
+                          }}
+                          title={mIsDisabled ? mInfo.disabledMessage : ""}
+                          className={`backdrop-blur-md border rounded-2xl shadow-lg transition-all flex flex-row items-center justify-center px-3 sm:px-5 py-2 sm:py-3 gap-2 sm:gap-3 ${mIsDisabled
+                            ? "bg-gray-500/30 dark:bg-gray-600/30 border-gray-400/30 dark:border-gray-500/30 opacity-60 cursor-not-allowed"
+                            : "bg-white/15 dark:bg-black/20 border-white/20 dark:border-white/10"
+                            } ${mIsClickable && !mIsDisabled
+                              ? "hover:bg-white/25 dark:hover:bg-white/10 hover:shadow-xl hover:-translate-y-1 cursor-pointer"
+                              : !mIsDisabled
+                                ? "cursor-default"
+                                : ""
+                            }`}
+                        >
+                          <MIcon
+                            className={`w-5 h-5 sm:w-6 sm:h-6 ${mIsDisabled ? "text-gray-300 dark:text-gray-400" : "text-white"}`}
+                            strokeWidth={2}
+                          />
+                          <span className={`text-xs sm:text-sm font-bold whitespace-nowrap ${mIsDisabled ? "text-gray-300 dark:text-gray-400" : "text-white"}`}>
+                            {mInfo.label}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()
           )}
         </div>
 

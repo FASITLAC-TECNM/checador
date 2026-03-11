@@ -64,6 +64,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [jornadaCompletada, setJornadaCompletada] = useState(false);
   const [mensajeEspera, setMensajeEspera] = useState('');
   const [isOnline, setIsOnline] = useState(false);
+  const [internetReachable, setInternetReachable] = useState(false);
   const [usandoEstadoBackend, setUsandoEstadoBackend] = useState(false);
   const [diaFestivo, setDiaFestivo] = useState(null);
 
@@ -403,11 +404,18 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
     const ESTADOS_FALTA = ['falta', 'falta_directa', 'falta_automatica'];
     if (ultimoTipo === 'entrada' && ESTADOS_FALTA.includes(ultimoEstado)) {
-      setPuedeRegistrar(false);
+      const numEntradas = (registrosHoyTodos || []).filter(r => r.tipo === 'entrada').length;
+      const numBloques = horarioInfo?.bloques?.length || 0;
+      const tieneMasBloques = numBloques > numEntradas;
+
+      setPuedeRegistrar(true);
       setTipoSiguienteRegistro('entrada');
-      setEstadoHorario('falta_previa');
-      setJornadaCompletada(false);
-      setMensajeEspera('Tu entrada fue registrada como falta. No es necesario registrar salida.');
+      // Si hay más turnos, lo ponemos en 'activo' (verde) para que pueda checar el siguiente
+      setEstadoHorario(tieneMasBloques ? 'activo' : 'falta_previa');
+      setJornadaCompletada(!tieneMasBloques);
+      setMensajeEspera(tieneMasBloques
+        ? 'Tu entrada anterior fue marcada como falta. Ya puedes registrar la entrada de tu siguiente turno.'
+        : 'Tu entrada fue registrada como falta. No es necesario registrar salida.');
       return;
     }
 
@@ -431,7 +439,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     setJornadaCompletada(false);
     setMensajeEspera('');
 
-  }, [horarioInfo, ultimoRegistroHoy, diaFestivo, usandoEstadoBackend]);
+  }, [horarioInfo, ultimoRegistroHoy, registrosHoyTodos, diaFestivo, usandoEstadoBackend]);
 
 
 
@@ -720,8 +728,15 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       try {
         let onlineNow = false;
-        try { onlineNow = await syncManager.isOnline(); } catch (e) { }
+        let reachable = false;
+        try {
+          const state = await Network.getNetworkStateAsync();
+          onlineNow = state.isConnected;
+          reachable = state.isInternetReachable;
+        } catch (e) { }
+
         setIsOnline(onlineNow);
+        setInternetReachable(reachable !== false && onlineNow);
 
 
         if (onlineNow) {
@@ -1357,7 +1372,18 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         } else if (!departamentoSeleccionado) {
           mensaje = 'Selecciona un departamento para registrar';
         } else if (estadoHorario === 'falta_previa') {
-          mensaje = 'Tu entrada fue marcada como falta en este turno. No es necesario registrar salida.';
+          Alert.alert(
+            'Aviso de Falta',
+            'Tu entrada anterior fue marcada como falta. Se recomienda esperar a tu siguiente turno, ¿deseas continuar con un nuevo registro?',
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              { text: 'Continuar', onPress: () => {
+                setRegistrando(true);
+                setMostrarAutenticacion(true);
+              }}
+            ]
+          );
+          return;
         } else if (jornadaCompletada || estadoHorario === 'bloque_completo') {
           mensaje = 'Ya completaste tu jornada de hoy';
         } else if (estadoHorario === 'tiempo_insuficiente') {
@@ -1646,14 +1672,20 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                 </View>
               }
 
-              {isOnline ?
+              {internetReachable ?
                 <TouchableOpacity
                   style={styles.viewMapButton}
                   onPress={() => setMostrarMapa(true)}
                   activeOpacity={0.7}>
 
-                  <Ionicons name="map-outline" size={16} color="#3b82f6" />
-                  <Text style={styles.viewMapText}>Ver mapa</Text>
+                  <Ionicons
+                    name={usandoEstadoBackend ? "map-outline" : "cloud-offline-outline"}
+                    size={16}
+                    color={usandoEstadoBackend ? "#3b82f6" : "#f59e0b"}
+                  />
+                  <Text style={[styles.viewMapText, !usandoEstadoBackend && { color: '#f59e0b' }]}>
+                    {usandoEstadoBackend ? "Ver mapa" : "Mapa (Servidor Caído)"}
+                  </Text>
                 </TouchableOpacity> :
 
                 <View style={[styles.viewMapButton, { opacity: 0.5 }]}>

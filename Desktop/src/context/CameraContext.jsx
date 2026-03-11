@@ -10,7 +10,7 @@ export function CameraProvider({ children }) {
   // Refs para el estado síncrono
   const streamRef = useRef(null);
   const usageCountRef = useRef(0);
-  
+
   // NUEVO: Ref para guardar la promesa de inicialización en curso
   const initializationPromiseRef = useRef(null);
 

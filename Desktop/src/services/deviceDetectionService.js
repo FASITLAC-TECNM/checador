@@ -60,24 +60,31 @@ export const deviceDetectionService = {
     return "facial";
   },
 
-  /**
-   * Normalizar nombre con cache para evitar reprocesamiento
-   */
   normalizeNameForComparison(name) {
     if (!name) return "";
     if (normalizationCache.has(name)) {
       return normalizationCache.get(name);
     }
-    const normalized = name
+    
+    let normalized = name
       .toLowerCase()
-      .replace(/\s*\([^)]*\)\s*/g, "")
+      .replace(/\s*\([^)]*\)\s*/g, " ")
       .replace(/[-_]/g, " ")
       .replace(/\s+/g, " ")
-      .replace(
-        /\b(hd|camera|webcam|usb|web|integrated|built-in|truevision|general)\b/gi,
-        "",
-      )
       .trim();
+      
+    const backup = normalized;
+
+    normalized = normalized.replace(
+      /\b(hd|camera|webcam|usb|web|integrated|built-in|truevision|general)\b/gi,
+      "",
+    ).replace(/\s+/g, " ").trim();
+
+    // Si después de quitar las palabras comunes nos quedamos sin nada, usamos el backup
+    if (normalized === "") {
+      normalized = backup;
+    }
+
     normalizationCache.set(name, normalized);
     return normalized;
   },
@@ -177,15 +184,14 @@ export const deviceDetectionService = {
    * Usado por el hook para actualizar el estado detected (true/false).
    */
   isSameDevice(deviceA, deviceB) {
-    // 1. Por instanceId (Electron)
-    if (deviceA.instanceId && deviceB.instanceId) {
-      return deviceA.instanceId === deviceB.instanceId;
+    const idA = deviceA.device_id || deviceA.deviceId || deviceA.instanceId;
+    const idB = deviceB.device_id || deviceB.deviceId || deviceB.instanceId;
+
+    if (idA && idB) {
+      return idA === idB;
     }
-    // 2. Por deviceId (browser)
-    if (deviceA.deviceId && deviceB.deviceId) {
-      return deviceA.deviceId === deviceB.deviceId;
-    }
-    // 3. Por nombre normalizado (fallback)
+
+    // Fallback por nombre solo si alguno de los dos carece por completo de un ID físico
     return (
       this.normalizeNameForComparison(deviceA.name) ===
       this.normalizeNameForComparison(deviceB.name)
@@ -203,34 +209,64 @@ export const deviceDetectionService = {
    * Filtrar dispositivos nuevos (que no existen en la lista actual)
    */
   filterNewDevices(detectedDevices, currentDevices) {
-    const existingInstanceIds = new Set(
-      currentDevices.filter((d) => d.instanceId).map((d) => d.instanceId),
+    const existingIds = new Set(
+      currentDevices
+        .map((d) => d.device_id || d.deviceId || d.instanceId)
+        .filter(Boolean)
     );
-    const existingDeviceIds = new Set(
-      currentDevices.filter((d) => d.deviceId).map((d) => d.deviceId),
-    );
+
+    // Mantenemos los nombres solo para aquellos dispositivos que no tienen ID físico
     const existingNames = new Set(
-      currentDevices.map((d) => this.normalizeNameForComparison(d.name)),
+      currentDevices
+        .filter((d) => !(d.device_id || d.deviceId || d.instanceId))
+        .map((d) => this.normalizeNameForComparison(d.name))
+        .filter(Boolean)
     );
 
     return detectedDevices.filter((d) => {
       if (!d.name) return false;
-      if (d.instanceId && existingInstanceIds.has(d.instanceId)) return false;
-      if (d.deviceId && existingDeviceIds.has(d.deviceId)) return false;
+
+      const detectedId = d.device_id || d.deviceId || d.instanceId;
+      if (detectedId) {
+        if (existingIds.has(detectedId)) return false;
+        // Si tiene ID y no está en `existingIds`, es estrictamente nuevo. Omitimos el nombre.
+        return true;
+      }
+
+      // Solo si el dispositivo detectado carece de ID físico, utilizamos el nombre como fallback
       return !existingNames.has(this.normalizeNameForComparison(d.name));
     });
   },
 
-  /**
-   * Combinar dispositivos detectados evitando duplicados
-   */
   mergeDetectedDevices(usbDevices, webcams) {
-    const combined = [...usbDevices];
+    const combined = [];
+    
+    // 1. Deduplicar los propios usbDevices (porque un mismo USB reporta endpoints de video, audio, etc)
+    for (const usb of usbDevices) {
+      const normName = this.normalizeNameForComparison(usb.name);
+      const existsInCombined = combined.some(
+        (d) => this.normalizeNameForComparison(d.name) === normName
+      );
+      
+      if (!existsInCombined && usb.name) {
+        // Preferir nombres sin paréntesis si es que hay varias opciones para la misma cámara
+        // O simplemente nos quedamos con la primera que llegue
+        combined.push(usb);
+      }
+    }
+
+    // 2. Unir webcams omitiendo las que ya estén en USB
     for (const webcam of webcams) {
-      if (!this.deviceExists(webcam, combined) && webcam.name) {
+      const normName = this.normalizeNameForComparison(webcam.name);
+      const existsInCombined = combined.some(
+        (d) => this.normalizeNameForComparison(d.name) === normName
+      );
+
+      if (!existsInCombined && webcam.name) {
         combined.push(webcam);
       }
     }
+    
     return combined;
   },
 

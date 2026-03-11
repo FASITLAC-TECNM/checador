@@ -98,25 +98,27 @@ export const useDeviceStatus = (devices, setDevices, options = {}) => {
         if (!regName) return device;
 
         const connected = allDetected.some((detected) => {
-          // 1. Intentar coincidencia exacta y estable por ID físico (nuevo sistema)
-          if (device.device_id && (detected.deviceId || detected.instanceId)) {
-            if (
-              device.device_id === detected.deviceId ||
-              device.device_id === detected.instanceId
-            ) {
-              return true;
-            }
+          const detectedId = detected.deviceId || detected.instanceId;
+
+          // 1. Intentar coincidencia exacta y estable por ID físico
+          if (device.device_id && detectedId) {
+            return device.device_id === detectedId;
           }
 
-          // 2. Si no tienen ID o no coincidieron, caer al viejo sistema por nombre (fallback)
-          const detName = normalizeName(detected.name);
-          if (!detName) return false;
+          // 2. Si el dispositivo está registrado pero NO tiene device_id (aún no se ha anclado el hardware),
+          // o el detectado no tiene ID, caemos al viejo sistema por nombre (fallback)
+          if (!device.device_id || !detectedId) {
+            const detName = normalizeName(detected.name);
+            if (!detName) return false;
 
-          return (
-            regName === detName ||
-            regName.includes(detName) ||
-            detName.includes(regName)
-          );
+            return (
+              regName === detName ||
+              regName.includes(detName) ||
+              detName.includes(regName)
+            );
+          }
+
+          return false;
         });
 
         const newEstado = connected ? "conectado" : "desconectado";

@@ -69,7 +69,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getCredenciales: (empleadoId) => ipcRenderer.invoke('offline-get-credenciales', empleadoId),
     getAllCredenciales: () => ipcRenderer.invoke('offline-get-all-credenciales'),
     getHorario: (empleadoId) => ipcRenderer.invoke('offline-get-horario', empleadoId),
-    getTolerancia: (empleadoId) => ipcRenderer.invoke('offline-get-tolerancia', empleadoId),
     getEmpleado: (empleadoId) => ipcRenderer.invoke('offline-get-empleado', empleadoId),
     getAllEmpleados: () => ipcRenderer.invoke('offline-get-all-empleados'),
 

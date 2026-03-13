@@ -437,9 +437,8 @@ export async function cargarDatosOffline(empleadoId) {
   }
 
   try {
-    const [horarioRaw, toleranciaRaw, registrosHoyRaw] = await Promise.all([
+    const [horarioRaw, registrosHoyRaw] = await Promise.all([
       window.electronAPI.offlineDB.getHorario(empleadoId),
-      window.electronAPI.offlineDB.getTolerancia(empleadoId),
       window.electronAPI.offlineDB.getRegistrosHoy(empleadoId),
     ]);
 
@@ -504,8 +503,8 @@ export async function cargarDatosOffline(empleadoId) {
       }
     }
 
-    // 2. Procesar Tolerancia
-    const tolerancia = toleranciaRaw || {
+    // 2. Procesar Tolerancia (Default ya no existe tabla offline)
+    const tolerancia = {
       minutos_retardo: 10,
       minutos_falta: 30,
       permite_registro_anticipado: true,

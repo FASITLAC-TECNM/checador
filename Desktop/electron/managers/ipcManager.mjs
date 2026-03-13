@@ -499,7 +499,6 @@ export function registerIpcHandlers() {
     ipcMain.handle("offline-get-credenciales", async (event, empleadoId) => sqliteManager.getCredenciales(empleadoId) || null);
     ipcMain.handle("offline-get-all-credenciales", async () => sqliteManager.getAllCredenciales() || []);
     ipcMain.handle("offline-get-horario", async (event, empleadoId) => sqliteManager.getHorario(empleadoId) || null);
-    ipcMain.handle("offline-get-tolerancia", async (event, empleadoId) => sqliteManager.getTolerancia(empleadoId));
     ipcMain.handle("offline-get-empleado", async (event, empleadoId) => sqliteManager.getEmpleado(empleadoId) || null);
     ipcMain.handle("offline-get-all-empleados", async () => sqliteManager.getAllEmpleados() || []);
     ipcMain.handle("offline-get-registros-hoy", async (event, empleadoId) => sqliteManager.getRegistrosHoy(empleadoId) || []);

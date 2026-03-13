@@ -45,6 +45,8 @@ export const crearSolicitudAfiliacion = async (datos) => {
         tipo: d.type || "facial",
         ip: d.ip || "",
         puerto: d.port?.substring(0, 55) || "",
+        device_id: d.device_id || d.deviceId || d.instanceId || null,
+        connection: d.connection || "USB",
       })) || [];
 
     const solicitud = {

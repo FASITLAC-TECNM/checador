@@ -6,6 +6,8 @@
 import sqliteManager from './sqliteManager.mjs';
 import pullService from './pullService.mjs';
 import pushService from './pushService.mjs';
+import * as configHelper from '../utils/configHelper.mjs';
+import fs from 'fs';
 
 // Configuración
 const SYNC_INTERVAL_MS = 5 * 60 * 1000;  // 5 minutos
@@ -20,6 +22,7 @@ let lastOfflineTimestamp = null;
 let isSyncing = false;
 let mainWindow = null;
 let storedApiBaseUrl = ''; // URL base almacenada localmente
+let storedEscritorioId = ''; // ID del escritorio actual
 
 // Callback para notificar al renderer
 let onStatusChange = null;
@@ -46,6 +49,17 @@ export function init(config) {
   const { apiBaseUrl, authToken, window } = config;
 
   mainWindow = window;
+
+  // Leer escritorio_id del config persistente
+  try {
+    const configPath = configHelper.getConfigPath();
+    if (fs.existsSync(configPath)) {
+      const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      storedEscritorioId = cfg.escritorio_id || '';
+    }
+  } catch (e) {
+    console.warn('[SyncManager] Warning: No se pudo leer escritorio_id del config:', e.message);
+  }
   storedApiBaseUrl = apiBaseUrl || '';
 
   console.log('[SyncManager] Initialization: API Base URL =', storedApiBaseUrl || '(vacio!)');
@@ -64,8 +78,10 @@ export function init(config) {
   }
 
   // Configurar servicios con la URL
-  pullService.configure(storedApiBaseUrl, authToken);
+  pullService.configure(storedApiBaseUrl, authToken, storedEscritorioId);
   pushService.configure(storedApiBaseUrl, authToken);
+
+  console.log('[SyncManager] Status: escritorio_id =', storedEscritorioId || '(no configurado)');
 
   // Actualizar el conteo de pendientes
   updatePendingCount();
@@ -78,8 +94,17 @@ export function init(config) {
  * @param {string} token
  */
 export function updateAuthToken(token) {
-  // IMPORTANTE: preservar la URL almacenada al actualizar solo el token
-  pullService.configure(storedApiBaseUrl, token);
+  // Releer escritorio_id del config por si cambió
+  try {
+    const configPath = configHelper.getConfigPath();
+    if (fs.existsSync(configPath)) {
+      const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      storedEscritorioId = cfg.escritorio_id || '';
+    }
+  } catch (e) { }
+
+  // IMPORTANTE: preservar la URL y escritorioId al actualizar el token
+  pullService.configure(storedApiBaseUrl, token, storedEscritorioId);
   pushService.updateToken(token);
   console.log('[SyncManager] Status: Token actualizado');
 

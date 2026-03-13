@@ -166,6 +166,27 @@ function runMigrations() {
       total_records INTEGER DEFAULT 0
     );
 
+    -- Caché de información de escritorio
+    CREATE TABLE IF NOT EXISTS cache_escritorio_info (
+      escritorio_id TEXT PRIMARY KEY,
+      nombre TEXT,
+      dispositivos_biometricos TEXT,
+      es_activo INTEGER DEFAULT 1,
+      updated_at TEXT NOT NULL
+    );
+
+    -- Caché de dispositivos biométricos registrados
+    CREATE TABLE IF NOT EXISTS cache_biometricos (
+      id TEXT PRIMARY KEY,
+      nombre TEXT,
+      tipo TEXT,
+      device_id TEXT,
+      estado TEXT,
+      es_activo INTEGER DEFAULT 1,
+      escritorio_id TEXT,
+      updated_at TEXT NOT NULL
+    );
+
     -- Índices para rendimiento
     CREATE INDEX IF NOT EXISTS idx_offline_asistencias_synced
       ON offline_asistencias(is_synced);
@@ -175,13 +196,15 @@ function runMigrations() {
       ON cache_credenciales(empleado_id);
     CREATE INDEX IF NOT EXISTS idx_cache_horarios_empleado
       ON cache_horarios(empleado_id);
+    CREATE INDEX IF NOT EXISTS idx_cache_biometricos_escritorio
+      ON cache_biometricos(escritorio_id);
   `);
 
   // Inicializar sync_metadata si están vacías
   const initMeta = db.prepare(`
     INSERT OR IGNORE INTO sync_metadata (tabla) VALUES (?)
   `);
-  const tables = ['cache_empleados', 'cache_credenciales', 'cache_horarios', 'cache_tolerancias', 'cache_roles', 'cache_usuarios_roles', 'cache_departamentos'];
+  const tables = ['cache_empleados', 'cache_credenciales', 'cache_horarios', 'cache_tolerancias', 'cache_roles', 'cache_usuarios_roles', 'cache_departamentos', 'cache_escritorio_info', 'cache_biometricos'];
   for (const t of tables) {
     initMeta.run(t);
   }
@@ -741,6 +764,32 @@ export function getDepartamento(empleadoId) {
   return stmt.get(empleadoId);
 }
 
+/**
+ * Obtiene la información cacheada de un escritorio
+ * @param {string} escritorioId
+ * @returns {Object|undefined}
+ */
+export function getEscritorioInfo(escritorioId) {
+  if (!db) return null;
+  const stmt = db.prepare('SELECT * FROM cache_escritorio_info WHERE escritorio_id = ? AND es_activo = 1');
+  const row = stmt.get(escritorioId);
+  if (row && row.dispositivos_biometricos) {
+    try { row.dispositivos_biometricos = JSON.parse(row.dispositivos_biometricos); } catch (e) { }
+  }
+  return row;
+}
+
+/**
+ * Obtiene los dispositivos biométricos registrados para un escritorio
+ * @param {string} escritorioId
+ * @returns {Array}
+ */
+export function getBiometricosRegistrados(escritorioId) {
+  if (!db) return [];
+  const stmt = db.prepare('SELECT * FROM cache_biometricos WHERE escritorio_id = ? AND es_activo = 1');
+  return stmt.all(escritorioId);
+}
+
 // ============================================================
 // METADATA DE SINCRONIZACIÓN
 // ============================================================
@@ -805,7 +854,7 @@ export function getAllSyncMetadata() {
 export function setReferenciaData(data) {
   if (!db) return;
 
-  const { empleados = [], horarios = [], credenciales = [] } = data;
+  const { empleados = [], horarios = [], credenciales = [], escritorios = [], biometricos = [] } = data;
 
   // Statements preparados para cada tabla
   const empStmt = db.prepare(`
@@ -911,7 +960,43 @@ export function setReferenciaData(data) {
       `).run(...serverIds);
     }
 
-    // 5. Actualizar metadata
+    // 5. Escritorios
+    const escStmt = db.prepare(`
+      INSERT INTO cache_escritorio_info (escritorio_id, nombre, dispositivos_biometricos, es_activo, updated_at)
+      VALUES (?, ?, ?, ?, datetime('now', 'localtime'))
+      ON CONFLICT(escritorio_id) DO UPDATE SET
+        nombre = excluded.nombre,
+        dispositivos_biometricos = excluded.dispositivos_biometricos,
+        es_activo = excluded.es_activo,
+        updated_at = excluded.updated_at
+    `);
+    for (const esc of escritorios) {
+      const bioJson = esc.dispositivos_biometricos
+        ? (typeof esc.dispositivos_biometricos === 'string'
+          ? esc.dispositivos_biometricos
+          : JSON.stringify(esc.dispositivos_biometricos))
+        : null;
+      escStmt.run(esc.id, esc.nombre, bioJson, esc.es_activo ? 1 : 0);
+    }
+
+    // 6. Biométricos
+    const bioStmt = db.prepare(`
+      INSERT INTO cache_biometricos (id, nombre, tipo, device_id, estado, es_activo, escritorio_id, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
+      ON CONFLICT(id) DO UPDATE SET
+        nombre = excluded.nombre,
+        tipo = excluded.tipo,
+        device_id = excluded.device_id,
+        estado = excluded.estado,
+        es_activo = excluded.es_activo,
+        escritorio_id = excluded.escritorio_id,
+        updated_at = excluded.updated_at
+    `);
+    for (const b of biometricos) {
+      bioStmt.run(b.id, b.nombre, b.tipo, b.device_id, b.estado, b.es_activo ? 1 : 0, b.escritorio_id);
+    }
+
+    // 7. Actualizar metadata
     const now = new Date().toISOString();
     db.prepare("UPDATE sync_metadata SET last_full_sync = ? WHERE tabla = ?")
       .run(now, 'cache_empleados');
@@ -919,6 +1004,10 @@ export function setReferenciaData(data) {
       .run(now, 'cache_credenciales');
     db.prepare("UPDATE sync_metadata SET last_full_sync = ? WHERE tabla = ?")
       .run(now, 'cache_horarios');
+    db.prepare("UPDATE sync_metadata SET last_full_sync = ? WHERE tabla = ?")
+      .run(now, 'cache_escritorio_info');
+    db.prepare("UPDATE sync_metadata SET last_full_sync = ? WHERE tabla = ?")
+      .run(now, 'cache_biometricos');
   });
 
   transaction();
@@ -927,8 +1016,10 @@ export function setReferenciaData(data) {
   updateMetaCount('cache_empleados');
   updateMetaCount('cache_credenciales');
   updateMetaCount('cache_horarios');
+  updateMetaCount('cache_escritorio_info');
+  updateMetaCount('cache_biometricos');
 
-  console.log(`[SQLite] Status: Sincronización masiva completada (${empleados.length} emp, ${credenciales.length} cred, ${horarios.length} hor)`);
+  console.log(`[SQLite] Status: Sincronización masiva completada (${empleados.length} emp, ${credenciales.length} cred, ${horarios.length} hor, ${escritorios.length} esc, ${biometricos.length} bio)`);
 }
 
 /**
@@ -1005,6 +1096,8 @@ export default {
   getHorario,
   getTolerancia,
   getDepartamento,
+  getEscritorioInfo,
+  getBiometricosRegistrados,
   // Sync metadata
   setLastFullSync,
   setLastIncrementalSync,

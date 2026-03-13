@@ -14,18 +14,22 @@ import crypto from 'crypto';
 // Configuración — se inyectará desde SyncManager
 let apiBaseUrl = '';
 let authToken = '';
+let escritorioId = '';
 
 /**
  * Configura la URL base y token para las peticiones
  */
-export function configure(baseUrl, token) {
+export function configure(baseUrl, token, escId) {
   if (baseUrl !== undefined && baseUrl !== null) {
     apiBaseUrl = baseUrl;
   }
   if (token !== undefined) {
     authToken = token || '';
   }
-  console.log('[PullService] Initialization: Configurado URL =', apiBaseUrl ? apiBaseUrl.substring(0, 40) + '...' : '(vacio!)');
+  if (escId !== undefined) {
+    escritorioId = escId || '';
+  }
+  console.log('[PullService] Initialization: Configurado URL =', apiBaseUrl ? apiBaseUrl.substring(0, 40) + '...' : '(vacio!)', escritorioId ? `escritorio=${escritorioId}` : '');
 }
 
 /**
@@ -91,8 +95,11 @@ export async function fullPull() {
   }
 
   try {
-    // Endpoint unificado que devuelve empleados, horarios y credenciales
-    const data = await apiFetch('/api/escritorio/sync/datos-referencia');
+    // Endpoint unificado que devuelve empleados, horarios, credenciales, escritorios y biométricos
+    const endpoint = escritorioId
+      ? `/api/escritorio/sync/datos-referencia?escritorio_id=${encodeURIComponent(escritorioId)}`
+      : '/api/escritorio/sync/datos-referencia';
+    const data = await apiFetch(endpoint);
 
     if (!data) {
       throw new Error('Respuesta vacía del servidor');
@@ -102,7 +109,9 @@ export async function fullPull() {
     sqliteManager.setReferenciaData({
       empleados: data.empleados || [],
       horarios: data.horarios || [],
-      credenciales: data.credenciales || []
+      credenciales: data.credenciales || [],
+      escritorios: data.escritorios || [],
+      biometricos: data.biometricos || [],
     });
 
     results.empleados = { success: true, count: (data.empleados || []).length };

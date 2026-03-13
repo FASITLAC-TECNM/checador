@@ -72,6 +72,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getTolerancia: (empleadoId) => ipcRenderer.invoke('offline-get-tolerancia', empleadoId),
     getEmpleado: (empleadoId) => ipcRenderer.invoke('offline-get-empleado', empleadoId),
     getAllEmpleados: () => ipcRenderer.invoke('offline-get-all-empleados'),
+
+    // Caché de escritorio y biométricos
+    getEscritorioInfo: (escritorioId) => ipcRenderer.invoke('offline-get-escritorio-info', escritorioId),
+    getBiometricosRegistrados: (escritorioId) => ipcRenderer.invoke('offline-get-biometricos-registrados', escritorioId),
   },
 
   // Control de sincronización

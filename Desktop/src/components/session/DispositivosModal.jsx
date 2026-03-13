@@ -174,6 +174,7 @@ export default function DispositivosModal({ onClose, onBack, escritorioId, inlin
     try {
       setSaving(true);
       const token = getAuthToken();
+      const allDeviceIds = [];
 
       // Guardar cambios en la BD
       for (const device of devices) {
@@ -195,11 +196,13 @@ export default function DispositivosModal({ onClose, onBack, escritorioId, inlin
 
         if (device.isNew) {
           // Crear nuevo dispositivo
-          await fetch(`${API_URL}/biometrico`, {
+          const res = await fetch(`${API_URL}/biometrico`, {
             method: "POST",
             headers,
             body: JSON.stringify(payload),
           });
+          const result = await res.json();
+          if (result.data?.id) allDeviceIds.push(result.data.id);
         } else {
           // Actualizar dispositivo existente
           await fetch(`${API_URL}/biometrico/${device.id}`, {
@@ -207,7 +210,23 @@ export default function DispositivosModal({ onClose, onBack, escritorioId, inlin
             headers,
             body: JSON.stringify(payload),
           });
+          allDeviceIds.push(device.id);
         }
+      }
+
+      // Actualizar el JSON de dispositivos_biometricos en el escritorio
+      if (allDeviceIds.length > 0 && escritorioId) {
+        const headers = {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        };
+        await fetch(`${API_URL}/escritorio/${escritorioId}`, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({
+            dispositivos_biometricos: allDeviceIds,
+          }),
+        });
       }
 
       setShowSaveMessage(true);

@@ -100,6 +100,10 @@ export default function AffiliationRequest({ onComplete }) {
         // Guardar el escritorio_id que viene del backend
         if (solicitud.escritorio_id) {
           localStorage.setItem("escritorio_id", solicitud.escritorio_id);
+          // Guardar también en config persistente de Electron para el sync offline
+          if (window.electronAPI?.configSet) {
+            window.electronAPI.configSet("escritorio_id", solicitud.escritorio_id);
+          }
         }
         // Guardar el auth_token si viene en la respuesta
         if (solicitud.auth_token || solicitud.token) {

@@ -506,6 +506,8 @@ export function registerIpcHandlers() {
     ipcMain.handle("offline-get-registros-rango", async (event, eId, start, end) => sqliteManager.getRegistrosByRange(eId, start, end) || []);
     ipcMain.handle("offline-pending-count", async () => sqliteManager.getPendingCount());
     ipcMain.handle("offline-get-errors", async () => sqliteManager.getErrorRecords() || []);
+    ipcMain.handle("offline-get-escritorio-info", async (event, escritorioId) => sqliteManager.getEscritorioInfo(escritorioId) || null);
+    ipcMain.handle("offline-get-biometricos-registrados", async (event, escritorioId) => sqliteManager.getBiometricosRegistrados(escritorioId) || []);
 
     // ==========================================
     // Sync Handlers

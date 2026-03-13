@@ -300,6 +300,16 @@ namespace BiometricMiddleware
             return $"{_reader.ReaderBrand} {_reader.DeviceModel}";
         }
 
+        public string GetReaderSerialNumber()
+        {
+            return _reader?.SerialNumber;
+        }
+
+        public string GetReaderModel()
+        {
+            return _reader?.DeviceModel;
+        }
+
         private async Task NotifyStatus(string status, string message)
         {
             if (OnStatusChanged != null)

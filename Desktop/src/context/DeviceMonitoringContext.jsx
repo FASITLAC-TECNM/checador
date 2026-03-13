@@ -164,9 +164,27 @@ export const DeviceMonitoringProvider = ({ children }) => {
                         estado: 'conectado'
                     }));
                     hasChanges = true;
-                } else if (registeredDevices.length === 0) {
-                    // Si el backend rechazó la sync, y el GET original devolvió 0, forzamos un estado vacío
-                    finalDevicesState = [];
+                } else {
+                    // Backend no autorizó nada: usar fallback local para lectores biométricos
+                    const dactilares = biometricos.filter(b => b.type === 'dactilar' && b.detected);
+                    if (dactilares.length > 0) {
+                        // Mantener cámaras existentes del estado previo y agregar lectores locales
+                        const camerasFromState = nextDevicesState.filter(d => d.tipo === 'facial');
+                        finalDevicesState = [
+                            ...camerasFromState,
+                            ...dactilares.map((b, idx) => ({
+                                id: b.id || `local-dactilar-${idx}`,
+                                nombre: b.name || 'Lector de Huella',
+                                device_id: b.instanceId || b.deviceId || null,
+                                tipo: 'dactilar',
+                                estado: 'conectado',
+                                es_activo: true,
+                            }))
+                        ];
+                    } else if (registeredDevices.length === 0) {
+                        // Sin backend ni hardware local, forzar estado vacío
+                        finalDevicesState = [];
+                    }
                     hasChanges = true;
                 }
             } catch (e) {

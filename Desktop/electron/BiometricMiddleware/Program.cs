@@ -178,7 +178,9 @@ namespace BiometricMiddleware
             {
                 type = "readerConnection",
                 connected,
-                message = connected ? "Lector conectado" : "Lector desconectado",
+                readerSerialNumber = _fingerprintManager.GetReaderSerialNumber(),
+                readerModel = _fingerprintManager.GetReaderModel(),
+                message = connected ? "Lector conectado - Digital Persona" : "Lector desconectado",
                 timestamp = DateTime.Now
             });
         }
@@ -377,6 +379,8 @@ namespace BiometricMiddleware
                 readerConnected = _fingerprintManager.IsReaderConnected(),
                 currentOperation = _fingerprintManager.GetCurrentOperation(),
                 readerInfo = _fingerprintManager.GetReaderInfo(),
+                readerSerialNumber = _fingerprintManager.GetReaderSerialNumber(),
+                readerModel = _fingerprintManager.GetReaderModel(),
                 version = "2.0.0"
             });
         }

@@ -379,31 +379,60 @@ export function registerIpcHandlers() {
             const devices = [];
             if (process.platform === "win32") {
                 try {
-                    // Script optimizado: Filtra las clases desde el inicio para que Windows no tenga que 
-                    // cargar todo el árbol de dispositivos (lo cual causa lentitud y el timeout de SIGTERM).
-                    const psScript = `Get-PnpDevice -Class USB, Biometric, Camera, Image, SmartCard, HIDClass, Sensor, WPD, Media, Ports, Authentication -ErrorAction SilentlyContinue | Where-Object Status -eq 'OK' | Select-Object Class, FriendlyName, InstanceId, Status | ConvertTo-Json -Compress`;
+                    // Script mejorado: 
+                    // 1. Intenta Get-PnpDevice (más rápido, Win10+)
+                    // 2. Fallback a Win32_PnPEntity (más compatible, Win7+)
+                    // 3. Limpia caracteres especiales y formatea JSON
+                    const psScript = `
+                        $ErrorActionPreference = 'SilentlyContinue'
+                        $classes = 'USB','Biometric','Camera','Image','SmartCard','HIDClass','Sensor','WPD','Media','Ports','Authentication'
+                        $devs = @()
+                        try {
+                            $devs = Get-PnpDevice -Class $classes | Where-Object Status -eq 'OK'
+                        } catch {
+                            $devs = Get-CimInstance Win32_PnPEntity | Where-Object { $classes -contains $_.PNPClass -and $_.Status -eq 'OK' }
+                        }
+                        if ($devs) {
+                            $result = $devs | Select-Object @{n='Class';e={$_.PNPClass}}, FriendlyName, InstanceId, Status
+                            $result | ConvertTo-Json -Compress
+                        }
+                    `.trim();
+
                     const encodedCommand = Buffer.from(psScript, "utf16le").toString("base64");
 
-                    // Incrementamos un poco el timeout a 20s como prevención adicional. Y suprimimos Output de Error
-                    const { stdout } = await exec(`powershell -NoProfile -EncodedCommand ${encodedCommand} 2>$null`, { encoding: "utf8", timeout: 20000, windowsHide: true });
+                    // Usamos exec pero con redirección correcta para CMD (2>NUL) o simplemente manejando el error
+                    // windowsHide: true evita que parpadee una consola
+                    const { stdout } = await exec(`powershell -NoProfile -NonInteractive -EncodedCommand ${encodedCommand} 2>NUL`, {
+                        encoding: "utf8",
+                        timeout: 15000,
+                        windowsHide: true
+                    });
 
                     if (stdout && stdout.trim()) {
                         const parsed = JSON.parse(stdout);
                         const deviceList = Array.isArray(parsed) ? parsed : [parsed];
                         for (const dev of deviceList) {
                             if (!dev.FriendlyName) continue;
-                            const rawName = dev.FriendlyName;
-                            const name = rawName.replace(/[®™©´┐¢\uFFFD]/g, "").replace(/\s+/g, " ").trim();
+
+                            // Limpieza profunda de nombres (remover marcas registradas y basura de drivers)
+                            const name = dev.FriendlyName
+                                .replace(/[®™©´┐¢\uFFFD]/g, "")
+                                .replace(/\s+/g, " ")
+                                .trim();
+
                             const nameLower = name.toLowerCase();
-                            const classLower = (dev.Class || "").toLowerCase();
-                            const instanceLower = (dev.InstanceId || "").toLowerCase();
+                            const instanceId = (dev.InstanceId || "").toLowerCase();
                             let type = "unknown";
 
-                            const isDigitalPersonaVID = instanceLower.includes("vid_05ba");
-                            const isSecuGenVID = instanceLower.includes("vid_1162");
-                            const isZKTecoVID = instanceLower.includes("vid_1b55");
+                            // Detección por nombre o Hardware ID (VID)
+                            const isFingerprint = nameLower.includes("fingerprint") ||
+                                nameLower.includes("biometric") ||
+                                nameLower.includes("digital persona") ||
+                                instanceId.includes("vid_05ba") || // DigitalPersona
+                                instanceId.includes("vid_1162") || // SecuGen
+                                instanceId.includes("vid_1b55");   // ZKTeco
 
-                            if (nameLower.includes("fingerprint") || nameLower.includes("biometric") || nameLower.includes("digital persona") || isDigitalPersonaVID || isSecuGenVID || isZKTecoVID) {
+                            if (isFingerprint) {
                                 type = "fingerprint";
                             } else if (nameLower.includes("camera") || nameLower.includes("webcam")) {
                                 type = "camera";
@@ -414,17 +443,23 @@ export function registerIpcHandlers() {
                             }
 
                             if (type !== "unknown") {
-                                devices.push({ id: Date.now() + Math.random(), name: name, type, connection: "USB", detected: true, instanceId: dev.InstanceId });
+                                devices.push({
+                                    id: `usb_${dev.InstanceId || Math.random()}`,
+                                    name: name,
+                                    type,
+                                    connection: "USB",
+                                    detected: true,
+                                    instanceId: dev.InstanceId
+                                });
                             }
                         }
                     }
                 } catch (psError) {
-                    // Atrapamos silenciosamente el error SIGTERM (usualmente código null, signal SIGTERM)
-                    // para no ensuciar la consola de Electron con el rastro gigante de NodeJS.
                     if (psError.signal === 'SIGTERM' || psError.killed) {
-                        console.warn("[USB] Advertencia: PowerShell tardó demasiado en responder (Timeout). Omitiendo detección de puertos temporalmente.");
+                        console.warn("[USB] Advertencia: Detección de dispositivos excedió tiempo límite.");
                     } else {
-                        console.warn("[USB] Error no fatal al ejecutar PowerShell:", psError.message);
+                        // Log mínimo para evitar saturar la consola con el dump de Base64
+                        console.warn("[USB] Detección no disponible:", psError.code || "Error desconocido");
                     }
                 }
             }

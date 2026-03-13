@@ -65,14 +65,14 @@ export const deviceDetectionService = {
     if (normalizationCache.has(name)) {
       return normalizationCache.get(name);
     }
-    
+
     let normalized = name
       .toLowerCase()
       .replace(/\s*\([^)]*\)\s*/g, " ")
       .replace(/[-_]/g, " ")
       .replace(/\s+/g, " ")
       .trim();
-      
+
     const backup = normalized;
 
     normalized = normalized.replace(
@@ -240,14 +240,14 @@ export const deviceDetectionService = {
 
   mergeDetectedDevices(usbDevices, webcams) {
     const combined = [];
-    
+
     // 1. Deduplicar los propios usbDevices (porque un mismo USB reporta endpoints de video, audio, etc)
     for (const usb of usbDevices) {
       const normName = this.normalizeNameForComparison(usb.name);
       const existsInCombined = combined.some(
         (d) => this.normalizeNameForComparison(d.name) === normName
       );
-      
+
       if (!existsInCombined && usb.name) {
         // Preferir nombres sin paréntesis si es que hay varias opciones para la misma cámara
         // O simplemente nos quedamos con la primera que llegue
@@ -266,7 +266,7 @@ export const deviceDetectionService = {
         combined.push(webcam);
       }
     }
-    
+
     return combined;
   },
 
@@ -328,21 +328,41 @@ export const deviceDetectionService = {
    * Detectar lectores biométricos vía WebSocket
    */
   async detectBiometricDevices() {
+    // Obtener token de autenticación antes de conectar
+    let biometricToken = null;
+    try {
+      biometricToken = await window.electronAPI?.getBiometricToken?.();
+    } catch (e) {
+      console.warn("[BiometricDetect] No se pudo obtener token:", e);
+    }
+
     return new Promise((resolve) => {
       try {
         const ws = new WebSocket("ws://localhost:8787/");
         const timeout = setTimeout(() => {
           if (ws.readyState !== WebSocket.CLOSED) ws.close();
           resolve([]);
-        }, 2000);
+        }, 3000);
 
         ws.onopen = () => {
-          ws.send(JSON.stringify({ command: "getStatus" }));
+          // Autenticar primero si hay token, sino intentar directo
+          if (biometricToken) {
+            ws.send(JSON.stringify({ command: "auth", token: biometricToken }));
+          } else {
+            ws.send(JSON.stringify({ command: "getStatus" }));
+          }
         };
 
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
+
+            // Después de autenticación exitosa, pedir status
+            if (data.type === "authResult" && data.success) {
+              ws.send(JSON.stringify({ command: "getStatus" }));
+              return;
+            }
+
             if (
               data.type === "systemStatus" ||
               data.type === "readerConnection"
@@ -350,18 +370,27 @@ export const deviceDetectionService = {
               if (data.readerConnected || data.connected) {
                 clearTimeout(timeout);
                 ws.close();
+                // Usar SerialNumber real del middleware (si lo envía)
+                const serialNumber = data.readerSerialNumber || null;
+                const readerModel = data.readerModel || "DigitalPersona";
                 resolve([
                   {
-                    id: "biometric-reader-dp4500",
-                    name: "Lector de Huella (DigitalPersona)",
+                    id: serialNumber ? `biometric-${serialNumber}` : "biometric-reader-dp",
+                    name: `Lector de Huella (${readerModel})`,
                     type: "dactilar",
                     connection: "USB",
                     ip: "",
                     port: "",
                     detected: true,
-                    instanceId: "dp-4500-default",
+                    instanceId: serialNumber,
+                    deviceId: serialNumber,
                   },
                 ]);
+              } else {
+                // Lector reportado como desconectado
+                clearTimeout(timeout);
+                ws.close();
+                resolve([]);
               }
             }
           } catch (e) {

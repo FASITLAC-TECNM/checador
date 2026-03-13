@@ -81,12 +81,13 @@ export default function DispositivosModal({ onClose, onBack, escritorioId, inlin
     setDetectionStatus(null);
 
     try {
-      const [usbDevices, webcams] = await Promise.all([
+      const [usbDevices, webcams, biometricos] = await Promise.all([
         deviceDetectionService.detectUSBDevices(),
         deviceDetectionService.detectWebcams(),
+        deviceDetectionService.detectBiometricDevices(),
       ]);
 
-      const detectedDevices = deviceDetectionService.mergeDetectedDevices(usbDevices, webcams);
+      const detectedDevices = deviceDetectionService.mergeDetectedDevices(usbDevices, webcams).concat(biometricos);
 
       // Mapear del formato del hook (name, type, deviceId, instanceId) al del modal (nombre, tipo, device_id)
       const mappedDetected = detectedDevices.map(d => ({

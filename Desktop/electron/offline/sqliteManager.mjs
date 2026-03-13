@@ -116,47 +116,6 @@ function runMigrations() {
       updated_at TEXT NOT NULL
     );
 
-    -- Caché de tolerancias (espejo de tabla tolerancias del servidor)
-    CREATE TABLE IF NOT EXISTS cache_tolerancias (
-      id TEXT PRIMARY KEY,
-      nombre TEXT,
-      minutos_retardo INTEGER DEFAULT 10,
-      minutos_falta INTEGER DEFAULT 30,
-      permite_registro_anticipado INTEGER DEFAULT 1,
-      minutos_anticipado_max INTEGER DEFAULT 60,
-      aplica_tolerancia_entrada INTEGER DEFAULT 1,
-      aplica_tolerancia_salida INTEGER DEFAULT 0,
-      dias_aplica TEXT,
-      updated_at TEXT NOT NULL
-    );
-
-    -- Caché de roles (espejo de tabla roles del servidor)
-    CREATE TABLE IF NOT EXISTS cache_roles (
-      id TEXT PRIMARY KEY,
-      nombre TEXT,
-      tolerancia_id TEXT,
-      posicion INTEGER DEFAULT 0,
-      updated_at TEXT NOT NULL
-    );
-
-    -- Caché de usuarios_roles (espejo de tabla usuarios_roles del servidor)
-    CREATE TABLE IF NOT EXISTS cache_usuarios_roles (
-      usuario_id TEXT NOT NULL,
-      rol_id TEXT NOT NULL,
-      es_activo INTEGER DEFAULT 1,
-      updated_at TEXT NOT NULL,
-      PRIMARY KEY (usuario_id, rol_id)
-    );
-
-    -- Caché de departamentos del empleado
-    CREATE TABLE IF NOT EXISTS cache_departamentos (
-      empleado_id TEXT NOT NULL,
-      departamento_id TEXT NOT NULL,
-      nombre TEXT,
-      es_activo INTEGER DEFAULT 1,
-      updated_at TEXT NOT NULL,
-      PRIMARY KEY (empleado_id, departamento_id)
-    );
 
     -- Metadata de sincronización
     CREATE TABLE IF NOT EXISTS sync_metadata (
@@ -204,7 +163,7 @@ function runMigrations() {
   const initMeta = db.prepare(`
     INSERT OR IGNORE INTO sync_metadata (tabla) VALUES (?)
   `);
-  const tables = ['cache_empleados', 'cache_credenciales', 'cache_horarios', 'cache_tolerancias', 'cache_roles', 'cache_usuarios_roles', 'cache_departamentos', 'cache_escritorio_info', 'cache_biometricos'];
+  const tables = ['cache_empleados', 'cache_credenciales', 'cache_horarios', 'cache_escritorio_info', 'cache_biometricos'];
   for (const t of tables) {
     initMeta.run(t);
   }
@@ -225,32 +184,6 @@ function runMigrations() {
     console.warn('[SQLite] Error: Error en migracion de columnas:', alterError.message);
   }
 
-  // Migración: si cache_tolerancias tiene columna empleado_id (esquema viejo), recrear tablas
-  try {
-    const tolInfo = db.prepare("PRAGMA table_info(cache_tolerancias)").all();
-    const tolCols = tolInfo.map(col => col.name);
-    if (tolCols.includes('empleado_id')) {
-      console.log('[SQLite] Action: Migracion - detectado esquema viejo de cache_tolerancias, recreando...');
-      db.exec('DROP TABLE IF EXISTS cache_tolerancias');
-      db.exec(`
-        CREATE TABLE cache_tolerancias (
-          id TEXT PRIMARY KEY,
-          nombre TEXT,
-          minutos_retardo INTEGER DEFAULT 10,
-          minutos_falta INTEGER DEFAULT 30,
-          permite_registro_anticipado INTEGER DEFAULT 1,
-          minutos_anticipado_max INTEGER DEFAULT 60,
-          aplica_tolerancia_entrada INTEGER DEFAULT 1,
-          aplica_tolerancia_salida INTEGER DEFAULT 0,
-          dias_aplica TEXT,
-          updated_at TEXT NOT NULL
-        )
-      `);
-      console.log('[SQLite] Status: Migracion - cache_tolerancias recreada con esquema normalizado');
-    }
-  } catch (tolMigError) {
-    console.warn('[SQLite] Error: Error en migracion de cache_tolerancias:', tolMigError.message);
-  }
 
   console.log('[SQLite] Status: Migraciones completadas');
 }
@@ -518,139 +451,6 @@ export function upsertHorario(empleadoId, horario) {
   );
 }
 
-/**
- * Upsert masivo de tolerancias (espejo de tabla tolerancias del servidor)
- * @param {Array} tolerancias - [{id, nombre, minutos_retardo, ...}]
- */
-export function upsertToleranciasBulk(tolerancias) {
-  const stmt = db.prepare(`
-    INSERT INTO cache_tolerancias
-      (id, nombre, minutos_retardo, minutos_falta, permite_registro_anticipado, minutos_anticipado_max, aplica_tolerancia_entrada, aplica_tolerancia_salida, dias_aplica, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
-    ON CONFLICT(id) DO UPDATE SET
-      nombre = excluded.nombre,
-      minutos_retardo = excluded.minutos_retardo,
-      minutos_falta = excluded.minutos_falta,
-      permite_registro_anticipado = excluded.permite_registro_anticipado,
-      minutos_anticipado_max = excluded.minutos_anticipado_max,
-      aplica_tolerancia_entrada = excluded.aplica_tolerancia_entrada,
-      aplica_tolerancia_salida = excluded.aplica_tolerancia_salida,
-      dias_aplica = excluded.dias_aplica,
-      updated_at = excluded.updated_at
-  `);
-
-  const upsertMany = db.transaction((items) => {
-    for (const tol of items) {
-      const diasAplica = tol.dias_aplica
-        ? (typeof tol.dias_aplica === 'string' ? tol.dias_aplica : JSON.stringify(tol.dias_aplica))
-        : null;
-
-      stmt.run(
-        tol.id,
-        tol.nombre || null,
-        tol.minutos_retardo ?? 10,
-        tol.minutos_falta ?? 30,
-        tol.permite_registro_anticipado ? 1 : 0,
-        tol.minutos_anticipado_max ?? 60,
-        tol.aplica_tolerancia_entrada != null ? (tol.aplica_tolerancia_entrada ? 1 : 0) : 1,
-        tol.aplica_tolerancia_salida ? 1 : 0,
-        diasAplica
-      );
-    }
-  });
-
-  upsertMany(tolerancias);
-  updateMetaCount('cache_tolerancias');
-  console.log(`[SQLite] Status: ${tolerancias.length} tolerancias cacheadas`);
-}
-
-/**
- * Upsert masivo de roles (espejo de tabla roles del servidor)
- * @param {Array} roles - [{id, nombre, tolerancia_id, posicion}]
- */
-export function upsertRoles(roles) {
-  const stmt = db.prepare(`
-    INSERT INTO cache_roles (id, nombre, tolerancia_id, posicion, updated_at)
-    VALUES (?, ?, ?, ?, datetime('now', 'localtime'))
-    ON CONFLICT(id) DO UPDATE SET
-      nombre = excluded.nombre,
-      tolerancia_id = excluded.tolerancia_id,
-      posicion = excluded.posicion,
-      updated_at = excluded.updated_at
-  `);
-
-  const upsertMany = db.transaction((items) => {
-    for (const rol of items) {
-      stmt.run(
-        rol.id,
-        rol.nombre || null,
-        rol.tolerancia_id || null,
-        rol.posicion ?? 0
-      );
-    }
-  });
-
-  upsertMany(roles);
-  updateMetaCount('cache_roles');
-  console.log(`[SQLite] Status: ${roles.length} roles cacheados`);
-}
-
-/**
- * Upsert masivo de usuarios_roles (espejo de tabla usuarios_roles del servidor)
- * @param {Array} items - [{usuario_id, rol_id, es_activo}]
- */
-export function upsertUsuariosRoles(items) {
-  const stmt = db.prepare(`
-    INSERT INTO cache_usuarios_roles (usuario_id, rol_id, es_activo, updated_at)
-    VALUES (?, ?, ?, datetime('now', 'localtime'))
-    ON CONFLICT(usuario_id, rol_id) DO UPDATE SET
-      es_activo = excluded.es_activo,
-      updated_at = excluded.updated_at
-  `);
-
-  const upsertMany = db.transaction((rows) => {
-    for (const ur of rows) {
-      stmt.run(
-        ur.usuario_id,
-        ur.rol_id,
-        ur.es_activo != null ? (ur.es_activo ? 1 : 0) : 1
-      );
-    }
-  });
-
-  upsertMany(items);
-  updateMetaCount('cache_usuarios_roles');
-  console.log(`[SQLite] Status: ${items.length} usuarios_roles cacheados`);
-}
-
-/**
- * Upsert de departamentos para un empleado
- * @param {string} empleadoId
- * @param {Array} departamentos
- */
-export function upsertDepartamentos(empleadoId, departamentos) {
-  const stmt = db.prepare(`
-    INSERT INTO cache_departamentos (empleado_id, departamento_id, nombre, es_activo, updated_at)
-    VALUES (?, ?, ?, ?, datetime('now', 'localtime'))
-    ON CONFLICT(empleado_id, departamento_id) DO UPDATE SET
-      nombre = excluded.nombre,
-      es_activo = excluded.es_activo,
-      updated_at = excluded.updated_at
-  `);
-
-  const upsertMany = db.transaction((items) => {
-    for (const dept of items) {
-      stmt.run(
-        empleadoId,
-        dept.id || dept.departamento_id,
-        dept.nombre || null,
-        dept.es_activo ? 1 : 0
-      );
-    }
-  });
-
-  upsertMany(departamentos);
-}
 
 // ============================================================
 // LECTURAS — Para autenticación y lógica offline
@@ -718,51 +518,6 @@ export function getHorario(empleadoId) {
   return row;
 }
 
-/**
- * Obtiene la tolerancia de un empleado
- * @param {string} empleadoId
- * @returns {Object}
- */
-export function getTolerancia(empleadoId) {
-  // JOIN: cache_empleados → cache_usuarios_roles → cache_roles → cache_tolerancias
-  const stmt = db.prepare(`
-    SELECT t.*
-    FROM cache_empleados e
-    INNER JOIN cache_usuarios_roles ur ON ur.usuario_id = e.usuario_id AND ur.es_activo = 1
-    INNER JOIN cache_roles r ON r.id = ur.rol_id
-    INNER JOIN cache_tolerancias t ON t.id = r.tolerancia_id
-    WHERE e.empleado_id = ?
-    ORDER BY r.posicion ASC
-    LIMIT 1
-  `);
-  const row = stmt.get(empleadoId);
-  if (row && row.dias_aplica) {
-    try {
-      row.dias_aplica = JSON.parse(row.dias_aplica);
-    } catch (e) {
-      // Already parsed or invalid
-    }
-  }
-  return row || {
-    minutos_retardo: 10,
-    minutos_falta: 30,
-    permite_registro_anticipado: 1,
-    minutos_anticipado_max: 60,
-    aplica_tolerancia_entrada: 1,
-    aplica_tolerancia_salida: 0,
-    dias_aplica: null
-  };
-}
-
-/**
- * Obtiene el departamento activo de un empleado
- * @param {string} empleadoId
- * @returns {Object|undefined}
- */
-export function getDepartamento(empleadoId) {
-  const stmt = db.prepare('SELECT * FROM cache_departamentos WHERE empleado_id = ? AND es_activo = 1 LIMIT 1');
-  return stmt.get(empleadoId);
-}
 
 /**
  * Obtiene la información cacheada de un escritorio
@@ -1083,10 +838,6 @@ export default {
   upsertEmpleados,
   upsertCredenciales,
   upsertHorario,
-  upsertToleranciasBulk,
-  upsertRoles,
-  upsertUsuariosRoles,
-  upsertDepartamentos,
   markDeletedEmpleados,
   // Lecturas
   getEmpleado,
@@ -1094,8 +845,6 @@ export default {
   getCredenciales,
   getAllCredenciales,
   getHorario,
-  getTolerancia,
-  getDepartamento,
   getEscritorioInfo,
   getBiometricosRegistrados,
   // Sync metadata

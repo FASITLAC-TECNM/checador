@@ -14,8 +14,12 @@ import NodeDisabledScreen from "./components/maintenance/NodeDisabledScreen";
 import { useAppConfiguration } from "./hooks/useAppConfiguration";
 import { useMaintenanceStatus } from "./hooks/useMaintenanceStatus";
 import { useNodeStatus } from "./hooks/useNodeStatus";
+import { useSyncIp } from "./hooks/useSyncIp";
 
 function App() {
+  // Activar sincronización automática de IP
+  useSyncIp();
+
   const {
     currentPage,
     setCurrentPage,

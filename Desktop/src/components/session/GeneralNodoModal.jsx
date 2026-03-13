@@ -172,6 +172,7 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false, isAd
         ip: nodeConfig.ipAddress,
         mac: nodeConfig.macAddress,
         sistema_operativo: nodeConfig.operatingSystem,
+        es_activo: nodeConfig.esActivo,
       });
 
       console.log("✅ Configuración del nodo guardada:", nodeConfig);

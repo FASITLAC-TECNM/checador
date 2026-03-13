@@ -143,12 +143,19 @@ export const actualizarEscritorio = async (escritorioId, datos) => {
     const url = getApiEndpoint(`${ESCRITORIO_ENDPOINT}/${escritorioId}`);
 
     const datosFormateados = {
-      nombre: datos.nombre?.substring(0, 55) || "",
-      descripcion: datos.descripcion || "",
-      ip: datos.ip?.substring(0, 12) || "",
-      mac: datos.mac?.substring(0, 12) || "",
-      sistema_operativo: datos.sistema_operativo || "",
+      nombre: datos.nombre !== undefined ? datos.nombre.substring(0, 55) : undefined,
+      descripcion: datos.descripcion,
+      ip: datos.ip !== undefined ? datos.ip.substring(0, 45) : undefined,
+      mac: datos.mac !== undefined ? datos.mac.substring(0, 17) : undefined,
+      sistema_operativo: datos.sistema_operativo,
+      es_activo: datos.es_activo,
+      dispositivos_biometricos: datos.dispositivos_biometricos
     };
+
+    // Eliminar campos undefined para dejar que el backend use COALESCE
+    Object.keys(datosFormateados).forEach(key =>
+      datosFormateados[key] === undefined && delete datosFormateados[key]
+    );
 
     const response = await fetch(url, {
       method: "PUT",

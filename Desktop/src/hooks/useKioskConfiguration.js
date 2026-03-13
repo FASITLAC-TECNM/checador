@@ -24,7 +24,35 @@ export const useKioskConfiguration = (isLoggedIn) => {
             const escritorioId = obtenerEscritorioIdGuardado();
             if (!escritorioId) throw new Error("No hay ID de escritorio");
 
-            const configuracion = await obtenerConfiguracionEscritorio(escritorioId);
+            let configuracion = null;
+
+            // Intentar cargar desde el backend si hay internet
+            if (navigator.onLine) {
+                try {
+                    configuracion = await obtenerConfiguracionEscritorio(escritorioId);
+                    console.log("[useKioskConfiguration] Configuración cargada desde el backend");
+                } catch (apiErr) {
+                    console.warn("[useKioskConfiguration] Error al cargar desde API, intentando caché local:", apiErr);
+                }
+            }
+
+            // Si estamos offline o falló el API, intentar desde SQLite
+            if (!configuracion) {
+                console.log("[useKioskConfiguration] Cargando configuración desde base de datos local (Offline Mode)...");
+                const offlineInfo = await window.electronAPI?.offlineDB?.getEscritorioInfo(escritorioId);
+
+                if (offlineInfo) {
+                    configuracion = {
+                        prioridad_biometrico: offlineInfo.prioridad_biometrico,
+                        metodos_autenticacion: offlineInfo.metodos_autenticacion || { huella: true, rostro: true, codigo: true }
+                    };
+                    console.log("[useKioskConfiguration] Configuración cargada desde SQLite");
+                }
+            }
+
+            if (!configuracion) {
+                throw new Error("No se pudo obtener la configuración de ninguna fuente");
+            }
 
             let metodos = configuracion.metodos_autenticacion;
             if (typeof metodos === 'string') {

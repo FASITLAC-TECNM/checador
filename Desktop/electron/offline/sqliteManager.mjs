@@ -184,6 +184,17 @@ function runMigrations() {
     console.warn('[SQLite] Error: Error en migracion de columnas:', alterError.message);
   }
 
+  // Migración: agregar columna prioridad_biometrico a cache_escritorio_info
+  try {
+    const escInfo = db.prepare("PRAGMA table_info(cache_escritorio_info)").all();
+    const escCols = escInfo.map(col => col.name);
+    if (!escCols.includes('prioridad_biometrico')) {
+      db.exec("ALTER TABLE cache_escritorio_info ADD COLUMN prioridad_biometrico TEXT");
+      console.log('[SQLite] Action: Migracion - columna "prioridad_biometrico" agregada a cache_escritorio_info');
+    }
+  } catch (e) {
+    console.warn('[SQLite] Error: Error en migracion de cache_escritorio_info:', e.message);
+  }
 
   console.log('[SQLite] Status: Migraciones completadas');
 }
@@ -531,6 +542,9 @@ export function getEscritorioInfo(escritorioId) {
   if (row && row.dispositivos_biometricos) {
     try { row.dispositivos_biometricos = JSON.parse(row.dispositivos_biometricos); } catch (e) { }
   }
+  if (row && row.prioridad_biometrico) {
+    try { row.prioridad_biometrico = JSON.parse(row.prioridad_biometrico); } catch (e) { }
+  }
   return row;
 }
 
@@ -717,11 +731,12 @@ export function setReferenciaData(data) {
 
     // 5. Escritorios
     const escStmt = db.prepare(`
-      INSERT INTO cache_escritorio_info (escritorio_id, nombre, dispositivos_biometricos, es_activo, updated_at)
-      VALUES (?, ?, ?, ?, datetime('now', 'localtime'))
+      INSERT INTO cache_escritorio_info (escritorio_id, nombre, dispositivos_biometricos, prioridad_biometrico, es_activo, updated_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))
       ON CONFLICT(escritorio_id) DO UPDATE SET
         nombre = excluded.nombre,
         dispositivos_biometricos = excluded.dispositivos_biometricos,
+        prioridad_biometrico = excluded.prioridad_biometrico,
         es_activo = excluded.es_activo,
         updated_at = excluded.updated_at
     `);
@@ -731,7 +746,12 @@ export function setReferenciaData(data) {
           ? esc.dispositivos_biometricos
           : JSON.stringify(esc.dispositivos_biometricos))
         : null;
-      escStmt.run(esc.id, esc.nombre, bioJson, esc.es_activo ? 1 : 0);
+      const prioJson = esc.prioridad_biometrico
+        ? (typeof esc.prioridad_biometrico === 'string'
+          ? esc.prioridad_biometrico
+          : JSON.stringify(esc.prioridad_biometrico))
+        : null;
+      escStmt.run(esc.id, esc.nombre, bioJson, prioJson, esc.es_activo ? 1 : 0);
     }
 
     // 6. Biométricos

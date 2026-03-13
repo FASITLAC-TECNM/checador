@@ -798,6 +798,140 @@ export function getAllSyncMetadata() {
 }
 
 /**
+ * Actualiza todos los datos de referencia en una sola transacción.
+ * Evita errores de "database is locked" al consolidar múltiples escrituras.
+ * @param {Object} data - { empleados, horarios, credenciales }
+ */
+export function setReferenciaData(data) {
+  if (!db) return;
+
+  const { empleados = [], horarios = [], credenciales = [] } = data;
+
+  // Statements preparados para cada tabla
+  const empStmt = db.prepare(`
+    INSERT INTO cache_empleados (empleado_id, usuario_id, nombre, usuario, correo, estado_cuenta, es_empleado, foto, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
+    ON CONFLICT(empleado_id) DO UPDATE SET
+      usuario_id = excluded.usuario_id,
+      nombre = excluded.nombre,
+      usuario = excluded.usuario,
+      correo = excluded.correo,
+      estado_cuenta = excluded.estado_cuenta,
+      es_empleado = excluded.es_empleado,
+      foto = excluded.foto,
+      updated_at = excluded.updated_at
+  `);
+
+  const credStmt = db.prepare(`
+    INSERT INTO cache_credenciales (id, empleado_id, pin_hash, dactilar_template, facial_descriptor, updated_at)
+    VALUES (?, ?, ?, ?, ?, datetime('now', 'localtime'))
+    ON CONFLICT(id) DO UPDATE SET
+      empleado_id = excluded.empleado_id,
+      pin_hash = excluded.pin_hash,
+      dactilar_template = excluded.dactilar_template,
+      facial_descriptor = excluded.facial_descriptor,
+      updated_at = excluded.updated_at
+  `);
+
+  const horStmt = db.prepare(`
+    INSERT INTO cache_horarios (horario_id, empleado_id, configuracion, es_activo, updated_at)
+    VALUES (?, ?, ?, ?, datetime('now', 'localtime'))
+    ON CONFLICT(horario_id) DO UPDATE SET
+      empleado_id = excluded.empleado_id,
+      configuracion = excluded.configuracion,
+      es_activo = excluded.es_activo,
+      updated_at = excluded.updated_at
+  `);
+
+  const transaction = db.transaction(() => {
+    // 1. Empleados
+    for (const emp of empleados) {
+      empStmt.run(
+        emp.id || emp.empleado_id,
+        emp.usuario_id,
+        emp.nombre,
+        emp.usuario || null,
+        emp.correo || null,
+        emp.es_activo ? 'activo' : 'inactivo',
+        1, // es_empleado
+        emp.foto || null
+      );
+    }
+
+    // 2. Credenciales (Asegurar 1:1 con el empleado y estabilidad en el PK)
+    for (const cred of credenciales) {
+      let facial = cred.facial || cred.facial_descriptor || null;
+      if (facial && typeof facial === 'object') {
+        facial = JSON.stringify(facial);
+      }
+
+      let dactilar = cred.dactilar || cred.dactilar_template || null;
+      // better-sqlite3 maneja Buffers automáticamente como BLOB, 
+      // pero si viene como objeto stringificado o array, lo normalizamos
+      if (dactilar && typeof dactilar === 'object' && !Buffer.isBuffer(dactilar)) {
+        dactilar = JSON.stringify(dactilar);
+      }
+
+      credStmt.run(
+        `C_${cred.empleado_id}`, // ID estable por empleado
+        cred.empleado_id,
+        cred.pin || null,
+        dactilar,
+        facial
+      );
+    }
+
+    // 3. Horarios (Asignar configuración a cada empleado para permitir búsqueda por empleado_id)
+    const configsMap = new Map();
+    for (const h of horarios) {
+      configsMap.set(h.id || h.horario_id, h);
+    }
+
+    for (const emp of empleados) {
+      const hId = emp.horario_id;
+      if (hId && configsMap.has(hId)) {
+        const config = configsMap.get(hId);
+        horStmt.run(
+          `H_${emp.id}`, // Horario ID único por empleado para evitar colisiones en el PK
+          emp.id || emp.empleado_id,
+          typeof config.configuracion === 'string' ? config.configuracion : JSON.stringify(config.configuracion),
+          config.es_activo ? 1 : 0
+        );
+      }
+    }
+
+    // 4. Limpiar empleados eliminados (si es sync completo)
+    const serverIds = empleados.map(e => e.id || e.empleado_id);
+    if (serverIds.length > 0) {
+      const placeholders = serverIds.map(() => '?').join(',');
+      db.prepare(`
+        UPDATE cache_empleados
+        SET estado_cuenta = 'eliminado', updated_at = datetime('now', 'localtime')
+        WHERE empleado_id NOT IN (${placeholders}) AND estado_cuenta != 'eliminado'
+      `).run(...serverIds);
+    }
+
+    // 5. Actualizar metadata
+    const now = new Date().toISOString();
+    db.prepare("UPDATE sync_metadata SET last_full_sync = ? WHERE tabla = ?")
+      .run(now, 'cache_empleados');
+    db.prepare("UPDATE sync_metadata SET last_full_sync = ? WHERE tabla = ?")
+      .run(now, 'cache_credenciales');
+    db.prepare("UPDATE sync_metadata SET last_full_sync = ? WHERE tabla = ?")
+      .run(now, 'cache_horarios');
+  });
+
+  transaction();
+
+  // Actualizar conteos
+  updateMetaCount('cache_empleados');
+  updateMetaCount('cache_credenciales');
+  updateMetaCount('cache_horarios');
+
+  console.log(`[SQLite] Status: Sincronización masiva completada (${empleados.length} emp, ${credenciales.length} cred, ${horarios.length} hor)`);
+}
+
+/**
  * Elimina empleados del caché que ya no existen en el servidor
  * @param {Array} serverIds - IDs de empleados que existen en el servidor
  * @returns {number} cantidad de empleados marcados como eliminados
@@ -876,4 +1010,5 @@ export default {
   setLastIncrementalSync,
   getSyncMetadata,
   getAllSyncMetadata,
+  setReferenciaData,
 };

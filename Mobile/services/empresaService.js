@@ -183,15 +183,32 @@ export const deleteEmpresa = async (empresaId, token) => {
 
 export const getEmpresaPublicaById = async (empresaId) => {
   try {
-    const response = await fetch(
-      getApiEndpoint(`/api/empresas/public/${empresaId}`),
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    let response;
+    try {
+      response = await Promise.race([
+        fetch(
+          getApiEndpoint(`/api/empresas/public/${empresaId}`),
+          {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            signal: controller.signal
+          }
+        ),
+        new Promise((_, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Timeout de 5s')), 5000);
+          controller.signal.addEventListener('abort', () => clearTimeout(timeout));
+        })
+      ]);
+    } catch (e) {
+      clearTimeout(timeoutId);
+      throw new Error(`Timeout o error de red: ${e.message}`);
+    }
+    clearTimeout(timeoutId);
 
     const data = await response.json();
 

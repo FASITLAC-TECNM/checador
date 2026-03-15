@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getMiEmpresa } from '../../services/empresaService';
 import sqliteManager from '../../services/offline/sqliteManager.mjs';
+import syncManager from '../../services/offline/syncManager.mjs';
 import getApiEndpoint from '../../config/api.js';
 
 const obtenerUrlLogo = (logo) => {
@@ -60,7 +61,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
 
 
       let cargoOnline = false;
-      if (token) {
+      if (token && !syncManager.getIsBackendDown()) {
         try {
           const response = await getMiEmpresa(token);
           if (response.success && response.data) {

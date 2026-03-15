@@ -62,12 +62,29 @@ export const getAsistenciasEmpleado = async (empleadoId, token, filtros = {}) =>
 
     const url = `${API_URL}/asistencias/empleado/${empleadoId}${params.toString() ? `?${params}` : ''}`;
 
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    let response;
+    try {
+      response = await Promise.race([
+        fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal
+        }),
+        new Promise((_, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Timeout de 5s')), 5000);
+          controller.signal.addEventListener('abort', () => clearTimeout(timeout));
+        })
+      ]);
+    } catch (e) {
+      clearTimeout(timeoutId);
+      throw new Error(`Timeout o error de red: ${e.message}`);
+    }
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`Error del servidor (${response.status})`);

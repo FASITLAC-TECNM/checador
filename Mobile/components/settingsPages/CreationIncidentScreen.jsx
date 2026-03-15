@@ -99,7 +99,7 @@ export const CreationIncidentScreen = ({ visible, onClose, onSuccess, userData, 
                 fecha_fin: fechaFin.toISOString()
             };
 
-            const online = await syncManager.isOnline();
+            const online = await syncManager.isOnline() && !syncManager.getIsBackendDown();
             let creadaOnline = false;
 
             if (online && userData.token) {

@@ -61,14 +61,26 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     NetInfo.fetch().then((state) => {
       setIsWifiConnected(state.isConnected && state.isInternetReachable);
     });
-    return () => unsubscribe();
-  }, []);
+
+    const checkServerStatus = setInterval(() => {
+       const backendStatusReady = !syncManager.getIsBackendDown();
+       if (backendStatusReady !== isDbReady) {
+           setIsDbReady(backendStatusReady);
+       }
+    }, 2000);
+
+    return () => {
+       unsubscribe();
+       clearInterval(checkServerStatus);
+    };
+  }, [isDbReady]);
 
   useEffect(() => {
     const checkDb = async () => {
       try {
         await sqliteManager.initDatabase();
-        setIsDbReady(true);
+        const serverReady = !syncManager.getIsBackendDown();
+        setIsDbReady(serverReady);
       } catch (e) {
         setIsDbReady(false);
       }
@@ -167,6 +179,40 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     }
 
     setIsLoading(true);
+
+    if (syncManager.getIsBackendDown()) {
+       try {
+           setIsOfflineLogin(true);
+           const offlineResult = await validateOffline(usuario, password);
+           if (offlineResult.success) {
+               const sessionData = {
+                 usuario_id: offlineResult.data.id?.toString(),
+                 empleado_id: offlineResult.data.empleado_id?.toString(),
+                 tipo: 'login',
+                 modo: 'offline'
+               };
+               await sqliteManager.saveOfflineSession(sessionData);
+               if (offlineResult.data.token) {
+                 syncManager.setAuthToken(offlineResult.data.token, offlineResult.data.empleado_id?.toString());
+               }
+                syncManager.pushSessions().catch((e) => function () {}('[Login] Error in background push:', e));
+               onLoginSuccess(offlineResult.data, true);
+               return;
+           } else {
+               setGeneralError(offlineResult.error || 'Credenciales inválidas (offline)');
+               setIsLoading(false);
+               Animated.sequence([
+               Animated.timing(pulseAnim, { toValue: 1.2, duration: 100, useNativeDriver: true }),
+               Animated.timing(pulseAnim, { toValue: 1, duration: 100, useNativeDriver: true })]
+               ).start();
+               return;
+           }
+       } catch (err) {
+           setGeneralError('Error al iniciar sesión offline');
+           setIsLoading(false);
+           return;
+       }
+    }
 
     try {
       const response = await login(usuario, password, empresaId);

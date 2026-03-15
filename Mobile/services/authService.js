@@ -27,13 +27,30 @@ export const login = async (usuario, contraseña, empresaId = null) => {
       body.empresa_id = empresaId;
     }
 
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(body)
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    let response;
+    try {
+      response = await Promise.race([
+        fetch(`${API_URL}/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal
+        }),
+        new Promise((_, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Timeout de 5s')), 5000);
+          controller.signal.addEventListener('abort', () => clearTimeout(timeout));
+        })
+      ]);
+    } catch (e) {
+      clearTimeout(timeoutId);
+      throw new Error(`Error de red o timeout al contactar backend: ${e.message}`);
+    }
+    clearTimeout(timeoutId);
 
     const responseText = await response.text();
     let data;

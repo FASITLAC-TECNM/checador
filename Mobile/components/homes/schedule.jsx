@@ -115,7 +115,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
       setError(null);
 
       let horario = null;
-      const online = await syncManager.isOnline();
+      const online = await syncManager.isOnline() && !syncManager.getIsBackendDown();
 
       if (online) {
         try {

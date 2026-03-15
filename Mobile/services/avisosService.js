@@ -42,13 +42,20 @@ export const getAvisosGlobales = async (token, forzarRecarga = false) => {
     return { success: true, data: cacheGlobal.data, fromCache: true };
   }
 
-  const response = await fetch(`${API_URL}/avisos/globales`, {
+  const fetchPromise = fetch(`${API_URL}/avisos/globales`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     }
   });
+
+  const response = await Promise.race([
+    fetchPromise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Tiempo de espera agotado')), 5000)
+    )
+  ]);
 
   if (!response.ok) {
     throw new Error('Error al obtener avisos globales');
@@ -75,13 +82,20 @@ export const getAvisosGlobales = async (token, forzarRecarga = false) => {
 
 
 export const getAvisosDeEmpleado = async (token, empleadoId) => {
-  const response = await fetch(`${API_URL}/empleados/${empleadoId}/avisos`, {
+  const fetchPromise = fetch(`${API_URL}/empleados/${empleadoId}/avisos`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     }
   });
+
+  const response = await Promise.race([
+    fetchPromise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Tiempo de espera agotado')), 5000)
+    )
+  ]);
 
   if (!response.ok) {
     throw new Error('Error al obtener avisos del empleado');

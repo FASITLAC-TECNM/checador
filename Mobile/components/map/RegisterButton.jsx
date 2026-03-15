@@ -275,7 +275,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       if (!empleadoId) return false;
 
       let onlineNow = false;
-      try { onlineNow = await syncManager.isOnline(); } catch (e) { }
+      try { onlineNow = await syncManager.isOnline() && !syncManager.getIsBackendDown(); } catch (e) { }
 
       if (!onlineNow) {
         setUsandoEstadoBackend(false);
@@ -449,7 +449,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const empleadoId = userData?.empleado_id;
       if (!empleadoId) return { ultimo: null, todos: [] };
 
-      const online = await syncManager.isOnline();
+      const online = await syncManager.isOnline() && !syncManager.getIsBackendDown();
 
       if (online) {
         try {
@@ -551,7 +551,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       if (!empleadoId) return null;
 
       let horario = null;
-      const online = await syncManager.isOnline();
+      const online = await syncManager.isOnline() && !syncManager.getIsBackendDown();
 
       if (online) {
         try {
@@ -675,7 +675,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       const promesas = departamentosAsignados.map(async (depto) => {
         try {
-          const online = await syncManager.isOnline();
+          const online = await syncManager.isOnline() && !syncManager.getIsBackendDown();
           if (online) {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -739,7 +739,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         setInternetReachable(reachable !== false && onlineNow);
 
 
-        if (onlineNow) {
+        if (onlineNow && !syncManager.getIsBackendDown()) {
           try {
             const hoy = new Date().toISOString().split('T')[0];
             const yearActual = new Date().getFullYear();

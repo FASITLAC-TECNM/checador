@@ -88,6 +88,9 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
 
 
       try {
+        if (syncManager.getIsBackendDown()) {
+            throw new Error('Backend is offline');
+        }
         const response = await getIncidenciasEmpleado(empleadoId, token);
         datos = response.data || [];
         cargoOnline = true;

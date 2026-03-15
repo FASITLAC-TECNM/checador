@@ -103,7 +103,7 @@ export const SecurityScreen = ({ darkMode, onBack, userData }) => {
       let cargoOnline = false;
 
 
-      if (onlineNow && token) {
+      if (onlineNow && token && !syncManager.getIsBackendDown()) {
         try {
           const credenciales = await getCredencialesByEmpleado(empleadoId, token);
           if (credenciales.success && credenciales.data) {

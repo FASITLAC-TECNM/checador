@@ -459,7 +459,24 @@ export default function App() {
       }
 
       (function () { })('🔍 [App] Verificando dispositivo periódicamente por empleado en servidor...');
-      const dispositivoEnBD = await verificarDispositivoPorEmpleado(empleadoId, storedToken);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      let dispositivoEnBD = null;
+
+      try {
+        dispositivoEnBD = await Promise.race([
+          verificarDispositivoPorEmpleado(empleadoId, storedToken),
+          new Promise((_, reject) => {
+            const id = setTimeout(() => reject(new Error('Timeout')), 5000);
+            controller.signal.addEventListener('abort', () => clearTimeout(id));
+          })
+        ]);
+        clearTimeout(timeoutId);
+      } catch (err) {
+        clearTimeout(timeoutId);
+        (function () { })('⚠️ [App] Timeout/Error verificando dispositivo periódicamente. Asumiendo estado local.');
+        return; // Mantiene el estado validado offline
+      }
 
       if (dispositivoEnBD.existe && dispositivoEnBD.activo) {
         (function () { })('✅ [App] Dispositivo verificado periódicamente en nube: ACTIVO');
@@ -516,7 +533,7 @@ export default function App() {
   const checkAppState = async () => {
     try {
 
-      const online = await syncManager.isOnline();
+      const online = await syncManager.isOnline() && !syncManager.getIsBackendDown();
       if (online) {
         try {
           const { maintenance } = await getMaintenanceStatus();
@@ -550,7 +567,29 @@ export default function App() {
 
           if (empleadoId) {
             (function () { })('🔍 [App] Verificando estado del dispositivo en servidor al arrancar...');
-            const dispositivoEnBD = await verificarDispositivoPorEmpleado(empleadoId, storedToken);
+            
+            // Si el backend se sabe que está caído por el healthcheck previo
+            // O si queremos evitar que se trabe, metemos un timeout
+            let dispositivoEnBD = null;
+            if (syncManager.getIsBackendDown()) {
+               throw new Error("Backend caído");
+            } else {
+               const controller = new AbortController();
+               const timeoutId = setTimeout(() => controller.abort(), 5000);
+               try {
+                  dispositivoEnBD = await Promise.race([
+                    verificarDispositivoPorEmpleado(empleadoId, storedToken),
+                    new Promise((_, reject) => {
+                       const id = setTimeout(() => reject(new Error('Timeout de 5s')), 5000);
+                       controller.signal.addEventListener('abort', () => clearTimeout(id));
+                    })
+                  ]);
+               } catch (e) {
+                  throw new Error(e.message || "Error al verificar");
+               } finally {
+                  clearTimeout(timeoutId);
+               }
+            }
 
             if (dispositivoEnBD.existe && dispositivoEnBD.activo) {
               (function () { })('✅ [App] Dispositivo activo en servidor. Onboarding OK.');
@@ -588,10 +627,11 @@ export default function App() {
       setIsLoggedIn(false);
       setDeviceRegistered(false);
     } finally {
-
+      // Ya no forzamos un delay fijo de 2500ms al final si hay red caida, 
+      // lo quitamos o dejamos solo 500ms para evitar parpadeos
       setTimeout(() => {
         setIsLoading(false);
-      }, 2500);
+      }, 500);
     }
   };
 
@@ -636,10 +676,24 @@ export default function App() {
 
       (function () { })(`🔍 [App] Login Mode: ${isOffline ? 'OFFLINE' : 'ONLINE'}, Net: ${currentlyOnline}`);
 
-      if (treatAsOnline && data.token) {
+      if (treatAsOnline && data.token && !syncManager.getIsBackendDown()) {
         try {
           (function () { })('🔍 [App] ☁️ ONLINE: Verificando dispositivo estrictamente en servidor...');
-          const dispositivoEnBD = await verificarDispositivoPorEmpleado(empleadoId, data.token);
+          
+          let dispositivoEnBD = null;
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          try {
+             dispositivoEnBD = await Promise.race([
+                verificarDispositivoPorEmpleado(empleadoId, data.token),
+                new Promise((_, reject) => {
+                   const id = setTimeout(() => reject(new Error('Timeout 5s')), 5000);
+                   controller.signal.addEventListener('abort', () => clearTimeout(id));
+                })
+             ]);
+          } finally {
+             clearTimeout(timeoutId);
+          }
 
 
           if (dispositivoEnBD.existe && dispositivoEnBD.activo) {

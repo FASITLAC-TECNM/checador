@@ -140,17 +140,36 @@ export async function pushSessions() {
 
     const url = `${API_URL}/movil/sync/sesiones`;
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
-      },
-      body: JSON.stringify({ sesiones })
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    let response;
+    try {
+      response = await Promise.race([
+        fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({ sesiones }),
+          signal: controller.signal
+        }),
+        new Promise((_, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Timeout de 5s')), 5000);
+          controller.signal.addEventListener('abort', () => clearTimeout(timeout));
+        })
+      ]);
+    } catch (e) {
+      clearTimeout(timeoutId);
+      isPushingSessions = false;
+      return { success: false, error: 'Timeout sync' };
+    }
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       await response.text();
+      isPushingSessions = false;
       throw new Error(`HTTP ${response.status}`);
     }
 
@@ -370,6 +389,10 @@ export function markBackendUp() {
   isBackendDown = false;
 }
 
+export function getIsBackendDown() {
+  return isBackendDown;
+}
+
 export function initAutoSync() {
 
   NetInfo.fetch().then((state) => {
@@ -414,5 +437,6 @@ export default {
   initAutoSync,
   isOnline,
   markBackendDown,
-  markBackendUp
+  markBackendUp,
+  getIsBackendDown
 };

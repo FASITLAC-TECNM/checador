@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getEmpleados } from '../../services/empleadoServices';
 import { AdminCredencialesScreen } from './AdminCredencialesScreen';
+import syncManager from '../../services/offline/syncManager.mjs';
 
 const BASE_URL = 'https://9dm7dqf9-3001.usw3.devtunnels.ms';
 
@@ -72,6 +73,12 @@ export const UsuariosCredencialesScreen = ({ userData, darkMode, onBack }) => {
     try {
       setLoading(true);
       setError(null);
+
+      if (syncManager.getIsBackendDown()) {
+        setError('Servidor no disponible por el momento. No se pueden cargar empleados en modo offline.');
+        return;
+      }
+
       const token = await AsyncStorage.getItem('userToken');
       const res = await getEmpleados(token);
       setEmpleados(res.data || []);

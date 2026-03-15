@@ -12,8 +12,8 @@ import {
 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getAvisosGlobales, getAvisosDeEmpleado } from '../../services/avisosService';
 import sqliteManager from '../../services/offline/sqliteManager.mjs';
+import syncManager from '../../services/offline/syncManager.mjs';
 import { detectarAvisosNuevos } from '../../services/localNotificationService';
 
 const PINNED_STORAGE_KEY = '@avisos_pinned';
@@ -57,6 +57,9 @@ export const NotifyScreen = ({
       let datosGlobales = [];
       let datosEmpleado = [];
       try {
+        if (syncManager.getIsBackendDown()) {
+            throw new Error('Backend is offline');
+        }
         const globalRes = await getAvisosGlobales(token, isRefresh);
         if (globalRes.success && globalRes.data) {
           datosGlobales = globalRes.data;

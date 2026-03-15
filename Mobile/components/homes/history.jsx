@@ -55,19 +55,22 @@ export const HistoryScreen = ({ darkMode, userData }) => {
       let cargoOnline = false;
 
       try {
-        const response = await getAsistenciasEmpleado(userData.empleado_id, userData.token, filtros);
-        if (response?.data && Array.isArray(response.data)) {
-          const ordenadas = response.data.sort(
-            (a, b) => new Date(b.fecha_registro) - new Date(a.fecha_registro)
-          );
-          setAsistencias(ordenadas);
-          calcularEstadisticas(ordenadas);
-          cargoOnline = true;
-          await sqliteManager.upsertAsistenciasMes(userData.empleado_id, mesKey, response.data).catch(() => {});
-        } else {
-          setAsistencias([]);
-          setEstadisticas({ puntuales: 0, retardos: 0, faltas: 0, total: 0 });
-          cargoOnline = true;
+        const isOnline = await syncManager.isOnline() && !syncManager.getIsBackendDown();
+        if (isOnline) {
+          const response = await getAsistenciasEmpleado(userData.empleado_id, userData.token, filtros);
+          if (response?.data && Array.isArray(response.data)) {
+            const ordenadas = response.data.sort(
+              (a, b) => new Date(b.fecha_registro) - new Date(a.fecha_registro)
+            );
+            setAsistencias(ordenadas);
+            calcularEstadisticas(ordenadas);
+            cargoOnline = true;
+            await sqliteManager.upsertAsistenciasMes(userData.empleado_id, mesKey, response.data).catch(() => {});
+          } else {
+            setAsistencias([]);
+            setEstadisticas({ puntuales: 0, retardos: 0, faltas: 0, total: 0 });
+            cargoOnline = true;
+          }
         }
       } catch (_) {
 

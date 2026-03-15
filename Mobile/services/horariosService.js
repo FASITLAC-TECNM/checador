@@ -20,10 +20,27 @@ export const getHorarioPorEmpleado = async (empleadoId, token = null) => {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: headers
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    let response;
+    try {
+       response = await Promise.race([
+         fetch(url, {
+           method: 'GET',
+           headers: headers,
+           signal: controller.signal
+         }),
+         new Promise((_, reject) => {
+           const timeout = setTimeout(() => reject(new Error('Timeout de 5s')), 5000);
+           controller.signal.addEventListener('abort', () => clearTimeout(timeout));
+         })
+       ]);
+    } catch (e) {
+       clearTimeout(timeoutId);
+       throw new Error(`Timeout de red: ${e.message}`);
+    }
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text();

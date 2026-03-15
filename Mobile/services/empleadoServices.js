@@ -59,13 +59,30 @@ export const getEmpleadoById = async (empleadoId, token) => {
       throw new Error('Token de autenticación no disponible');
     }
 
-    const response = await fetch(`${API_URL}/empleados/${empleadoId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      }
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    let response;
+    try {
+      response = await Promise.race([
+        fetch(`${API_URL}/empleados/${empleadoId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          signal: controller.signal
+        }),
+        new Promise((_, reject) => {
+          const timeout = setTimeout(() => reject(new Error('Timeout de 5s')), 5000);
+          controller.signal.addEventListener('abort', () => clearTimeout(timeout));
+        })
+      ]);
+    } catch (e) {
+      clearTimeout(timeoutId);
+      throw new Error(`Timeout o error de red: ${e.message}`);
+    }
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       if (response.status === 404) {

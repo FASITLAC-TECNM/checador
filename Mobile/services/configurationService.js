@@ -202,22 +202,31 @@ export const getOrdenCredenciales = async (token) => {
 
 export const getMaintenanceStatus = async () => {
   try {
-    const response = await fetch(`${API_URL}/configuracion/public/status`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+    let response;
+    try {
+      response = await fetch(`${API_URL}/configuracion/public/status`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        signal: controller.signal
+      });
+    } catch (e) {
+      clearTimeout(timeoutId);
+      return { maintenance: false };
+    }
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
-
       return { maintenance: false };
     }
 
     const data = await response.json();
     return { maintenance: data.maintenance === true };
   } catch (error) {
-
     return { maintenance: false };
   }
 };

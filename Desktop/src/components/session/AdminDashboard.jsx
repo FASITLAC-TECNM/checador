@@ -76,7 +76,7 @@ export default function AdminDashboard({
                 <aside className="w-14 lg:w-[240px] xl:w-[280px] 2xl:w-[340px] bg-bg-secondary border-r border-border-subtle flex flex-col flex-shrink-0 transition-all duration-300">
 
                     {/* Profile Card - Compact */}
-                    <div className="p-2 lg:p-4 border-b border-border-subtle">
+                    <div className="p-2 lg:p-4">
                         <div className="flex items-center gap-3 mb-0 lg:mb-3">
                             <div className="relative flex-shrink-0">
                                 <div className="absolute inset-0 bg-[#1976D2] rounded-full p-[2px]">

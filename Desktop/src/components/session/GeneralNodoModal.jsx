@@ -185,23 +185,6 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false, isAd
     }
   };
 
-  // Mostrar estado de carga
-  if (isLoading) {
-    if (inline) {
-      return (
-        <div className="flex flex-col items-center justify-center py-20">
-          <DynamicLoader text="Cargando datos del escritorio..." size="medium" />
-        </div>
-      );
-    }
-    return (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden p-8 flex justify-center py-12">
-          <DynamicLoader text="Cargando datos del escritorio..." size="large" />
-        </div>
-      </div>
-    );
-  }
 
   // Mostrar error si no se pudo cargar
   if (error) {
@@ -377,135 +360,126 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false, isAd
 
         {/* Body */}
         <div className="p-3">
-          {/* Estado del Escritorio */}
-          <div className="mb-3 px-3 py-2 bg-[#1976D2]/10 dark:bg-blue-900/30 border border-[#1976D2]/20 dark:border-blue-800 rounded-xl">
-            <p className="text-xs text-[#1976D2] dark:text-blue-300">
-              <span className="font-semibold">Estado:</span>{" "}
-              {nodeConfig.esActivo ? (
-                <span className="ml-1 px-2 py-0.5 bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 rounded-full text-xs">
-                  Activo
-                </span>
-              ) : (
-                <span className="ml-1 px-2 py-0.5 bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-full text-xs">
-                  Inactivo
-                </span>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <DynamicLoader text="Cargando datos del escritorio..." size="medium" />
+            </div>
+          ) : (
+            <>
+              <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-semibold text-text-primary flex items-center gap-2 text-sm">
+                    <HardDrive className="w-4 h-4 text-[#1976D2] dark:text-blue-400" />
+                    Información del Nodo
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={detectSystemInfo}
+                    disabled={isDetecting}
+                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-[#1976D2]/10 dark:bg-blue-900/50 text-[#1976D2] dark:text-blue-300 rounded-lg hover:bg-[#1976D2]/20 dark:hover:bg-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isDetecting ? "animate-spin" : ""}`} />
+                    {isDetecting ? "Detectando..." : "Autodetectar"}
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                      Nombre del Nodo <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={nodeConfig.nodeName}
+                      onChange={(e) =>
+                        setNodeConfig({ ...nodeConfig, nodeName: e.target.value })
+                      }
+                      className="w-full px-3 py-1.5 text-sm bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-[#1976D2] focus:border-transparent text-text-primary placeholder:text-text-disabled"
+                      placeholder="Ej: Entrada Principal"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                      Descripción
+                    </label>
+                    <textarea
+                      value={nodeConfig.nodeDescription}
+                      onChange={(e) =>
+                        setNodeConfig({ ...nodeConfig, nodeDescription: e.target.value })
+                      }
+                      rows={2}
+                      className="w-full px-3 py-1.5 text-sm bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-[#1976D2] focus:border-transparent resize-none text-text-primary placeholder:text-text-disabled"
+                      placeholder="Descripción del nodo de trabajo"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                        Dirección IP <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={nodeConfig.ipAddress}
+                        disabled
+                        className="w-full px-3 py-1.5 text-sm bg-bg-secondary border border-border-subtle rounded-lg text-text-secondary cursor-not-allowed"
+                        placeholder="192.168.1.100"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                        Dirección MAC <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={nodeConfig.macAddress}
+                        disabled
+                        className="w-full px-3 py-1.5 text-sm bg-bg-secondary border border-border-subtle rounded-lg text-text-secondary cursor-not-allowed"
+                        placeholder="00:1A:2B:3C:4D:5E"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                      Sistema Operativo <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={nodeConfig.operatingSystem}
+                      disabled
+                      className="w-full px-3 py-1.5 text-sm bg-bg-secondary border border-border-subtle rounded-lg text-text-secondary cursor-not-allowed"
+                      placeholder="Linux Debian 11"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Opciones de Administrador */}
+              {isAdmin && (
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={handleShutdown}
+                    className="px-4 py-2 text-sm text-orange-500 border border-orange-500/50 hover:bg-orange-50 dark:hover:bg-orange-500/10 hover:border-orange-500 rounded-lg font-medium transition-all flex items-center gap-2"
+                  >
+                    <Power className="w-4 h-4" />
+                    Apagar sistema
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResetNode}
+                    className="px-4 py-2 text-sm text-red-500 border border-red-500/50 hover:bg-red-50 dark:hover:bg-red-500/10 hover:border-red-500 rounded-lg font-medium transition-all flex items-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Eliminar Nodo
+                  </button>
+                </div>
               )}
-            </p>
-          </div>
-
-          <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="font-semibold text-text-primary flex items-center gap-2 text-sm">
-                <HardDrive className="w-4 h-4 text-[#1976D2] dark:text-blue-400" />
-                Información del Nodo
-              </h4>
-              <button
-                type="button"
-                onClick={detectSystemInfo}
-                disabled={isDetecting}
-                className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-[#1976D2]/10 dark:bg-blue-900/50 text-[#1976D2] dark:text-blue-300 rounded-lg hover:bg-[#1976D2]/20 dark:hover:bg-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isDetecting ? "animate-spin" : ""}`} />
-                {isDetecting ? "Detectando..." : "Autodetectar"}
-              </button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                  Nombre del Nodo <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={nodeConfig.nodeName}
-                  onChange={(e) =>
-                    setNodeConfig({ ...nodeConfig, nodeName: e.target.value })
-                  }
-                  className="w-full px-3 py-1.5 text-sm bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-[#1976D2] focus:border-transparent text-text-primary placeholder:text-text-disabled"
-                  placeholder="Ej: Entrada Principal"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                  Descripción
-                </label>
-                <textarea
-                  value={nodeConfig.nodeDescription}
-                  onChange={(e) =>
-                    setNodeConfig({ ...nodeConfig, nodeDescription: e.target.value })
-                  }
-                  rows={2}
-                  className="w-full px-3 py-1.5 text-sm bg-bg-primary border border-border-subtle rounded-lg focus:ring-2 focus:ring-[#1976D2] focus:border-transparent resize-none text-text-primary placeholder:text-text-disabled"
-                  placeholder="Descripción del nodo de trabajo"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                    Dirección IP <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={nodeConfig.ipAddress}
-                    disabled
-                    className="w-full px-3 py-1.5 text-sm bg-bg-secondary border border-border-subtle rounded-lg text-text-secondary cursor-not-allowed"
-                    placeholder="192.168.1.100"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                    Dirección MAC <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={nodeConfig.macAddress}
-                    disabled
-                    className="w-full px-3 py-1.5 text-sm bg-bg-secondary border border-border-subtle rounded-lg text-text-secondary cursor-not-allowed"
-                    placeholder="00:1A:2B:3C:4D:5E"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                  Sistema Operativo <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={nodeConfig.operatingSystem}
-                  disabled
-                  className="w-full px-3 py-1.5 text-sm bg-bg-secondary border border-border-subtle rounded-lg text-text-secondary cursor-not-allowed"
-                  placeholder="Linux Debian 11"
-                />
-              </div>
-
-
-            </div>
-          </div>
-
-          {/* Opciones de Administrador */}
-          {isAdmin && (
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={handleShutdown}
-                className="px-4 py-2 text-sm text-orange-500 border border-orange-500/50 hover:bg-orange-50 dark:hover:bg-orange-500/10 hover:border-orange-500 rounded-lg font-medium transition-all flex items-center gap-2"
-              >
-                <Power className="w-4 h-4" />
-                Apagar sistema
-              </button>
-              <button
-                type="button"
-                onClick={handleResetNode}
-                className="px-4 py-2 text-sm text-red-500 border border-red-500/50 hover:bg-red-50 dark:hover:bg-red-500/10 hover:border-red-500 rounded-lg font-medium transition-all flex items-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                Eliminar Nodo
-              </button>
-            </div>
+            </>
           )}
+        </div>
 
           {/* Botones */}
           {!inline && (
@@ -535,7 +509,6 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false, isAd
               </button>
             </div>
           )}
-        </div>
       </div>
     </div>
   );

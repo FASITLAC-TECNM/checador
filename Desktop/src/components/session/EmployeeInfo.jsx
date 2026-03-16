@@ -201,14 +201,16 @@ export default function EmployeeInfo({ time, empleado, horario: horarioProp, loa
         <div className="flex items-start justify-between mb-4">
           <div>
             {/* Badge de estado */}
-            <div className={`inline-flex items-center gap-1.5 ${badgeConfig.bgColor} px-3 py-1.5 rounded-full mb-2`}>
-              {badgeConfig.dotColor && (
-                <div className={`w-2 h-2 rounded-full ${badgeConfig.dotColor}`}></div>
-              )}
-              <span className="text-white text-[11px] font-bold tracking-wider">
-                {badgeConfig.text}
-              </span>
-            </div>
+            {badgeConfig && badgeConfig.text !== 'SIGUIENTE' && (
+              <div className={`inline-flex items-center gap-1.5 ${badgeConfig.bgColor} px-3 py-1.5 rounded-full mb-2`}>
+                {badgeConfig.dotColor && (
+                  <div className={`w-2 h-2 rounded-full ${badgeConfig.dotColor}`}></div>
+                )}
+                <span className="text-white text-[11px] font-bold tracking-wider">
+                  {badgeConfig.text}
+                </span>
+              </div>
+            )}
 
             {/* Fecha */}
             <h2 className="text-xl font-bold text-text-primary">

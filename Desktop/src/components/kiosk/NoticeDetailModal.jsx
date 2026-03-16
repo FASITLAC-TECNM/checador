@@ -5,59 +5,48 @@ export default function NoticeDetailModal({ notice, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden">
+      <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden relative">
         <div className="bg-bg-primary p-6 border-b border-border-subtle">
-          <div className="flex items-start justify-between">
+        {/* Modal Header/Top section: Author and Date */}
+        <div className="p-6 pb-0">
+          <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <Bell className="w-8 h-8 text-[#1976D2]" />
-              <div>
-                <h3 className="text-2xl font-bold text-text-primary">
-                  Detalle del Aviso
-                </h3>
-                <p className="text-text-secondary text-sm mt-1">Información completa</p>
+              <div className="w-10 h-10 bg-[#E3F2FD] dark:bg-[#1565C0]/20 rounded-full flex items-center justify-center">
+                <User className="w-5 h-5 text-[#1976D2]" />
               </div>
+              <div>
+                <p className="text-[10px] font-bold text-[#1976D2] uppercase tracking-widest leading-none mb-1">Autor</p>
+                <p className="text-sm font-bold text-text-primary">{notice.author}</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest leading-none mb-1">Fecha y Hora</p>
+              <p className="text-sm font-medium text-text-secondary">{notice.date} • {notice.time}</p>
             </div>
             <button
               onClick={onClose}
-              className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors"
+              className="absolute top-4 right-4 text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
           </div>
+
+          <div className="h-px bg-gradient-to-r from-transparent via-border-subtle to-transparent mb-8" />
+
+          {/* Title section */}
+          <div className="mb-6">
+            <h3 className="text-2xl font-black text-text-primary leading-tight tracking-tight">
+              {notice.subject}
+            </h3>
+          </div>
+
+          {/* Body/Detail section */}
+          <div className="bg-bg-secondary/50 rounded-2xl p-6 border border-border-subtle/50 mb-6">
+            <p className="text-text-primary leading-relaxed whitespace-pre-wrap text-justify">
+              {notice.detail}
+            </p>
+          </div>
         </div>
-
-        <div className="p-5 space-y-3">
-          <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3">
-            <div className="flex items-center gap-2 text-text-primary mb-2">
-              <FileText className="w-4 h-4 text-[#1976D2]" />
-              <h4 className="font-bold text-base">{notice.subject}</h4>
-            </div>
-            <p className="text-text-secondary leading-relaxed text-sm">{notice.detail}</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-bg-secondary rounded-lg p-3">
-              <div className="flex items-center gap-2 text-text-secondary mb-1">
-                <User className="w-4 h-4 text-[#1976D2]" />
-                <span className="text-xs font-semibold uppercase">Autor</span>
-              </div>
-              <p className="text-text-primary font-medium text-sm">
-                {notice.author}
-              </p>
-            </div>
-
-            <div className="bg-bg-secondary rounded-lg p-3">
-              <div className="flex items-center gap-2 text-text-secondary mb-1">
-                <Calendar className="w-4 h-4 text-[#1976D2]" />
-                <span className="text-xs font-semibold uppercase">
-                  Fecha y Hora
-                </span>
-              </div>
-              <p className="text-text-primary font-medium text-sm">
-                {notice.date} - {notice.time}
-              </p>
-            </div>
-          </div>
 
 
         </div>

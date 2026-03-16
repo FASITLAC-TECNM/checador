@@ -35,6 +35,7 @@ import AdminDashboard from "../components/session/AdminDashboard";
 import BiometricEnroll from "../components/kiosk/BiometricEnroll";
 import RegisterFaceModal from "../components/kiosk/RegisterFaceModal";
 import EmployeeSelectionModal from "../components/session/EmployeeSelectionModal";
+import NoticeDetailModal from "../components/kiosk/NoticeDetailModal";
 
 // Hooks
 import { useEmployeeData } from "../hooks/useEmployeeData";
@@ -291,61 +292,10 @@ export default function SessionScreen({ onLogout, usuario, isReaderConnected = f
 
       {/* Notice Detail Modal */}
       {selectedNotice && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-bg-primary rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden">
-            <div className="bg-bg-primary p-6 border-b border-border-subtle">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <Bell className="w-8 h-8 text-[#1976D2]" />
-                  <h3 className="text-2xl font-bold text-text-primary">
-                    Detalle del Aviso
-                  </h3>
-                </div>
-                <button
-                  onClick={() => setSelectedNotice(null)}
-                  className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="bg-bg-secondary border border-border-subtle rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <FileText className="w-5 h-5 text-[#1976D2]" />
-                  <h4 className="font-bold text-lg text-text-primary">
-                    {selectedNotice.subject}
-                  </h4>
-                </div>
-                <p className="text-text-secondary">{selectedNotice.detail}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-bg-secondary border border-border-subtle rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <User className="w-4 h-4 text-[#1976D2]" />
-                    <p className="text-xs font-semibold text-text-secondary">
-                      AUTOR
-                    </p>
-                  </div>
-                  <p className="text-sm font-medium text-text-primary">
-                    {selectedNotice.author}
-                  </p>
-                </div>
-                <div className="bg-bg-secondary border border-border-subtle rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Calendar className="w-4 h-4 text-[#1976D2]" />
-                    <p className="text-xs font-semibold text-text-secondary">
-                      FECHA Y HORA
-                    </p>
-                  </div>
-                  <p className="text-sm font-medium text-text-primary">
-                    {selectedNotice.date} - {selectedNotice.time}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <NoticeDetailModal
+          notice={selectedNotice}
+          onClose={() => setSelectedNotice(null)}
+        />
       )}
 
       {/* Modal de registro de huella */}

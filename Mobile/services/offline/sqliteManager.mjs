@@ -272,6 +272,14 @@ async function runMigrations() {
     CREATE INDEX IF NOT EXISTS idx_cache_asistencias_empleado ON cache_asistencias(empleado_id, mes_key);
     CREATE INDEX IF NOT EXISTS idx_cache_avisos_tipo ON cache_avisos(tipo, empleado_id);
     CREATE INDEX IF NOT EXISTS idx_offline_events_synced ON offline_events(is_synced);
+
+    -- Caché de Días Festivos
+    CREATE TABLE IF NOT EXISTS cache_dias_festivos (
+      fecha TEXT PRIMARY KEY,
+      nombre TEXT NOT NULL,
+      tipo TEXT,
+      updated_at TEXT NOT NULL
+    );
   `);
 
 
@@ -290,7 +298,7 @@ async function runMigrations() {
   }
 
 
-  const tables = ['cache_empleados', 'cache_credenciales', 'cache_horarios', 'cache_tolerancias', 'cache_departamentos'];
+  const tables = ['cache_empleados', 'cache_credenciales', 'cache_horarios', 'cache_tolerancias', 'cache_departamentos', 'cache_dias_festivos'];
   for (const t of tables) {
     await db.runAsync('INSERT OR IGNORE INTO sync_metadata (tabla) VALUES (?)', t);
   }
@@ -1282,6 +1290,36 @@ export async function getOrdenCredencialesCache() {
   }
 }
 
+// ── DÍAS FESTIVOS ──
+
+export async function upsertDiasFestivos(diasFestivos) {
+  try {
+    const database = await initDatabase();
+    await database.withTransactionAsync(async () => {
+      for (const dia of diasFestivos) {
+        await database.runAsync(
+          `INSERT INTO cache_dias_festivos (fecha, nombre, tipo, updated_at)
+           VALUES (?, ?, ?, datetime('now', 'localtime'))
+           ON CONFLICT(fecha) DO UPDATE SET
+           nombre = excluded.nombre,
+           tipo = excluded.tipo,
+           updated_at = excluded.updated_at`,
+          [dia.fecha, dia.nombre, dia.tipo || null]
+        );
+      }
+    });
+  } catch (e) {}
+}
+
+export async function getDiaFestivo(fechaStr) {
+  try {
+    const database = await initDatabase();
+    return await database.getFirstAsync('SELECT * FROM cache_dias_festivos WHERE fecha = ?', [fechaStr]);
+  } catch (e) {
+    return null;
+  }
+}
+
 export default {
   initDatabase,
   closeDatabase,
@@ -1350,5 +1388,8 @@ export default {
   cleanupSyncedRecords,
 
   saveOrdenCredenciales,
-  getOrdenCredenciales: getOrdenCredencialesCache
+  getOrdenCredenciales: getOrdenCredencialesCache,
+  
+  upsertDiasFestivos,
+  getDiaFestivo
 };

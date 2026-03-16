@@ -94,46 +94,53 @@ export default function AdminDashboard({
                                         <User className="w-5 h-5 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 text-[#1976D2] dark:text-[#42A5F5]" />
                                     </div>
                                 )}
-                                <div className="absolute bottom-0 right-0 w-3 h-3 2xl:w-4 2xl:h-4 bg-green-500 rounded-full border-2 border-bg-secondary" />
                             </div>
 
                             <div className="flex-col overflow-hidden hidden lg:flex">
-                                <h2 className="text-sm font-bold text-text-primary truncate leading-tight">
+                                <h1 className="text-base 2xl:text-lg font-bold text-text-primary leading-tight">
                                     {userName}
-                                </h2>
+                                </h1>
                             </div>
                         </div>
 
                         {/* Info rows - hidden on small sidebar */}
-                        <div className="hidden lg:grid grid-cols-2 gap-x-2 gap-y-1.5 text-xs">
-                            <div className="flex items-center gap-1.5 overflow-hidden">
-                                <User className="w-3 h-3 text-[#1976D2] flex-shrink-0" />
+                        <div className="hidden lg:grid grid-cols-2 gap-x-3 gap-y-3 text-xs mt-2">
+                            <div className="col-span-2 flex items-center gap-2 overflow-hidden">
+                                <div className="p-1.5 bg-[#E3F2FD] dark:bg-[#1565C0]/10 rounded-lg flex-shrink-0">
+                                    <User className="w-4 h-4 text-[#1976D2]" />
+                                </div>
                                 <div className="overflow-hidden">
-                                    <p className="text-text-tertiary text-[9px] font-semibold uppercase leading-none">Usuario</p>
-                                    <p className="text-text-primary font-medium truncate text-[11px]">{userUsername}</p>
+                                    <p className="text-text-tertiary text-[10px] 2xl:text-xs font-bold uppercase leading-none mb-1">Usuario</p>
+                                    <p className="text-text-primary font-bold truncate text-xs 2xl:text-sm">{userUsername}</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-1.5 overflow-hidden">
-                                <Phone className="w-3 h-3 text-[#1976D2] flex-shrink-0" />
-                                <div className="overflow-hidden">
-                                    <p className="text-text-tertiary text-[9px] font-semibold uppercase leading-none">Teléfono</p>
-                                    <p className="text-text-primary font-medium truncate text-[11px]">{userPhone}</p>
+                            <div className="col-span-2 flex items-center gap-2 overflow-hidden">
+                                <div className="p-1.5 bg-[#E3F2FD] dark:bg-[#1565C0]/10 rounded-lg flex-shrink-0">
+                                    <Mail className="w-4 h-4 text-[#1976D2]" />
+                                </div>
+                                <div className="overflow-hidden flex-1 min-w-0">
+                                    <p className="text-text-tertiary text-[10px] 2xl:text-xs font-bold uppercase leading-none mb-1">Email</p>
+                                    <p className="text-text-primary font-bold truncate text-xs 2xl:text-sm">{userEmail}</p>
                                 </div>
                             </div>
-                            <div className="col-span-2 flex items-center gap-1.5 overflow-hidden">
-                                <Mail className="w-3 h-3 text-[#1976D2] flex-shrink-0" />
+                            <div className="col-span-2 flex items-center gap-2 overflow-hidden">
+                                <div className="p-1.5 bg-[#E3F2FD] dark:bg-[#1565C0]/10 rounded-lg flex-shrink-0">
+                                    <Phone className="w-4 h-4 text-[#1976D2]" />
+                                </div>
                                 <div className="overflow-hidden">
-                                    <p className="text-text-tertiary text-[9px] font-semibold uppercase leading-none">Email</p>
-                                    <p className="text-text-primary font-medium truncate text-[11px]">{userEmail}</p>
+                                    <p className="text-text-tertiary text-[10px] 2xl:text-xs font-bold uppercase leading-none mb-1">Teléfono</p>
+                                    <p className="text-text-primary font-bold truncate text-xs 2xl:text-sm">{userPhone}</p>
                                 </div>
                             </div>
                             {userDepartamento && (
-                                <div className="col-span-2 flex items-center gap-1.5 overflow-hidden">
-                                    <Building2 className="w-3 h-3 text-[#1976D2] flex-shrink-0" />
+                                <div className="col-span-2 flex items-center gap-2 overflow-hidden">
+                                    <div className="p-1.5 bg-[#E3F2FD] dark:bg-[#1565C0]/10 rounded-lg flex-shrink-0">
+                                        <Building2 className="w-4 h-4 text-[#1976D2]" />
+                                    </div>
                                     <div className="overflow-hidden flex-1 min-w-0">
-                                        <p className="text-text-tertiary text-[9px] 2xl:text-xs font-semibold uppercase leading-none">Departamento</p>
-                                        <div className="flex items-center gap-1">
-                                            <p className="text-text-primary font-medium truncate text-[11px] 2xl:text-sm">
+                                        <p className="text-text-tertiary text-[10px] 2xl:text-xs font-bold uppercase leading-none mb-1">Departamento</p>
+                                        <div className="flex items-center gap-1.5">
+                                            <p className="text-text-primary font-bold truncate text-xs 2xl:text-sm">
                                                 {departamentos.length > 0
                                                     ? (departamentos[0]?.nombre || departamentos[0])
                                                     : (typeof userDepartamento === 'object' ? userDepartamento.nombre : userDepartamento)
@@ -142,7 +149,7 @@ export default function AdminDashboard({
                                             {departamentos.length > 1 && (
                                                 <button
                                                     onClick={() => setShowDeptPopover(!showDeptPopover)}
-                                                    className="px-1.5 py-0.5 bg-[#E3F2FD] dark:bg-[#1565C0]/20 text-[#1976D2] text-[9px] 2xl:text-xs font-bold rounded-md hover:bg-[#BBDEFB] transition-colors flex-shrink-0"
+                                                    className="px-2 py-0.5 bg-[#1976D2] text-white text-[10px] 2xl:text-xs font-bold rounded-lg hover:bg-[#1565C0] transition-colors flex-shrink-0"
                                                 >
                                                     +{departamentos.length - 1}
                                                 </button>
@@ -152,20 +159,24 @@ export default function AdminDashboard({
                                 </div>
                             )}
                             {userRFC && (
-                                <div className="flex items-center gap-1.5 overflow-hidden">
-                                    <FileText className="w-3 h-3 text-[#1976D2] flex-shrink-0" />
-                                    <div className="overflow-hidden">
-                                        <p className="text-text-tertiary text-[9px] font-semibold uppercase leading-none">RFC</p>
-                                        <p className="text-text-primary font-medium truncate text-[11px]">{userRFC}</p>
+                                <div className="col-span-2 flex items-center gap-2 overflow-hidden">
+                                    <div className="p-1.5 bg-[#E3F2FD] dark:bg-[#1565C0]/10 rounded-lg flex-shrink-0">
+                                        <FileText className="w-4 h-4 text-[#1976D2]" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-text-tertiary text-[10px] 2xl:text-xs font-bold uppercase leading-none mb-1">RFC</p>
+                                        <p className="text-text-primary font-bold text-xs 2xl:text-sm">{userRFC}</p>
                                     </div>
                                 </div>
                             )}
                             {userNSS && (
-                                <div className="flex items-center gap-1.5 overflow-hidden">
-                                    <HeartPulse className="w-3 h-3 text-[#1976D2] flex-shrink-0" />
-                                    <div className="overflow-hidden">
-                                        <p className="text-text-tertiary text-[9px] font-semibold uppercase leading-none">NSS</p>
-                                        <p className="text-text-primary font-medium truncate text-[11px]">{userNSS}</p>
+                                <div className="col-span-2 flex items-center gap-2 overflow-hidden">
+                                    <div className="p-1.5 bg-[#E3F2FD] dark:bg-[#1565C0]/10 rounded-lg flex-shrink-0">
+                                        <HeartPulse className="w-4 h-4 text-[#1976D2]" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-text-tertiary text-[10px] 2xl:text-xs font-bold uppercase leading-none mb-1">NSS</p>
+                                        <p className="text-text-primary font-bold text-xs 2xl:text-sm">{userNSS}</p>
                                     </div>
                                 </div>
                             )}

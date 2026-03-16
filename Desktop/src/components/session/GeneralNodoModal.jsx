@@ -367,16 +367,15 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false, isAd
           ) : (
             <>
               <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-text-primary flex items-center gap-2 text-sm">
-                    <HardDrive className="w-4 h-4 text-[#1976D2] dark:text-blue-400" />
+                <div className="relative flex items-center justify-center mb-4">
+                  <h4 className="font-semibold text-text-primary text-sm">
                     Información del Nodo
                   </h4>
                   <button
                     type="button"
                     onClick={detectSystemInfo}
                     disabled={isDetecting}
-                    className="flex items-center gap-1.5 px-2.5 py-1 text-xs bg-[#1976D2]/10 dark:bg-blue-900/50 text-[#1976D2] dark:text-blue-300 rounded-lg hover:bg-[#1976D2]/20 dark:hover:bg-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="absolute right-0 flex items-center gap-1.5 px-2.5 py-1 text-xs bg-[#1976D2]/10 dark:bg-blue-900/50 text-[#1976D2] dark:text-blue-300 rounded-lg hover:bg-[#1976D2]/20 dark:hover:bg-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${isDetecting ? "animate-spin" : ""}`} />
                     {isDetecting ? "Detectando..." : "Autodetectar"}

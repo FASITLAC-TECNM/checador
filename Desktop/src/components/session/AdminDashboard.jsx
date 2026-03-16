@@ -271,29 +271,30 @@ export default function AdminDashboard({
 
                                 {/* Right: Personal Notices */}
                                 <div className="col-span-1 lg:col-span-5 bg-bg-secondary rounded-2xl shadow-lg p-4 border border-border-subtle flex flex-col min-h-0">
-                                    <div className="flex items-center gap-2 mb-3 flex-shrink-0">
-                                        <Bell className="w-5 h-5 text-blue-600" />
-                                        <h2 className="text-base font-bold text-text-primary">
+                                    <div className="flex items-center justify-center mb-5 flex-shrink-0">
+                                        <h2 className="text-base font-bold text-text-primary text-center">
                                             Avisos Personales
                                         </h2>
                                     </div>
-                                    <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
+                                    <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pt-2">
                                         {notices.length > 0 ? notices.slice(0, 6).map((notice, index) => (
                                             <div
                                                 key={index}
                                                 onClick={() => onSelectNotice?.(notice)}
-                                                className="bg-bg-primary rounded-xl p-3 border border-border-subtle cursor-pointer hover:shadow-lg hover:border-[#1976D2]/30 transition-all"
+                                                className="bg-bg-primary rounded-xl p-3 border border-border-subtle cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:border-[#1976D2]/40 transition-all duration-300 ease-out"
                                             >
-                                                <div className="flex items-start gap-2">
-                                                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0">
-                                                        <Bell className="w-4 h-4 text-blue-600" />
+                                                <div className="flex flex-col gap-1">
+                                                    <div className="flex items-center justify-between">
+                                                        <p className="text-[9px] font-bold text-[#1976D2] uppercase tracking-wider">
+                                                            {notice.date}
+                                                        </p>
+                                                        <p className="text-[9px] font-medium text-text-tertiary">
+                                                            {notice.time}
+                                                        </p>
                                                     </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-[10px] text-blue-600 font-bold mb-0.5">{notice.time}</p>
-                                                        <h4 className="font-bold text-text-primary text-xs leading-tight truncate">
-                                                            {notice.subject}
-                                                        </h4>
-                                                    </div>
+                                                    <h4 className="font-bold text-text-primary text-xs leading-snug">
+                                                        {notice.subject}
+                                                    </h4>
                                                 </div>
                                             </div>
                                         )) : (

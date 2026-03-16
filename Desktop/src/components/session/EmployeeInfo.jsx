@@ -369,35 +369,6 @@ export default function EmployeeInfo({ time, empleado, horario: horarioProp, loa
         ) : null}
       </div>
 
-      {/* Tarjetas de Resumen - Estilo Móvil */}
-      <div className="grid grid-cols-2 gap-3 flex-shrink-0">
-        {/* Horas Totales */}
-        {/* Horas Totales */}
-        <div className="bg-bg-secondary rounded-2xl p-4 shadow-md border border-border-subtle">
-          <div className="flex flex-col items-center text-center">
-            <div className="w-10 h-10 rounded-full bg-[#E3F2FD] dark:bg-[#1565C0]/20 flex items-center justify-center mb-2">
-              <Clock className="w-5 h-5 text-[#1976D2] dark:text-[#42A5F5]" />
-            </div>
-            <p className="text-3xl font-bold text-text-primary mb-1">
-              {resumenSemanal.horasTotales}
-            </p>
-            <p className="text-xs text-text-secondary font-medium">Horas Totales</p>
-          </div>
-        </div>
-
-        {/* Días Laborales */}
-        <div className="bg-bg-secondary rounded-2xl p-4 shadow-md border border-border-subtle">
-          <div className="flex flex-col items-center text-center">
-            <div className="w-10 h-10 rounded-full bg-[#E3F2FD] dark:bg-[#1565C0]/20 flex items-center justify-center mb-2">
-              <Calendar className="w-5 h-5 text-[#1976D2] dark:text-[#42A5F5]" />
-            </div>
-            <p className="text-3xl font-bold text-text-primary mb-1">
-              {resumenSemanal.diasLaborales}
-            </p>
-            <p className="text-xs text-text-secondary font-medium">Días Laborales</p>
-          </div>
-        </div>
-      </div>
 
 
     </>

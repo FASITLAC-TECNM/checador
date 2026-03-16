@@ -151,16 +151,13 @@ export default function HorarioModal({ onClose, usuario }) {
                     {/* Indicador HOY */}
                     {esHoy && (
                       <div className="absolute -top-2 left-1/2 -translate-x-1/2 bg-[#1976D2] text-[9px] font-black text-white px-2 py-0.5 rounded shadow-sm flex items-center gap-1 uppercase tracking-tighter">
-                        <Sun className="w-2.5 h-2.5" /> Hoy
+                        Hoy
                       </div>
                     )}
 
                     {/* Día Header */}
                     <div className="text-center border-b border-slate-100 dark:border-slate-700 pb-2 mb-3">
-                      <p className={`text-[10px] font-black uppercase tracking-widest ${esHoy ? 'text-[#1976D2] dark:text-[#42A5F5]' : 'text-slate-400 dark:text-slate-500'}`}>
-                        {dia.abrev}
-                      </p>
-                      <p className={`text-xs font-bold ${esHoy ? 'text-slate-900 dark:text-slate-100' : 'text-slate-700 dark:text-slate-300'}`}>
+                      <p className={`text-sm font-bold ${esHoy ? 'text-[#1976D2] dark:text-[#42A5F5]' : 'text-slate-700 dark:text-slate-300'}`}>
                         {dia.key}
                       </p>
                     </div>

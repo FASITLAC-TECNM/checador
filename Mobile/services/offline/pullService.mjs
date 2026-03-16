@@ -101,6 +101,7 @@ export async function fullPull(empleadoId) {
     horario: { success: false, count: 0 },
     incidencias: { success: false, count: 0 },
     configuracion: { success: false, count: 0 },
+    diasFestivos: { success: false, count: 0 },
     duration: 0
   };
 
@@ -309,6 +310,35 @@ export async function fullPull(empleadoId) {
       }
     } catch (cfgError) {
       results.configuracion = { success: false, error: cfgError.message };
+    }
+
+    // ── Descarga de Días Festivos ──
+    try {
+      const year = new Date().getFullYear();
+      const festivosUrl = `/dias-festivos?year=${year}`;
+      const festivosData = await apiFetch(festivosUrl).catch(() => null);
+
+      if (festivosData && festivosData.success && festivosData.data) {
+        // Filtrar solo los obligatorios y activos
+        const festivosObligatorios = festivosData.data.filter(
+          (f) => f.es_obligatorio && f.es_activo
+        );
+        
+        if (festivosObligatorios.length > 0) {
+          await sqliteManager.upsertDiasFestivos(festivosObligatorios.map(f => ({
+            fecha: f.fecha?.split('T')[0],
+            nombre: f.nombre,
+            tipo: f.tipo
+          })));
+          results.diasFestivos = { success: true, count: festivosObligatorios.length };
+        } else {
+          results.diasFestivos = { success: true, count: 0 };
+        }
+      } else {
+        results.diasFestivos = { success: true, count: 0 };
+      }
+    } catch (festivosError) {
+      results.diasFestivos = { success: false, error: festivosError.message };
     }
 
   } catch (error) {

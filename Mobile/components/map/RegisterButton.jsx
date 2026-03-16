@@ -300,6 +300,16 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         const json = await response.json();
         const data = json.data;
         if (data) {
+          // Si hay día festivo, el frontend manda: el backend no checa días festivos
+          // en el preflight, así que ignoramos su respuesta y mantenemos el bloqueo.
+          if (diaFestivo) {
+            setPuedeRegistrar(false);
+            setEstadoHorario('dia_festivo');
+            setJornadaCompletada(false);
+            setUsandoEstadoBackend(true);
+            return true;
+          }
+
           setPuedeRegistrar(data.puedeRegistrar);
           if (data.estadoHorario) setEstadoHorario(data.estadoHorario);
           if (data.tipoSiguienteRegistro) setTipoSiguienteRegistro(data.tipoSiguienteRegistro);
@@ -739,9 +749,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         setInternetReachable(reachable !== false && onlineNow);
 
 
+        const hoyStr = new Date().toISOString().split('T')[0];
+        
         if (onlineNow && !syncManager.getIsBackendDown()) {
           try {
-            const hoy = new Date().toISOString().split('T')[0];
             const yearActual = new Date().getFullYear();
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -756,15 +767,36 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             if (festivoResp.ok) {
               const festivoData = await festivoResp.json();
               const festivosObligatorios = (festivoData.data || []).filter(
-                (f) => f.es_obligatorio && f.es_activo && f.fecha?.split('T')[0] === hoy
+                (f) => f.es_obligatorio && f.es_activo && f.fecha?.split('T')[0] === hoyStr
               );
               if (festivosObligatorios.length > 0) {
-                setDiaFestivo({ nombre: festivosObligatorios[0].nombre, tipo: festivosObligatorios[0].tipo });
+                const diaFest = { nombre: festivosObligatorios[0].nombre, tipo: festivosObligatorios[0].tipo };
+                setDiaFestivo(diaFest);
+                // Guardar en SQLite oficial para el modo offline
+                try {
+                  await sqliteManager.upsertDiasFestivos([{
+                    fecha: hoyStr,
+                    nombre: diaFest.nombre,
+                    tipo: diaFest.tipo
+                  }]);
+                } catch(e){}
               } else {
                 setDiaFestivo(null);
+                // No hay API nativa expuesta para borrar un festivo individual desde el client frontend, 
+                // pero si no detecta hoy no pasa nada, en el fetch original se filtra limpiamente.
               }
             }
           } catch (_e) { }
+        } else {
+          // OFFLINE: Recuperar el día festivo oficial de SQLite
+          try {
+            const cachedFestivo = await sqliteManager.getDiaFestivo(hoyStr);
+            if (cachedFestivo) {
+              setDiaFestivo({ nombre: cachedFestivo.nombre, tipo: cachedFestivo.tipo });
+            } else {
+              setDiaFestivo(null);
+            }
+          } catch(e) { }
         }
 
 
@@ -1347,6 +1379,16 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const handleRegistro = async () => {
     if (registrando) return;
 
+    // Bloqueo inmediato en día festivo — antes de cualquier otra validación
+    if (diaFestivo) {
+      Alert.alert(
+        'Día Festivo',
+        `Hoy es ${diaFestivo.nombre}.\n\nEl registro de asistencia no está disponible en días festivos obligatorios.`,
+        [{ text: 'Entendido' }]
+      );
+      return;
+    }
+
     if (!userData || !userData.empleado_id || !userData.token) {
       Alert.alert('Error', 'No se pudo identificar tu información de usuario. Intenta cerrar sesión y volver a iniciar.');
       return;
@@ -1508,7 +1550,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const getButtonColor = () => {
     if (estadoHorario === 'espera') return '#f59e0b';
     if (jornadaCompletada) return '#6b7280';
-    if (estadoHorario === 'dia_festivo') return '#8b5cf6';
+    if (estadoHorario === 'dia_festivo' || diaFestivo) return '#8b5cf6';
     if (estadoHorario === 'falta_previa') return '#6b7280';
     if (!dentroDelArea || !puedeRegistrar) return '#ef4444';
     if (!tipoSiguienteRegistro) return '#6b7280';
@@ -1520,7 +1562,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const getIcon = () => {
     if (estadoHorario === 'espera') return 'hourglass-outline';
     if (jornadaCompletada) return 'checkmark-done-circle';
-    if (estadoHorario === 'dia_festivo') return 'calendar-outline';
+    if (estadoHorario === 'dia_festivo' || diaFestivo) return 'calendar-outline';
     if (estadoHorario === 'falta_previa') return 'alert-circle-outline';
     if (!dentroDelArea) return 'location';
     if (!puedeRegistrar) return 'time';
@@ -1545,12 +1587,13 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const getButtonText = () => {
     if (estadoHorario === 'espera') return 'Espera temporal activa';
     if (jornadaCompletada || estadoHorario === 'bloque_completo') return 'Jornada completada';
+    if (estadoHorario === 'dia_festivo' || diaFestivo) return 'Día festivo';
     if (estadoHorario === 'falta_previa') return 'Turno cerrado por falta';
     if (!puedeRegistrar || !dentroDelArea || !tipoSiguienteRegistro) return 'No disponible';
     return `Registrar ${tipoSiguienteRegistro === 'entrada' ? 'Entrada' : 'Salida'}`;
   };
 
-  const puedePresionarBoton = puedeRegistrar && dentroDelArea && !jornadaCompletada && !registrando && departamentoSeleccionado && tipoSiguienteRegistro;
+  const puedePresionarBoton = puedeRegistrar && !diaFestivo && dentroDelArea && !jornadaCompletada && !registrando && departamentoSeleccionado && tipoSiguienteRegistro;
 
   // Render de Captura Facial
   if (mostrarCapturaFacial) {

@@ -33,6 +33,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [resumen, setResumen] = useState({ diasLaborales: 0, totalDias: 7, horasTotales: '0' });
   const [infoHoy, setInfoHoy] = useState({ trabaja: false, entrada: null, salida: null, turnos: [] });
+  const [diaFestivo, setDiaFestivo] = useState(null);
   const [error, setError] = useState(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDay, setSelectedDay] = useState(null);
@@ -144,6 +145,14 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
       setScheduleData(horarioParsed);
       setResumen(calcularResumenSemanal(horarioParsed));
       setInfoHoy(obtenerInfoHoyMejorada(horarioParsed));
+      
+      const hoyStr = new Date().toISOString().split('T')[0];
+      const festivoLocal = await sqliteManager.getDiaFestivo(hoyStr);
+      if (festivoLocal) {
+        setDiaFestivo(festivoLocal);
+      } else {
+        setDiaFestivo(null);
+      }
 
     } catch (error) {
       setError(error.message || 'Error desconocido al cargar horario');
@@ -239,8 +248,22 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
     return initials[day] || 'X';
   };
 
-  const handleDayPress = (day) => {
-    setSelectedDay(day);
+  const handleDayPress = async (day) => {
+    // Verificar si el día presionado coincide con la fecha de algún festivo
+    const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const hoy = new Date();
+    const hoyIdx = hoy.getDay();
+    const targetIdx = diasSemana.indexOf(day.day);
+    
+    // Calcular la fecha del día clickeado en base a la semana actual
+    let diff = targetIdx - hoyIdx;
+    const targetDate = new Date(hoy);
+    targetDate.setDate(hoy.getDate() + diff);
+    const targetDateStr = targetDate.toISOString().split('T')[0];
+    
+    const festivoLocal = await sqliteManager.getDiaFestivo(targetDateStr);
+    
+    setSelectedDay({ ...day, festivo: festivoLocal });
     setModalVisible(true);
   };
 
@@ -301,7 +324,15 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
           }
 
           { }
-          {infoHoy.trabaja && infoHoy.turnoRelevante ?
+          {diaFestivo ? 
+            <View style={[styles.dayOffCard, { borderColor: '#8b5cf6', borderWidth: 1, backgroundColor: darkMode ? 'rgba(139, 92, 246, 0.1)' : '#f3f0ff' }]}>
+              <View style={[styles.dayOffIcon, { backgroundColor: darkMode ? 'rgba(139, 92, 246, 0.2)' : '#ede9fe' }]}>
+                <Ionicons name="calendar-outline" size={48} color={darkMode ? "#c4b5fd" : "#8b5cf6"} />
+              </View>
+              <Text style={[styles.dayOffTitle, { color: darkMode ? '#c4b5fd' : '#7c3aed' }]}>Día Festivo</Text>
+              <Text style={styles.dayOffText}>{diaFestivo.nombre}</Text>
+            </View> :
+          infoHoy.trabaja && infoHoy.turnoRelevante ?
             <View style={styles.todayCard}>
               <View style={styles.todayHeader}>
                 <View style={styles.todayBadge}>
@@ -551,6 +582,20 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
               bounces={false}
               overScrollMode="never">
 
+              {selectedDay?.festivo && (
+                <View style={{ marginBottom: 16, backgroundColor: darkMode ? 'rgba(139, 92, 246, 0.1)' : '#f3f0ff', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#8b5cf6' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                    <Ionicons name="calendar-outline" size={24} color={darkMode ? "#c4b5fd" : "#8b5cf6"} />
+                    <Text style={{ marginLeft: 8, fontSize: 16, fontWeight: 'bold', color: darkMode ? '#c4b5fd' : '#7c3aed' }}>
+                      Día Festivo: {selectedDay.festivo.nombre}
+                    </Text>
+                  </View>
+                  <Text style={{ color: darkMode ? '#e2e8f0' : '#475569', fontSize: 14 }}>
+                    El sistema indica que este es un día festivo. Si te asignaron turno por error, por favor notifica a tu administrador para que retire este horario, ya que el registro de asistencia estará deshabilitado.
+                  </Text>
+                </View>
+              )}
+
               {selectedDay?.active && selectedDay?.turnos?.length > 0 ?
                 selectedDay.turnos.map((turno, idx) =>
                   <View key={idx} style={styles.modalTurnoBlock}>
@@ -579,10 +624,12 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
                   </View>
                 ) :
 
-                <View style={styles.modalEmptyState}>
-                  <Ionicons name="cafe-outline" size={48} color="#9ca3af" />
-                  <Text style={styles.modalEmptyText}>No hay turnos programados</Text>
-                </View>
+                !selectedDay?.festivo && (
+                  <View style={styles.modalEmptyState}>
+                    <Ionicons name="cafe-outline" size={48} color="#9ca3af" />
+                    <Text style={styles.modalEmptyText}>No hay turnos programados</Text>
+                  </View>
+                )
               }
             </ScrollView>
 

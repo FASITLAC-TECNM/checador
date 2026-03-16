@@ -539,16 +539,15 @@ export default function KioskScreen() {
                     <div
                       key={index}
                       onClick={() => setSelectedNotice(notice)}
-                      className={`flex-shrink-0 rounded-xl transition-all duration-500 ease-in-out p-3 cursor-pointer select-none ${isCenterCard
+                      className={`flex-shrink-0 rounded-lg transition-all duration-500 ease-in-out p-3 cursor-pointer select-none ${isCenterCard
                         ? "w-56 bg-gradient-to-br from-[#E3F2FD] to-[#BBDEFB] dark:from-blue-900/40 dark:to-blue-800/20 scale-105 shadow-xl z-10 ring-2 ring-[#42A5F5]/50"
                         : "w-40 bg-bg-secondary border border-border-subtle hover:shadow-md hover:bg-bg-tertiary scale-90 opacity-60"
                         }`}
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <span className={`font-bold ${isCenterCard ? "text-[#1976D2] dark:text-blue-400 text-base" : "text-text-secondary text-xs"}`}>
-                          {notice.time}
+                        <span className={`font-bold ${isCenterCard ? "text-[#1976D2] dark:text-blue-400 text-xs" : "text-text-secondary text-[10px]"}`}>
+                          {notice.date} • {notice.time}
                         </span>
-                        {isCenterCard && <Bell className="w-6 h-6 text-[#1976D2] dark:text-blue-400 animate-pulse" />}
                       </div>
                       <h4 className={`font-bold leading-tight ${isCenterCard
                         ? "text-[#001A70] dark:text-blue-200 text-base line-clamp-2"

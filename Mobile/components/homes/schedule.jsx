@@ -146,7 +146,9 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
       setResumen(calcularResumenSemanal(horarioParsed));
       setInfoHoy(obtenerInfoHoyMejorada(horarioParsed));
       
-      const hoyStr = new Date().toISOString().split('T')[0];
+      const tzDate = new Date();
+      const tzOffset = tzDate.getTimezoneOffset() * 60000;
+      const hoyStr = new Date(tzDate.getTime() - tzOffset).toISOString().split('T')[0];
       const festivoLocal = await sqliteManager.getDiaFestivo(hoyStr);
       if (festivoLocal) {
         setDiaFestivo(festivoLocal);
@@ -259,7 +261,8 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
     let diff = targetIdx - hoyIdx;
     const targetDate = new Date(hoy);
     targetDate.setDate(hoy.getDate() + diff);
-    const targetDateStr = targetDate.toISOString().split('T')[0];
+    const tzOffset = targetDate.getTimezoneOffset() * 60000;
+    const targetDateStr = new Date(targetDate.getTime() - tzOffset).toISOString().split('T')[0];
     
     const festivoLocal = await sqliteManager.getDiaFestivo(targetDateStr);
     

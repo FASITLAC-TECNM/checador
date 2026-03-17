@@ -101,7 +101,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         const stored = await AsyncStorage.getItem(NOTIF_DIARIA_KEY);
         if (stored) {
           const parsed = JSON.parse(stored);
-          const hoy = new Date().toISOString().split('T')[0];
+          const tzDate = new Date();
+          const tzOffset = tzDate.getTimezoneOffset() * 60000;
+          const hoy = new Date(tzDate.getTime() - tzOffset).toISOString().split('T')[0];
           if (parsed.fecha === hoy) {
 
             notifDiariaRef.current = parsed;
@@ -749,8 +751,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         setInternetReachable(reachable !== false && onlineNow);
 
 
-        const hoyStr = new Date().toISOString().split('T')[0];
-        
+        const tzDate = new Date();
+        const tzOffset = tzDate.getTimezoneOffset() * 60000;
+        const hoyStr = new Date(tzDate.getTime() - tzOffset).toISOString().split('T')[0];
+
         if (onlineNow && !syncManager.getIsBackendDown()) {
           try {
             const yearActual = new Date().getFullYear();
@@ -779,7 +783,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                     nombre: diaFest.nombre,
                     tipo: diaFest.tipo
                   }]);
-                } catch(e){}
+                } catch (e) { }
               } else {
                 setDiaFestivo(null);
                 // No hay API nativa expuesta para borrar un festivo individual desde el client frontend, 
@@ -796,7 +800,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             } else {
               setDiaFestivo(null);
             }
-          } catch(e) { }
+          } catch (e) { }
         }
 
 
@@ -1419,10 +1423,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             'Tu entrada anterior fue marcada como falta. Se recomienda esperar a tu siguiente turno, ¿deseas continuar con un nuevo registro?',
             [
               { text: 'Cancelar', style: 'cancel' },
-              { text: 'Continuar', onPress: () => {
-                setRegistrando(true);
-                setMostrarAutenticacion(true);
-              }}
+              {
+                text: 'Continuar', onPress: () => {
+                  setRegistrando(true);
+                  setMostrarAutenticacion(true);
+                }
+              }
             ]
           );
           return;
@@ -1574,7 +1580,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const getStatusText = () => {
     if (estadoHorario === 'espera') return 'Espera requerida';
     if (jornadaCompletada) return 'Jornada completada';
-    if (estadoHorario === 'dia_festivo') return diaFestivo ? `Día festivo: ${diaFestivo.nombre}` : 'Día festivo';
+    if (estadoHorario === 'dia_festivo' || diaFestivo) return diaFestivo ? `Día festivo: ${diaFestivo.nombre}` : 'Día festivo';
     if (estadoHorario === 'falta_previa') return 'Falta registrada — turno cerrado';
     if (estadoHorario === 'bloque_completo') return 'Bloque completado';
     if (!dentroDelArea) return 'Fuera del área';

@@ -1,4 +1,3 @@
-// components/DevicesStep.jsx
 import {
   Wifi,
   Info,
@@ -10,6 +9,8 @@ import {
   Camera,
   ChevronRight,
   ChevronLeft,
+  X,
+  Plus
 } from "lucide-react";
 import StepIndicator from "./StepIndicator";
 import { useDeviceDetection } from "../../hooks/useDeviceDetection";
@@ -28,7 +29,7 @@ export default function DevicesStep({
     setDevices([
       ...devices,
       {
-        id: devices.length + 1,
+        id: Date.now(),
         name: "",
         type: "facial",
         ip: "",
@@ -49,259 +50,237 @@ export default function DevicesStep({
   };
 
   return (
-    <div className="h-screen w-screen bg-bg-primary flex flex-col overflow-hidden">
-      {/* Barra de progreso fija */}
-      <div className="bg-bg-secondary border-b border-border-subtle py-3 sm:py-3 px-4 sm:px-8 flex-shrink-0">
-        <StepIndicator currentStep={2} totalSteps={4} />
+    <div className="h-screen w-screen bg-bg-primary text-text-primary flex flex-col font-sans overflow-hidden">
+      {/* Header / Progress */}
+      <div className="bg-bg-secondary/30 border-b border-border-subtle py-6 flex-shrink-0">
+        <StepIndicator currentStep={2} />
       </div>
 
-      {/* Contenido */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
-          <button
-            onClick={onShowWelcome}
-            className="absolute top-[58px] sm:top-20 right-3 sm:right-6 w-10 h-10 sm:w-12 sm:h-12 bg-[#1976D2] text-white rounded-full shadow-lg shadow-[#1976D2]/20 hover:bg-[#1565C0] transition-all hover:scale-110 flex items-center justify-center z-10"
-            title="Ver información de bienvenida"
-          >
-            <Info className="w-5 h-5 sm:w-6 sm:h-6" />
-          </button>
-
-          <div className="mb-3">
-            <h1 className="text-lg font-bold text-text-primary">
-              Paso 2: Configurar Dispositivos
-            </h1>
-            <p className="text-text-secondary text-sm">
-              Agregue los dispositivos que estarán conectados a este nodo
-            </p>
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto bg-bg-primary/50">
+        <div className="max-w-5xl mx-auto px-6 py-8 animate-slide-up">
+          {/* Section Header */}
+          <div className="mb-8 flex justify-between items-end">
+            <div>
+              <h2 className="text-xs font-semibold text-accent uppercase tracking-[0.2em] mb-1">
+                Paso 02
+              </h2>
+              <h1 className="text-3xl font-light tracking-tight">
+                Detección de <span className="font-semibold">Dispositivos</span>
+              </h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={addDevice}
+                className="flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider border border-border-subtle rounded-lg hover:bg-bg-secondary transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Agregar Manual
+              </button>
+              <button
+                onClick={onShowWelcome}
+                className="p-2 text-text-tertiary hover:text-accent transition-colors"
+                title="Ayuda"
+              >
+                <Info className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
-          <div className="flex-1">
-            <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-5 hover:shadow-sm transition-shadow duration-300">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 bg-[#1976D2] rounded-xl flex items-center justify-center flex-shrink-0 shadow-md shadow-[#1976D2]/20">
-                  <Wifi className="w-4 h-4 text-white" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-text-primary text-sm">
-                    Dispositivos Conectados
-                  </h3>
-                  <p className="text-xs text-text-secondary">
-                    Configure cámaras IP, lectores biométricos y otros
-                    dispositivos de entrada
-                  </p>
-                </div>
-                {devices.length > 0 && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => detectAllDevices(true)}
-                      disabled={isDetecting}
-                      className="px-3 py-1.5 bg-[#1976D2] text-white rounded-xl hover:bg-[#1565C0] transition-all duration-200 text-sm font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md hover:shadow-[#1976D2]/20"
-                    >
-                      {isDetecting ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Search className="w-4 h-4" />
-                      )}
-                      Detectar
-                    </button>
-                  </div>
-                )}
-              </div>
+          {/* Status Alert Area */}
+          {detectionStatus && (
+            <div className={`mb-6 p-4 rounded-lg flex items-center gap-3 border shadow-sm animate-fade-in ${
+              detectionStatus.type === "success" ? "bg-success/5 border-success/20 text-success" :
+              detectionStatus.type === "error" ? "bg-error/5 border-error/20 text-error" :
+              detectionStatus.type === "warning" ? "bg-warning/5 border-warning/20 text-warning" :
+              "bg-accent/5 border-accent/20 text-accent"
+            }`}>
+              {detectionStatus.type === "success" && <CheckCircle2 className="w-5 h-5" />}
+              {detectionStatus.type === "error" && <AlertCircle className="w-5 h-5" />}
+              {detectionStatus.type === "warning" && <AlertCircle className="w-5 h-5" />}
+              {detectionStatus.type === "info" && <Usb className="w-5 h-5" />}
+              <span className="text-sm font-medium">{detectionStatus.message}</span>
+              <button onClick={() => setDetectionStatus(null)} className="ml-auto p-1 hover:bg-black/5 rounded-full transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
-              {/* Mensaje de estado de detección */}
-              {detectionStatus && (
-                <div
-                  className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${detectionStatus.type === "success"
-                    ? "bg-green-100 text-green-800 border border-green-200"
-                    : detectionStatus.type === "error"
-                      ? "bg-red-100 text-red-800 border border-red-200"
-                      : detectionStatus.type === "warning"
-                        ? "bg-yellow-100 text-yellow-800 border border-yellow-200"
-                        : "bg-blue-100 text-blue-800 border border-blue-200"
-                    }`}
-                >
-                  {detectionStatus.type === "success" && (
-                    <CheckCircle2 className="w-5 h-5" />
-                  )}
-                  {detectionStatus.type === "error" && (
-                    <AlertCircle className="w-5 h-5" />
-                  )}
-                  {detectionStatus.type === "warning" && (
-                    <AlertCircle className="w-5 h-5" />
-                  )}
-                  {detectionStatus.type === "info" && (
-                    <Usb className="w-5 h-5" />
-                  )}
-                  <span className="text-sm">{detectionStatus.message}</span>
-                  <button
-                    onClick={() => setDetectionStatus(null)}
-                    className="ml-auto text-current opacity-60 hover:opacity-100"
-                  >
-                    &times;
-                  </button>
-                </div>
-              )}
-
-              <div className="space-y-3">
+          <div className="space-y-6">
+            {devices.length > 0 ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {devices.map((device) => (
                   <div
                     key={device.id}
-                    className={`bg-bg-primary border-2 rounded-xl p-4 transition-all duration-200 ${device.detected
-                      ? "border-emerald-300 bg-emerald-50/30"
-                      : "border-border-subtle"
-                      }`}
+                    className={`group relative bg-bg-secondary/40 border rounded-lg p-5 transition-all duration-300 hover:shadow-md ${
+                      device.detected ? "border-success/30 ring-1 ring-success/10" : "border-border-subtle"
+                    }`}
                   >
-                    {device.detected && (
-                      <div className="flex items-center gap-1 text-emerald-600 text-xs mb-2">
-                        <Usb className="w-3 h-3" />
-                        <span>Detectado automáticamente</span>
+                    {/* Device Badge */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <div className={`p-2 rounded-lg ${device.detected ? 'bg-success/10 text-success' : 'bg-accent/5 text-accent'}`}>
+                           {device.type === 'facial' ? <Camera className="w-4 h-4" /> : <Usb className="w-4 h-4" />}
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary block leading-none mb-1">
+                            {device.detected ? "Detectado vía " + device.connection : "Configuración Manual"}
+                          </span>
+                          <h4 className="font-semibold text-sm">{device.name || "Nuevo Dispositivo"}</h4>
+                        </div>
                       </div>
-                    )}
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                      <div className="col-span-2 md:col-span-2">
-                        <label className="block text-xs font-medium text-text-secondary mb-1">
-                          Nombre del Dispositivo
-                        </label>
+                      <button
+                        onClick={() => removeDevice(device.id)}
+                        className="p-1.5 text-text-tertiary hover:text-error opacity-0 group-hover:opacity-100 transition-all rounded-md hover:bg-error/5"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-text-tertiary uppercase mb-1.5 ml-1">Nombre</label>
                         <input
                           type="text"
                           value={device.name}
-                          onChange={(e) =>
-                            updateDevice(device.id, "name", e.target.value)
-                          }
-                          placeholder="ej. Cámara Principal"
-                          className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-[#42A5F5]/50 focus:border-transparent transition-all duration-200"
+                          onChange={(e) => updateDevice(device.id, "name", e.target.value)}
+                          placeholder="Ej. Cámara Sur"
+                          className="w-full px-3 py-2 bg-bg-primary border border-border-subtle rounded-lg text-xs focus:ring-1 focus:ring-accent outline-none transition-all shadow-inner"
                         />
                       </div>
-                      <div className="col-span-1">
-                        <label className="block text-xs font-medium text-text-secondary mb-1">
-                          Tipo
-                        </label>
+                      <div>
+                        <label className="block text-[10px] font-bold text-text-tertiary uppercase mb-1.5 ml-1">Tipo</label>
                         <select
                           value={device.type}
-                          onChange={(e) =>
-                            updateDevice(device.id, "type", e.target.value)
-                          }
-                          className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-[#42A5F5]/50 focus:border-transparent transition-all duration-200"
+                          onChange={(e) => updateDevice(device.id, "type", e.target.value)}
+                          className="w-full px-3 py-2 bg-bg-primary border border-border-subtle rounded-lg text-xs focus:ring-1 focus:ring-accent outline-none transition-all shadow-inner appearance-none cursor-pointer"
                         >
-                          <option value="facial">Facial</option>
-                          <option value="dactilar">Dactilar</option>
+                          <option value="facial">Reconocimiento Facial</option>
+                          <option value="dactilar">Lector de Huella</option>
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-text-secondary mb-1">
-                          Conexión
-                        </label>
+                        <label className="block text-[10px] font-bold text-text-tertiary uppercase mb-1.5 ml-1">Conexión</label>
                         <select
                           value={device.connection}
-                          onChange={(e) =>
-                            updateDevice(
-                              device.id,
-                              "connection",
-                              e.target.value,
-                            )
-                          }
-                          className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-[#42A5F5]/50 focus:border-transparent transition-all duration-200"
+                          onChange={(e) => updateDevice(device.id, "connection", e.target.value)}
+                          className="w-full px-3 py-2 bg-bg-primary border border-border-subtle rounded-lg text-xs focus:ring-1 focus:ring-accent outline-none transition-all shadow-inner appearance-none cursor-pointer"
                         >
-                          <option value="IP">IP</option>
-                          <option value="USB">USB</option>
+                          <option value="USB">Puerto USB</option>
+                          <option value="IP">Red Local (IP)</option>
                         </select>
                       </div>
-                      <div className="col-span-1 flex items-end">
-                        <button
-                          onClick={() => removeDevice(device.id)}
-                          className="w-full px-3 py-2.5 bg-bg-secondary border border-red-400 dark:border-red-500 text-red-600 dark:text-red-400 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 text-sm font-medium"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
+                      {device.connection === "IP" ? (
+                         <div className="flex gap-2">
+                           <div className="flex-1">
+                              <label className="block text-[10px] font-bold text-text-tertiary uppercase mb-1.5 ml-1">IP / Puerto</label>
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="text"
+                                  value={device.ip}
+                                  onChange={(e) => updateDevice(device.id, "ip", e.target.value)}
+                                  placeholder="192.168..."
+                                  className="w-full px-3 py-2 bg-bg-primary border border-border-subtle rounded-lg text-xs font-mono focus:ring-1 focus:ring-accent outline-none transition-all shadow-inner"
+                                />
+                                <span className="text-text-tertiary">:</span>
+                                <input
+                                  type="text"
+                                  value={device.port}
+                                  onChange={(e) => updateDevice(device.id, "port", e.target.value)}
+                                  placeholder="80"
+                                  className="w-16 px-2 py-2 bg-bg-primary border border-border-subtle rounded-lg text-xs font-mono focus:ring-1 focus:ring-accent outline-none transition-all shadow-inner"
+                                />
+                              </div>
+                           </div>
+                         </div>
+                      ) : (
+                        <div className="flex items-end">
+                           <div className="w-full px-3 py-2 bg-bg-primary/30 border border-border-subtle/50 rounded-lg text-[10px] text-text-tertiary italic flex items-center gap-2">
+                             <Usb className="w-3 h-3" /> Plug and Play habilitado
+                           </div>
+                        </div>
+                      )}
                     </div>
-                    {device.connection === "IP" && (
-                      <div className="grid grid-cols-2 gap-3 mt-3">
-                        <div>
-                          <label className="block text-xs font-medium text-text-secondary mb-1">
-                            Dirección IP
-                          </label>
-                          <input
-                            type="text"
-                            value={device.ip}
-                            onChange={(e) =>
-                              updateDevice(device.id, "ip", e.target.value)
-                            }
-                            placeholder="192.168.1.100"
-                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#42A5F5]/50 focus:border-transparent transition-all duration-200"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-text-secondary mb-1">
-                            Puerto
-                          </label>
-                          <input
-                            type="text"
-                            value={device.port}
-                            onChange={(e) =>
-                              updateDevice(device.id, "port", e.target.value)
-                            }
-                            placeholder="8080"
-                            className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#42A5F5]/50 focus:border-transparent transition-all duration-200"
-                          />
-                        </div>
-                      </div>
-                    )}
                   </div>
                 ))}
-                {devices.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-8">
-                    <div className="w-16 h-16 bg-bg-tertiary rounded-2xl flex items-center justify-center mb-4 shadow-inner">
-                      <Camera className="w-8 h-8 text-text-secondary" />
-                    </div>
-                    <p className="text-base text-text-secondary font-medium mb-1">
-                      No hay dispositivos configurados
-                    </p>
-                    <p className="text-sm text-text-tertiary mb-5 max-w-md text-center">
-                      Detecte automáticamente las cámaras y dispositivos
-                      conectados a este equipo
-                    </p>
-                    <button
-                      onClick={() => detectAllDevices(true)}
-                      disabled={isDetecting}
-                      className="group px-8 py-3 bg-[#1976D2] text-white rounded-xl hover:bg-[#1565C0] transition-all duration-200 text-base font-medium flex items-center gap-2 shadow-lg shadow-[#1976D2]/20 hover:shadow-xl hover:shadow-[#1976D2]/30 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
-                    >
-                      {isDetecting ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : (
-                        <Search className="w-5 h-5" />
-                      )}
-                      {isDetecting
-                        ? "Detectando dispositivos..."
-                        : "Detectar Dispositivos"}
-                    </button>
+                
+                {/* Search Card / Trigger */}
+                <button
+                  onClick={() => detectAllDevices(true)}
+                  disabled={isDetecting}
+                  className="group border-2 border-dashed border-border-subtle rounded-lg p-5 flex flex-col items-center justify-center gap-3 transition-all hover:border-accent/40 hover:bg-accent/5"
+                >
+                  <div className={`p-3 rounded-full ${isDetecting ? 'bg-accent/10' : 'bg-bg-secondary'} group-hover:scale-110 transition-transform`}>
+                    {isDetecting ? <Loader2 className="w-6 h-6 text-accent animate-spin" /> : <Search className="w-6 h-6 text-text-tertiary" />}
                   </div>
-                )}
+                  <div className="text-center">
+                    <span className="text-sm font-semibold block mb-1">
+                      {isDetecting ? "Buscando..." : "Redetectar Todo"}
+                    </span>
+                    <p className="text-[10px] text-text-tertiary uppercase tracking-tighter">Escaneo automático de hardware</p>
+                  </div>
+                </button>
               </div>
-            </div>
+            ) : (
+              /* Empty State */
+              <div className="bg-bg-secondary/40 border border-border-subtle rounded-lg py-16 flex flex-col items-center justify-center text-center">
+                <div className="w-20 h-20 rounded-full bg-accent/5 flex items-center justify-center mb-6 relative">
+                  <div className="absolute inset-0 rounded-full border border-accent/10 animate-ping opacity-20" />
+                  <Camera className="w-10 h-10 text-accent/40" />
+                </div>
+                <h3 className="text-xl font-light mb-2">No hay <span className="font-semibold">dispositivos</span></h3>
+                <p className="text-sm text-text-tertiary max-w-sm mb-8">
+                  Para que el sistema funcione, necesitamos detectar al menos una cámara o lector biométrico.
+                </p>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => detectAllDevices(true)}
+                    disabled={isDetecting}
+                    className="group px-8 py-3 bg-accent text-white rounded-lg font-semibold transition-all flex items-center gap-3 shadow-lg shadow-accent/20 hover:bg-accent-hover hover:-translate-y-0.5"
+                  >
+                    {isDetecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                    Detectar Automáticamente
+                  </button>
+                  <button
+                    onClick={addDevice}
+                    className="px-8 py-3 bg-bg-primary border border-border-subtle rounded-lg font-semibold hover:bg-bg-secondary transition-all"
+                  >
+                    Agregar Manualmente
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Footer fijo con botones */}
-      <div className="bg-bg-secondary border-t border-border-subtle px-4 sm:px-6 py-2.5 sm:py-3 flex-shrink-0">
-        <div className="max-w-5xl mx-auto flex justify-between gap-3">
+      {/* Persistent Footer */}
+      <div className="bg-bg-secondary/40 border-t border-border-subtle p-6 flex-shrink-0 shadow-lg">
+        <div className="max-w-5xl mx-auto flex justify-between">
           <button
             onClick={onPrevious}
-            className="px-5 py-2.5 text-text-secondary hover:text-text-primary font-medium transition-all duration-200 flex items-center gap-2 text-sm rounded-xl hover:bg-bg-tertiary"
+            className="group px-6 py-3 rounded-lg font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-all flex items-center gap-2"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             Anterior
           </button>
           <button
             onClick={onNext}
-            className="group px-5 py-2.5 bg-[#1976D2] text-white rounded-xl hover:bg-[#1565C0] font-medium transition-all duration-200 shadow-sm shadow-[#1976D2]/20 hover:shadow-lg hover:shadow-[#1976D2]/30 hover:-translate-y-0.5 flex items-center gap-2 text-sm"
+            disabled={devices.length === 0}
+            className={`
+              group px-10 py-3.5 rounded-lg font-semibold transition-all duration-300 flex items-center gap-3 shadow-sm
+              ${devices.length > 0
+                ? "bg-accent text-white hover:bg-accent-hover hover:-translate-y-0.5 active:scale-95 shadow-accent/20"
+                : "bg-border-divider text-text-disabled cursor-not-allowed opacity-50"
+              }
+            `}
           >
-            Siguiente
-            <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-200" />
+            Siguiente Paso
+            <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </button>
         </div>
       </div>
     </div>
   );
 }
+

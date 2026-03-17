@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { HardDrive, Info, RefreshCw, ChevronRight } from "lucide-react";
+import { 
+  HardDrive, Info, RefreshCw, ChevronRight, 
+  Cpu, Wifi, Monitor, Activity 
+} from "lucide-react";
 import StepIndicator from "./StepIndicator";
 import { getSystemInfo } from "../../utils/systemInfo";
 
@@ -18,7 +21,6 @@ export default function NodeConfigStep({
     // Suscribirse a cambios de red
     if (window.electronAPI && window.electronAPI.onNetworkStatusChange) {
       const handleNetworkChange = (details) => {
-        console.log("Cambio de red detectado:", details);
         setNodeConfig((prev) => ({
           ...prev,
           ipAddress: details.ipAddress,
@@ -40,7 +42,6 @@ export default function NodeConfigStep({
     setIsDetecting(true);
     try {
       const systemInfo = await getSystemInfo();
-      console.log("Información del sistema detectada:", systemInfo);
       setNodeConfig({
         ...nodeConfig,
         ipAddress: systemInfo.ipAddress,
@@ -54,7 +55,6 @@ export default function NodeConfigStep({
     }
   };
 
-  // Validar que los campos requeridos estén completos
   const isFormValid = () => {
     return (
       nodeConfig.nodeName.trim() !== "" &&
@@ -66,176 +66,157 @@ export default function NodeConfigStep({
   };
 
   return (
-    <div className="h-screen w-screen bg-bg-primary flex flex-col overflow-hidden">
-      {/* Barra de progreso fija */}
-      <div className="bg-bg-secondary border-b border-border-subtle py-3 sm:py-4 px-4 sm:px-8 flex-shrink-0">
-        <StepIndicator currentStep={1} totalSteps={4} />
+    <div className="h-screen w-screen bg-bg-primary text-text-primary flex flex-col font-sans overflow-hidden">
+      {/* Header / Progress */}
+      <div className="bg-bg-secondary/30 border-b border-border-subtle py-6 flex-shrink-0">
+        <StepIndicator currentStep={1} />
       </div>
 
-      {/* Contenido scrollable */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
-          <button
-            onClick={onShowWelcome}
-            className="absolute top-[60px] sm:top-20 right-3 sm:right-6 w-10 h-10 sm:w-12 sm:h-12 bg-[#1976D2] text-white rounded-full shadow-lg shadow-[#1976D2]/20 hover:bg-[#1565C0] transition-all hover:scale-110 flex items-center justify-center z-10"
-            title="Ver información de bienvenida"
-          >
-            <Info className="w-5 h-5 sm:w-6 sm:h-6" />
-          </button>
-          <div className="mb-4">
-            <h1 className="text-xl font-bold text-text-primary mb-1">
-              Paso 1: Configurar Nodo
-            </h1>
-            <p className="text-text-secondary text-sm">
-              Complete la información del nodo de control de acceso
-            </p>
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto bg-bg-primary/50">
+        <div className="max-w-4xl mx-auto px-6 py-8 animate-slide-up">
+          {/* Section Header */}
+          <div className="mb-8 flex justify-between items-end">
+            <div>
+              <h2 className="text-xs font-semibold text-accent uppercase tracking-[0.2em] mb-1">
+                Paso 01
+              </h2>
+              <h1 className="text-3xl font-light tracking-tight">
+                Configuración del <span className="font-semibold">Nodo</span>
+              </h1>
+            </div>
+            <button
+              onClick={onShowWelcome}
+              className="p-2 text-text-tertiary hover:text-accent transition-colors"
+              title="Ayuda"
+            >
+              <Info className="w-5 h-5" />
+            </button>
           </div>
 
-          <div className="space-y-3">
-            <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-5 hover:shadow-sm transition-shadow duration-300">
-              <div className="flex items-start gap-3">
-                <div className="w-11 h-11 bg-[#1976D2] rounded-xl flex items-center justify-center flex-shrink-0 shadow-md shadow-[#1976D2]/20">
-                  <HardDrive className="w-5 h-5 text-white" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Left Column: Form */}
+            <div className="md:col-span-2 space-y-6">
+              <div className="bg-bg-secondary/40 border border-border-subtle rounded-lg p-6 shadow-sm">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-lg bg-accent/5 flex items-center justify-center border border-accent/10">
+                    <Monitor className="w-5 h-5 text-accent" />
+                  </div>
+                  <h3 className="font-semibold text-sm uppercase tracking-wider">Identidad del Sistema</h3>
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-text-primary mb-2">
-                    Información del Nodo
-                  </h3>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-text-secondary mb-1">
-                        Nombre del Nodo *
-                      </label>
-                      <input
-                        type="text"
-                        value={nodeConfig.nodeName}
-                        onChange={(e) =>
-                          setNodeConfig({
-                            ...nodeConfig,
-                            nodeName: e.target.value,
-                          })
-                        }
-                        placeholder="ej. Edificio M"
-                        className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl focus:ring-2 focus:ring-[#42A5F5]/50 focus:border-transparent transition-all duration-200"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-text-secondary mb-1">
-                        Descripción *
-                      </label>
-                      <textarea
-                        value={nodeConfig.description}
-                        onChange={(e) =>
-                          setNodeConfig({
-                            ...nodeConfig,
-                            description: e.target.value,
-                          })
-                        }
-                        placeholder="Describa la ubicación o función de este nodo"
-                        rows="1"
-                        className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl focus:ring-2 focus:ring-[#42A5F5]/50 focus:border-transparent resize-none text-sm transition-all duration-200"
-                      />
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="block text-sm font-medium text-text-secondary">
-                          Información del Sistema
-                        </label>
-                        <button
-                          type="button"
-                          onClick={detectSystemInfo}
-                          disabled={isDetecting}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-bg-tertiary text-text-primary rounded-lg hover:bg-border-subtle transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-                        >
-                          <RefreshCw
-                            className={`w-3 h-3 ${isDetecting ? "animate-spin" : ""}`}
-                          />
-                          {isDetecting ? "Detectando..." : "Redetectar"}
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                        <div>
-                          <label className="block text-xs font-medium text-text-secondary mb-1">
-                            Dirección IP *
-                          </label>
-                          <input
-                            type="text"
-                            value={nodeConfig.ipAddress || ""}
-                            disabled
-                            placeholder="192.168.1.100"
-                            className="w-full px-2.5 py-2 bg-bg-secondary border border-border-subtle rounded-xl font-mono text-xs text-text-secondary cursor-not-allowed"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-text-secondary mb-1">
-                            Dirección MAC *
-                          </label>
-                          <input
-                            type="text"
-                            value={nodeConfig.macAddress}
-                            disabled
-                            placeholder="00:1A:2B:3C:4D:5E"
-                            className="w-full px-2.5 py-2 bg-bg-secondary border border-border-subtle rounded-xl font-mono text-xs text-text-secondary cursor-not-allowed"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-text-secondary mb-1">
-                            Sistema Operativo *
-                          </label>
-                          <input
-                            type="text"
-                            value={nodeConfig.operatingSystem}
-                            disabled
-                            placeholder="Windows 10/11"
-                            className="w-full px-2.5 py-2 bg-bg-secondary border border-border-subtle rounded-xl text-xs text-text-secondary cursor-not-allowed"
-                          />
-                        </div>
-                      </div>
-                    </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-text-tertiary uppercase mb-1.5 ml-1">
+                      Nombre del Nodo *
+                    </label>
+                    <input
+                      type="text"
+                      value={nodeConfig.nodeName}
+                      onChange={(e) => setNodeConfig({ ...nodeConfig, nodeName: e.target.value })}
+                      placeholder="Ej. Recepción Principal, Edificio A"
+                      className="w-full px-4 py-3 bg-bg-primary border border-border-subtle rounded-lg focus:ring-1 focus:ring-accent focus:border-accent transition-all outline-none text-sm shadow-inner"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-[11px] font-bold text-text-tertiary uppercase mb-1.5 ml-1">
+                      Descripción *
+                    </label>
+                    <textarea
+                      value={nodeConfig.description}
+                      onChange={(e) => setNodeConfig({ ...nodeConfig, description: e.target.value })}
+                      placeholder="Detalles sobre la ubicación o uso de esta terminal"
+                      rows="2"
+                      className="w-full px-4 py-3 bg-bg-primary border border-border-subtle rounded-lg focus:ring-1 focus:ring-accent focus:border-accent transition-all outline-none text-sm resize-none shadow-inner"
+                    />
                   </div>
                 </div>
               </div>
+
+              {/* Requirements / Notice */}
+              <div className="flex items-start gap-4 p-4 border border-border-subtle bg-bg-secondary/20 rounded-lg">
+                <Activity className="w-4 h-4 text-accent shrink-0 mt-0.5" />
+                <p className="text-[11px] text-text-secondary leading-relaxed">
+                  Esta información se vinculará permanentemente a este hardware. Asegúrese de que el nombre sea descriptivo para facilitar la administración desde la nube.
+                </p>
+              </div>
             </div>
 
-            <div className="bg-bg-secondary border border-border-subtle rounded-xl p-3 flex items-start gap-2.5">
-              <svg
-                className="w-4 h-4 text-text-secondary flex-shrink-0 mt-0.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <p className="text-xs text-text-secondary">
-                Todos los campos marcados con * son obligatorios. La información
-                debe ser exacta para el correcto funcionamiento del sistema.
-              </p>
+            {/* Right Column: System Info (Health View Style) */}
+            <div className="space-y-6">
+              <div className="bg-bg-secondary/40 border border-border-subtle rounded-lg p-6 flex flex-col h-full">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-semibold text-sm uppercase tracking-wider">Estado de Red</h3>
+                  <button 
+                    onClick={detectSystemInfo}
+                    disabled={isDetecting}
+                    className="p-1.5 hover:bg-accent/5 rounded-md text-text-tertiary hover:text-accent transition-all"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isDetecting ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+
+                <div className="space-y-6 flex-1">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold text-text-tertiary uppercase">Dirección IP</span>
+                    <div className="flex items-center gap-2">
+                      <Wifi className={`w-3.5 h-3.5 ${nodeConfig.ipAddress ? 'text-success' : 'text-error'}`} />
+                      <span className="font-mono text-sm">{nodeConfig.ipAddress || '---'}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold text-text-tertiary uppercase">ID de Hardware (MAC)</span>
+                    <div className="flex items-center gap-2">
+                      <Cpu className="w-3.5 h-3.5 text-text-tertiary" />
+                      <span className="font-mono text-[10px] tracking-tighter">{nodeConfig.macAddress || '---'}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold text-text-tertiary uppercase">Entorno Operativo</span>
+                    <div className="flex items-center gap-2">
+                      <Activity className="w-3.5 h-3.5 text-accent" />
+                      <span className="text-xs">{nodeConfig.operatingSystem || 'No detectado'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8 pt-4 border-t border-border-subtle">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`w-2 h-2 rounded-full ${isFormValid() ? 'bg-success animate-pulse' : 'bg-warning'}`} />
+                    <span className="text-[10px] items-center font-medium uppercase text-text-secondary">
+                      {isFormValid() ? 'Listo para continuar' : 'Campos incompletos'}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Footer fijo con botón */}
-      <div className="bg-bg-secondary border-t border-border-subtle px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
+      {/* Persistent Footer */}
+      <div className="bg-bg-secondary/40 border-t border-border-subtle p-6 flex-shrink-0 shadow-lg">
         <div className="max-w-4xl mx-auto flex justify-end">
           <button
             onClick={onNext}
             disabled={!isFormValid()}
-            className={`group px-5 sm:px-6 py-2.5 rounded-xl font-medium transition-all duration-200 shadow-sm flex items-center gap-2 text-sm sm:text-base ${isFormValid()
-              ? "bg-[#1976D2] text-white hover:bg-[#1565C0] hover:shadow-lg hover:shadow-[#1976D2]/20 hover:-translate-y-0.5 cursor-pointer"
-              : "bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
-              }`}
+            className={`
+              group px-10 py-3.5 rounded-lg font-semibold transition-all duration-300 flex items-center gap-3 shadow-sm
+              ${isFormValid()
+                ? "bg-accent text-white hover:bg-accent-hover hover:-translate-y-0.5 active:scale-95 shadow-accent/20"
+                : "bg-border-divider text-text-disabled cursor-not-allowed opacity-50"
+              }
+            `}
           >
-            Siguiente
-            <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-200" />
+            Siguiente Paso
+            <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </button>
         </div>
       </div>
     </div>
   );
 }
+

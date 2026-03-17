@@ -1,4 +1,8 @@
-import { Clock, Lock, CheckCircle, XCircle, Info, ChevronRight } from "lucide-react";
+import { 
+  Clock, Lock, CheckCircle, XCircle, 
+  Info, ChevronRight, RefreshCw, 
+  ShieldAlert, ShieldCheck, HelpCircle 
+} from "lucide-react";
 import StepIndicator from "./StepIndicator";
 
 export default function ApprovalStep({
@@ -10,62 +14,56 @@ export default function ApprovalStep({
   onGoToLogin,
   onShowWelcome,
 }) {
+  // Approved State
   if (requestStatus === "approved") {
     return (
-      <div className="h-screen w-screen bg-bg-primary flex flex-col overflow-hidden">
-        {/* Barra de progreso fija */}
-        <div className="bg-bg-secondary border-b border-border-subtle py-3 sm:py-4 px-4 sm:px-8 flex-shrink-0">
-          <StepIndicator currentStep={4} totalSteps={4} />
+      <div className="h-screen w-screen bg-bg-primary text-text-primary flex flex-col font-sans overflow-hidden">
+        {/* Header / Progress */}
+        <div className="bg-bg-secondary/30 border-b border-border-subtle py-6 flex-shrink-0">
+          <StepIndicator currentStep={4} />
         </div>
 
-        {/* Botón de información */}
-        <button
-          onClick={onShowWelcome}
-          className="fixed top-[58px] sm:top-20 right-3 sm:right-6 w-10 h-10 sm:w-12 sm:h-12 bg-[#1976D2] text-white rounded-full shadow-lg shadow-[#1976D2]/20 hover:bg-[#1565C0] transition-all hover:scale-110 flex items-center justify-center z-10"
-          title="Ver información de bienvenida"
-        >
-          <Info className="w-5 h-5 sm:w-6 sm:h-6" />
-        </button>
-
-        {/* Contenido scrollable */}
-        <div className="flex-1 overflow-y-auto flex items-center justify-center">
-          <div className="max-w-2xl w-full p-6">
-            <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8">
-              <div className="mb-4">
-                <h1 className="text-xl font-bold text-text-primary mb-1 text-center">
-                  ¡Solicitud Aceptada!
-                </h1>
-                <p className="text-text-secondary text-sm text-center">
-                  Su instalación ha sido vinculada exitosamente
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-16 h-16 mb-2">
-                    <CheckCircle className="w-16 h-16 text-[#22c55e]" />
-                  </div>
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto flex items-center justify-center bg-bg-primary/50">
+          <div className="max-w-xl w-full px-6 py-12 animate-slide-up">
+            <div className="bg-bg-secondary/40 border border-border-subtle rounded-lg p-12 text-center shadow-xl relative overflow-hidden group">
+              {/* Decorative Background Icon */}
+              <CheckCircle className="absolute -right-8 -bottom-8 w-48 h-48 text-success/5 rotate-12 group-hover:rotate-0 transition-transform duration-1000" />
+              
+              <div className="relative z-10 flex flex-col items-center">
+                <div className="w-20 h-20 bg-success/5 rounded-full flex items-center justify-center mb-8 border border-success/10 relative">
+                   <div className="absolute inset-0 rounded-full bg-success/10 animate-ping opacity-20" />
+                   <ShieldCheck className="w-10 h-10 text-success" />
                 </div>
+                
+                <h2 className="text-xs font-semibold text-success uppercase tracking-[0.2em] mb-3">
+                  Paso 04 - Finalizado
+                </h2>
+                <h1 className="text-3xl font-light tracking-tight mb-4">
+                  ¡Afiliación <span className="font-semibold">Exitosa!</span>
+                </h1>
+                <p className="text-text-tertiary text-sm max-w-sm mb-8">
+                  Su terminal ha sido vinculada correctamente. Ya puede comenzar a gestionar la asistencia de su organización.
+                </p>
 
-                <div className="bg-bg-primary border border-border-subtle rounded-xl p-4">
-                  <p className="text-sm text-text-secondary text-center">
-                    Ya puede iniciar sesión para comenzar a utilizar el sistema.
-                  </p>
+                <div className="w-full bg-bg-primary/60 border border-border-subtle rounded-lg p-4 mb-2 flex items-center justify-center gap-3">
+                   <Building2Icon className="w-4 h-4 text-text-tertiary" />
+                   <span className="text-xs font-mono uppercase tracking-wider text-text-secondary">{companyId}</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Footer fijo con botón */}
-        <div className="bg-bg-secondary border-t border-border-subtle px-6 py-4 flex-shrink-0">
-          <div className="max-w-2xl mx-auto flex justify-end">
+        {/* Persistent Footer */}
+        <div className="bg-bg-secondary/40 border-t border-border-subtle p-6 flex-shrink-0 shadow-lg">
+          <div className="max-w-xl mx-auto flex justify-center">
             <button
               onClick={onGoToLogin}
-              className="group px-6 py-2.5 bg-[#1976D2] text-white rounded-xl hover:bg-[#1565C0] font-medium transition-all duration-200 shadow-sm shadow-[#1976D2]/20 hover:shadow-lg hover:shadow-[#1976D2]/30 hover:-translate-y-0.5 flex items-center gap-2"
+              className="group px-12 py-4 bg-accent text-white rounded-lg font-semibold transition-all duration-300 flex items-center gap-3 shadow-lg shadow-accent/20 hover:bg-accent-hover hover:-translate-y-0.5 active:scale-95"
             >
               Ir al Inicio de Sesión
-              <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-200" />
+              <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
         </div>
@@ -73,70 +71,62 @@ export default function ApprovalStep({
     );
   }
 
+  // Rejected State
   if (requestStatus === "rejected") {
     return (
-      <div className="h-screen w-screen bg-bg-primary flex flex-col overflow-hidden">
-        {/* Barra de progreso fija */}
-        <div className="bg-bg-secondary border-b border-border-subtle py-4 px-8 flex-shrink-0">
-          <StepIndicator currentStep={4} totalSteps={4} />
+      <div className="h-screen w-screen bg-bg-primary text-text-primary flex flex-col font-sans overflow-hidden">
+        {/* Header / Progress */}
+        <div className="bg-bg-secondary/30 border-b border-border-subtle py-6 flex-shrink-0">
+          <StepIndicator currentStep={4} />
         </div>
 
-        {/* Botón de información */}
-        <button
-          onClick={onShowWelcome}
-          className="fixed top-20 right-6 w-12 h-12 bg-[#1976D2] text-white rounded-full shadow-lg shadow-[#1976D2]/20 hover:bg-[#1565C0] transition-all hover:scale-110 flex items-center justify-center z-10"
-          title="Ver información de bienvenida"
-        >
-          <Info className="w-6 h-6" />
-        </button>
-
-        {/* Contenido scrollable */}
-        <div className="flex-1 overflow-y-auto flex items-center justify-center">
-          <div className="max-w-2xl w-full p-6">
-            <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8">
-              <div className="mb-4">
-                <h1 className="text-xl font-bold text-text-primary mb-1 text-center">
-                  Solicitud Rechazada
-                </h1>
-                <p className="text-text-secondary text-sm text-center">
-                  Su solicitud de afiliación ha sido rechazada
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-16 h-16 mb-2">
-                    <XCircle className="w-16 h-16 text-[#ef4444]" />
-                  </div>
+        {/* Main Content */}
+        <div className="flex-1 overflow-y-auto flex items-center justify-center bg-bg-primary/50">
+          <div className="max-w-xl w-full px-6 py-12 animate-slide-up">
+            <div className="bg-bg-secondary/40 border border-border-subtle rounded-lg p-12 text-center shadow-xl relative overflow-hidden group">
+              <ShieldAlert className="absolute -right-8 -bottom-8 w-48 h-48 text-error/5 rotate-12 group-hover:rotate-0 transition-transform duration-1000" />
+              
+              <div className="relative z-10 flex flex-col items-center">
+                <div className="w-20 h-20 bg-error/5 rounded-full flex items-center justify-center mb-8 border border-error/10">
+                   <XCircle className="w-10 h-10 text-error" />
                 </div>
-
+                
+                <h2 className="text-xs font-semibold text-error uppercase tracking-[0.2em] mb-3">
+                  Error de Afiliación
+                </h2>
+                <h1 className="text-3xl font-light tracking-tight mb-4">
+                  Solicitud <span className="font-semibold text-error/80">Rechazada</span>
+                </h1>
+                
                 {error && (
-                  <div className="bg-bg-tertiary border border-border-subtle rounded-xl p-4">
-                    <p className="text-sm text-text-secondary text-center font-medium">
-                      {error}
-                    </p>
+                  <div className="w-full bg-error/5 border border-error/20 rounded-lg p-4 mb-6 shadow-inner text-sm text-error/90 max-w-sm">
+                    {error}
                   </div>
                 )}
 
-                <div className="bg-bg-primary border border-border-subtle rounded-xl p-4">
-                  <p className="text-sm text-text-secondary text-center">
-                    Puede intentar nuevamente o contactar al administrador para
-                    más información.
-                  </p>
-                </div>
+                <p className="text-text-tertiary text-sm max-w-md mb-8">
+                  No se pudo procesar la vinculación. Por favor verifique el identificador o contacte con soporte técnico para resolverlo.
+                </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Footer fijo con botón */}
-        <div className="bg-bg-secondary border-t border-border-subtle px-6 py-4 flex-shrink-0">
-          <div className="max-w-2xl mx-auto flex justify-center">
+        {/* Persistent Footer */}
+        <div className="bg-bg-secondary/40 border-t border-border-subtle p-6 flex-shrink-0 shadow-lg">
+          <div className="max-w-xl mx-auto flex gap-4 justify-center w-full">
+            <button
+              onClick={onCancel}
+              className="px-6 py-4 rounded-lg font-semibold text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary transition-all"
+            >
+              Cancelar
+            </button>
             <button
               onClick={onRetry}
-              className="px-6 py-2.5 bg-[#1976D2] text-white rounded-xl hover:bg-[#1565C0] font-medium transition-all duration-200 shadow-sm shadow-[#1976D2]/20 hover:shadow-lg hover:shadow-[#1976D2]/30 hover:-translate-y-0.5"
+              className="flex-1 max-w-xs py-4 bg-accent text-white rounded-lg font-semibold transition-all shadow-lg shadow-accent/20 hover:bg-accent-hover hover:-translate-y-0.5 flex items-center justify-center gap-3"
             >
-              Intentar Nuevamente
+              <RefreshCw className="w-4 h-4" />
+              Intentar de Nuevo
             </button>
           </div>
         </div>
@@ -144,83 +134,92 @@ export default function ApprovalStep({
     );
   }
 
+  // Pending State
   return (
-    <div className="h-screen w-screen bg-bg-primary flex flex-col overflow-hidden">
-      {/* Barra de progreso fija */}
-      <div className="bg-bg-secondary border-b border-border-subtle py-4 px-8 flex-shrink-0">
-        <StepIndicator currentStep={4} totalSteps={4} />
+    <div className="h-screen w-screen bg-bg-primary text-text-primary flex flex-col font-sans overflow-hidden">
+      {/* Header / Progress */}
+      <div className="bg-bg-secondary/30 border-b border-border-subtle py-6 flex-shrink-0">
+        <StepIndicator currentStep={4} />
       </div>
 
-      {/* Botón de información */}
-      <button
-        onClick={onShowWelcome}
-        className="fixed top-20 right-6 w-12 h-12 bg-[#1976D2] text-white rounded-full shadow-lg shadow-[#1976D2]/20 hover:bg-[#1565C0] transition-all hover:scale-110 flex items-center justify-center z-10"
-        title="Ver información de bienvenida"
-      >
-        <Info className="w-6 h-6" />
-      </button>
-
-      {/* Contenido scrollable */}
-      <div className="flex-1 overflow-y-auto flex items-center justify-center">
-        <div className="max-w-2xl w-full p-6">
-          <div className="mb-4">
-            <h1 className="text-xl font-bold text-text-primary mb-1">
-              Solicitud Pendiente
-            </h1>
-            <p className="text-text-secondary text-sm">
-              Esperando aprobación del administrador
-            </p>
-          </div>
-
-          <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-6 space-y-4">
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-14 h-14 mb-2">
-                <div className="relative">
-                  <Clock className="w-14 h-14 text-[#f59e0b] animate-pulse" />
-                  <Lock className="w-5 h-5 text-text-primary absolute bottom-0 right-0" />
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto flex items-center justify-center bg-bg-primary/50">
+        <div className="max-w-2xl w-full px-6 py-12 animate-slide-up">
+          <div className="bg-bg-secondary/40 border border-border-subtle rounded-lg p-10 text-center shadow-xl relative overflow-hidden group">
+            <Clock className="absolute -right-8 -bottom-8 w-48 h-48 text-warning/5 rotate-12 group-hover:rotate-0 transition-transform duration-1000" />
+            
+            <div className="relative z-10 flex flex-col items-center">
+              <div className="w-20 h-20 bg-warning/5 rounded-full flex items-center justify-center mb-8 border border-warning/10 relative">
+                 <div className="absolute inset-0 rounded-full border-2 border-warning/20 border-t-warning animate-spin" />
+                 <Clock className="w-10 h-10 text-warning" />
+              </div>
+              
+              <h2 className="text-xs font-semibold text-warning uppercase tracking-[0.2em] mb-3">
+                Proceso en curso
+              </h2>
+              <h1 className="text-3xl font-light tracking-tight mb-4">
+                Solicitud <span className="font-semibold text-warning/80">Pendiente</span>
+              </h1>
+              
+              <div className="w-full max-w-sm grid grid-cols-2 gap-3 mb-8">
+                <div className="bg-bg-primary/60 border border-border-subtle rounded-lg p-4 text-left">
+                   <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider mb-1">Empresa</p>
+                   <p className="text-xs font-mono text-text-secondary truncate">{companyId || "Cargando..."}</p>
+                </div>
+                <div className="bg-bg-primary/60 border border-border-subtle rounded-lg p-4 text-left">
+                   <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider mb-1">Estado</p>
+                   <p className="text-xs font-medium text-text-secondary flex items-center gap-2">
+                     <span className="w-1.5 h-1.5 bg-warning rounded-full animate-pulse" />
+                     En revisión
+                   </p>
                 </div>
               </div>
 
-              <div className="bg-bg-primary border border-border-subtle rounded-xl p-4 space-y-2 mb-3">
-                <p className="text-sm text-text-secondary">
-                  <strong>ID de la Empresa:</strong>{" "}
-                  {companyId || "No especificado"}
-                </p>
-                <p className="text-sm text-text-secondary">
-                  <strong>Estado:</strong> En Revisión por el Administrador
-                </p>
-              </div>
-
-              {error && (
-                <div className="bg-bg-tertiary border border-border-subtle rounded-xl p-4 mb-3">
-                  <p className="text-sm text-text-secondary">{error}</p>
-                </div>
-              )}
-
-              <p className="text-sm text-text-secondary mb-3">
-                La solicitud será procesada por el administrador. El sistema
-                verificará automáticamente el estado.
-              </p>
-
-              <div className="space-y-2">
-                <button
-                  onClick={onRetry}
-                  className="w-full px-6 py-2.5 bg-bg-primary text-text-secondary rounded-xl hover:bg-bg-tertiary text-sm font-medium transition-all duration-200 border border-border-subtle hover:shadow-sm"
-                >
-                  Reenviar Solicitud
-                </button>
-
-                <button
-                  onClick={onCancel}
-                  className="w-full px-6 py-2.5 text-text-secondary hover:text-text-primary text-sm font-medium transition-all duration-200 rounded-xl hover:bg-bg-tertiary"
-                >
-                  Cancelar Solicitud
-                </button>
+              <div className="bg-accent/5 border border-accent/10 rounded-lg p-4 text-xs text-text-tertiary max-w-md italic flex items-start gap-3 text-left">
+                <Info className="w-4 h-4 text-accent mt-0.5 shrink-0" />
+                <span>La solicitud ha sido enviada al administrador central. El sistema se actualizará automáticamente cuando sea procesada.</span>
               </div>
             </div>
+          </div>
+
+          <div className="mt-12 flex flex-col items-center gap-4">
+            <button
+               onClick={onRetry}
+               className="group flex items-center gap-2 text-sm text-text-tertiary hover:text-accent transition-colors py-2 px-4 rounded-lg hover:bg-accent/5"
+            >
+              <RefreshCw className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500" />
+              Verificar estado manualmente
+            </button>
+            <button
+              onClick={onCancel}
+              className="px-8 py-3 bg-bg-secondary border border-border-subtle rounded-lg text-sm font-semibold hover:bg-error/5 hover:text-error hover:border-error/20 transition-all flex items-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Cancelar y Recomenzar
+            </button>
           </div>
         </div>
       </div>
     </div>
   );
 }
+
+// Minimalist local icon helper
+function Building2Icon(props) {
+  return (
+    <svg 
+      {...props} 
+      xmlns="http://www.w3.org/2000/svg" 
+      width="24" height="24" 
+      viewBox="0 0 24 24" fill="none" 
+      stroke="currentColor" strokeWidth="2" 
+      strokeLinecap="round" strokeLinejoin="round"
+    >
+      <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/>
+      <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/>
+      <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/>
+      <path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/>
+    </svg>
+  );
+}
+

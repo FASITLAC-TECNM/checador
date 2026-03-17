@@ -1,147 +1,143 @@
-import { HardDrive, Camera, Building2, Lock, ChevronRight } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { 
+  HardDrive, Camera, Building2, Lock, ChevronRight, 
+  Activity, Wifi, Database, Cpu, Info, CheckCircle2
+} from "lucide-react";
+import { getSystemInfo } from "../../utils/systemInfo";
 
 const steps = [
-  {
-    number: 1,
-    icon: HardDrive,
-    title: "Configurar Nodo",
-    desc: "Registre nombre, descripción y sistema operativo",
-  },
-  {
-    number: 2,
-    icon: Camera,
-    title: "Agregar Dispositivos",
-    desc: "Configure cámaras IP y lectores USB",
-  },
-  {
-    number: 3,
-    icon: Building2,
-    title: "Afiliarse a Empresa",
-    desc: "Ingrese el identificador de su empresa",
-  },
-  {
-    number: 4,
-    icon: Lock,
-    title: "Esperando Aprobación",
-    desc: "El administrador validará su solicitud",
-  },
-];
-
-const requirements = [
-  {
-    title: "Código de la Empresa",
-    desc: "Proporcionado por su administrador (formato nombre-empresa-XXX)",
-  },
-  {
-    title: "Información del Nodo",
-    desc: "Nombre, MAC, IP y descripción del sistema de control",
-  },
-  {
-    title: "Dispositivos Conectados",
-    desc: "Detalles de cámaras, sensores y lectores biométricos",
-  },
-  {
-    title: "Permisos de Administrador",
-    desc: "Para configurar el sistema y vincular dispositivos",
-  },
+  { number: 1, icon: HardDrive, title: "Configurar Nodo", desc: "Registro básico del sistema" },
+  { number: 2, icon: Camera, title: "Dispositivos", desc: "Cámaras y lectores biométricos" },
+  { number: 3, icon: Building2, title: "Afiliación", desc: "Vincular con su empresa" },
+  { number: 4, icon: Lock, title: "Aprobación", desc: "Validación administrativa" },
 ];
 
 export default function WelcomeScreen({ onClose }) {
+  const [greeting, setGreeting] = useState("");
+  const [systemInfo, setSystemInfo] = useState({
+    hostname: "Detectando...",
+    ip: "0.0.0.0",
+    version: "v1.0.0"
+  });
+
+  useEffect(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) setGreeting("Buenos días");
+    else if (hour < 18) setGreeting("Buenas tardes");
+    else setGreeting("Buenas noches");
+
+    // Intentar obtener info del sistema si estamos en Electron para el hostname
+    if (window.electronAPI && window.electronAPI.getSystemInfo) {
+      window.electronAPI.getSystemInfo().then(info => {
+        setSystemInfo(prev => ({ 
+          ...prev, 
+          hostname: info.hostname || "Desconocido",
+          ip: info.ipAddress || "No detectada"
+        }));
+      }).catch(err => console.error(err));
+    } else {
+      // Uso web/desarrollo normal usando utilidades locales
+      getSystemInfo().then(info => {
+        setSystemInfo(prev => ({
+          ...prev,
+          hostname: "Terminal Web", 
+          ip: info.ipAddress || "No detectada"
+        }));
+      }).catch(err => console.error("Error obteniendo info del sistema:", err));
+    }
+
+  }, []);
+
   return (
-    <div className="h-screen w-screen bg-bg-primary flex flex-col overflow-hidden">
-      {/* Header elegante */}
-      <div className="bg-bg-primary border-b border-border-subtle px-4 sm:px-8 py-4 sm:py-6 flex-shrink-0">
-        <div className="max-w-6xl mx-auto flex items-center gap-3 sm:gap-4">
-          <div className="w-10 h-10 sm:w-14 sm:h-14 bg-bg-secondary rounded-2xl flex items-center justify-center border border-border-subtle shadow-sm flex-shrink-0">
-            <img src="images/logo.ico" alt="Logo" className="w-6 h-6 sm:w-7 sm:h-7" />
+    <div className="h-screen w-screen bg-bg-primary text-text-primary flex flex-col font-sans selection:bg-accent/30 overflow-hidden">
+      {/* Top Bar - Status & Health */}
+      <div className="px-6 py-3 border-b border-border-subtle flex items-center justify-between text-[11px] font-medium text-text-secondary bg-bg-secondary/30">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-1.5 grayscale opacity-70">
+            <Cpu className="w-3.5 h-3.5" />
+            <span>{systemInfo.hostname}</span>
           </div>
-          <div>
-            <h2 className="text-lg sm:text-2xl font-bold text-text-primary tracking-tight">
-              Sistema de Asistencia
-            </h2>
-            <p className="text-text-secondary text-xs sm:text-sm mt-0.5">
-              Configuración inicial en 4 pasos
+          <div className="flex items-center gap-1.5" title="Dirección IP Local">
+            <Wifi className="w-3.5 h-3.5 text-success" />
+            <span>{systemInfo.ip}</span>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-success"></span>
+            <span>Base de Datos</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-success"></span>
+            <span>Servicio Biométrico</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center p-6 max-w-5xl mx-auto w-full">
+        {/* Header Section */}
+        <div className="text-center mb-12 animate-slide-up">
+          <div className="inline-flex items-center justify-center p-3 mb-6 bg-accent/5 rounded-xl border border-accent/10">
+            <img src="images/logo.ico" alt="Logo" className="w-10 h-10 object-contain drop-shadow-sm" />
+          </div>
+          <h2 className="text-sm font-semibold text-accent uppercase tracking-[0.2em] mb-2">
+            Panel de Inicio
+          </h2>
+          <h1 className="text-4xl font-light tracking-tight mb-3">
+            {greeting}, <span className="font-semibold">Bienvenido al Sistema</span>
+          </h1>
+          <p className="text-text-secondary text-base max-w-lg mx-auto">
+            Comience la configuración técnica para habilitar el control de asistencia en esta terminal.
+          </p>
+        </div>
+
+        {/* Steps Linear Flow */}
+        <div className="w-full grid grid-cols-1 md:grid-cols-4 gap-6 mb-12 relative">
+          {/* Connector Line (Desktop) */}
+          <div className="hidden md:block absolute top-[22px] left-10 right-10 h-[1px] bg-border-divider -z-10" />
+          
+          {steps.map((step, idx) => (
+            <div key={idx} className="flex flex-col items-center text-center group cursor-default">
+              <div className="w-11 h-11 rounded-lg bg-bg-secondary border border-border-subtle flex items-center justify-center mb-4 group-hover:border-accent/40 group-hover:bg-bg-primary transition-all duration-300 shadow-sm">
+                <step.icon className="w-5 h-5 text-text-secondary group-hover:text-accent transition-colors" />
+              </div>
+              <h3 className="text-sm font-semibold mb-1">{step.title}</h3>
+              <p className="text-xs text-text-tertiary leading-relaxed px-4">{step.desc}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Minimal Info Box */}
+        <div className="bg-bg-secondary/50 border border-border-subtle p-5 rounded-lg flex gap-4 max-w-2xl w-full animate-fade-in">
+          <div className="w-10 h-10 rounded-lg bg-accent/5 flex items-center justify-center shrink-0">
+            <Info className="w-5 h-5 text-accent" />
+          </div>
+          <div className="text-sm">
+            <h4 className="font-semibold mb-1">Requisitos de inicio</h4>
+            <p className="text-text-secondary leading-normal">
+              Asegúrese de contar con el <span className="text-text-primary font-medium">Código de Empresa</span> proporcionado por administración y que los dispositivos biométricos estén conectados por USB.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Contenido scrollable */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-6 max-w-6xl mx-auto">
-          {/* Grid de 4 pasos */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5 sm:mb-6">
-            {steps.map((step) => {
-              const Icon = step.icon;
-              return (
-                <div
-                  key={step.number}
-                  className="group bg-bg-secondary rounded-2xl p-4 sm:p-5 border border-border-subtle hover:border-[#42A5F5]/40 hover:shadow-xl hover:shadow-[#1976D2]/5 hover:-translate-y-1 transition-all duration-300 h-44 sm:h-52 flex flex-col cursor-default"
-                >
-                  <div className="flex flex-col items-center text-center flex-1 justify-center">
-                    {/* Número con glow sutil */}
-                    <div className="w-11 h-11 bg-[#1976D2] text-white rounded-xl flex items-center justify-center font-bold text-lg mb-3 shadow-md group-hover:shadow-lg group-hover:shadow-[#1976D2]/20 group-hover:scale-105 transition-all duration-300">
-                      {step.number}
-                    </div>
-                    {/* Icono */}
-                    <div className="w-10 h-10 rounded-xl bg-bg-tertiary flex items-center justify-center mb-3 group-hover:bg-[#E3F2FD] dark:group-hover:bg-[#1976D2]/10 transition-colors duration-300">
-                      <Icon className="w-5 h-5 text-text-secondary group-hover:text-text-primary transition-colors duration-300" />
-                    </div>
-                    <h3 className="font-semibold text-text-primary mb-1 text-sm">
-                      {step.title}
-                    </h3>
-                    <p className="text-xs text-text-secondary leading-relaxed">
-                      {step.desc}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Sección de requisitos */}
-          <div className="bg-bg-secondary rounded-2xl p-6 border border-border-subtle">
-            <h3 className="text-base font-bold text-text-primary mb-4">
-              Antes de comenzar, asegúrese de tener:
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              {requirements.map((req, i) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-3 p-3 rounded-xl hover:bg-bg-tertiary transition-colors duration-200"
-                >
-                  <div className="w-5 h-5 rounded-md bg-[#1976D2] flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-[10px] font-bold text-white">
-                      {i + 1}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-text-primary text-sm">
-                      {req.title}
-                    </p>
-                    <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">
-                      {req.desc}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer elegante */}
-      <div className="bg-bg-secondary border-t border-border-subtle px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
-        <div className="max-w-6xl mx-auto flex justify-center">
-          <button
-            onClick={onClose}
-            className="group px-6 sm:px-10 py-3 sm:py-3.5 bg-[#1976D2] text-white rounded-xl hover:bg-[#1565C0] font-semibold shadow-lg shadow-[#1976D2]/20 transition-all duration-200 hover:shadow-xl hover:shadow-[#1976D2]/30 hover:-translate-y-0.5 flex items-center gap-2 sm:gap-3 text-sm sm:text-base w-full sm:w-auto justify-center"
-          >
-            Comenzar Configuración
-            <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-0.5 transition-transform duration-200" />
-          </button>
+      {/* Footer */}
+      <div className="p-8 flex flex-col items-center border-t border-border-subtle bg-bg-secondary/20">
+        <button
+          onClick={onClose}
+          className="group px-8 py-3.5 bg-accent text-white rounded-lg hover:bg-accent-hover font-semibold transition-all duration-200 flex items-center gap-3 shadow-lg shadow-accent/20 active:scale-95 mb-4"
+        >
+          Iniciar Configuración
+          <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+        </button>
+        <div className="flex items-center gap-2 text-[10px] text-text-disabled font-medium uppercase tracking-widest">
+          <span>FASITLAC TECNM</span>
+          <span className="w-1 h-1 rounded-full bg-border-divider"></span>
+          <span>{systemInfo.version}</span>
         </div>
       </div>
     </div>
   );
 }
+

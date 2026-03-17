@@ -9,8 +9,7 @@ import {
   Camera,
   ChevronRight,
   ChevronLeft,
-  X,
-  Plus
+  X
 } from "lucide-react";
 import StepIndicator from "./StepIndicator";
 import { useDeviceDetection } from "../../hooks/useDeviceDetection";
@@ -24,20 +23,6 @@ export default function DevicesStep({
 }) {
   const { isDetecting, detectionStatus, setDetectionStatus, detectAllDevices } =
     useDeviceDetection(devices, setDevices);
-
-  const addDevice = () => {
-    setDevices([
-      ...devices,
-      {
-        id: Date.now(),
-        name: "",
-        type: "facial",
-        ip: "",
-        port: "",
-        connection: "USB",
-      },
-    ]);
-  };
 
   const updateDevice = (id, field, value) => {
     setDevices(
@@ -70,13 +55,6 @@ export default function DevicesStep({
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={addDevice}
-                className="flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider border border-border-subtle rounded-lg hover:bg-bg-secondary transition-all"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Agregar Manual
-              </button>
               <button
                 onClick={onShowWelcome}
                 className="p-2 text-text-tertiary hover:text-accent transition-colors"
@@ -240,12 +218,6 @@ export default function DevicesStep({
                   >
                     {isDetecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                     Detectar Automáticamente
-                  </button>
-                  <button
-                    onClick={addDevice}
-                    className="px-8 py-3 bg-bg-primary border border-border-subtle rounded-lg font-semibold hover:bg-bg-secondary transition-all"
-                  >
-                    Agregar Manualmente
                   </button>
                 </div>
               </div>

@@ -51,12 +51,24 @@ export const fetchApi = async (endpoint, options = {}) => {
     const response = await fetch(url, defaultOptions);
 
     if (!response.ok) {
+      if (response.status >= 500) {
+        // En caso de que se haya caído el servidor, despachar evento inmediatamente
+        window.dispatchEvent(new CustomEvent("api-offline"));
+      }
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
+    // Si la llamada tiene éxito, notificar para revivir conectividad si estaba muerta
+    window.dispatchEvent(new CustomEvent("api-online"));
     return await response.json();
   } catch (error) {
     console.error(`Error en ${endpoint}:`, error);
+    
+    // Si el error es de tipo FETCH / Red / No route to host / CORS caido
+    if (error.name === 'TypeError' || error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      window.dispatchEvent(new CustomEvent("api-offline"));
+    }
+    
     throw error;
   }
 };

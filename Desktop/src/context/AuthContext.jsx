@@ -29,16 +29,18 @@ export const AuthProvider = ({ children }) => {
       const token = localStorage.getItem("auth_token");
       const userData = localStorage.getItem("user_data");
 
-      if (token && userData) {
-        setUser(JSON.parse(userData));
-
+      if (token) {
         if (window.electronAPI && window.electronAPI.syncManager) {
           try {
             window.electronAPI.syncManager.updateToken(token);
-            console.log("Token hidratado de localStorage entregado a SyncManager");
+            console.log("Token entregado a SyncManager localmente");
           } catch (e) {
             console.warn("No se pudo sincronizar el token con el proceso principal en el inicio", e);
           }
+        }
+        
+        if (userData) {
+          setUser(JSON.parse(userData));
         }
       }
     } catch (error) {

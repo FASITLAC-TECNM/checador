@@ -20,6 +20,7 @@ import {
 } from "../../services/asistenciaLogicService";
 import { agregarEvento } from "../../services/bitacoraService";
 import * as faceapi from 'face-api.js';
+import { useConnectivity } from "../../hooks/useConnectivity";
 
 export default function AsistenciaFacial({
   isOpen = false,
@@ -43,6 +44,8 @@ export default function AsistenciaFacial({
   const [challengePoint, setChallengePoint] = useState(null); // {x, y, angle}
   const [challengeDone, setChallengeDone] = useState(false);
   const [proximityMessage, setProximityMessage] = useState(""); // Guía visual de proximidad
+
+  const { isDatabaseConnected } = useConnectivity();
 
   // Refs
   const countdownIntervalRef = useRef(null);
@@ -545,6 +548,12 @@ export default function AsistenciaFacial({
     let empleadoData = null;
 
     try {
+      if (!isDatabaseConnected) {
+         const offlineForceError = new Error("Server Error (Offline mode forced)");
+         offlineForceError.isApiOffline = true;
+         throw offlineForceError;
+      }
+
       // 1. Identificar usuario por facial
       const response = await identificarPorFacial(descriptorBase64);
 

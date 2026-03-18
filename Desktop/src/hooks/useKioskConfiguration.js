@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
 import { obtenerConfiguracionEscritorio } from "../services/configuracionEscritorioService";
 import { obtenerEscritorioIdGuardado } from "../services/escritorioService";
+import { useConnectivity } from "./useConnectivity";
 
 export const useKioskConfiguration = (isLoggedIn) => {
     // Mantendremos la estructura original de 'ordenCredenciales' por compatibilidad con el resto del código
     const [ordenCredenciales, setOrdenCredenciales] = useState(null);
     const [loadingCredenciales, setLoadingCredenciales] = useState(true);
+
+    const { isDatabaseConnected } = useConnectivity();
 
     // Obtener métodos activos (sin importar su orden por ahora, ya que el nuevo API no maneja orden)
     const getActiveMethods = () => {
@@ -26,14 +29,17 @@ export const useKioskConfiguration = (isLoggedIn) => {
 
             let configuracion = null;
 
-            // Intentar cargar desde el backend si hay internet
-            if (navigator.onLine) {
+            // Intentar cargar desde el backend si el sistema indica que estamos conectados
+            // En vez de navigator.onLine usamos isDatabaseConnected para mayor fiabilidad
+            if (isDatabaseConnected) {
                 try {
                     configuracion = await obtenerConfiguracionEscritorio(escritorioId);
                     console.log("[useKioskConfiguration] Configuración cargada desde el backend");
                 } catch (apiErr) {
                     console.warn("[useKioskConfiguration] Error al cargar desde API, intentando caché local:", apiErr);
                 }
+            } else {
+                console.log("[useKioskConfiguration] Conectividad BD en FALSO. Saltando fetch a backend.");
             }
 
             // Si estamos offline o falló el API, intentar desde SQLite
@@ -114,7 +120,6 @@ export const useKioskConfiguration = (isLoggedIn) => {
 
         // Polling silencioso cada 15 segundos
         const timer = setInterval(() => {
-            console.log("Polling configuración de escritorio...");
             cargarCredenciales(true);
         }, 15000);
 
@@ -123,6 +128,16 @@ export const useKioskConfiguration = (isLoggedIn) => {
             window.removeEventListener('configuracion-actualizada', handleConfigUpdate);
         };
     }, []);
+
+    // Re-ejecutar carga si el estado de base de datos cambia a online (y hacerlo silencioso para no parpadear la GUI)
+    useEffect(() => {
+        // Solo recargar por conectividad si ya estamos hidratados una vez, de lo contrario el mount effect 
+        // ya se encarga del spinner inicial.
+        if (ordenCredenciales !== null) {
+             console.log("[useKioskConfiguration] Cambio detectado en conectividad, refrescando silenciosamente...");
+             cargarCredenciales(true); // silent = true
+        }
+    }, [isDatabaseConnected]);
 
     // Recargar credenciales cuando el usuario cierra o abre sesión
     useEffect(() => {
@@ -133,3 +148,4 @@ export const useKioskConfiguration = (isLoggedIn) => {
 
     return { ordenCredenciales, setOrdenCredenciales, loadingCredenciales, activeMethods, cargarCredenciales };
 };
+

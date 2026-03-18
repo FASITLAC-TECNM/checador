@@ -22,6 +22,7 @@ import {
   obtenerUltimoRegistro,
   calcularEstadoRegistro
 } from "../../services/asistenciaLogicService";
+import { useConnectivity } from "../../hooks/useConnectivity";
 
 export default function AsistenciaHuella({
   isOpen = false,
@@ -58,6 +59,8 @@ export default function AsistenciaHuella({
   const backgroundModeRef = useRef(backgroundMode);
   const isProcessingAttendanceRef = useRef(false); // Ref para prevenir llamadas duplicadas
   const MAX_RECONNECT_ATTEMPTS = 5;
+
+  const { isDatabaseConnected } = useConnectivity();
 
   // Mantener las refs actualizadas
   useEffect(() => {
@@ -308,8 +311,6 @@ export default function AsistenciaHuella({
     }
   };
 
-  // Registrar asistencia después de identificación exitosa (API REAL)
-  // NOTA: La protección contra duplicados se hace en handleServerMessage ANTES de llamar aquí
   const registrarAsistencia = async (empleadoId, matchScore) => {
     setProcessingAttendance(true);
     addMessage("📝 Cargando datos del empleado...", "info");
@@ -318,6 +319,12 @@ export default function AsistenciaHuella({
     let empleadoData = null;
 
     try {
+      if (!isDatabaseConnected) {
+         const offlineForceError = new Error("Server Error (Offline mode forced)");
+         offlineForceError.isApiOffline = true;
+         throw offlineForceError;
+      }
+
       // Primero obtener datos del empleado desde la API
       const empleadoResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.EMPLEADOS}/${empleadoId}`);
       empleadoData = empleadoResponse.data || empleadoResponse;

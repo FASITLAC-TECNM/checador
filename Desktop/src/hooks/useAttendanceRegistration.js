@@ -8,6 +8,7 @@ import {
     obtenerInfoClasificacion,
     formatearTiempoRestante
 } from "../services/asistenciaLogicService";
+import { useConnectivity } from "./useConnectivity";
 
 export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) => {
     const [showPassword, setShowPassword] = useState(false);
@@ -17,6 +18,9 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
     const [result, setResult] = useState(null);
     const [countdown, setCountdown] = useState(6);
     const [errorMessage, setErrorMessage] = useState("");
+    
+    // Conectividad global
+    const { isDatabaseConnected } = useConnectivity();
 
     // Refs
     const countdownRef = useRef(null);
@@ -89,6 +93,14 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
 
         try {
             console.log("🔐 Verificando credenciales...");
+            
+            // SHORt-CIRCUIT: Si sabemos globalmente que la BD central/API está desconectada,
+            // forzamos tiro al catch del offline instantáneamente, sin esperar el fetch.
+            if (!isDatabaseConnected) {
+                 const offlineForceError = new Error("Server Error (Offline mode forced)");
+                 offlineForceError.isApiOffline = true;
+                 throw offlineForceError;
+            }
 
             // 1. Verificar credenciales con el endpoint de login por PIN
             const loginResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CREDENCIALES}/pin/login`, {
@@ -105,6 +117,8 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
             if (!loginResponse.ok) {
                 // Si la API responde pero con error de servidor (ej. 500, 502, 503, 504)
                 if (loginResponse.status >= 500) {
+                    // Despachar evento para notificar al contexto de la caida instantanea
+                    window.dispatchEvent(new CustomEvent("api-offline"));
                     const error = new Error(`Server Error: ${loginResponse.status}`);
                     error.isApiOffline = true;
                     throw error;

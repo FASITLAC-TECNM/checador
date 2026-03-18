@@ -4,6 +4,7 @@ import { SoundProvider } from "./context/SoundContext";
 import { AuthProvider } from "./context/AuthContext";
 import { CameraProvider } from "./context/CameraContext";
 import { DeviceMonitoringProvider } from "./context/DeviceMonitoringContext";
+import { ConnectivityProvider } from "./context/ConnectivityContext";
 import AffiliationRequest from "./pages/AffiliationRequest";
 import KioskScreen from "./pages/KioskScreen";
 import SessionScreen from "./pages/SessionScreen";
@@ -103,23 +104,25 @@ function App() {
 
   return (
     <ThemeProvider>
-      <SoundProvider>
-        <AuthProvider>
-          <DeviceMonitoringProvider>
-            <CameraProvider>
-              <div className="App">
-                {currentPage === "affiliation" && (
-                  <AffiliationRequest onComplete={handleAffiliationComplete} />
-                )}
-                {currentPage === "kiosk" && <KioskScreen />}
-                {currentPage === "session" && (
-                  <SessionScreen onLogout={() => setCurrentPage("kiosk")} />
-                )}
-              </div>
-            </CameraProvider>
-          </DeviceMonitoringProvider>
-        </AuthProvider>
-      </SoundProvider>
+      <ConnectivityProvider>
+        <SoundProvider>
+          <AuthProvider>
+            <DeviceMonitoringProvider>
+              <CameraProvider>
+                <div className="App">
+                  {currentPage === "affiliation" && (
+                    <AffiliationRequest onComplete={handleAffiliationComplete} />
+                  )}
+                  {currentPage === "kiosk" && <KioskScreen />}
+                  {currentPage === "session" && (
+                    <SessionScreen onLogout={() => setCurrentPage("kiosk")} />
+                  )}
+                </div>
+              </CameraProvider>
+            </DeviceMonitoringProvider>
+          </AuthProvider>
+        </SoundProvider>
+      </ConnectivityProvider>
     </ThemeProvider>
   );
 }

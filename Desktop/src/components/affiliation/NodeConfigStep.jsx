@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { 
-  HardDrive, Info, RefreshCw, ChevronRight, 
-  Cpu, Wifi, Monitor, Activity 
+import {
+  HardDrive, Info, RefreshCw, ChevronRight,
+  Cpu, Wifi, Monitor, Activity
 } from "lucide-react";
 import StepIndicator from "./StepIndicator";
 import { getSystemInfo } from "../../utils/systemInfo";
@@ -118,7 +118,7 @@ export default function NodeConfigStep({
                       className="w-full px-4 py-3 bg-bg-primary border border-border-subtle rounded-lg focus:ring-1 focus:ring-accent focus:border-accent transition-all outline-none text-sm shadow-inner"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-[11px] font-bold text-text-tertiary uppercase mb-1.5 ml-1">
                       Descripción *
@@ -148,7 +148,7 @@ export default function NodeConfigStep({
               <div className="bg-bg-secondary/40 border border-border-subtle rounded-lg p-6 flex flex-col h-full">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="font-semibold text-sm uppercase tracking-wider">Estado de Red</h3>
-                  <button 
+                  <button
                     onClick={detectSystemInfo}
                     disabled={isDetecting}
                     className="p-1.5 hover:bg-accent/5 rounded-md text-text-tertiary hover:text-accent transition-all"
@@ -175,7 +175,7 @@ export default function NodeConfigStep({
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <span className="text-[10px] font-bold text-text-tertiary uppercase">Entorno Operativo</span>
+                    <span className="text-[10px] font-bold text-text-tertiary uppercase">Sistema Operativo</span>
                     <div className="flex items-center gap-2">
                       <Activity className="w-3.5 h-3.5 text-accent" />
                       <span className="text-xs">{nodeConfig.operatingSystem || 'No detectado'}</span>

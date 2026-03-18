@@ -114,13 +114,7 @@ export default function ApprovalStep({
 
         {/* Persistent Footer */}
         <div className="bg-bg-secondary/40 border-t border-border-subtle p-6 flex-shrink-0 shadow-lg">
-          <div className="max-w-xl mx-auto flex gap-4 justify-center w-full">
-            <button
-              onClick={onCancel}
-              className="px-6 py-4 rounded-lg font-semibold text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary transition-all"
-            >
-              Cancelar
-            </button>
+          <div className="max-w-xl mx-auto flex justify-center w-full">
             <button
               onClick={onRetry}
               className="flex-1 max-w-xs py-4 bg-accent text-white rounded-lg font-semibold transition-all shadow-lg shadow-accent/20 hover:bg-accent-hover hover:-translate-y-0.5 flex items-center justify-center gap-3"

@@ -297,6 +297,13 @@ async function runMigrations() {
     try { await db.execAsync(col); } catch (e) { }
   }
 
+  // Migración: columnas de anticipo de salida (pueden no existir en DBs antiguas)
+  for (const col of [
+    'ALTER TABLE cache_tolerancias ADD COLUMN minutos_anticipo_salida INTEGER DEFAULT 5',
+    'ALTER TABLE cache_tolerancias ADD COLUMN minutos_posterior_salida INTEGER DEFAULT 0']) {
+    try { await db.execAsync(col); } catch (e) { /* columna ya existe */ }
+  }
+
 
   const tables = ['cache_empleados', 'cache_credenciales', 'cache_horarios', 'cache_tolerancias', 'cache_departamentos', 'cache_dias_festivos'];
   for (const t of tables) {
@@ -613,8 +620,10 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
   try {
     await db.runAsync(
       `INSERT INTO cache_tolerancias
-      (empleado_id, nombre, minutos_retardo, minutos_falta, permite_anticipado, minutos_anticipado_max, aplica_tolerancia_entrada, aplica_tolerancia_salida, max_retardos, dias_aplica, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
+      (empleado_id, nombre, minutos_retardo, minutos_falta, permite_anticipado, minutos_anticipado_max,
+       aplica_tolerancia_entrada, aplica_tolerancia_salida, max_retardos, dias_aplica,
+       minutos_anticipo_salida, minutos_posterior_salida, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
     ON CONFLICT(empleado_id) DO UPDATE SET
       nombre = excluded.nombre,
       minutos_retardo = excluded.minutos_retardo,
@@ -625,6 +634,8 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
       aplica_tolerancia_salida = excluded.aplica_tolerancia_salida,
       max_retardos = excluded.max_retardos,
       dias_aplica = excluded.dias_aplica,
+      minutos_anticipo_salida = excluded.minutos_anticipo_salida,
+      minutos_posterior_salida = excluded.minutos_posterior_salida,
       updated_at = excluded.updated_at`,
       [
         empleadoId,
@@ -636,7 +647,9 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
         tolerancia.aplica_tolerancia_entrada !== false ? 1 : 0,
         tolerancia.aplica_tolerancia_salida ? 1 : 0,
         tolerancia.max_retardos ?? 0,
-        diasAplica]
+        diasAplica,
+        tolerancia.minutos_anticipo_salida ?? 5,
+        tolerancia.minutos_posterior_salida ?? 0]
 
     );
   } catch (ignore) {
@@ -756,12 +769,12 @@ export async function getTolerancia(empleadoId) {
   return row || {
     minutos_retardo: 10,
     minutos_falta: 30,
-    permite_anticipado: 0,
-    minutos_anticipado_max: 0,
-    minutos_anticipo_salida: 0,
+    permite_anticipado: 1,
+    minutos_anticipado_max: 5,
+    minutos_anticipo_salida: 5,
     minutos_posterior_salida: 0,
     aplica_tolerancia_entrada: 1,
-    aplica_tolerancia_salida: 0,
+    aplica_tolerancia_salida: 1,
     dias_aplica: null
   };
 }
@@ -1308,7 +1321,7 @@ export async function upsertDiasFestivos(diasFestivos) {
         );
       }
     });
-  } catch (e) {}
+  } catch (e) { }
 }
 
 export async function getDiaFestivo(fechaStr) {
@@ -1389,7 +1402,7 @@ export default {
 
   saveOrdenCredenciales,
   getOrdenCredenciales: getOrdenCredencialesCache,
-  
+
   upsertDiasFestivos,
   getDiaFestivo
 };

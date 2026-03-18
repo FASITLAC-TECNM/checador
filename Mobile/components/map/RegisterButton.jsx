@@ -317,6 +317,34 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             return true;
           }
 
+          // ── Guardia offline: si los registros locales muestran jornada completa,
+          //    no dejar que el backend (que puede no tener aún los registros offline)
+          //    habilite el botón incorrectamente.
+          const registrosLocales = registrosHoyTodosRef.current || [];
+          const horarioLocal = horarioInfoRef.current;
+          if (data.puedeRegistrar && horarioLocal?.bloques?.length) {
+            const numSalidasLocales = registrosLocales.filter(r => r.tipo === 'salida').length;
+            const numBloquesLocales = horarioLocal.bloques.length;
+            if (numSalidasLocales >= numBloquesLocales) {
+              // Verificar si hay un bloque extra con ventana abierta (5 min antes de su entrada)
+              const MINUTOS_ANTES = 5;
+              const bloqueExtra = horarioLocal.bloques[numSalidasLocales];
+              const ahora = new Date();
+              const ahoraMins = ahora.getHours() * 60 + ahora.getMinutes();
+              const ventanaAbierta = bloqueExtra && ahoraMins >= (bloqueExtra.entrada - MINUTOS_ANTES);
+              if (!ventanaAbierta) {
+                // Jornada completa localmente — bloquear aunque el backend diga lo contrario
+                setPuedeRegistrar(false);
+                setTipoSiguienteRegistro('entrada');
+                setEstadoHorario('bloque_completo');
+                setJornadaCompletada(true);
+                setMensajeEspera('Jornada completa. No es necesario registrar más asistencias por hoy.');
+                setUsandoEstadoBackend(true);
+                return true;
+              }
+            }
+          }
+
           setPuedeRegistrar(data.puedeRegistrar);
           if (data.estadoHorario) setEstadoHorario(data.estadoHorario);
           if (data.tipoSiguienteRegistro) setTipoSiguienteRegistro(data.tipoSiguienteRegistro);
@@ -465,11 +493,46 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
 
     if (ultimoTipo === 'salida') {
-      setPuedeRegistrar(true);
+      // Contar cuántas salidas hay hoy y cuántos bloques tiene el horario
+      const numSalidas = (registrosHoyTodos || []).filter(r => r.tipo === 'salida').length;
+      const numBloques = horarioInfo?.bloques?.length || 0;
+
+      // Si aún quedan bloques sin cubrir → comportamiento normal (siguiente entrada)
+      if (numSalidas < numBloques) {
+        setPuedeRegistrar(true);
+        setTipoSiguienteRegistro('entrada');
+        setEstadoHorario('activo');
+        setJornadaCompletada(false);
+        setMensajeEspera('');
+        return;
+      }
+
+      // ── Último turno completado: jornada terminada ──
+      // Revisar si el admin configuró un bloque extra (índice numSalidas en adelante)
+      // y si ya es hora de abrir la ventana (5 min antes de su entrada).
+      const MINUTOS_ANTES = 5;
+      const bloqueExtra = horarioInfo?.bloques?.[numSalidas]; // bloque que correspondería al siguiente turno
+      if (bloqueExtra) {
+        const ahora = horaActual; // actualizado cada segundo por el ticker
+        const ahoraMins = ahora.getHours() * 60 + ahora.getMinutes();
+        const apertura = bloqueExtra.entrada - MINUTOS_ANTES;
+        if (ahoraMins >= apertura) {
+          // Ya se abrió la ventana para el bloque extra → habilitar registro
+          setPuedeRegistrar(true);
+          setTipoSiguienteRegistro('entrada');
+          setEstadoHorario('activo');
+          setJornadaCompletada(false);
+          setMensajeEspera('');
+          return;
+        }
+      }
+
+      // No hay bloque extra o aún no es hora → bloquear botón
+      setPuedeRegistrar(false);
       setTipoSiguienteRegistro('entrada');
-      setEstadoHorario('activo');
-      setJornadaCompletada(false);
-      setMensajeEspera('');
+      setEstadoHorario('bloque_completo');
+      setJornadaCompletada(true);
+      setMensajeEspera('Jornada completa. No es necesario registrar más asistencias por hoy.');
       return;
     }
 
@@ -482,7 +545,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     setJornadaCompletada(false);
     setMensajeEspera('');
 
-  }, [horarioInfo, ultimoRegistroHoy, registrosHoyTodos, diaFestivo, usandoEstadoBackend]);
+  }, [horarioInfo, ultimoRegistroHoy, registrosHoyTodos, diaFestivo, usandoEstadoBackend, horaActual]);
 
 
 
@@ -1546,7 +1609,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             Alert.alert(
               'Aún no es tu hora',
               `Tu próxima entrada está programada a las ${_minsToHHMM(bloqueSinEntrada.entrada)}.\n` +
-              `El registro se habilitará a las ${_minsToHHMM(bloqueSinEntrada.entrada - anticipoEntradaEfectivo)}.`,
+              `\nEl registro se habilitará a las ${_minsToHHMM(bloqueSinEntrada.entrada - anticipoEntradaEfectivo)}.`,
               [{ text: 'Entendido' }]
             );
             return;

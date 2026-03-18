@@ -2,6 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import BiometricAuth from "./BiometricAuth";
 import FacialAuthModal from "./FacialAuthModal";
+import { 
+    User, Lock, Eye, EyeOff, Fingerprint, Camera, 
+    X, CheckCircle2, ChevronRight, Info, LogIn
+} from "lucide-react";
 
 function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales, isReaderConnected = false, isCameraConnected = false }) {
     // Verificar si los métodos biométricos están habilitados
@@ -19,6 +23,7 @@ function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales,
     const [showBiometricModal, setShowBiometricModal] = useState(false);
     const [showFacialModal, setShowFacialModal] = useState(false);
     const [loggedInUser, setLoggedInUser] = useState(null);
+    const [greeting, setGreeting] = useState("");
 
     // Ref para mantener el valor actual de showBiometricModal (evitar stale closure)
     const showBiometricModalRef = useRef(showBiometricModal);
@@ -35,6 +40,11 @@ function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales,
     // IMPORTANTE: Resetear el estado de los modales biometricos cuando el componente se monta
     // Esto previene que los modales queden activos de sesiones anteriores
     useEffect(() => {
+        const hour = new Date().getHours();
+        if (hour < 12) setGreeting("Buenos días");
+        else if (hour < 18) setGreeting("Buenas tardes");
+        else setGreeting("Buenas noches");
+
         // Siempre cerrar los modales al montar para evitar estados residuales
         setShowBiometricModal(false);
         setShowFacialModal(false);
@@ -170,76 +180,60 @@ function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales,
     return (
         <>
             <div
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
                 onClick={handleBackdropClick}
             >
-                <div className="bg-bg-primary rounded-2xl w-full max-w-sm mx-4 overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto">
-                    {/* Header */}
-                    <div className="bg-gradient-to-r from-[#1976D2] to-[#001A70] dark:from-[#1565C0] dark:to-[#001A70] px-6 py-5 text-center relative">
+                <div className="bg-bg-primary rounded-lg w-full max-w-md overflow-hidden shadow-2xl border border-border-subtle animate-in fade-in zoom-in duration-200">
+                    {/* Header - Simple & Clean */}
+                    <div className="px-8 pt-8 pb-6 relative text-center">
                         <button
                             onClick={onClose}
-                            className="absolute top-3 right-3 text-white/70 hover:text-white transition-colors"
+                            className="absolute top-4 right-4 p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-full transition-all"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
+                            <X className="w-5 h-5" />
                         </button>
-                        <div className="w-12 h-12 bg-white/20 dark:bg-white/10 rounded-full flex items-center justify-center mx-auto mb-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                        
+                        <div className="inline-flex items-center justify-center p-3 mb-4 bg-accent/5 rounded-lg border border-accent/10">
+                            <img src="images/logo.ico" alt="Logo" className="w-8 h-8 object-contain" />
                         </div>
-                        <h1 className="text-xl font-bold text-white mb-0.5">Checador</h1>
-                        <p className="text-white/80 dark:text-white/70 text-xs">Sistema de Control de Asistencias</p>
+                        
+                        <h2 className="text-xs font-semibold text-accent uppercase tracking-[0.2em] mb-1">
+                            Control de Acceso
+                        </h2>
+                        <h1 className="text-2xl font-light tracking-tight text-text-primary">
+                            {greeting}, <span className="font-semibold text-text-primary">Inicia Sesión</span>
+                        </h1>
                     </div>
 
-                    {/* Form */}
-                    <div className="px-6 py-4">
+                    {/* Form & Content */}
+                    <div className="px-8 pb-8">
                         {loginSuccess ? (
-                            /* Success message */
-                            <div className="py-6 text-center">
-                                <div className="w-16 h-16 bg-green-500/20 dark:bg-green-500/30 rounded-full flex items-center justify-center mx-auto mb-3">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-green-400 dark:text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                    </svg>
+                            <div className="py-8 text-center animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-success/20">
+                                    <CheckCircle2 className="w-8 h-8 text-success" />
                                 </div>
-                                <h2 className="text-lg font-semibold text-text-primary mb-1">
-                                    Bienvenido!
+                                <h2 className="text-xl font-semibold text-text-primary mb-1">
+                                    ¡Bienvenido!
                                 </h2>
-                                <p className="text-green-400 dark:text-green-300 text-base mb-0.5">
+                                <p className="text-text-secondary">
                                     {loggedInUser?.nombre || 'Usuario'}
-                                </p>
-                                <p className="text-text-secondary text-xs">
-                                    Sesion iniciada correctamente
                                 </p>
                             </div>
                         ) : (
                             <>
-                                <h2 className="text-lg font-semibold text-text-primary mb-4 text-center">
-                                    Iniciar Sesion
-                                </h2>
-
                                 {/* Error message */}
                                 {(error || authError) && (
-                                    <div className="mb-3 p-2 bg-red-500/20 dark:bg-red-500/30 border border-red-500/50 dark:border-red-500/60 rounded-lg flex items-center gap-2">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-red-400 dark:text-red-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        <p className="text-xs text-red-300 dark:text-red-200">{error || authError}</p>
+                                    <div className="mb-6 p-4 bg-red-500/5 border border-red-500/20 rounded-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+                                        <Info className="w-5 h-5 text-red-500 shrink-0" />
+                                        <p className="text-sm text-red-600 font-medium">{error || authError}</p>
                                     </div>
                                 )}
 
-                                <form onSubmit={handleSubmit} className="space-y-3">
-                                    {/* Usuario field */}
+                                <form onSubmit={handleSubmit} className="space-y-4">
                                     <div>
-                                        <label htmlFor="usuario" className="block text-xs font-medium text-text-secondary mb-1">
-                                            Usuario o Correo
-                                        </label>
-                                        <div className="relative">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                                </svg>
+                                        <div className="relative group">
+                                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                                                <User className="w-4.5 h-4.5 text-text-tertiary group-focus-within:text-accent transition-colors" />
                                             </div>
                                             <input
                                                 type="text"
@@ -247,8 +241,8 @@ function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales,
                                                 name="usuario"
                                                 value={formData.usuario}
                                                 onChange={handleChange}
-                                                className="w-full bg-bg-secondary border border-border-subtle rounded-lg py-2 pl-9 pr-3 text-sm text-text-primary placeholder-text-disabled focus:outline-none focus:border-[#1976D2] focus:ring-1 focus:ring-[#1976D2] transition-colors"
-                                                placeholder="tu.usuario o correo@ejemplo.com"
+                                                className="w-full bg-bg-secondary/50 border border-border-subtle rounded-md py-3 pl-11 pr-4 text-sm text-text-primary placeholder:text-text-disabled focus:outline-none focus:border-accent/50 focus:ring-4 focus:ring-accent/5 transition-all"
+                                                placeholder="Usuario o correo electrónico"
                                                 autoComplete="username"
                                                 autoFocus
                                                 disabled={isSubmitting}
@@ -256,16 +250,10 @@ function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales,
                                         </div>
                                     </div>
 
-                                    {/* Password field */}
                                     <div>
-                                        <label htmlFor="contrasena" className="block text-xs font-medium text-text-secondary mb-1">
-                                            Contrasena
-                                        </label>
-                                        <div className="relative">
-                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-text-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                                </svg>
+                                        <div className="relative group">
+                                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                                                <Lock className="w-4.5 h-4.5 text-text-tertiary group-focus-within:text-accent transition-colors" />
                                             </div>
                                             <input
                                                 type={showPassword ? 'text' : 'password'}
@@ -273,115 +261,106 @@ function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales,
                                                 name="contrasena"
                                                 value={formData.contrasena}
                                                 onChange={handleChange}
-                                                className="w-full bg-bg-secondary border border-border-subtle rounded-lg py-2 pl-9 pr-10 text-sm text-text-primary placeholder-text-disabled focus:outline-none focus:border-[#1976D2] focus:ring-1 focus:ring-[#1976D2] transition-colors"
-                                                placeholder="••••••••"
+                                                className="w-full bg-bg-secondary/50 border border-border-subtle rounded-xl py-3 pl-11 pr-12 text-sm text-text-primary placeholder:text-text-disabled focus:outline-none focus:border-accent/50 focus:ring-4 focus:ring-accent/5 transition-all"
+                                                placeholder="Contraseña"
                                                 autoComplete="current-password"
                                                 disabled={isSubmitting}
                                             />
                                             <button
                                                 type="button"
                                                 onClick={() => setShowPassword(!showPassword)}
-                                                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                                                className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-text-tertiary hover:text-text-primary transition-colors"
                                                 tabIndex={-1}
                                             >
-                                                {showPassword ? (
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-text-tertiary hover:text-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                                                    </svg>
-                                                ) : (
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-text-tertiary hover:text-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                                    </svg>
-                                                )}
+                                                {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
                                             </button>
                                         </div>
                                     </div>
 
-                                    {/* Submit button */}
                                     <button
                                         type="submit"
                                         disabled={isSubmitting || loading}
-                                        className="w-full bg-[#1976D2] hover:bg-[#1565C0] text-white py-2.5 md:py-3 2xl:py-4 rounded-xl font-semibold text-sm md:text-base 2xl:text-lg focus:outline-none focus:ring-2 focus:ring-[#1976D2] focus:ring-offset-2 focus:ring-offset-bg-primary disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                                        className="w-full bg-accent hover:bg-accent-hover text-white py-3.5 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-accent/20 active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
                                     >
                                         {isSubmitting || loading ? (
-                                            <span className="flex items-center justify-center gap-2">
-                                                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                </svg>
-                                                Iniciando sesion...
-                                            </span>
+                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                         ) : (
-                                            'Iniciar Sesion'
+                                            <span>Iniciar Sesión</span>
                                         )}
                                     </button>
                                 </form>
 
-                                {/* Divider */}
-                                <div className="relative my-4">
-                                    <div className="absolute inset-0 flex items-center">
-                                        <div className="w-full border-t border-border-subtle"></div>
-                                    </div>
-                                    <div className="relative flex justify-center text-xs">
-                                        <span className="px-3 bg-bg-primary text-text-tertiary">
-                                            o inicia con
+                                {/* Biometric Section */}
+                                <div className="mt-8">
+                                    <div className="relative flex items-center justify-center mb-6">
+                                        <div className="absolute inset-0 flex items-center">
+                                            <div className="w-full border-t border-border-subtle"></div>
+                                        </div>
+                                        <span className="relative px-4 bg-bg-primary text-[11px] font-bold text-text-tertiary uppercase tracking-widest">
+                                            Acceso Rápido
                                         </span>
                                     </div>
-                                </div>
 
-                                {/* Biometric buttons */}
-                                <div className="space-y-2">
-                                    {/* Fingerprint button */}
-                                    <button
-                                        type="button"
-                                        onClick={handleBiometricLogin}
-                                        disabled={isSubmitting || loading || !isFingerprintEnabled || !isReaderConnected}
-                                        className={`w-full py-2.5 px-4 md:py-3 md:px-5 2xl:py-4 2xl:px-6 rounded-xl font-semibold text-sm md:text-base 2xl:text-lg transition-all flex items-center gap-3 disabled:cursor-not-allowed ${!isFingerprintEnabled || !isReaderConnected
-                                            ? "bg-gradient-to-r from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700 text-white/80 opacity-60"
-                                            : "bg-[#1976D2] hover:bg-[#1565C0] text-white"
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <button
+                                            type="button"
+                                            onClick={handleBiometricLogin}
+                                            disabled={isSubmitting || loading || !isFingerprintEnabled || !isReaderConnected}
+                                            className={`flex flex-col items-center justify-center p-4 rounded-lg border transition-all duration-200 group ${
+                                                !isFingerprintEnabled || !isReaderConnected
+                                                ? "bg-bg-secondary/30 border-border-subtle opacity-50 cursor-not-allowed"
+                                                : "bg-bg-secondary/50 border-border-subtle hover:border-accent/40 hover:bg-bg-primary"
                                             }`}
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4" />
-                                        </svg>
-                                        <div className="flex flex-col items-start">
-                                            <span>Huella Digital</span>
-                                            {!isFingerprintEnabled && <span className="text-[10px] opacity-75 font-normal">No habilitado</span>}
-                                            {isFingerprintEnabled && !isReaderConnected && <span className="text-[10px] opacity-75 font-normal">Lector desconectado</span>}
-                                        </div>
-                                    </button>
+                                        >
+                                            <div className={`w-10 h-10 rounded-md flex items-center justify-center mb-3 transition-colors ${
+                                                !isFingerprintEnabled || !isReaderConnected
+                                                ? "bg-text-tertiary/10 text-text-tertiary"
+                                                : "bg-accent/5 text-text-secondary group-hover:text-accent group-hover:bg-accent/10"
+                                            }`}>
+                                                <Fingerprint className="w-5 h-5" />
+                                            </div>
+                                            <span className="text-xs font-semibold text-text-primary mb-1">Huella</span>
+                                            <span className="text-[10px] text-text-tertiary text-center leading-tight">
+                                                {!isFingerprintEnabled ? "Inactivo" : !isReaderConnected ? "Desconectado" : "Lector listo"}
+                                            </span>
+                                        </button>
 
-                                    {/* Facial recognition button */}
-                                    <button
-                                        type="button"
-                                        onClick={handleFacialLogin}
-                                        disabled={isSubmitting || loading || !isFacialEnabled || !isCameraConnected}
-                                        className={`w-full py-2.5 px-4 md:py-3 md:px-5 2xl:py-4 2xl:px-6 rounded-xl font-semibold text-sm md:text-base 2xl:text-lg transition-all flex items-center gap-3 disabled:cursor-not-allowed ${!isFacialEnabled || !isCameraConnected
-                                            ? "bg-gradient-to-r from-gray-400 to-gray-500 dark:from-gray-600 dark:to-gray-700 text-white/80 opacity-60"
-                                            : "bg-[#1976D2] hover:bg-[#1565C0] text-white"
+                                        <button
+                                            type="button"
+                                            onClick={handleFacialLogin}
+                                            disabled={isSubmitting || loading || !isFacialEnabled || !isCameraConnected}
+                                            className={`flex flex-col items-center justify-center p-4 rounded-xl border transition-all duration-200 group ${
+                                                !isFacialEnabled || !isCameraConnected
+                                                ? "bg-bg-secondary/30 border-border-subtle opacity-50 cursor-not-allowed"
+                                                : "bg-bg-secondary/50 border-border-subtle hover:border-accent/40 hover:bg-bg-primary"
                                             }`}
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                                        </svg>
-                                        <div className="flex flex-col items-start">
-                                            <span>Reconocimiento Facial</span>
-                                            {!isFacialEnabled && <span className="text-[10px] opacity-75 font-normal">No habilitado</span>}
-                                            {isFacialEnabled && !isCameraConnected && <span className="text-[10px] opacity-75 font-normal">Cámara no disponible</span>}
-                                        </div>
-                                    </button>
+                                        >
+                                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 transition-colors ${
+                                                !isFacialEnabled || !isCameraConnected
+                                                ? "bg-text-tertiary/10 text-text-tertiary"
+                                                : "bg-accent/5 text-text-secondary group-hover:text-accent group-hover:bg-accent/10"
+                                            }`}>
+                                                <Camera className="w-5 h-5" />
+                                            </div>
+                                            <span className="text-xs font-semibold text-text-primary mb-1">Facial</span>
+                                            <span className="text-[10px] text-text-tertiary text-center leading-tight">
+                                                {!isFacialEnabled ? "Inactivo" : !isCameraConnected ? "Sin cámara" : "Cámara lista"}
+                                            </span>
+                                        </button>
+                                    </div>
                                 </div>
                             </>
                         )}
                     </div>
 
                     {/* Footer */}
-                    <div className="px-6 py-3 bg-bg-secondary border-t border-border-divider">
-                        <p className="text-center text-xs text-text-tertiary">
-                            FASITLAC © 2026 - Sistema Checador v2.0
-                        </p>
+                    <div className="px-8 py-4 bg-bg-secondary/30 border-t border-border-subtle flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 grayscale opacity-70">
+                            <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">FASITLAC</span>
+                        </div>
+                        <div className="text-[10px] font-medium text-text-disabled uppercase tracking-widest">
+                            v2.0
+                        </div>
                     </div>
                 </div>
             </div>

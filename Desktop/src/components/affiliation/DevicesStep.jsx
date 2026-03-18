@@ -208,7 +208,7 @@ export default function DevicesStep({
                 </div>
                 <h3 className="text-xl font-light mb-2">No hay <span className="font-semibold">dispositivos</span></h3>
                 <p className="text-sm text-text-tertiary max-w-sm mb-8">
-                  Para que el sistema funcione, necesitamos detectar al menos una cámara o lector biométrico.
+                  Se recomienda detectar al menos una cámara o lector biométrico para un funcionamiento óptimo.
                 </p>
                 <div className="flex gap-4">
                   <button
@@ -238,14 +238,7 @@ export default function DevicesStep({
           </button>
           <button
             onClick={onNext}
-            disabled={devices.length === 0}
-            className={`
-              group px-10 py-3.5 rounded-lg font-semibold transition-all duration-300 flex items-center gap-3 shadow-sm
-              ${devices.length > 0
-                ? "bg-accent text-white hover:bg-accent-hover hover:-translate-y-0.5 active:scale-95 shadow-accent/20"
-                : "bg-border-divider text-text-disabled cursor-not-allowed opacity-50"
-              }
-            `}
+            className="group px-10 py-3.5 rounded-lg font-semibold transition-all duration-300 flex items-center gap-3 shadow-sm bg-accent text-white hover:bg-accent-hover hover:-translate-y-0.5 active:scale-95 shadow-accent/20"
           >
             Siguiente Paso
             <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

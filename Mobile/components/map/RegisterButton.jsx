@@ -82,6 +82,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const tipoSiguienteRegistroRef = useRef(null);
   const isOnlineRef = useRef(false);
   const ticksRef = useRef(0);
+  const currentDateRef = useRef((() => {
+    const d = new Date();
+    const off = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - off).toISOString().split('T')[0];
+  })());
   const styles = darkMode ? registerStylesDark : registerStyles;
   const [horaActual, setHoraActual] = useState(new Date());
   useEffect(() => { horarioInfoRef.current = horarioInfo; }, [horarioInfo]);
@@ -341,6 +346,32 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       setHoraActual(new Date());
       ticksRef.current += 1;
 
+      // ── Verificar cambio de día (medianoche) para re-evaluar festivo offline ──
+      const ahora = new Date();
+      const ahoraOffset = ahora.getTimezoneOffset() * 60000;
+      const fechaHoyStr = new Date(ahora.getTime() - ahoraOffset).toISOString().split('T')[0];
+      if (fechaHoyStr !== currentDateRef.current) {
+        currentDateRef.current = fechaHoyStr;
+        // Re-verificar festivo para el nuevo día
+        try {
+          let onlineNow = false;
+          try { onlineNow = await syncManager.isOnline() && !syncManager.getIsBackendDown(); } catch (e) { }
+          if (!onlineNow) {
+            // Offline: consultar SQLite con la nueva fecha
+            try {
+              const festivoNuevoDia = await sqliteManager.getDiaFestivo(fechaHoyStr);
+              if (festivoNuevoDia) {
+                setDiaFestivo({ nombre: festivoNuevoDia.nombre, tipo: festivoNuevoDia.tipo });
+              } else {
+                setDiaFestivo(null);
+              }
+            } catch (e) {
+              setDiaFestivo(null);
+            }
+          }
+          // Si está online cargarDatos completo no es necesario; el preflight lo manejará
+        } catch (e) { }
+      }
 
       if (ticksRef.current % 15 === 0) {
         await actualizarEstadoPreflight();
@@ -1480,6 +1511,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
         const regsTodos = registrosHoyTodosRef.current || [];
 
+        // Tolerancia offline de entrada: mínimo 5 minutos de anticipo garantizado.
+        // Si el admin configuró más (ej. 15 min), se respeta ese valor.
+        const ANTICIPO_OFFLINE_MIN = 5;
+        const anticipoEntradaEfectivo = Math.max(anticipoEntrada, ANTICIPO_OFFLINE_MIN);
 
         const getMinutosLocales = (fechaStr) => {
           if (!fechaStr) return -1;
@@ -1506,11 +1541,13 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         });
 
         if (bloqueSinEntrada) {
-          if (minsAhora < bloqueSinEntrada.entrada - anticipoEntrada) {
+          if (minsAhora < bloqueSinEntrada.entrada - anticipoEntradaEfectivo) {
+            // Bloqueo total: aún no es la hora permitida (máx. 5 min de anticipo offline).
             Alert.alert(
-              'Aviso',
-              `Tu próxima entrada es a las ${_minsToHHMM(bloqueSinEntrada.entrada)}.\nEstás registrando entrada anticipada.`,
-              [{ text: 'Entendido', onPress: continuarProcesoRegistro }]
+              'Aún no es tu hora',
+              `Tu próxima entrada está programada a las ${_minsToHHMM(bloqueSinEntrada.entrada)}.\n` +
+              `El registro se habilitará a las ${_minsToHHMM(bloqueSinEntrada.entrada - anticipoEntradaEfectivo)}.`,
+              [{ text: 'Entendido' }]
             );
             return;
           }

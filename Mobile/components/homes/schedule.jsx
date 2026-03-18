@@ -145,7 +145,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
       setScheduleData(horarioParsed);
       setResumen(calcularResumenSemanal(horarioParsed));
       setInfoHoy(obtenerInfoHoyMejorada(horarioParsed));
-      
+
       const tzDate = new Date();
       const tzOffset = tzDate.getTimezoneOffset() * 60000;
       const hoyStr = new Date(tzDate.getTime() - tzOffset).toISOString().split('T')[0];
@@ -256,16 +256,16 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
     const hoy = new Date();
     const hoyIdx = hoy.getDay();
     const targetIdx = diasSemana.indexOf(day.day);
-    
+
     // Calcular la fecha del día clickeado en base a la semana actual
     let diff = targetIdx - hoyIdx;
     const targetDate = new Date(hoy);
     targetDate.setDate(hoy.getDate() + diff);
     const tzOffset = targetDate.getTimezoneOffset() * 60000;
     const targetDateStr = new Date(targetDate.getTime() - tzOffset).toISOString().split('T')[0];
-    
+
     const festivoLocal = await sqliteManager.getDiaFestivo(targetDateStr);
-    
+
     setSelectedDay({ ...day, festivo: festivoLocal });
     setModalVisible(true);
   };
@@ -327,7 +327,7 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
           }
 
           { }
-          {diaFestivo ? 
+          {diaFestivo ?
             <View style={[styles.dayOffCard, { borderColor: '#8b5cf6', borderWidth: 1, backgroundColor: darkMode ? 'rgba(139, 92, 246, 0.1)' : '#f3f0ff' }]}>
               <View style={[styles.dayOffIcon, { backgroundColor: darkMode ? 'rgba(139, 92, 246, 0.2)' : '#ede9fe' }]}>
                 <Ionicons name="calendar-outline" size={48} color={darkMode ? "#c4b5fd" : "#8b5cf6"} />
@@ -335,80 +335,75 @@ export const ScheduleScreen = ({ darkMode, userData }) => {
               <Text style={[styles.dayOffTitle, { color: darkMode ? '#c4b5fd' : '#7c3aed' }]}>Día Festivo</Text>
               <Text style={styles.dayOffText}>{diaFestivo.nombre}</Text>
             </View> :
-          infoHoy.trabaja && infoHoy.turnoRelevante ?
-            <View style={styles.todayCard}>
-              <View style={styles.todayHeader}>
-                <View style={styles.todayBadge}>
-                  <Text style={styles.todayBadgeText}>
-                    {infoHoy.turnoRelevante.estado === 'activo' ? 'ACTIVO' : 'SIGUIENTE'}
-                  </Text>
-                </View>
-                <Text style={styles.todayDate}>
-                  {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
-                </Text>
-              </View>
-
-              { }
-              <View style={styles.currentShiftContainer}>
-                <View style={styles.shiftTimeRow}>
-                  <View style={styles.shiftTimeBlock}>
-                    <Ionicons name="time-outline" size={24} color={darkMode ? "#3794fd" : "#6366f1"} />
-                    <View style={styles.shiftTimeInfo}>
-                      <Text style={styles.shiftLabel}>
-                        {infoHoy.turnoRelevante.estado === 'activo' ? 'En turno' : 'Próximo turno'}
-                      </Text>
-                      <Text style={styles.shiftTime}>
-                        {formatearRangoTiempo(infoHoy.turnoRelevante)}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                { }
-                {infoHoy.turnos.length > 1 &&
-                  <TouchableOpacity
-                    style={styles.moreTurnsButton}
-                    onPress={() => {
-                      const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-                      const nombreHoy = diasSemana[new Date().getDay()];
-                      const diaHoy = scheduleData.find((d) => d.day === nombreHoy);
-                      handleDayPress(diaHoy);
-                    }}>
-
-                    <Ionicons name="albums-outline" size={18} color={darkMode ? "#3794fd" : "#6366f1"} />
-                    <Text style={styles.moreTurnsText}>
-                      {infoHoy.turnos.length} turnos hoy - Ver todos
-                    </Text>
-                    <Ionicons name="chevron-forward" size={18} color={darkMode ? "#3794fd" : "#6366f1"} />
-                  </TouchableOpacity>
-                }
-              </View>
-
-              <View style={styles.todayLocation}>
-                <Ionicons name="location" size={16} color={darkMode ? "#3794fd" : "#6366f1"} />
-                <Text style={styles.todayLocationText}>Edificio A - Entrada Principal</Text>
-              </View>
-            </View> :
-            infoHoy.trabaja ?
+            infoHoy.trabaja && infoHoy.turnoRelevante ?
               <View style={styles.todayCard}>
                 <View style={styles.todayHeader}>
-                  <View style={[styles.todayBadge, { backgroundColor: '#6b7280' }]}>
-                    <Text style={styles.todayBadgeText}>FINALIZADO</Text>
+                  <View style={styles.todayBadge}>
+                    <Text style={styles.todayBadgeText}>
+                      {infoHoy.turnoRelevante.estado === 'activo' ? 'ACTIVO' : 'SIGUIENTE'}
+                    </Text>
                   </View>
                   <Text style={styles.todayDate}>
                     {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
                   </Text>
                 </View>
-                <Text style={styles.finishedText}>Todos los turnos de hoy han finalizado</Text>
-              </View> :
 
-              <View style={styles.dayOffCard}>
-                <View style={styles.dayOffIcon}>
-                  <Ionicons name="cafe-outline" size={48} color={darkMode ? "#3794fd" : "#6366f1"} />
+                { }
+                <View style={styles.currentShiftContainer}>
+                  <View style={styles.shiftTimeRow}>
+                    <View style={styles.shiftTimeBlock}>
+                      <Ionicons name="time-outline" size={24} color={darkMode ? "#3794fd" : "#6366f1"} />
+                      <View style={styles.shiftTimeInfo}>
+                        <Text style={styles.shiftLabel}>
+                          {infoHoy.turnoRelevante.estado === 'activo' ? 'En turno' : 'Próximo turno'}
+                        </Text>
+                        <Text style={styles.shiftTime}>
+                          {formatearRangoTiempo(infoHoy.turnoRelevante)}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  { }
+                  {infoHoy.turnos.length > 1 &&
+                    <TouchableOpacity
+                      style={styles.moreTurnsButton}
+                      onPress={() => {
+                        const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                        const nombreHoy = diasSemana[new Date().getDay()];
+                        const diaHoy = scheduleData.find((d) => d.day === nombreHoy);
+                        handleDayPress(diaHoy);
+                      }}>
+
+                      <Ionicons name="albums-outline" size={18} color={darkMode ? "#3794fd" : "#6366f1"} />
+                      <Text style={styles.moreTurnsText}>
+                        {infoHoy.turnos.length} turnos hoy - Ver todos
+                      </Text>
+                      <Ionicons name="chevron-forward" size={18} color={darkMode ? "#3794fd" : "#6366f1"} />
+                    </TouchableOpacity>
+                  }
                 </View>
-                <Text style={styles.dayOffTitle}>Día de Descanso</Text>
-                <Text style={styles.dayOffText}>Disfruta tu día libre</Text>
-              </View>
+              </View> :
+              infoHoy.trabaja ?
+                <View style={styles.todayCard}>
+                  <View style={styles.todayHeader}>
+                    <View style={[styles.todayBadge, { backgroundColor: '#6b7280' }]}>
+                      <Text style={styles.todayBadgeText}>FINALIZADO</Text>
+                    </View>
+                    <Text style={styles.todayDate}>
+                      {new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    </Text>
+                  </View>
+                  <Text style={styles.finishedText}>Todos los turnos de hoy han finalizado</Text>
+                </View> :
+
+                <View style={styles.dayOffCard}>
+                  <View style={styles.dayOffIcon}>
+                    <Ionicons name="cafe-outline" size={48} color={darkMode ? "#3794fd" : "#6366f1"} />
+                  </View>
+                  <Text style={styles.dayOffTitle}>Día de Descanso</Text>
+                  <Text style={styles.dayOffText}>Disfruta tu día libre</Text>
+                </View>
           }
 
           { }

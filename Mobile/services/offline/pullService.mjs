@@ -147,9 +147,6 @@ export async function fullPull(empleadoId) {
 
     try {
       if (data.tolerancia) {
-
-
-
         const toleranciaCompleta = {
           minutos_retardo: data.tolerancia.minutos_retardo ?? 10,
           minutos_falta: data.tolerancia.minutos_falta ?? 30,
@@ -174,9 +171,6 @@ export async function fullPull(empleadoId) {
     } catch (tolError) {
       results.tolerancia = { success: false, error: tolError.message };
     }
-
-
-
 
     try {
       if (data.departamentos && data.departamentos.length > 0) {
@@ -323,7 +317,7 @@ export async function fullPull(empleadoId) {
         const festivosObligatorios = festivosData.data.filter(
           (f) => f.es_obligatorio && f.es_activo
         );
-        
+
         if (festivosObligatorios.length > 0) {
           await sqliteManager.upsertDiasFestivos(festivosObligatorios.map(f => ({
             fecha: f.fecha?.split('T')[0],

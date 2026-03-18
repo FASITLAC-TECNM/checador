@@ -184,13 +184,6 @@ export default function ApprovalStep({
 
           <div className="mt-12 flex flex-col items-center gap-4">
             <button
-               onClick={onRetry}
-               className="group flex items-center gap-2 text-sm text-text-tertiary hover:text-accent transition-colors py-2 px-4 rounded-lg hover:bg-accent/5"
-            >
-              <RefreshCw className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500" />
-              Verificar estado manualmente
-            </button>
-            <button
               onClick={onCancel}
               className="px-8 py-3 bg-bg-secondary border border-border-subtle rounded-lg text-sm font-semibold hover:bg-error/5 hover:text-error hover:border-error/20 transition-all flex items-center gap-2"
             >

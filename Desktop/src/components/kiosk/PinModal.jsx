@@ -163,7 +163,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                     Cerrando en {countdown}s
                   </div>
 
-                  {onLoginRequest && result.success && (
+                  {onLoginRequest && (result.success || result.usuario || result.empleado) && (
                     <button
                       onClick={() => handleLoginRequest()}
                       className="w-full py-3.5 bg-bg-secondary hover:bg-bg-tertiary text-text-primary border border-border-subtle rounded-md font-bold text-sm transition-all flex items-center justify-center gap-2 ring-1 ring-border-subtle shadow-sm"

@@ -1,49 +1,45 @@
-import { X } from "lucide-react";
+import { 
+    X, Clock, User, Activity, 
+    CheckCircle2, AlertCircle, Info, ListFilter
+} from "lucide-react";
 import { obtenerBitacora } from "../../services/bitacoraService";
 import { useState, useEffect } from "react";
 import DynamicLoader from "../common/DynamicLoader";
 
-const getRowColor = (type) => {
+const getStatusStyles = (type) => {
   switch (type) {
     case "success":
-      return "hover:bg-green-50 dark:hover:bg-green-900/20";
+      return {
+        bg: "bg-success/10",
+        text: "text-success",
+        border: "border-success/20",
+        icon: CheckCircle2,
+        label: "Exitoso"
+      };
     case "error":
-      return "hover:bg-red-50 dark:hover:bg-red-900/20";
+      return {
+        bg: "bg-error/10",
+        text: "text-error",
+        border: "border-error/20",
+        icon: AlertCircle,
+        label: "Error"
+      };
     case "info":
-      return "hover:bg-blue-50 dark:hover:bg-blue-900/20";
+      return {
+        bg: "bg-accent/10",
+        text: "text-accent",
+        border: "border-accent/20",
+        icon: Info,
+        label: "Info"
+      };
     default:
-      return "hover:bg-bg-secondary dark:hover:bg-bg-tertiary";
-  }
-};
-
-const getStatusIcon = (type) => {
-  switch (type) {
-    case "success":
-      return (
-        <div className="flex justify-center items-center">
-          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
-            ✓ Exitoso
-          </span>
-        </div>
-      );
-    case "error":
-      return (
-        <div className="flex justify-center items-center">
-          <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">
-            ✕ Error
-          </span>
-        </div>
-      );
-    case "info":
-      return (
-        <div className="flex justify-center items-center">
-          <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-            ℹ Info
-          </span>
-        </div>
-      );
-    default:
-      return null;
+      return {
+        bg: "bg-text-tertiary/10",
+        text: "text-text-tertiary",
+        border: "border-border-divider",
+        icon: Activity,
+        label: "Evento"
+      };
   }
 };
 
@@ -78,78 +74,86 @@ export default function BitacoraModal({ onClose }) {
   }, [loading]);
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-bg-primary rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="bg-bg-primary px-5 py-4 flex items-center justify-between shrink-0 border-b border-border-subtle">
-          <div className="flex items-center">
-            <div>
-              <h3 className="text-2xl font-bold text-text-primary">
-                Bitácora de Eventos
-              </h3>
-              <p className="text-text-secondary text-sm mt-1">
-                Registro de actividad de los empleados ({eventos.length} eventos)
-              </p>
-            </div>
-          </div>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-backdrop">
+      <div className="bg-bg-primary rounded-lg shadow-2xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col border border-border-subtle animate-zoom-in">
+        {/* Header - Styled like Login */}
+        <div className="px-8 pt-8 pb-6 relative text-center border-b border-border-divider bg-bg-secondary/30">
           <button
             onClick={onClose}
-            className="text-text-secondary hover:bg-bg-secondary rounded-lg p-2 transition-colors"
+            className="absolute top-4 right-4 p-2 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-full transition-all"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
+          
+          <h1 className="text-2xl font-light tracking-tight text-text-primary">
+            Bitácora de <span className="font-semibold text-text-primary">Eventos</span>
+          </h1>
+          <p className="text-text-secondary text-sm mt-2 max-w-xs mx-auto">
+            Registro en tiempo real de los accesos y eventos del sistema.
+          </p>
         </div>
 
-        <div className="p-4 overflow-y-auto flex-1">
+        <div className="flex-1 overflow-y-auto p-6">
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <DynamicLoader text="Cargando bitácora..." size="medium" />
+            <div className="flex flex-col items-center justify-center py-20 grayscale opacity-50">
+              <DynamicLoader text="Sincronizando registros..." size="medium" />
+            </div>
+          ) : eventos.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="w-16 h-16 bg-bg-secondary rounded-full flex items-center justify-center mb-4">
+                <Activity className="w-8 h-8 text-text-disabled" />
+              </div>
+              <p className="text-text-secondary font-medium">No hay eventos registrados hoy</p>
             </div>
           ) : (
-            <div className="border border-border-subtle rounded-xl overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-bg-secondary border-b-2 border-border-subtle">
-                  <tr>
-                    <th className="text-center py-2 px-3 font-bold text-text-secondary text-xs">
-                      Hora
-                    </th>
-                    <th className="text-left py-2 px-3 font-bold text-text-secondary text-xs">
-                      Usuario
-                    </th>
-                    <th className="text-left py-2 px-3 font-bold text-text-secondary text-xs">
-                      Acción
-                    </th>
-                    <th className="text-center py-2 px-3 font-bold text-text-secondary text-xs">
-                      Estado
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {eventos.map((event, idx) => (
-                    <tr
-                      key={idx}
-                      className={`border-b border-border-subtle transition-colors ${getRowColor(
-                        event.type
-                      )}`}
-                    >
-                      <td className="py-2 px-3 text-text-secondary font-mono text-center font-semibold text-xs">
+            <div className="divide-y divide-border-divider/50">
+              {eventos.map((event, idx) => {
+                const styles = getStatusStyles(event.type);
+                const StatusIcon = styles.icon;
+
+                return (
+                  <div 
+                    key={idx}
+                    className="flex items-center gap-4 py-3.5 hover:bg-bg-secondary/30 transition-all group animate-in fade-in slide-in-from-bottom-2 duration-300"
+                    style={{ animationDelay: `${idx * 40}ms` }}
+                  >
+                    {/* Time - Minimalist */}
+                    <div className="min-w-[60px] text-center">
+                      <span className="text-[11px] font-bold text-text-tertiary tracking-tight tabular-nums">
                         {event.timestamp}
-                      </td>
-                      <td className="py-2 px-3 text-text-primary font-semibold text-xs">
-                        {event.user}
-                      </td>
-                      <td className="py-2 px-3 text-text-secondary text-xs">
+                      </span>
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-semibold text-text-primary truncate">
+                          {event.user}
+                        </span>
+                      </div>
+                      <p className="text-xs text-text-secondary truncate">
                         {event.action}
-                      </td>
-                      <td className="py-2 px-3">{getStatusIcon(event.type)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </p>
+                    </div>
+
+                    {/* Status Badge - More compact */}
+                    <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[9px] font-bold uppercase tracking-wider ${styles.bg} ${styles.text} ${styles.border}`}>
+                      <StatusIcon className="w-3 h-3" />
+                      <span>{styles.label}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
 
-
+        {/* Footer */}
+        <div className="px-8 py-4 bg-bg-secondary/30 border-t border-border-subtle flex items-center justify-end shrink-0">
+          <div className="text-[10px] font-medium text-text-disabled uppercase tracking-widest">
+            {eventos.length} registros hoy
+          </div>
+        </div>
       </div>
     </div>
   );

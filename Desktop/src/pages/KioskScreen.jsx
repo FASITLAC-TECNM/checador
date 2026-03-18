@@ -271,27 +271,27 @@ export default function KioskScreen() {
   }
 
   return (
-    <div className="h-screen bg-bg-secondary flex overflow-hidden">
-      {/* Barra lateral izquierda - iconos only en mobile, expandida en sm+, y ultra-amplia en 2xl+ */}
-      <div className="w-12 sm:w-20 2xl:w-32 bg-bg-primary shadow-lg flex flex-col items-center py-4 sm:py-6 2xl:py-10 gap-3 sm:gap-4 2xl:gap-8 flex-shrink-0">
+    <div className="h-screen bg-bg-secondary flex overflow-hidden p-2 sm:p-4 2xl:p-6">
+      {/* Barra lateral izquierda - Estilo "Burbuja" / Flotante */}
+      <div className="w-16 sm:w-24 2xl:w-36 bg-bg-primary shadow-xl rounded-2xl flex flex-col items-center py-6 2xl:py-10 gap-4 2xl:gap-8 flex-shrink-0 border border-border-subtle transition-all duration-300">
         <button
           onClick={() => setShowLoginModal(true)}
           disabled={!isInternetConnected || !isDatabaseConnected}
-          className={`flex flex-col items-center gap-1 p-1.5 sm:p-2 rounded-lg transition-all w-10 sm:w-16 ${!isInternetConnected || !isDatabaseConnected
+          className={`flex flex-col items-center gap-2 p-2 rounded-xl transition-all w-12 sm:w-20 ${!isInternetConnected || !isDatabaseConnected
             ? "text-gray-400 cursor-not-allowed opacity-50"
             : "text-[#1976D2] hover:bg-bg-secondary"
             }`}
         >
-          <User className="w-4 h-4 sm:w-5 sm:h-5 2xl:w-8 2xl:h-8" />
-          <span className="text-[9px] sm:text-xs 2xl:text-base font-semibold hidden sm:block">Usuario</span>
+          <User className="w-5 h-5 sm:w-6 sm:h-6 2xl:w-8 2xl:h-8" />
+          <span className="text-[10px] sm:text-xs 2xl:text-base font-bold hidden sm:block">Usuario</span>
         </button>
 
         <button
           onClick={() => setShowBitacora(true)}
-          className="flex flex-col items-center gap-1 text-[#1976D2] hover:bg-bg-secondary p-1.5 sm:p-2 rounded-lg transition-all w-10 sm:w-16"
+          className="flex flex-col items-center gap-2 text-[#1976D2] hover:bg-bg-secondary p-2 rounded-xl transition-all w-12 sm:w-20"
         >
-          <ClipboardList className="w-4 h-4 sm:w-5 sm:h-5 2xl:w-8 2xl:h-8" />
-          <span className="text-[9px] sm:text-xs 2xl:text-base font-semibold hidden sm:block">Bitácora</span>
+          <ClipboardList className="w-5 h-5 sm:w-6 sm:h-6 2xl:w-8 2xl:h-8" />
+          <span className="text-[10px] sm:text-xs 2xl:text-base font-bold hidden sm:block">Bitácora</span>
         </button>
 
         <div className="flex-1"></div>
@@ -305,7 +305,7 @@ export default function KioskScreen() {
       </div>
 
       {/* Contenido principal */}
-      <div className="flex-1 flex flex-col p-2 sm:p-4 2xl:p-8 overflow-hidden gap-2 sm:gap-3 2xl:gap-6">
+      <div className="flex-1 flex flex-col px-2 sm:px-4 2xl:px-8 overflow-hidden gap-2 sm:gap-3 2xl:gap-6">
         {/* Tarjeta principal de registro */}
         <div className="flex-[7] min-h-0">
           {loadingCredenciales ? (

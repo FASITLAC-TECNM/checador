@@ -1,6 +1,5 @@
-import { User, UserX, CalendarX, Lock, Eye, EyeOff, X, Clock, CheckCircle, XCircle, Loader2, Timer, AlertTriangle, LogIn } from "lucide-react";
+import { User, Lock, X, CheckCircle2, AlertCircle, Loader2, Fingerprint, Eye, EyeOff } from "lucide-react";
 import { useAttendanceRegistration } from "../../hooks/useAttendanceRegistration";
-import { formatearTiempoRestante } from "../../services/asistenciaLogicService";
 import { useEffect } from "react";
 
 export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
@@ -20,357 +19,170 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
     handleLoginRequest
   } = useAttendanceRegistration(onClose, onSuccess, onLoginRequest);
 
+  // Focus manual para el input si es necesario
   useEffect(() => {
     setUsuarioOCorreo("paultn");
-    setPin("142640");
-  }, [setUsuarioOCorreo, setPin]);
+  }, [setUsuarioOCorreo]);
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-bg-primary rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
-        {/* Header con gradiente */}
-        <div className="bg-gradient-to-r from-[#1976D2] to-[#001A70] p-6 relative">
-          <button
-            onClick={onClose}
-            className="absolute top-3 right-3 text-white/80 hover:text-white hover:bg-white/20 rounded-lg p-1.5 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-
-          <div className="flex flex-col items-center text-center">
-            <div className="w-16 h-16 rounded-full border-2 border-white/30 flex items-center justify-center mb-3">
-              <Clock className="w-8 h-8 text-white" />
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-backdrop">
+      <div className="bg-bg-primary rounded-lg shadow-2xl max-w-lg sm:max-w-xl w-full overflow-hidden border border-border-subtle animate-zoom-in">
+        {/* Main Content */}
+        <div className="p-8 sm:p-10">
+          {/* Header Minimalista */}
+          <div className="text-center mb-10 relative">
+            <button
+              onClick={onClose}
+              className="absolute -top-4 -right-4 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-md p-2 transition-all"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent/10 mb-6 ring-1 ring-accent/20">
+              <Lock className="w-8 h-8 text-accent" />
             </div>
-            <h2 className="text-xl font-bold text-white">Checador</h2>
-            <p className="text-white/80 text-sm">
-              Sistema de Control de Asistencias
-            </p>
+            <h2 className="text-3xl font-bold text-text-primary tracking-tight">Registro con PIN</h2>
+            <p className="text-text-tertiary text-sm mt-2 opacity-80">Ingresa tus credenciales para continuar</p>
           </div>
-        </div>
 
-        {/* Contenido */}
-        <div className="p-6">
           {!result ? (
-            /* Formulario */
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <h3 className="text-xl font-semibold text-text-primary text-center mb-4">
-                Ingresa tu usuario/correo y PIN
-              </h3>
+            <div className="space-y-8">
+              {/* Contenedor de Formulario */}
+              <div className="space-y-6">
+                {/* Input de Usuario */}
+                <div className="space-y-3">
+                  <label className="text-[11px] font-bold text-text-tertiary uppercase tracking-widest ml-1">
+                    Usuario o Correo
+                  </label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none transition-colors group-focus-within:text-accent">
+                      <User className="w-5 h-5 text-text-disabled" />
+                    </div>
+                    <input
+                      type="text"
+                      value={usuarioOCorreo}
+                      onChange={(e) => setUsuarioOCorreo(e.target.value)}
+                      placeholder="Tu usuario o correo"
+                      disabled={loading}
+                      className="w-full pl-14 pr-5 py-4 bg-bg-secondary/40 border border-border-subtle rounded-md text-text-primary placeholder:text-text-disabled/60 focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all outline-none text-lg"
+                    />
+                  </div>
+                </div>
+
+                {/* Input de PIN */}
+                <div className="space-y-3">
+                  <label className="text-[11px] font-bold text-text-tertiary uppercase tracking-widest ml-1">
+                    Código PIN
+                  </label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none transition-colors group-focus-within:text-accent">
+                      <Lock className="w-5 h-5 text-text-disabled" />
+                    </div>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={pin}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        setPin(value);
+                      }}
+                      placeholder="••••••"
+                      maxLength={6}
+                      inputMode="numeric"
+                      disabled={loading}
+                      className="w-full pl-14 pr-12 py-4 bg-bg-secondary/40 border border-border-subtle rounded-md text-text-primary placeholder:text-text-disabled/60 focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all outline-none text-lg tracking-widest"
+                    />
+                    <button
+                      type="button"
+                      onClick={togglePasswordVisibility}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-text-tertiary hover:text-text-primary transition-colors"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-5 h-5" />
+                      ) : (
+                        <Eye className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
 
               {errorMessage && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-center">
-                  <p className="text-red-600 dark:text-red-400 text-sm">{errorMessage}</p>
+                <div className="bg-error/5 border border-error/20 rounded-md p-4 text-center animate-in fade-in slide-in-from-top-2">
+                  <p className="text-error text-sm font-medium">{errorMessage}</p>
                 </div>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-text-secondary mb-1.5">
-                  Usuario o Correo
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-text-disabled" />
-                  </div>
-                  <input
-                    type="text"
-                    value={usuarioOCorreo}
-                    onChange={(e) => setUsuarioOCorreo(e.target.value)}
-                    placeholder="tu.usuario o correo@ejemplo.com"
-                    disabled={loading}
-                    className="w-full pl-10 pr-4 py-2.5 border border-border-subtle rounded-lg bg-bg-secondary text-text-primary placeholder-text-disabled focus:ring-2 focus:ring-[#1976D2] focus:border-transparent disabled:opacity-50"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-text-secondary mb-1.5">
-                  PIN
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-text-disabled" />
-                  </div>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={pin}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-                      setPin(value);
-                    }}
-                    placeholder="••••••"
-                    maxLength={6}
-                    inputMode="numeric"
-                    disabled={loading}
-                    className="w-full pl-10 pr-10 py-2.5 border border-border-subtle rounded-lg bg-bg-secondary text-text-primary placeholder-text-disabled focus:ring-2 focus:ring-[#1976D2] focus:border-transparent disabled:opacity-50"
-                  />
-                  <button
-                    type="button"
-                    onClick={togglePasswordVisibility}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-disabled hover:text-text-secondary"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 md:py-4 2xl:py-5 bg-[#1976D2] hover:bg-[#1565C0] disabled:bg-[#90CAF9] text-white rounded-xl font-semibold text-base md:text-lg 2xl:text-xl shadow-lg transition-all mt-2 flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Verificando...
-                  </>
-                ) : (
-                  "Registrar Asistencia"
-                )}
-              </button>
-            </form>
-          ) : (
-            /* Resultado */
-            <div
-              className={`rounded-xl p-6 text-center ${result.success
-                ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
-                : result.noPuedeRegistrar
-                  ? "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
-                  : result.noEsEmpleado
-                    ? "bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800"
-                    : result.sinHorario
-                      ? "bg-[#E3F2FD] dark:bg-[#1565C0]/20 border border-[#BBDEFB] dark:border-[#1565C0]/40"
-                      : "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
-                }`}
-            >
-              {result.success ? (
-                <>
-                  {/* Icono según clasificación */}
-                  {result.clasificacion === 'retardo_a' || result.clasificacion === 'retardo_b' || result.clasificacion === 'salida_temprana' ? (
-                    <AlertTriangle className="w-16 h-16 mx-auto mb-3 text-yellow-600 dark:text-yellow-400" />
-                  ) : result.clasificacion === 'falta' ? (
-                    <XCircle className="w-16 h-16 mx-auto mb-3 text-red-600 dark:text-red-400" />
+              <div className="pt-4">
+                <button
+                  onClick={handleSubmit}
+                  disabled={loading || pin.length < 4}
+                  className="w-full py-5 bg-accent hover:bg-accent-hover disabled:bg-bg-tertiary disabled:text-text-disabled text-white rounded-md font-bold text-lg shadow-lg shadow-accent/10 transition-all flex items-center justify-center gap-3 group"
+                >
+                  {loading ? (
+                    <Loader2 className="w-6 h-6 animate-spin" />
                   ) : (
-                    <CheckCircle className="w-16 h-16 mx-auto mb-3 text-green-600 dark:text-green-400" />
+                    <span>Registrar Asistencia</span>
                   )}
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Pantalla de Resultado */
+            <div className="animate-in fade-in zoom-in duration-300">
+              <div className={`rounded-xl p-8 text-center border ${
+                result.success 
+                  ? "bg-success/5 border-success/20" 
+                  : "bg-error/5 border-error/20"
+              }`}>
+                {result.success ? (
+                  <CheckCircle2 className="w-16 h-16 mx-auto mb-4 text-success" />
+                ) : (
+                  <AlertCircle className="w-16 h-16 mx-auto mb-4 text-error" />
+                )}
 
-                  <p className={`font-bold text-lg mb-1 ${result.clasificacion === 'falta'
-                    ? "text-red-800 dark:text-red-300"
-                    : result.clasificacion === 'retardo_a' || result.clasificacion === 'retardo_b' || result.clasificacion === 'salida_temprana'
-                      ? "text-yellow-800 dark:text-yellow-300"
-                      : "text-green-800 dark:text-green-300"
-                    }`}>
-                    {result.offline ? "Asistencia Pendiente" : "Asistencia Registrada"}
+                <h3 className={`text-xl font-bold mb-2 ${
+                  result.success ? "text-success" : "text-error"
+                }`}>
+                  {result.message || (result.success ? "Registro Exitoso" : "Error en Registro")}
+                </h3>
+
+                {result.empleado?.nombre && (
+                  <p className="text-text-primary text-lg font-semibold mb-1">
+                    {result.empleado.nombre}
                   </p>
-                  {result.empleado?.nombre && (
-                    <p className="text-gray-700 dark:text-gray-300 text-lg">
-                      {result.empleado.nombre}
-                    </p>
-                  )}
-                  {result.tipoMovimiento && (
-                    <div className="mt-2">
-                      <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">
-                        {result.offline ? (
-                          <>Pendiente de validación {result.hora && `a las ${result.hora}`}</>
-                        ) : (
-                          <>{result.tipoMovimiento === "ENTRADA" ? "Entrada" : "Salida"} registrada {result.hora && `a las ${result.hora}`}</>
-                        )}
-                      </p>
-                      {/* Badge de clasificación */}
-                      <span
-                        className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${result.clasificacion === "entrada" || result.clasificacion === "salida_puntual"
-                          ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
-                          : result.clasificacion === "retardo_a" || result.clasificacion === "retardo_b" || result.clasificacion === "salida_temprana"
-                            ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
-                            : result.clasificacion === "falta"
-                              ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
-                              : result.estado === "puntual"
-                                ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
-                                : result.estado === "retardo_a" || result.estado === "retardo_b" || result.estado === "temprana"
-                                  ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
-                                  : result.estado === "falta"
-                                    ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
-                                    : "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300"
-                          }`}
-                      >
-                        {result.estadoTexto || result.estado || "Registrado"}
-                      </span>
-                    </div>
-                  )}
+                )}
 
-                  <div className="mt-4 flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm">
-                    <Timer className="w-4 h-4" />
-                    <span>
-                      Esta ventana se cerrará en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
-                    </span>
+                {result.hora && (
+                  <p className="text-text-tertiary text-sm">
+                    {result.tipoMovimiento === "ENTRADA" ? "Entrada" : "Salida"} registrada a las <span className="text-text-primary font-bold">{result.hora}</span>
+                  </p>
+                )}
+
+                <div className="mt-8 pt-6 border-t border-border-subtle flex flex-col items-center gap-4">
+                  <div className="flex items-center gap-2 text-[10px] font-bold text-text-disabled uppercase tracking-widest">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Cerrando en {countdown}s
                   </div>
 
-                  {/* Botón para iniciar sesión */}
-                  {onLoginRequest && (
+                  {onLoginRequest && result.success && (
                     <button
                       onClick={() => handleLoginRequest()}
-                      className="mt-4 w-full py-2.5 md:py-3 2xl:py-4 bg-[#1976D2] hover:bg-[#1565C0] text-white rounded-xl font-medium text-sm md:text-base 2xl:text-lg flex items-center justify-center gap-2 transition-all"
+                      className="w-full py-3.5 bg-bg-secondary hover:bg-bg-tertiary text-text-primary border border-border-subtle rounded-md font-bold text-sm transition-all flex items-center justify-center gap-2 ring-1 ring-border-subtle shadow-sm"
                     >
-                      <LogIn className="w-4 h-4" />
-                      Iniciar Sesión
-                    </button>
-                  )}
-                </>
-              ) : result.noPuedeRegistrar ? (
-                <>
-                  <AlertTriangle className="w-16 h-16 mx-auto mb-3 text-yellow-600 dark:text-yellow-400" />
-                  <p className="text-yellow-800 dark:text-yellow-300 font-bold text-lg mb-1">
-                    No Disponible
-                  </p>
-                  {result.empleado?.nombre && (
-                    <p className="text-gray-700 dark:text-gray-300 text-lg mb-2">
-                      {result.empleado.nombre}
-                    </p>
-                  )}
-                  <p className="text-gray-700 dark:text-gray-300 text-sm">
-                    {result.message}
-                  </p>
-                  <span
-                    className={`inline-block mt-3 px-3 py-1 rounded-full text-xs font-semibold ${result.estadoHorario === "completado"
-                      ? "bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300"
-                      : result.estadoHorario === "tiempo_insuficiente"
-                        ? "bg-orange-100 text-orange-800 dark:bg-orange-800/30 dark:text-orange-300"
-                        : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
-                      }`}
-                  >
-                    {result.estadoHorario === "completado"
-                      ? "Jornada completada"
-                      : result.estadoHorario === "tiempo_insuficiente"
-                        ? `Aún no disponible`
-                        : "Fuera de horario"}
-                  </span>
-
-                  <div className="mt-4 flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm">
-                    <Timer className="w-4 h-4" />
-                    <span>
-                      Esta ventana se cerrará en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
-                    </span>
-                  </div>
-
-                  {/* Botón para iniciar sesión */}
-                  {onLoginRequest && (
-                    <button
-                      onClick={() => handleLoginRequest()}
-                      className="mt-4 w-full py-2.5 md:py-3 2xl:py-4 bg-[#1976D2] hover:bg-[#1565C0] text-white rounded-xl font-medium text-sm md:text-base 2xl:text-lg flex items-center justify-center gap-2 transition-all"
-                    >
-                      <LogIn className="w-4 h-4" />
-                      Iniciar Sesión
-                    </button>
-                  )}
-                </>
-              ) : result.noEsEmpleado ? (
-                <>
-                  <UserX className="w-16 h-16 mx-auto mb-3 text-orange-600 dark:text-orange-400" />
-                  <p className="text-orange-800 dark:text-orange-300 font-bold text-lg mb-1">
-                    Usuario sin Acceso
-                  </p>
-                  <p className="text-gray-700 dark:text-gray-300 text-lg mb-2">
-                    {result.usuario?.nombre || result.usuario?.username || "Usuario"}
-                  </p>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
-                    Tu cuenta no está registrada como empleado en el sistema de asistencias.
-                  </p>
-                  <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800 dark:bg-orange-800/30 dark:text-orange-300">
-                    Solo empleados pueden registrar asistencia
-                  </span>
-
-                  <div className="mt-4 flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm">
-                    <Timer className="w-4 h-4" />
-                    <span>
-                      Esta ventana se cerrará en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
-                    </span>
-                  </div>
-
-                  {/* Botón para iniciar sesión si tiene permisos */}
-                  {onLoginRequest && (
-                    <button
-                      onClick={() => handleLoginRequest()}
-                      className="mt-4 w-full py-2.5 bg-[#1976D2] hover:bg-[#1565C0] text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
-                    >
-                      <LogIn className="w-4 h-4" />
-                      Iniciar Sesión
-                    </button>
-                  )}
-                </>
-              ) : result.sinHorario ? (
-                <>
-                  <CalendarX className="w-16 h-16 mx-auto mb-3 text-[#1976D2] dark:text-[#42A5F5]" />
-                  <p className="text-[#0D47A1] dark:text-[#90CAF9] font-bold text-lg mb-1">
-                    Sin Horario Asignado
-                  </p>
-                  <p className="text-gray-700 dark:text-gray-300 text-lg mb-2">
-                    {result.empleado?.nombre || result.usuario?.username || "Empleado"}
-                  </p>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">
-                    No tienes un horario configurado en el sistema. Contacta a tu administrador.
-                  </p>
-                  <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold bg-[#E3F2FD] text-[#0D47A1] dark:bg-[#1565C0]/30 dark:text-[#90CAF9]">
-                    Requiere asignación de horario
-                  </span>
-
-                  <div className="mt-4 flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm">
-                    <Timer className="w-4 h-4" />
-                    <span>
-                      Esta ventana se cerrará en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
-                    </span>
-                  </div>
-
-                  {/* Botón para iniciar sesión si tiene permisos */}
-                  {onLoginRequest && (
-                    <button
-                      onClick={() => handleLoginRequest()}
-                      className="mt-4 w-full py-2.5 bg-[#1976D2] hover:bg-[#1565C0] text-white rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all"
-                    >
-                      <LogIn className="w-4 h-4" />
-                      Iniciar Sesión
-                    </button>
-                  )}
-                </>
-              ) : (
-                /* Fallback para errores genéricos */
-                <>
-                  <X className="w-16 h-16 mx-auto mb-3 text-red-600 dark:text-red-400" />
-                  <p className="text-red-800 dark:text-red-300 font-bold text-lg mb-1">
-                    {result?.message?.includes("Registro denegado") ? "Registro Denegado" : "Error"}
-                  </p>
-                  <p className="text-gray-700 dark:text-gray-300 text-sm">
-                    {result?.message?.replace("Registro denegado: ", "")}
-                  </p>
-
-                  <div className="mt-4 flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm">
-                    <Timer className="w-4 h-4" />
-                    <span>
-                      Esta ventana se cerrará en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
-                    </span>
-                  </div>
-
-                  {/* Botón para iniciar sesión si hay datos de usuario (aunque hubo error) */}
-                  {onLoginRequest && result.usuario && (
-                    <button
-                      onClick={() => handleLoginRequest()}
-                      className="mt-4 w-full py-2.5 md:py-3 2xl:py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-xl font-medium text-sm md:text-base 2xl:text-lg flex items-center justify-center gap-2 transition-all"
-                    >
-                      <LogIn className="w-4 h-4" />
-                      Iniciar Sesión
+                      <Fingerprint className="w-4 h-4 text-accent" />
+                      Acceder al Panel
                     </button>
                   )}
 
-                  <button
-                    onClick={handleRetry}
-                    className="mt-4 text-purple-600 hover:text-purple-800 font-medium text-sm"
-                  >
-                    Intentar de nuevo
-                  </button>
-                </>
-              )}
+                  {!result.success && (
+                    <button
+                      onClick={handleRetry}
+                      className="text-accent font-bold text-sm hover:underline"
+                    >
+                      Intentar de nuevo
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>

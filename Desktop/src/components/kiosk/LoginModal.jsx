@@ -180,10 +180,10 @@ function LoginModal({ isOpen = true, onClose, onLoginSuccess, ordenCredenciales,
     return (
         <>
             <div
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-backdrop"
                 onClick={handleBackdropClick}
             >
-                <div className="bg-bg-primary rounded-lg w-full max-w-md overflow-hidden shadow-2xl border border-border-subtle animate-in fade-in zoom-in duration-200">
+                <div className="bg-bg-primary rounded-lg w-full max-w-md overflow-hidden shadow-2xl border border-border-subtle animate-zoom-in">
                     {/* Header - Simple & Clean */}
                     <div className="px-8 pt-8 pb-6 relative text-center">
                         <button

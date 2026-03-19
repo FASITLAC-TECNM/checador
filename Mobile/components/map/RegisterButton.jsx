@@ -358,6 +358,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
               const ahoraMins = ahora.getHours() * 60 + ahora.getMinutes();
               const ventanaAbierta = bloqueExtra && ahoraMins >= (bloqueExtra.entrada - MINUTOS_ANTES);
               if (!ventanaAbierta) {
+                // Forzamos un pullData silencioso por si el admin agregó un nuevo bloque desde otra plataforma.
+                // Cuando se descargue, el número de bloques locales aumentará y el botón se desbloqueará naturalmente en el siguiente ciclo.
+                syncManager.pullData().catch(() => {});
+
                 // Jornada completa localmente — bloquear aunque el backend diga lo contrario
                 setPuedeRegistrar(false);
                 setTipoSiguienteRegistro('entrada');
@@ -485,11 +489,23 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       return;
     }
 
+    // === DESBLOQUEO AUTOMÁTICO OFFLINE / LOCAL ===
+    // Si la jornada estaba bloqueada, pero el horario descargado ahora tiene más bloques que salidas registradas, quitar el candado.
+    let estaJornadaBloqueada = jornadaCompletadaHoy;
+    if (jornadaCompletadaHoy) {
+      const numSalidas = (registrosHoyTodos || []).filter(r => r.tipo === 'salida').length;
+      const numBloques = horarioInfo?.bloques?.length || 0;
+      if (numSalidas < numBloques) {
+        AsyncStorage.removeItem(JORNADA_COMPLETADA_KEY).catch(() => {});
+        setJornadaCompletadaHoy(false);
+        estaJornadaBloqueada = false;
+      }
+    }
 
     if (!ultimoRegistroHoy) {
       // Si la jornada ya fue marcada como completa hoy (flag persistido), bloquear aunque
       // el refresh de registros devuelva vacío momentáneamente
-      if (jornadaCompletadaHoy) {
+      if (estaJornadaBloqueada) {
         setPuedeRegistrar(false);
         setTipoSiguienteRegistro('entrada');
         setEstadoHorario('bloque_completo');
@@ -568,12 +584,14 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       }
 
       // No hay bloque extra o aún no es hora → bloquear botón y persistir flag
-      const hoy = new Date();
-      const fechaHoy = new Date(hoy.getTime() - hoy.getTimezoneOffset() * 60000)
-        .toISOString().split('T')[0];
-      AsyncStorage.setItem(JORNADA_COMPLETADA_KEY, JSON.stringify({ fecha: fechaHoy }))
-        .catch(() => { });
-      setJornadaCompletadaHoy(true);
+      if (!estaJornadaBloqueada) {
+        const hoy = new Date();
+        const fechaHoy = new Date(hoy.getTime() - hoy.getTimezoneOffset() * 60000)
+          .toISOString().split('T')[0];
+        AsyncStorage.setItem(JORNADA_COMPLETADA_KEY, JSON.stringify({ fecha: fechaHoy }))
+          .catch(() => { });
+        setJornadaCompletadaHoy(true);
+      }
       setPuedeRegistrar(false);
       setTipoSiguienteRegistro('entrada');
       setEstadoHorario('bloque_completo');

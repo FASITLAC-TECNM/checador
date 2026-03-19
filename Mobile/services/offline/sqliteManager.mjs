@@ -424,17 +424,31 @@ export async function getPendingCount() {
 
 export async function getRegistrosHoy(empleadoId) {
   if (!db) await initDatabase();
-  const hoy = new Date().toISOString().split('T')[0];
+  
+  // Buscar registros de los últimos 2 días para cubrir diferencias de UTC vs Local
+  const fechaLimite = new Date();
+  fechaLimite.setDate(fechaLimite.getDate() - 2);
+  const limiteStr = fechaLimite.toISOString();
 
-  return await db.getAllAsync(
+  const registrosRaw = await db.getAllAsync(
     `SELECT tipo, estado, fecha_registro FROM offline_asistencias
-         WHERE empleado_id = ? AND fecha_registro LIKE ? || '%'
+         WHERE empleado_id = ? AND fecha_registro >= ?
          UNION
          SELECT tipo, estado, fecha_registro FROM cache_asistencias
-         WHERE empleado_id = ? AND fecha_registro LIKE ? || '%'
+         WHERE empleado_id = ? AND fecha_registro >= ?
          ORDER BY fecha_registro ASC`,
-    [empleadoId, hoy, empleadoId, hoy]
+    [empleadoId, limiteStr, empleadoId, limiteStr]
   );
+
+  // Filtrar con Javascript la fecha local "hoy"
+  const hoyLocalStr = new Date().toDateString();
+  return registrosRaw.filter(r => {
+    try {
+      return new Date(r.fecha_registro).toDateString() === hoyLocalStr;
+    } catch(e) {
+      return false;
+    }
+  });
 }
 
 

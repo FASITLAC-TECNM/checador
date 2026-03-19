@@ -317,23 +317,27 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             return true;
           }
 
-          // ── Guardia offline: si los registros locales muestran jornada completa,
-          //    no dejar que el backend (que puede no tener aún los registros offline)
-          //    habilite el botón incorrectamente.
-          const registrosLocales = registrosHoyTodosRef.current || [];
+          // ── Guardia local: solo activar si NO hay registros pendientes de sync.
+          //    Consultamos SQLite directamente porque online, registrosHoyTodosRef solo
+          //    tiene registros del servidor (no incluye pendientes offline).
           const horarioLocal = horarioInfoRef.current;
-          if (data.puedeRegistrar && horarioLocal?.bloques?.length) {
-            const numSalidasLocales = registrosLocales.filter(r => r.tipo === 'salida').length;
+          let tienePendientesSQLite = false;
+          try {
+            const todosLocal = await sqliteManager.getRegistrosHoy(empleadoId);
+            tienePendientesSQLite = todosLocal.some(r => r.estado === 'pendiente');
+          } catch (_) { /* Si falla, no hay pendientes → guardia activa */ }
+
+          if (!tienePendientesSQLite && data.puedeRegistrar && horarioLocal?.bloques?.length) {
+            const registrosServidor = registrosHoyTodosRef.current || [];
+            const numSalidasServidor = registrosServidor.filter(r => r.tipo === 'salida').length;
             const numBloquesLocales = horarioLocal.bloques.length;
-            if (numSalidasLocales >= numBloquesLocales) {
-              // Verificar si hay un bloque extra con ventana abierta (5 min antes de su entrada)
+            if (numSalidasServidor >= numBloquesLocales) {
               const MINUTOS_ANTES = 5;
-              const bloqueExtra = horarioLocal.bloques[numSalidasLocales];
+              const bloqueExtra = horarioLocal.bloques[numSalidasServidor];
               const ahora = new Date();
               const ahoraMins = ahora.getHours() * 60 + ahora.getMinutes();
               const ventanaAbierta = bloqueExtra && ahoraMins >= (bloqueExtra.entrada - MINUTOS_ANTES);
               if (!ventanaAbierta) {
-                // Jornada completa localmente — bloquear aunque el backend diga lo contrario
                 setPuedeRegistrar(false);
                 setTipoSiguienteRegistro('entrada');
                 setEstadoHorario('bloque_completo');
@@ -497,8 +501,18 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const numSalidas = (registrosHoyTodos || []).filter(r => r.tipo === 'salida').length;
       const numBloques = horarioInfo?.bloques?.length || 0;
 
-      // Si aún quedan bloques sin cubrir → comportamiento normal (siguiente entrada)
+      // Si aún quedan bloques sin cubrir → verificar que ya abrió la ventana del siguiente
       if (numSalidas < numBloques) {
+        const bloqueProximo = horarioInfo?.bloques?.[numSalidas];
+        const ANTICIPO_ENT = horarioInfo?.tolerancias?.anticipoEntrada ?? 5;
+        const ahoraMinsNow = horaActual.getHours() * 60 + horaActual.getMinutes();
+        if (bloqueProximo && ahoraMinsNow < bloqueProximo.entrada - ANTICIPO_ENT) {
+          // Ventana aún no abierta — bloquear sin tocar indicadores visuales
+          setPuedeRegistrar(false);
+          setTipoSiguienteRegistro('entrada');
+          setJornadaCompletada(false);
+          return;
+        }
         setPuedeRegistrar(true);
         setTipoSiguienteRegistro('entrada');
         setEstadoHorario('activo');

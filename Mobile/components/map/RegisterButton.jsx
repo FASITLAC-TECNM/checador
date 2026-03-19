@@ -38,6 +38,7 @@ import { registerStyles, registerStylesDark } from './RegisterButtonStyles';
 
 const API_URL = getApiEndpoint('/api');
 const NOTIF_DIARIA_KEY = '@notif_asistencia_disponible';
+const JORNADA_COMPLETADA_KEY = '@jornada_completada_hoy';
 
 export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [loading, setLoading] = useState(true);
@@ -67,6 +68,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [internetReachable, setInternetReachable] = useState(false);
   const [usandoEstadoBackend, setUsandoEstadoBackend] = useState(false);
   const [diaFestivo, setDiaFestivo] = useState(null);
+  const [jornadaCompletadaHoy, setJornadaCompletadaHoy] = useState(false);
 
   const datosRegistroRef = useRef({
     ubicacion: null,
@@ -124,6 +126,29 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       }
     };
     cargarEstadoNotifDiaria();
+  }, []);
+
+  // Cargar flag de jornada completada del día de hoy
+  useEffect(() => {
+    const cargarJornadaCompletada = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(JORNADA_COMPLETADA_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const hoy = new Date();
+          const fechaHoy = new Date(hoy.getTime() - hoy.getTimezoneOffset() * 60000)
+            .toISOString().split('T')[0];
+          if (parsed.fecha === fechaHoy) {
+            setJornadaCompletadaHoy(true);
+          } else {
+            // Flag de otro día — limpiar
+            await AsyncStorage.removeItem(JORNADA_COMPLETADA_KEY);
+            setJornadaCompletadaHoy(false);
+          }
+        }
+      } catch (e) { }
+    };
+    cargarJornadaCompletada();
   }, []);
 
   const cargarCredencialesYOrden = async () => {
@@ -380,6 +405,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const fechaHoyStr = new Date(ahora.getTime() - ahoraOffset).toISOString().split('T')[0];
       if (fechaHoyStr !== currentDateRef.current) {
         currentDateRef.current = fechaHoyStr;
+        // Limpiar flag de jornada completada al cambiar de día
+        try {
+          await AsyncStorage.removeItem(JORNADA_COMPLETADA_KEY);
+          setJornadaCompletadaHoy(false);
+        } catch (e) { }
         // Re-verificar festivo para el nuevo día
         try {
           let onlineNow = false;
@@ -457,6 +487,16 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
 
     if (!ultimoRegistroHoy) {
+      // Si la jornada ya fue marcada como completa hoy (flag persistido), bloquear aunque
+      // el refresh de registros devuelva vacío momentáneamente
+      if (jornadaCompletadaHoy) {
+        setPuedeRegistrar(false);
+        setTipoSiguienteRegistro('entrada');
+        setEstadoHorario('bloque_completo');
+        setJornadaCompletada(true);
+        setMensajeEspera('Jornada completa. No es necesario registrar más asistencias por hoy.');
+        return;
+      }
       setPuedeRegistrar(true);
       setTipoSiguienteRegistro('entrada');
       setEstadoHorario(null);
@@ -527,7 +567,13 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         }
       }
 
-      // No hay bloque extra o aún no es hora → bloquear botón
+      // No hay bloque extra o aún no es hora → bloquear botón y persistir flag
+      const hoy = new Date();
+      const fechaHoy = new Date(hoy.getTime() - hoy.getTimezoneOffset() * 60000)
+        .toISOString().split('T')[0];
+      AsyncStorage.setItem(JORNADA_COMPLETADA_KEY, JSON.stringify({ fecha: fechaHoy }))
+        .catch(() => { });
+      setJornadaCompletadaHoy(true);
       setPuedeRegistrar(false);
       setTipoSiguienteRegistro('entrada');
       setEstadoHorario('bloque_completo');
@@ -545,7 +591,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     setJornadaCompletada(false);
     setMensajeEspera('');
 
-  }, [horarioInfo, ultimoRegistroHoy, registrosHoyTodos, diaFestivo, usandoEstadoBackend, horaActual]);
+  }, [horarioInfo, ultimoRegistroHoy, registrosHoyTodos, diaFestivo, usandoEstadoBackend, horaActual, jornadaCompletadaHoy]);
 
 
 

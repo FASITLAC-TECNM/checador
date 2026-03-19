@@ -893,8 +893,8 @@ export default function App() {
   if (!isLoggedIn) {
     return (
       <SafeAreaProvider>
-        <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
-        <LoginScreen onLoginSuccess={handleLoginSuccess} />
+        <StatusBar barStyle="light-content" backgroundColor={darkMode ? "#1e40af" : "#2563eb"} />
+        <LoginScreen onLoginSuccess={handleLoginSuccess} darkMode={darkMode} />
       </SafeAreaProvider>);
 
   }

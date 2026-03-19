@@ -10,8 +10,10 @@ import {
   Platform,
   ScrollView,
   Image,
-  Animated } from
-'react-native';
+  Alert,
+  Animated
+} from
+  'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,7 +29,8 @@ import { SeleccionEmpresaScreen } from './SeleccionEmpresaScreen';
 const SECURE_KEYS = {
   CACHED_USER: 'offline_cached_user',
   CACHED_PASS_HASH: 'offline_cached_pass_hash',
-  CACHED_USER_DATA: 'offline_cached_user_data'
+  CACHED_USER_DATA: 'offline_cached_user_data',
+  CACHED_EMPRESAS: 'offline_cached_empresas'
 };
 
 const simpleHash = (str) => {
@@ -40,7 +43,7 @@ const simpleHash = (str) => {
   return hash.toString(36);
 };
 
-export const LoginScreen = ({ onLoginSuccess }) => {
+export const LoginScreen = ({ onLoginSuccess, darkMode }) => {
   const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -53,6 +56,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
   const [isDbReady, setIsDbReady] = useState(false);
   const [showEmpresaSelector, setShowEmpresaSelector] = useState(false);
   const [empresasList, setEmpresasList] = useState([]);
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {
@@ -63,15 +67,15 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     });
 
     const checkServerStatus = setInterval(() => {
-       const backendStatusReady = !syncManager.getIsBackendDown();
-       if (backendStatusReady !== isDbReady) {
-           setIsDbReady(backendStatusReady);
-       }
+      const backendStatusReady = !syncManager.getIsBackendDown();
+      if (backendStatusReady !== isDbReady) {
+        setIsDbReady(backendStatusReady);
+      }
     }, 2000);
 
     return () => {
-       unsubscribe();
-       clearInterval(checkServerStatus);
+      unsubscribe();
+      clearInterval(checkServerStatus);
     };
   }, [isDbReady]);
 
@@ -91,8 +95,8 @@ export const LoginScreen = ({ onLoginSuccess }) => {
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
-      Animated.timing(pulseAnim, { toValue: 0.4, duration: 1000, useNativeDriver: true }),
-      Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true })]
+        Animated.timing(pulseAnim, { toValue: 0.4, duration: 1000, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true })]
       )
     );
     pulse.start();
@@ -114,12 +118,20 @@ export const LoginScreen = ({ onLoginSuccess }) => {
   const cacheCredentials = async (user, pass, datosCompletos) => {
     try {
       await Promise.all([
-      SecureStore.setItemAsync(SECURE_KEYS.CACHED_USER, user.trim().toLowerCase()),
-      SecureStore.setItemAsync(SECURE_KEYS.CACHED_PASS_HASH, simpleHash(pass)),
-      AsyncStorage.setItem(SECURE_KEYS.CACHED_USER_DATA, JSON.stringify(datosCompletos))]
+        SecureStore.setItemAsync(SECURE_KEYS.CACHED_USER, user.trim().toLowerCase()),
+        SecureStore.setItemAsync(SECURE_KEYS.CACHED_PASS_HASH, simpleHash(pass)),
+        AsyncStorage.setItem(SECURE_KEYS.CACHED_USER_DATA, JSON.stringify(datosCompletos))]
       );
     } catch (e) {
-      (function () {})('Error cacheando credenciales:', e);
+      (function () { })('Error cacheando credenciales:', e);
+    }
+  };
+
+  const cacheEmpresasList = async (empresas) => {
+    try {
+      await AsyncStorage.setItem(SECURE_KEYS.CACHED_EMPRESAS, JSON.stringify(empresas));
+    } catch (e) {
+      (function () { })('Error cacheando lista de empresas:', e);
     }
   };
 
@@ -149,10 +161,17 @@ export const LoginScreen = ({ onLoginSuccess }) => {
         syncManager.setAuthToken(userData.token);
       }
 
-      (function () {})(' [Login] Login offline exitoso para:', inputUser);
-      return { success: true, data: userData };
+      // Leer empresas cacheadas para este usuario
+      const cachedEmpresasRaw = await AsyncStorage.getItem(SECURE_KEYS.CACHED_EMPRESAS);
+      let cachedEmpresas = null;
+      if (cachedEmpresasRaw) {
+        try { cachedEmpresas = JSON.parse(cachedEmpresasRaw); } catch (_) { }
+      }
+
+      (function () { })(' [Login] Login offline exitoso para:', inputUser);
+      return { success: true, data: userData, empresas: cachedEmpresas };
     } catch (e) {
-      (function () {})('Error en validación offline:', e);
+      (function () { })('Error en validación offline:', e);
       return { success: false, error: 'Error al validar credenciales offline' };
     }
   };
@@ -181,37 +200,45 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     setIsLoading(true);
 
     if (syncManager.getIsBackendDown()) {
-       try {
-           setIsOfflineLogin(true);
-           const offlineResult = await validateOffline(usuario, password);
-           if (offlineResult.success) {
-               const sessionData = {
-                 usuario_id: offlineResult.data.id?.toString(),
-                 empleado_id: offlineResult.data.empleado_id?.toString(),
-                 tipo: 'login',
-                 modo: 'offline'
-               };
-               await sqliteManager.saveOfflineSession(sessionData);
-               if (offlineResult.data.token) {
-                 syncManager.setAuthToken(offlineResult.data.token, offlineResult.data.empleado_id?.toString());
-               }
-                syncManager.pushSessions().catch((e) => function () {}('[Login] Error in background push:', e));
-               onLoginSuccess(offlineResult.data, true);
-               return;
-           } else {
-               setGeneralError(offlineResult.error || 'Credenciales inválidas (offline)');
-               setIsLoading(false);
-               Animated.sequence([
-               Animated.timing(pulseAnim, { toValue: 1.2, duration: 100, useNativeDriver: true }),
-               Animated.timing(pulseAnim, { toValue: 1, duration: 100, useNativeDriver: true })]
-               ).start();
-               return;
-           }
-       } catch (err) {
-           setGeneralError('Error al iniciar sesión offline');
-           setIsLoading(false);
-           return;
-       }
+      try {
+        setIsOfflineLogin(true);
+        const offlineResult = await validateOffline(usuario, password);
+        if (offlineResult.success) {
+          const sessionData = {
+            usuario_id: offlineResult.data.id?.toString(),
+            empleado_id: offlineResult.data.empleado_id?.toString(),
+            tipo: 'login',
+            modo: 'offline'
+          };
+          await sqliteManager.saveOfflineSession(sessionData);
+          if (offlineResult.data.token) {
+            syncManager.setAuthToken(offlineResult.data.token, offlineResult.data.empleado_id?.toString());
+          }
+          syncManager.pushSessions().catch((e) => function () { }('[Login] Error in background push:', e));
+          // Si hay múltiples empresas en caché, mostrar selector antes de entrar
+          if (offlineResult.empresas && offlineResult.empresas.length > 1) {
+            setEmpresasList(offlineResult.empresas);
+            setIsOfflineMode(true);
+            setShowEmpresaSelector(true);
+            setIsLoading(false);
+            return;
+          }
+          onLoginSuccess(offlineResult.data, true);
+          return;
+        } else {
+          setGeneralError(offlineResult.error || 'Credenciales inválidas (offline)');
+          setIsLoading(false);
+          Animated.sequence([
+            Animated.timing(pulseAnim, { toValue: 1.2, duration: 100, useNativeDriver: true }),
+            Animated.timing(pulseAnim, { toValue: 1, duration: 100, useNativeDriver: true })
+          ]).start();
+          return;
+        }
+      } catch (err) {
+        setGeneralError('Error al iniciar sesión offline');
+        setIsLoading(false);
+        return;
+      }
     }
 
     try {
@@ -228,15 +255,18 @@ export const LoginScreen = ({ onLoginSuccess }) => {
                 }
                 return emp;
               } catch (err) {
-                (function () {})(`Error fetching public info for company ${emp.empresa_id}:`, err);
+                (function () { })(`Error fetching public info for company ${emp.empresa_id}:`, err);
                 return emp;
               }
             })
           );
           setEmpresasList(empresasConLogo);
+          // Guardar en caché para acceso offline futuro
+          cacheEmpresasList(empresasConLogo);
         } catch (error) {
-          (function () {})('Error processing public company data:', error);
+          (function () { })('Error processing public company data:', error);
           setEmpresasList(response.empresas);
+          cacheEmpresasList(response.empresas);
         }
 
         setShowEmpresaSelector(true);
@@ -253,7 +283,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
             if (empleadoData.success && empleadoData.data) {
               empresaId = empleadoData.data.empresa_id;
             }
-          } catch (error) {}
+          } catch (error) { }
         }
         const datosCompletos = {
           id: response.usuario.id,
@@ -295,15 +325,15 @@ export const LoginScreen = ({ onLoginSuccess }) => {
               }
             }
           } catch (verifyError) {
-            (function () {})('[Login] Error verificando dispositivo:', verifyError);
+            (function () { })('[Login] Error verificando dispositivo:', verifyError);
           }
           return true;
         };
 
 
         const [verificacionOk] = await Promise.all([
-        verificarDispositivo(),
-        cacheCredentials(usuario, password, datosCompletos)]
+          verificarDispositivo(),
+          cacheCredentials(usuario, password, datosCompletos)]
         );
 
         if (!verificacionOk) {
@@ -324,25 +354,25 @@ export const LoginScreen = ({ onLoginSuccess }) => {
             modo: 'online'
           });
         } catch (e) {
-          (function () {})('[Login] Error guardando sesión:', e.message || e);
+          (function () { })('[Login] Error guardando sesión:', e.message || e);
         }
 
 
         syncManager.pushSessions().catch((e) =>
-        function () {}('[Login] pushSessions background error:', e.message)
+          function () { }('[Login] pushSessions background error:', e.message)
         );
 
         onLoginSuccess(datosCompletos, false);
       }
     } catch (error) {
-      (function () {})('Login online falló:', error.message);
+      (function () { })('Login online falló:', error.message);
       const msg = error.message || '';
       const isNetworkError = msg.includes('Network') || msg.includes('Failed to fetch') || msg.includes('connection') || msg.includes('timeout');
       const isServerError = msg.includes('500') || msg.includes('502') || msg.includes('503') || msg.includes('504') || msg.includes('Error del servidor') || msg.includes('JSON') || msg.includes('inactivo');
 
       if (isNetworkError || isServerError) {
 
-        (function () {})(` [Login] Intentando login offline... (${isNetworkError ? 'red' : 'servidor'} no disponible)`);
+        (function () { })(` [Login] Intentando login offline... (${isNetworkError ? 'red' : 'servidor'} no disponible)`);
         setIsOfflineLogin(true);
         const offlineResult = await validateOffline(usuario, password);
 
@@ -354,9 +384,9 @@ export const LoginScreen = ({ onLoginSuccess }) => {
               tipo: 'login',
               modo: 'offline'
             };
-            (function () {})(' [Login] Guardando sesión OFFLINE en SQLite:', JSON.stringify(sessionData));
+            (function () { })(' [Login] Guardando sesión OFFLINE en SQLite:', JSON.stringify(sessionData));
             await sqliteManager.saveOfflineSession(sessionData);
-            (function () {})(' [Login] Sesión offline guardada en SQLite');
+            (function () { })(' [Login] Sesión offline guardada en SQLite');
 
 
             if (offlineResult.data.token) {
@@ -364,11 +394,20 @@ export const LoginScreen = ({ onLoginSuccess }) => {
             }
 
 
-            (function () {})(' [Login] Intentando push de sesión offline...');
+            (function () { })(' [Login] Intentando push de sesión offline...');
             const pushResult = await syncManager.pushSessions();
-            (function () {})(' [Login] Resultado pushSessions (offline):', JSON.stringify(pushResult));
+            (function () { })(' [Login] Resultado pushSessions (offline):', JSON.stringify(pushResult));
           } catch (e) {
-            (function () {})(' [Login] Error guardando sesión offline:', e);
+            (function () { })(' [Login] Error guardando sesión offline:', e);
+          }
+
+          // Si hay múltiples empresas en caché, mostrar selector antes de entrar
+          if (offlineResult.empresas && offlineResult.empresas.length > 1) {
+            setEmpresasList(offlineResult.empresas);
+            setIsOfflineMode(true);
+            setShowEmpresaSelector(true);
+            setIsLoading(false);
+            return;
           }
 
           onLoginSuccess(offlineResult.data, true);
@@ -378,8 +417,8 @@ export const LoginScreen = ({ onLoginSuccess }) => {
           setIsLoading(false);
 
           Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.2, duration: 100, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 100, useNativeDriver: true })]
+            Animated.timing(pulseAnim, { toValue: 1.2, duration: 100, useNativeDriver: true }),
+            Animated.timing(pulseAnim, { toValue: 1, duration: 100, useNativeDriver: true })]
           ).start();
         }
       } else if (msg.includes('401') || msg.includes('credentials') || msg.includes('Credenciales')) {
@@ -396,16 +435,42 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     return (
       <SeleccionEmpresaScreen
         empresasList={empresasList}
-        onSelect={(empresaId) => {
+        darkMode={darkMode}
+        onSelect={async (selectedEmpresaId) => {
           setShowEmpresaSelector(false);
-          executeLogin(empresaId);
+          // En modo offline: validar si el perfil cacheado corresponde a esta empresa
+          if (isOfflineMode) {
+            const cachedRaw = await AsyncStorage.getItem(SECURE_KEYS.CACHED_USER_DATA);
+            if (cachedRaw) {
+              const cached = JSON.parse(cachedRaw);
+              if (cached.empresa_id && String(cached.empresa_id) !== String(selectedEmpresaId)) {
+                // El perfil cacheado es de otra empresa — mostrar aviso popup
+                setIsOfflineMode(false);
+                Alert.alert(
+                  'Sin datos offline',
+                  'No tienes información guardada para esta empresa en este dispositivo.\n\nConectáte a internet e inicia sesión primero para sincronizar tu perfil.',
+                  [{ text: 'Entendido', style: 'default' }]
+                );
+                return;
+              }
+            }
+            // Empresa coincide con la cacheada, proceder
+            const cachedDataRaw = await AsyncStorage.getItem(SECURE_KEYS.CACHED_USER_DATA);
+            if (cachedDataRaw) {
+              const userData = JSON.parse(cachedDataRaw);
+              onLoginSuccess(userData, true);
+            }
+            return;
+          }
+          executeLogin(selectedEmpresaId);
         }}
         onCancel={() => {
           setShowEmpresaSelector(false);
+          setIsOfflineMode(false);
         }} />);
-
-
   }
+
+  const styles = darkMode ? loginStylesDark : loginStyles;
 
   return (
     <View style={styles.mainContainer}>
@@ -413,50 +478,50 @@ export const LoginScreen = ({ onLoginSuccess }) => {
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}>
-          
+
           <ScrollView
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             bounces={false}
             overScrollMode="never">
-            
+
             <View style={styles.headerContainer}>
               <View style={styles.iconFrame}>
                 <Image
                   source={require('../../assets/icon.png')}
                   style={styles.logoImage}
                   resizeMode="contain" />
-                
+
               </View>
               <Text style={styles.title}>FASITLAC™</Text>
               <Text style={styles.subtitle}>Fábrica de Software del ITLAC</Text>
             </View>
 
-            {}
+            { }
             <View style={styles.statusRow}>
               <View style={styles.statusPill}>
                 <Animated.View style={[
-                styles.statusDot,
-                { backgroundColor: isWifiConnected ? '#4ade80' : '#f87171', opacity: pulseAnim }]
+                  styles.statusDot,
+                  { backgroundColor: isWifiConnected ? '#4ade80' : '#f87171', opacity: pulseAnim }]
                 } />
                 <Ionicons
                   name={isWifiConnected ? 'wifi' : 'wifi'}
                   size={18}
                   color="#ffffff" />
-                
+
               </View>
 
               <View style={styles.statusPill}>
                 <Animated.View style={[
-                styles.statusDot,
-                { backgroundColor: isDbReady ? '#4ade80' : '#f87171', opacity: pulseAnim }]
+                  styles.statusDot,
+                  { backgroundColor: isDbReady ? '#4ade80' : '#f87171', opacity: pulseAnim }]
                 } />
                 <Ionicons
                   name="server"
                   size={18}
                   color="#ffffff" />
-                
+
               </View>
             </View>
 
@@ -465,7 +530,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
               <View style={styles.inputWrapper}>
                 <Text style={styles.label}>Usuario o Correo</Text>
                 <View style={[styles.inputContainer, usuarioError ? styles.inputError : null]}>
-                  <Ionicons name="person" size={18} color="#2563eb" style={styles.icon} />
+                  <Ionicons name="person" size={18} color={darkMode ? '#60a5fa' : '#2563eb'} style={styles.icon} />
                   <TextInput
                     style={styles.input}
                     placeholder="usuario@ejemplo.com"
@@ -475,20 +540,20 @@ export const LoginScreen = ({ onLoginSuccess }) => {
                     autoCapitalize="none"
                     autoCorrect={false}
                     editable={!isLoading} />
-                  
+
                 </View>
                 {usuarioError ?
-                <View style={styles.errorContainer}>
+                  <View style={styles.errorContainer}>
                     <Ionicons name="alert-circle" size={12} color="#ef4444" />
                     <Text style={styles.errorText}>{usuarioError}</Text>
                   </View> :
-                null}
+                  null}
               </View>
 
               <View style={styles.inputWrapper}>
                 <Text style={styles.label}>Contraseña</Text>
                 <View style={[styles.inputContainer, passwordError ? styles.inputError : null]}>
-                  <Ionicons name="lock-closed" size={18} color="#2563eb" style={styles.icon} />
+                  <Ionicons name="lock-closed" size={18} color={darkMode ? '#60a5fa' : '#2563eb'} style={styles.icon} />
                   <TextInput
                     style={styles.input}
                     placeholder="••••••••"
@@ -498,53 +563,53 @@ export const LoginScreen = ({ onLoginSuccess }) => {
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
                     editable={!isLoading} />
-                  
+
                   <TouchableOpacity
                     onPress={() => setShowPassword(!showPassword)}
                     style={styles.eyeButton}
                     disabled={isLoading}>
-                    
+
                     <Ionicons
                       name={showPassword ? "eye-off" : "eye"}
                       size={18}
-                      color="#64748b" />
-                    
+                      color={darkMode ? '#9ca3af' : '#64748b'} />
+
                   </TouchableOpacity>
                 </View>
                 {passwordError ?
-                <View style={styles.errorContainer}>
+                  <View style={styles.errorContainer}>
                     <Ionicons name="alert-circle" size={12} color="#ef4444" />
                     <Text style={styles.errorText}>{passwordError}</Text>
                   </View> :
-                null}
+                  null}
               </View>
 
               {generalError ?
-              <View style={styles.generalErrorContainer}>
+                <View style={styles.generalErrorContainer}>
                   <Ionicons name="warning" size={16} color="#dc2626" />
                   <Text style={styles.generalErrorText}>{generalError}</Text>
                 </View> :
-              null}
+                null}
 
               <TouchableOpacity
                 style={styles.loginButtonWrapper}
                 onPress={handleLogin}
                 disabled={isLoading}
                 activeOpacity={0.9}>
-                
+
                 <LinearGradient
-                  colors={isLoading ? ['#94a3b8', '#cbd5e1'] : ['#2563eb', '#1d4ed8']}
+                  colors={isLoading ? (darkMode ? ['#374151', '#4b5563'] : ['#94a3b8', '#cbd5e1']) : (darkMode ? ['#1d4ed8', '#1e40af'] : ['#2563eb', '#1d4ed8'])}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.loginButton}>
-                  
+
                   {isLoading ?
-                  <View style={styles.loadingContainer}>
+                    <View style={styles.loadingContainer}>
                       <ActivityIndicator color="#fff" size="small" />
                       <Text style={styles.buttonText}>Verificando...</Text>
                     </View> :
 
-                  <View style={styles.buttonContent}>
+                    <View style={styles.buttonContent}>
                       <Text style={styles.buttonText}>Iniciar Sesión</Text>
                       <Ionicons name="arrow-forward" size={18} color="#fff" />
                     </View>
@@ -560,7 +625,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
 
 };
 
-const styles = StyleSheet.create({
+const loginStyles = StyleSheet.create({
   mainContainer: {
     flex: 1,
     backgroundColor: '#2563eb'
@@ -771,5 +836,64 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 16,
     fontWeight: '500'
+  }
+});
+
+const loginStylesDark = StyleSheet.create({
+  ...loginStyles,
+  mainContainer: {
+    ...loginStyles.mainContainer,
+    backgroundColor: '#0f172a'
+  },
+  safeArea: {
+    ...loginStyles.safeArea,
+    backgroundColor: '#0f172a'
+  },
+  statusPill: {
+    ...loginStyles.statusPill,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)'
+  },
+  formContainer: {
+    ...loginStyles.formContainer,
+    backgroundColor: '#1e293b',
+    shadowColor: '#000'
+  },
+  welcomeText: {
+    ...loginStyles.welcomeText,
+    color: '#f1f5f9'
+  },
+  label: {
+    ...loginStyles.label,
+    color: '#94a3b8'
+  },
+  inputContainer: {
+    ...loginStyles.inputContainer,
+    backgroundColor: '#0f172a',
+    borderColor: '#334155'
+  },
+  inputError: {
+    borderColor: '#ef4444',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)'
+  },
+  input: {
+    ...loginStyles.input,
+    color: '#f1f5f9'
+  },
+  generalErrorContainer: {
+    ...loginStyles.generalErrorContainer,
+    backgroundColor: 'rgba(220, 38, 38, 0.15)',
+    borderLeftColor: '#ef4444'
+  },
+  generalErrorText: {
+    ...loginStyles.generalErrorText,
+    color: '#fca5a5'
+  },
+  loginButtonWrapper: {
+    ...loginStyles.loginButtonWrapper,
+    shadowColor: '#1d4ed8'
+  },
+  copyright: {
+    ...loginStyles.copyright,
+    color: '#475569'
   }
 });

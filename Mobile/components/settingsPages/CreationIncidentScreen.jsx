@@ -258,7 +258,7 @@ export const CreationIncidentScreen = ({ visible, onClose, onSuccess, userData, 
 
                                 {/* Selector de Tipo */}
                                 <View style={styles.sectionContainer}>
-                                    <Text style={styles.sectionLabel}>Tipo de Incidencia *</Text>
+                                    <Text style={styles.sectionLabel}>Tipo de Incidencia</Text>
                                     <TouchableOpacity
                                         style={styles.selectInput}
                                         onPress={() => setModalTipoVisible(true)}
@@ -293,7 +293,7 @@ export const CreationIncidentScreen = ({ visible, onClose, onSuccess, userData, 
 
                                 {/* Fechas */}
                                 <View style={styles.sectionContainer}>
-                                    <Text style={styles.sectionLabel}>Período *</Text>
+                                    <Text style={styles.sectionLabel}>Período</Text>
 
                                     <View style={styles.dateRow}>
                                         <TouchableOpacity
@@ -419,7 +419,7 @@ export const CreationIncidentScreen = ({ visible, onClose, onSuccess, userData, 
 
                                 {/* Motivo */}
                                 <View style={styles.sectionContainer}>
-                                    <Text style={styles.sectionLabel}>Motivo de la Incidencia *</Text>
+                                    <Text style={styles.sectionLabel}>Motivo de la Incidencia</Text>
                                     <View style={styles.motivoCard}>
                                         <View style={styles.motivoHeader}>
                                             <Ionicons name="document-text" size={20} color="#6b7280" />

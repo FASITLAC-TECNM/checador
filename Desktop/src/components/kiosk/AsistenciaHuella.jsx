@@ -1148,8 +1148,8 @@ export default function AsistenciaHuella({
                         </>
                       ) : (
                         <>
-                          <LogIn className="w-5 h-5" />
-                          Abrir Sesión
+                          
+                           Iniciar sesión
                         </>
                       )}
                     </button>
@@ -1220,8 +1220,8 @@ export default function AsistenciaHuella({
                         </>
                       ) : (
                         <>
-                          <LogIn className="w-5 h-5" />
-                          Abrir Sesión
+                          
+                           Iniciar sesión
                         </>
                       )}
                     </button>
@@ -1306,8 +1306,7 @@ export default function AsistenciaHuella({
                             </>
                           ) : (
                             <>
-                              <LogIn className="w-5 h-5" />
-                              Abrir Sesión
+                               Iniciar sesión
                             </>
                           )}
                         </button>

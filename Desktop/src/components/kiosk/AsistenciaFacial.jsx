@@ -1337,8 +1337,7 @@ export default function AsistenciaFacial({
                   </>
                 ) : (
                   <>
-                    <LogIn className="w-5 h-5" />
-                    Abrir Sesion
+                     Iniciar sesión
                   </>
                 )}
               </button>
@@ -1414,8 +1413,7 @@ export default function AsistenciaFacial({
                       </>
                     ) : (
                       <>
-                        <LogIn className="w-5 h-5" />
-                        Abrir Sesion
+                         Iniciar sesión
                       </>
                     )}
                   </button>
@@ -1490,8 +1488,7 @@ export default function AsistenciaFacial({
                           </>
                         ) : (
                           <>
-                            <LogIn className="w-5 h-5" />
-                            Abrir Sesión
+                             Iniciar sesión
                           </>
                         )}
                       </button>

@@ -166,10 +166,9 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   {onLoginRequest && (result.success || result.usuario || result.empleado) && (
                     <button
                       onClick={() => handleLoginRequest()}
-                      className="w-full py-3.5 bg-bg-secondary hover:bg-bg-tertiary text-text-primary border border-border-subtle rounded-md font-bold text-sm transition-all flex items-center justify-center gap-2 ring-1 ring-border-subtle shadow-sm"
+                      className="w-full py-3.5 bg-bg-secondary hover:bg-bg-tertiary text-text-primary border border-border-subtle rounded-md font-bold text-sm transition-all flex items-center justify-center ring-1 ring-border-subtle shadow-sm"
                     >
-                      <Fingerprint className="w-4 h-4 text-accent" />
-                      Acceder al Panel
+                       Iniciar sesión
                     </button>
                   )}
 

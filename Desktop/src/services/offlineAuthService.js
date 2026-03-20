@@ -544,6 +544,98 @@ export async function cargarDatosOffline(empleadoId) {
 }
 
 // ============================================================
+// EAGER PUSH — guarda localmente y sincroniza de inmediato
+// ============================================================
+
+/**
+ * Guarda la asistencia en la cola local SQLite y, si hay conexión,
+ * intenta un push inmediato al servidor.
+ *
+ * @param {object} params
+ * @param {number}  params.empleadoId        - ID del empleado
+ * @param {string}  params.metodoRegistro    - 'PIN' | 'FACIAL' | 'HUELLA'
+ * @param {boolean} params.isDatabaseConnected - desde ConnectivityContext
+ *
+ * @returns {Promise<{
+ *   pendiente: boolean,
+ *   tipo?:     'entrada' | 'salida',
+ *   estado?:   string,
+ *   hora?:     string,
+ *   fecha_registro?: string
+ * }>}
+ */
+export async function guardarYSincronizarAsistencia({ empleadoId, metodoRegistro, isDatabaseConnected }) {
+  // 1. Guardar siempre en la cola local (offline-first garantizado)
+  let localResult = null;
+  try {
+    localResult = await guardarAsistenciaOffline({ empleadoId, metodoRegistro });
+  } catch (err) {
+    console.error('[EagerSync] Error al guardar localmente:', err);
+    return { pendiente: true };
+  }
+
+  // 2. Sin conexión → pendiente de sincronizar
+  if (!isDatabaseConnected || !window.electronAPI?.rawOfflineDB) {
+    return { pendiente: true };
+  }
+
+  // 3. Intentar push inmediato al servidor
+  try {
+    console.log('[EagerSync] Intentando push inmediato...');
+    const pushResult = await window.electronAPI.rawOfflineDB.pushNow();
+
+    // Si el push en sí falló (red, auth, timeout)
+    if (!pushResult || pushResult.busy) {
+      return { pendiente: true };
+    }
+
+    const punchId = localResult?.id;
+    const sincronizados = pushResult?.sincronizados ?? [];
+    const rechazados    = pushResult?.rechazados    ?? [];
+
+    // ── ¿El punch fue rechazado definitivamente por el servidor? ──
+    const punchRechazado = punchId
+      ? rechazados.find(r => r.id_local === punchId)
+      : rechazados[rechazados.length - 1];
+
+    if (punchRechazado) {
+      console.warn('[EagerSync] ⛔ Punch rechazado por el servidor:', punchRechazado.error);
+      return {
+        rechazado: true,
+        errorServidor: punchRechazado.error || 'El servidor rechazó el registro',
+      };
+    }
+
+    // ── ¿El punch fue sincronizado con éxito? ──
+    const syncedPunch = (punchId && sincronizados.find(s => s.id_local === punchId))
+      || sincronizados[sincronizados.length - 1];
+
+    if (syncedPunch?.tipo) {
+      console.log('[EagerSync] ✅ Clasificación recibida:', syncedPunch.tipo, syncedPunch.estado);
+      return {
+        pendiente: false,
+        rechazado: false,
+        tipo: syncedPunch.tipo,       // 'entrada' | 'salida'
+        estado: syncedPunch.estado,   // 'puntual' | 'retardo' | ...
+        hora: syncedPunch.hora
+          || new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+        fecha_registro: syncedPunch.fecha_registro,
+      };
+    }
+
+    // El servidor respondió 200 pero nuestro punch no está en ninguna lista
+    // (race condition o batch con otros punches previos aún pendientes)
+    console.warn('[EagerSync] Punch no encontrado en respuesta del servidor, queda pendiente.');
+    return { pendiente: true };
+
+  } catch (err) {
+    console.warn('[EagerSync] Push falló, queda pendiente:', err.message);
+    return { pendiente: true };
+  }
+}
+
+
+// ============================================================
 // EXPORTACIÓN
 // ============================================================
 
@@ -553,5 +645,6 @@ export default {
   identificarPorFacialOffline,
   cargarDatosOffline,
   guardarAsistenciaOffline,
+  guardarYSincronizarAsistencia,
   hasOfflineDB,
 };

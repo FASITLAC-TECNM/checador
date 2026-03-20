@@ -151,7 +151,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                   </p>
                 )}
 
-                {result.hora && (
+                {result.success && !result.pendiente && result.hora && (
                   <p className="text-text-tertiary text-sm">
                     {result.tipoMovimiento === "ENTRADA" ? "Entrada" : "Salida"} registrada a las <span className="text-text-primary font-bold">{result.hora}</span>
                   </p>

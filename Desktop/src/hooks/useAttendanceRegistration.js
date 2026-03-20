@@ -2,11 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { API_CONFIG, fetchApi } from "../config/apiEndPoint";
 import { agregarEvento } from "../services/bitacoraService";
 import {
-    cargarDatosAsistencia,
-    obtenerDepartamentoEmpleado,
-    registrarAsistenciaEnServidor,
     obtenerInfoClasificacion,
-    formatearTiempoRestante
 } from "../services/asistenciaLogicService";
 import { useConnectivity } from "./useConnectivity";
 
@@ -18,7 +14,7 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
     const [result, setResult] = useState(null);
     const [countdown, setCountdown] = useState(6);
     const [errorMessage, setErrorMessage] = useState("");
-    
+
     // Conectividad global
     const { isDatabaseConnected } = useConnectivity();
 
@@ -34,7 +30,6 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
 
     // Countdown para cierre automático
     useEffect(() => {
-        // Limpiar intervalo anterior si existe
         if (countdownRef.current) {
             clearInterval(countdownRef.current);
             countdownRef.current = null;
@@ -51,7 +46,6 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
                 if (count <= 0) {
                     clearInterval(countdownRef.current);
                     countdownRef.current = null;
-                    // Usar la referencia actualizada
                     if (onCloseRef.current) {
                         onCloseRef.current();
                     }
@@ -70,14 +64,12 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Prevenir envíos duplicados (doble clic)
         if (isSubmittingRef.current) {
             console.log("⚠️ Envío en proceso, ignorando click duplicado");
             return;
         }
         isSubmittingRef.current = true;
 
-        // Variables para mantener contexto en caso de error
         let usuarioData = null;
         let token = null;
         let empleadoData = null;
@@ -92,92 +84,105 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
         setErrorMessage("");
 
         try {
-            console.log("🔐 Verificando credenciales...");
-            
-            // SHORt-CIRCUIT: Si sabemos globalmente que la BD central/API está desconectada,
-            // forzamos tiro al catch del offline instantáneamente, sin esperar el fetch.
-            if (!isDatabaseConnected) {
-                 const offlineForceError = new Error("Server Error (Offline mode forced)");
-                 offlineForceError.isApiOffline = true;
-                 throw offlineForceError;
-            }
+            let empleadoId = null;
 
-            // 1. Verificar credenciales con el endpoint de login por PIN
-            const loginResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CREDENCIALES}/pin/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    usuario: usuarioOCorreo.trim(),
-                    pin: pin.trim(),
-                }),
-            });
+            // ── PASO 1: IDENTIFICAR AL EMPLEADO ─────────────────────────────────
+            // Con conexión → API (credenciales frescas, token actualizado).
+            // Sin conexión → SQLite local en caché.
+            if (isDatabaseConnected) {
+                // ── Identificación ONLINE ──
+                console.log("🔐 [OfflineFirst] Identificando via API...");
+                const loginResponse = await fetch(
+                    `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.CREDENCIALES}/pin/login`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            usuario: usuarioOCorreo.trim(),
+                            pin: pin.trim(),
+                        }),
+                    }
+                );
 
-            if (!loginResponse.ok) {
-                // Si la API responde pero con error de servidor (ej. 500, 502, 503, 504)
-                if (loginResponse.status >= 500) {
-                    // Despachar evento para notificar al contexto de la caida instantanea
-                    window.dispatchEvent(new CustomEvent("api-offline"));
-                    const error = new Error(`Server Error: ${loginResponse.status}`);
-                    error.isApiOffline = true;
-                    throw error;
+                if (!loginResponse.ok) {
+                    if (loginResponse.status >= 500) {
+                        window.dispatchEvent(new CustomEvent("api-offline"));
+                        const error = new Error(`Server Error: ${loginResponse.status}`);
+                        error.isApiOffline = true;
+                        throw error;
+                    }
+                    const errorData = await loginResponse.json().catch(() => ({}));
+                    throw new Error(errorData.message || "Credenciales inválidas");
                 }
-                const errorData = await loginResponse.json().catch(() => ({}));
-                throw new Error(errorData.message || "Credenciales inválidas");
-            }
 
-            const loginData = await loginResponse.json();
+                const loginData = await loginResponse.json();
+                if (!loginData.success) {
+                    throw new Error(loginData.message || "Error en la autenticación");
+                }
 
-            if (!loginData.success) {
-                throw new Error(loginData.message || "Error en la autenticación");
-            }
+                const responseData = loginData.data || loginData;
+                usuarioData = responseData.usuario || responseData;
+                token = responseData.token;
 
-            console.log("✅ Credenciales verificadas");
+                // Preservar roles/permisos/admin desde responseData
+                if (responseData.esAdmin !== undefined && usuarioData.esAdmin === undefined) usuarioData.esAdmin = responseData.esAdmin;
+                if (responseData.es_admin !== undefined && usuarioData.es_admin === undefined) usuarioData.es_admin = responseData.es_admin;
+                if (responseData.roles && !usuarioData.roles) usuarioData.roles = responseData.roles;
+                if (responseData.permisos && !usuarioData.permisos) usuarioData.permisos = responseData.permisos;
 
-            const responseData = loginData.data || loginData;
-            // Actualizar variables de contexto
-            usuarioData = responseData.usuario || responseData;
-            token = responseData.token;
-
-            // Asegurar que los campos de admin/roles se preserven desde responseData
-            if (responseData.esAdmin !== undefined && usuarioData.esAdmin === undefined) {
-                usuarioData.esAdmin = responseData.esAdmin;
-            }
-            if (responseData.es_admin !== undefined && usuarioData.es_admin === undefined) {
-                usuarioData.es_admin = responseData.es_admin;
-            }
-            if (responseData.roles && !usuarioData.roles) {
-                usuarioData.roles = responseData.roles;
-            }
-            if (responseData.permisos && !usuarioData.permisos) {
-                usuarioData.permisos = responseData.permisos;
-            }
-
-            // Guardar token temporalmente
-            if (token) {
-                localStorage.setItem('auth_token', token);
-                if (window.electronAPI && window.electronAPI.syncManager) {
-                    try {
-                        window.electronAPI.syncManager.updateToken(token);
-                    } catch (e) {
-                        // Silenciar errores de IPC
+                if (token) {
+                    localStorage.setItem("auth_token", token);
+                    if (window.electronAPI?.syncManager) {
+                        try { window.electronAPI.syncManager.updateToken(token); } catch (_) {}
                     }
                 }
+
+                empleadoId = usuarioData?.empleado_id || responseData.empleado?.id;
+                empleadoData = responseData.empleado;
+
+                // Si la respuesta no trajo empleado completo, pedirlo a la API
+                if (!empleadoData || !empleadoData.nombre) {
+                    try {
+                        const empResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.EMPLEADOS}/${empleadoId}`);
+                        empleadoData = empResponse.data || empResponse;
+                    } catch (_) { /* usar lo que tengamos */ }
+                }
+
+            } else {
+                // ── Identificación OFFLINE (SQLite) ──
+                console.log("📴 [OfflineFirst] Sin conexión — identificando offline...");
+                const { identificarPorPinOffline } = await import("../services/offlineAuthService");
+                const empleadoIdentificado = await identificarPorPinOffline(
+                    usuarioOCorreo.trim(),
+                    pin.trim()
+                );
+
+                if (!empleadoIdentificado) {
+                    throw new Error("Credenciales inválidas");
+                }
+
+                empleadoId = empleadoIdentificado.empleado_id;
+                usuarioData = {
+                    id: empleadoIdentificado.usuario_id,
+                    nombre: empleadoIdentificado.nombre,
+                    es_empleado: true,
+                    empleado_id: empleadoId,
+                    offline: true,
+                };
+
+                if (window.electronAPI?.offlineDB) {
+                    empleadoData = await window.electronAPI.offlineDB.getEmpleado(empleadoId);
+                }
+                empleadoData = empleadoData || empleadoIdentificado;
             }
 
-            // 2. Obtener datos del empleado
-            let empleadoId = usuarioData?.empleado_id || responseData.empleado?.id;
-            // Actualizar variable de contexto
-            empleadoData = responseData.empleado;
-
+            // Usuario no asociado a empleado
             if (!empleadoId) {
                 agregarEvento({
-                    user: usuarioData?.nombre || usuarioData?.username || usuarioOCorreo,
+                    user: usuarioData?.nombre || usuarioOCorreo,
                     action: "Intento de registro - Usuario no asociado a empleado",
                     type: "warning",
                 });
-
                 setResult({
                     success: false,
                     noEsEmpleado: true,
@@ -188,154 +193,122 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
                 return;
             }
 
-            if (!empleadoData || !empleadoData.nombre) {
-                const empResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.EMPLEADOS}/${empleadoId}`);
-                empleadoData = empResponse.data || empResponse;
-            }
-
             console.log("👤 Empleado identificado:", empleadoData?.nombre || empleadoId);
 
-            // 3. Registrar asistencia (Validaciones ahora en Backend)
-            console.log("📝 Registrando asistencia...");
-            const departamentoId = await obtenerDepartamentoEmpleado(empleadoId);
+            // ── PASO 2 + 3: GUARDAR LOCAL Y SINCRONIZAR INMEDIATAMENTE ──────────
+            // guardarYSincronizarAsistencia guarda en SQLite (offline-first garantizado)
+            // y si hay conexión intenta push inmediato al servidor.
+            console.log("💾 [EagerSync] Guardando y sincronizando asistencia...");
+            const { guardarYSincronizarAsistencia } = await import("../services/offlineAuthService");
+            const syncResult = await guardarYSincronizarAsistencia({
+                empleadoId,
+                metodoRegistro: "PIN",
+                isDatabaseConnected,
+            });
 
-            const now = new Date();
-            const horaActual = now.toLocaleTimeString("es-MX", {
+            // Hora actual para fallback
+            const horaActual = new Date().toLocaleTimeString("es-MX", {
                 hour: "2-digit",
                 minute: "2-digit",
             });
 
-            const data = await registrarAsistenciaEnServidor({
-                empleadoId,
-                departamentoId,
-                metodoRegistro: 'PIN',
-                token
-            });
+            let resultPayload;
 
-            const clasificacionFinal = data.data?.estado || 'puntual';
-            const tipoRegistro = data.data?.tipo || 'entrada';
-            const tipoMovimiento = tipoRegistro === 'salida' ? 'SALIDA' : 'ENTRADA';
+            if (syncResult.rechazado) {
+                // ── Rechazado definitivamente por el servidor ──
+                agregarEvento({
+                    user: empleadoData?.nombre || usuarioOCorreo,
+                    action: `Registro rechazado por el servidor: ${syncResult.errorServidor} - PIN`,
+                    type: "error",
+                });
 
-            const { estadoTexto, tipoEvento } = obtenerInfoClasificacion(clasificacionFinal, tipoRegistro);
+                resultPayload = {
+                    success: false,
+                    message: syncResult.errorServidor,
+                    empleado: empleadoData,
+                    usuario: usuarioData,
+                    token: token,
+                    tipoMovimiento: null,
+                    hora: horaActual,
+                    rechazado: true,
+                };
 
-            agregarEvento({
-                user: empleadoData?.nombre || usuarioOCorreo,
-                action: `${tipoMovimiento === 'SALIDA' ? 'Salida' : 'Entrada'} registrada (${estadoTexto}) - PIN`,
-                type: tipoEvento,
-            });
+            } else if (!syncResult.pendiente) {
+                // ── Resultado REAL del servidor ──
+                const tipoMovimiento = syncResult.tipo === "salida" ? "SALIDA" : "ENTRADA";
+                const { estadoTexto, tipoEvento } = obtenerInfoClasificacion(syncResult.estado, syncResult.tipo);
 
-            // Mensaje de voz estandarizado
-            const tipoVoz = tipoMovimiento === 'SALIDA' ? 'salida' : 'entrada';
-            const voiceMessage = `Registro ${tipoVoz} exitoso`;
+                const voiceMsg = syncResult.tipo === "salida"
+                    ? "Salida registrada"
+                    : "Entrada registrada";
+                const utterance = new SpeechSynthesisUtterance(voiceMsg);
+                utterance.lang = "es-MX";
+                utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
 
-            const utterance = new SpeechSynthesisUtterance(voiceMessage);
-            utterance.lang = "es-MX";
-            utterance.rate = 0.9;
-            window.speechSynthesis.speak(utterance);
+                agregarEvento({
+                    user: empleadoData?.nombre || usuarioOCorreo,
+                    action: `${tipoMovimiento} registrada (${estadoTexto}) - PIN`,
+                    type: tipoEvento,
+                });
 
-            setResult({
-                success: true,
-                message: "Asistencia registrada",
-                empleado: empleadoData,
-                usuario: usuarioData,
-                token: token,
-                tipoMovimiento: tipoMovimiento,
-                hora: data.data?.fecha_registro
-                    ? new Date(data.data.fecha_registro).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
-                    : horaActual,
-                estado: data.data?.estado || estadoActual?.estadoHorario || 'puntual',
-                estadoTexto: estadoTexto,
-                clasificacion: clasificacionFinal,
-            });
+                resultPayload = {
+                    success: true,
+                    message: "Asistencia registrada",
+                    empleado: empleadoData,
+                    usuario: usuarioData,
+                    token: token,
+                    tipoMovimiento,
+                    hora: syncResult.hora || horaActual,
+                    estado: syncResult.estado,
+                    estadoTexto,
+                    clasificacion: syncResult.estado,
+                };
 
-            if (onSuccess) {
+            } else { // ── Pendiente: sin red o push falló temporalmente ──
+                const utterance = new SpeechSynthesisUtterance("Registro pendiente");
+                utterance.lang = "es-MX";
+                utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
+
+                agregarEvento({
+                    user: empleadoData?.nombre || usuarioOCorreo,
+                    action: "Asistencia guardada localmente (pendiente de sincronizar) - PIN",
+                    type: "warning",
+                });
+
+                resultPayload = {
+                    success: true,
+                    message: "Registro pendiente",
+                    empleado: empleadoData,
+                    usuario: usuarioData,
+                    token: token,
+                    tipoMovimiento: "PENDIENTE",
+                    hora: horaActual,
+                    estado: "pendiente",
+                    estadoTexto: "⏳ Asistencia pendiente",
+                    clasificacion: "pendiente",
+                    pendiente: true,
+                };
+            }
+
+            setResult(resultPayload);
+
+
+            if (onSuccess && resultPayload.success) {
                 onSuccess({
                     empleado: empleadoData,
-                    tipo_movimiento: tipoMovimiento,
-                    hora: horaActual,
-                    estado: data.data?.estado,
-                    clasificacion: clasificacionFinal,
-                    dispositivo_origen: 'escritorio',
+                    tipo_movimiento: resultPayload.tipoMovimiento,
+                    hora: resultPayload.hora,
+                    estado: resultPayload.estado,
+                    clasificacion: resultPayload.clasificacion,
+                    pendiente: resultPayload.pendiente || false,
+                    dispositivo_origen: "escritorio",
                 });
             }
 
         } catch (error) {
             console.error("❌ Error:", error);
-
-            // === FALLBACK OFFLINE ===
-            const isNetworkError = error.name === 'TypeError'
-                || error.message.includes('Failed to fetch')
-                || error.message.includes('NetworkError')
-                || error.message.includes('ERR_INTERNET_DISCONNECTED')
-                || error.isApiOffline // API server returned 500+ error
-                || error.message.includes('Server Error'); // Propagated from custom throws
-
-            if (isNetworkError && window.electronAPI && window.electronAPI.offlineDB) {
-                console.log('📴 [PinModal] Sin conexión — intentando autenticación offline...');
-
-                try {
-                    const {
-                        identificarPorPinOffline,
-                        cargarDatosOffline,
-                        guardarAsistenciaOffline
-                    } = await import('../services/offlineAuthService');
-                    const empleadoIdentificado = await identificarPorPinOffline(usuarioOCorreo.trim(), pin.trim());
-
-                    if (!empleadoIdentificado) {
-                        throw new Error('Credenciales inválidas (Offline)');
-                    }
-
-                    console.log(`✅ [PinModal] Empleado identificado offline: ${empleadoIdentificado.nombre}`);
-                    const empleadoId = empleadoIdentificado.empleado_id;
-
-                    const empleadoFull = await window.electronAPI.offlineDB.getEmpleado(empleadoId);
-
-                    // 1. LOGIN OFFLINE SILENCIOSO (Solo identificamos)
-                    // Si viene desde un flujo de login a sesión, esto proveerá el context.
-                    // 2. Si es registro de asistencia directa (sin UI intermedio), se va por la cola cruda:
-                    await guardarAsistenciaOffline({
-                        empleadoId,
-                        metodoRegistro: 'PIN',
-                    });
-
-                    // Mensaje de voz offline neutral genérico
-                    const utterance = new SpeechSynthesisUtterance(
-                        `Asistencia guardada localmente`
-                    );
-                    utterance.lang = "es-MX";
-                    utterance.rate = 0.9;
-                    window.speechSynthesis.speak(utterance);
-
-                    setResult({
-                        success: true,
-                        offline: true,
-                        message: "Asistencia guardada en dispositivo (Offline). Se sincronizará en automático",
-                        empleado: empleadoFull || empleadoIdentificado,
-                        tipoMovimiento: "OFFLINE", // No sabemos si es entrada/salida
-                        hora: new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }),
-                        estado: "Pendiente",
-                        estadoTexto: '📴 Modo Offline',
-                        clasificacion: 'guardado local',
-                        usuario: {
-                            id: empleadoIdentificado.usuario_id,
-                            nombre: empleadoIdentificado.nombre,
-                            es_empleado: true,
-                            empleado_id: empleadoId,
-                            offline: true
-                        }
-                    });
-                    return;
-
-                } catch (offlineError) {
-                    console.error('❌ [PinModal] Error en flujo offline:', offlineError);
-                    setErrorMessage(offlineError.message || "Error en validación offline");
-                    setResult({
-                        success: false,
-                        message: offlineError.message || 'Error procesando solicitud offline',
-                    });
-                    return;
-                }
-            }
 
             agregarEvento({
                 user: usuarioOCorreo,
@@ -343,22 +316,18 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
                 type: "error",
             });
 
-            // Detectar errores devueltos por la API para mostrar UI amarilla
             const responseData = error.responseData;
             const isBlockCompletedError = error.message && (
-                (error.message.includes('bloque') && error.message.includes('completado')) ||
-                (error.message.includes('jornada') && error.message.includes('completada'))
+                (error.message.includes("bloque") && error.message.includes("completado")) ||
+                (error.message.includes("jornada") && error.message.includes("completada"))
             );
 
             let finalErrorMessage = error.message || "Error al registrar asistencia";
-            let isFaltaDirecta = false;
             if (finalErrorMessage.includes("falta directa")) {
                 finalErrorMessage = "Registro denegado: Se te ha registrado una falta directa en este turno. No puedes registrar asistencia.";
-                isFaltaDirecta = true;
             }
 
             setErrorMessage(finalErrorMessage);
-
             setResult({
                 success: false,
                 message: finalErrorMessage,
@@ -366,8 +335,8 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
                 token: token,
                 empleado: empleadoData,
                 noPuedeRegistrar: responseData?.noPuedeRegistrar || isBlockCompletedError,
-                estadoHorario: responseData?.estadoHorario || (isBlockCompletedError ? 'completado' : undefined),
-                minutosRestantes: responseData?.minutosRestantes
+                estadoHorario: responseData?.estadoHorario || (isBlockCompletedError ? "completado" : undefined),
+                minutosRestantes: responseData?.minutosRestantes,
             });
         } finally {
             setLoading(false);
@@ -391,30 +360,28 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
             countdownRef.current = null;
         }
 
-        // Si userData no se pasa, obtener datos completos para la sesión
         if (!userData && onLoginRequest && result) {
             const empleadoId = result.empleado?.id || result.empleado?.empleado_id || result.usuario?.empleado_id;
             const isOffline = result.offline || !navigator.onLine;
 
-            // Solo llamar a /api/auth/biometric si hay conexión (en offline no se necesitan permisos de admin)
+            // Solo llamar a /api/auth/biometric si hay conexión
             if (empleadoId && !isOffline) {
                 try {
                     console.log("🔐 Obteniendo datos completos de sesión vía /api/auth/biometric...");
-                    const authResponse = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/biometric`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ empleado_id: empleadoId }),
-                    });
+                    const authResponse = await fetch(
+                        `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH}/biometric`,
+                        {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ empleado_id: empleadoId }),
+                        }
+                    );
 
                     if (authResponse.ok) {
                         const authResult = await authResponse.json();
                         if (authResult.success && authResult.data) {
                             const { usuario, roles, permisos, esAdmin, token: authToken } = authResult.data;
-
-                            if (authToken) {
-                                localStorage.setItem('auth_token', authToken);
-                            }
-
+                            if (authToken) localStorage.setItem("auth_token", authToken);
                             userData = {
                                 ...usuario,
                                 roles,
@@ -431,7 +398,7 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
                 }
             }
 
-            // Fallback: construir desde result (offline o si la llamada falló)
+            // Fallback: construir desde result (offline o si falló)
             if (!userData) {
                 userData = {
                     ...result.usuario,
@@ -441,7 +408,7 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
                     es_empleado: result.noEsEmpleado ? false : true,
                     empleado_id: empleadoId,
                     nombre: result.empleado?.nombre || result.usuario?.nombre || result.usuario?.username,
-                    token: result.token
+                    token: result.token,
                 };
             }
         }
@@ -452,7 +419,6 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
             if (onCloseRef.current) onCloseRef.current();
         }
     };
-
 
     return {
         showPassword,

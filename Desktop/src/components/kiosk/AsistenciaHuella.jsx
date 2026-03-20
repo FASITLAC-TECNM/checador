@@ -14,14 +14,7 @@ import {
 } from "lucide-react";
 import { guardarSesion } from "../../services/biometricAuthService";
 import { API_CONFIG, fetchApi } from "../../config/apiEndPoint";
-import {
-  cargarDatosAsistencia,
-  obtenerDepartamentoEmpleado,
-  registrarAsistenciaEnServidor,
-  obtenerInfoClasificacion,
-  obtenerUltimoRegistro,
-  calcularEstadoRegistro
-} from "../../services/asistenciaLogicService";
+
 import { useConnectivity } from "../../hooks/useConnectivity";
 
 export default function AsistenciaHuella({
@@ -315,228 +308,159 @@ export default function AsistenciaHuella({
     setProcessingAttendance(true);
     addMessage("📝 Cargando datos del empleado...", "info");
 
-    // Declarar fuera del try para poder usarlo en catch
     let empleadoData = null;
 
     try {
-      if (!isDatabaseConnected) {
-         const offlineForceError = new Error("Server Error (Offline mode forced)");
-         offlineForceError.isApiOffline = true;
-         throw offlineForceError;
+      // ── PASO 1: OBTENER DATOS DEL EMPLEADO ───────────────────────────────
+      // La identificación ya fue hecha por el BiometricMiddleware (proceso local).
+      // Solo necesitamos los datos del empleado para mostrar en el modal.
+      if (isDatabaseConnected) {
+        // ── Datos ONLINE ──
+        try {
+          const empleadoResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.EMPLEADOS}/${empleadoId}`);
+          empleadoData = empleadoResponse.data || empleadoResponse;
+        } catch (apiError) {
+          console.warn("⚠️ [OfflineFirst/Huella] No se pudo obtener empleado de API, usando SQLite:", apiError.message);
+        }
       }
 
-      // Primero obtener datos del empleado desde la API
-      const empleadoResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.EMPLEADOS}/${empleadoId}`);
-      empleadoData = empleadoResponse.data || empleadoResponse;
+      // Fallback: SQLite (también se usa cuando no hay conexión)
+      if (!empleadoData && window.electronAPI?.offlineDB) {
+        console.log("📴 [OfflineFirst/Huella] Obteniendo empleado desde SQLite...");
+        empleadoData = await window.electronAPI.offlineDB.getEmpleado(empleadoId);
+      }
 
       if (!empleadoData) {
         throw new Error("No se encontró información del empleado");
       }
 
-      // Usar el ID numérico real del empleado, no el código
-      const empleadoIdNumerico = empleadoData.id;
-      const usuarioId = empleadoData.usuario_id;
+      // Usar el ID numérico real del empleado
+      const empleadoIdNumerico = empleadoData.id || empleadoId;
 
-      addMessage("📝 Registrando asistencia...", "info");
-
-      // Obtener departamento del empleado usando el servicio compartido
-      const departamentoId = await obtenerDepartamentoEmpleado(empleadoIdNumerico);
-
-      // Registrar asistencia usando el servicio compartido
-      const data = await registrarAsistenciaEnServidor({
-        empleadoId: empleadoData.id,
-        departamentoId,
-        metodoRegistro: 'HUELLA',
-        token: localStorage.getItem('auth_token') || ''
+      // ── PASO 2 + 3: GUARDAR LOCAL Y SINCRONIZAR INMEDIATAMENTE ──────────
+      addMessage("💾 Guardando asistencia...", "info");
+      console.log("💾 [EagerSync/Huella] Guardando y sincronizando asistencia...");
+      const { guardarYSincronizarAsistencia } = await import("../../services/offlineAuthService");
+      const syncResult = await guardarYSincronizarAsistencia({
+        empleadoId: empleadoIdNumerico,
+        metodoRegistro: "HUELLA",
+        isDatabaseConnected,
       });
 
-      // Obtener hora actual
-      const now = new Date();
-      const horaActual = now.toLocaleTimeString("es-MX", {
+      const horaActual = new Date().toLocaleTimeString("es-MX", {
         hour: "2-digit",
         minute: "2-digit",
       });
 
-      // Usar la clasificación devuelta por el servidor
-      const clasificacionFinal = data.data?.clasificacion || data.data?.estado || 'puntual';
-      const tipoRegistro = data.data?.tipo || 'entrada';
-      const tipoMovimiento = tipoRegistro === 'salida' ? 'SALIDA' : 'ENTRADA';
+      let nuevoResultado;
 
-      // Obtener texto y emoji según la clasificación usando el servicio compartido
-      const { estadoTexto, tipoEvento } = obtenerInfoClasificacion(clasificacionFinal, tipoRegistro);
+      if (syncResult.rechazado) {
+        // ── Rechazado definitivamente por el servidor ──
+        addMessage(`❌ Registro rechazado: ${syncResult.errorServidor}`, "error");
 
-      addMessage(`${tipoMovimiento === 'SALIDA' ? 'Salida' : 'Entrada'} registrada (${estadoTexto})`, tipoEvento);
+        nuevoResultado = {
+          success: false,
+          message: syncResult.errorServidor,
+          empleado: empleadoData,
+          empleadoId: empleadoIdNumerico,
+          rechazado: true,
+          hora: horaActual,
+        };
+      } else if (!syncResult.pendiente) {
+        // ── Resultado REAL del servidor ──
+        const tipoMovimiento = syncResult.tipo === "salida" ? "SALIDA" : "ENTRADA";
+        // importar obtenerInfoClasificacion del servicio compartido
+        const { obtenerInfoClasificacion } = await import("../../services/asistenciaLogicService");
+        const { estadoTexto } = obtenerInfoClasificacion(syncResult.estado, syncResult.tipo);
 
-      // Preparar el resultado ANTES de mostrar el modal
-      const nuevoResultado = {
-        success: true,
-        message: "Asistencia registrada",
-        empleado: empleadoData,
-        empleadoId: empleadoId,
-        tipoMovimiento: tipoMovimiento,
-        hora: data.data?.fecha_registro
-          ? new Date(data.data.fecha_registro).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
-          : horaActual,
-        estado: clasificacionFinal,
-        estadoTexto: estadoTexto,
-        clasificacion: clasificacionFinal,
-      };
+        addMessage(`✅ ${tipoMovimiento} registrada (${estadoTexto})`, "success");
 
-      console.log("📋 Asistencia registrada exitosamente:", nuevoResultado);
-      console.log("📋 backgroundMode:", backgroundMode, "- Mostrando modal...");
+        nuevoResultado = {
+          success: true,
+          message: "Asistencia registrada",
+          empleado: empleadoData,
+          empleadoId: empleadoIdNumerico,
+          tipoMovimiento,
+          hora: syncResult.hora || horaActual,
+          estado: syncResult.estado,
+          estadoTexto,
+          clasificacion: syncResult.estado,
+        };
+      } else {
+        // ── Pendiente: sin conexión o push falló temporalmente ──
+        addMessage("⏳ Asistencia pendiente de sincronizar", "warning");
 
-      // Desactivar pantalla de identificando
+        nuevoResultado = {
+          success: true,
+          message: "Registro pendiente",
+          empleado: empleadoData,
+          empleadoId: empleadoIdNumerico,
+          tipoMovimiento: "PENDIENTE",
+          hora: horaActual,
+          estado: "pendiente",
+          estadoTexto: "⏳ Asistencia pendiente",
+          clasificacion: "pendiente",
+          pendiente: true,
+        };
+      }
+
+
       setIdentificando(false);
-
-      // IMPORTANTE: Establecer el resultado PRIMERO, luego mostrar el modal
       setResult(nuevoResultado);
 
-      // En modo background, mostrar modal ahora que tenemos resultado
       if (backgroundMode) {
-        // Usar setTimeout para asegurar que el estado se actualice antes de mostrar el modal
         setTimeout(() => {
-          console.log("📋 Ejecutando setShowModal(true)");
           setShowModal(true);
         }, 50);
       }
 
-      // Callback de éxito
-      if (onSuccess) {
+      if (onSuccess && nuevoResultado.success) {
         onSuccess({
-          empleadoId,
+          empleadoId: empleadoIdNumerico,
           matchScore,
           empleado: empleadoData,
-          tipo_movimiento: tipoMovimiento,
-          hora: horaActual,
-          estado: data.data?.estado,
+          tipo_movimiento: nuevoResultado.tipoMovimiento,
+          hora: nuevoResultado.hora,
+          estado: nuevoResultado.estado,
+          pendiente: nuevoResultado.pendiente || false,
         });
       }
 
     } catch (error) {
-      console.error("Error registrando asistencia:", error);
+      console.error("❌ Error registrando asistencia:", error);
 
-      // === FALLBACK OFFLINE ===
-      const isNetworkError = error.name === 'TypeError'
-        || error.message.includes('Failed to fetch')
-        || error.message.includes('NetworkError')
-        || error.message.includes('ERR_INTERNET_DISCONNECTED')
-        || error.isApiOffline // API server returned 500+ error
-        || error.message.includes('Server Error');
-
-      if (isNetworkError && window.electronAPI && window.electronAPI.offlineDB) {
-        console.log('📴 [AsistenciaHuella] Sin conexión — intentando autenticación offline...');
-
-        try {
-          // 1. Importar servicios offline
-          const {
-            cargarDatosOffline,
-            guardarAsistenciaOffline
-          } = await import('../../services/offlineAuthService');
-
-          // 2. Recuperar datos completos del empleado para la sesión
-          const empleadoFull = await window.electronAPI.offlineDB.getEmpleado(empleadoId);
-
-          if (!empleadoFull) {
-            throw new Error("Empleado no encontrado en base de datos local");
-          }
-
-          // Cola Inmediata (Asistencia Cruda / Raw Punch)
-          await guardarAsistenciaOffline({
-            empleadoId,
-            metodoRegistro: 'HUELLA',
-          });
-
-          // Mensaje de voz estandarizado offline neutral
-          const utterance = new SpeechSynthesisUtterance(
-            `Asistencia guardada localmente`
-          );
-          utterance.lang = "es-MX";
-          utterance.rate = 0.9;
-          window.speechSynthesis.speak(utterance);
-
-          const resultadoOfflineExito = {
-            success: true,
-            offline: true,
-            message: "Asistencia guardada en dispositivo (Offline). Se sincronizará en automático",
-            empleado: empleadoFull,
-            empleadoId: empleadoId,
-            tipoMovimiento: "OFFLINE",
-            hora: new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }),
-            estado: "Pendiente",
-            estadoTexto: '📴 Modo Offline',
-            clasificacion: 'guardado local',
-            // Permitir login también en éxito offline
-            usuario: {
-              id: empleadoFull.usuario_id,
-              nombre: empleadoFull.nombre,
-              es_empleado: true,
-              empleado_id: empleadoId,
-              offline: true
-            }
-          };
-
-          setIdentificando(false);
-          setResult(resultadoOfflineExito);
-
-          if (backgroundMode) {
-            setTimeout(() => {
-              setShowModal(true);
-            }, 50);
-          }
-          return;
-
-        } catch (offlineError) {
-          console.error('❌ [AsistenciaHuella] Error en flujo offline:', offlineError);
-          addMessage(`❌ Error Offline: ${offlineError.message}`, "error");
-        }
-      }
-
-      // Si no es error de red o falló el offline, mostrar error normal
       let finalErrorMessage = error.message || "Error al registrar asistencia";
-      let isFaltaDirecta = false;
       if (finalErrorMessage.includes("falta directa")) {
         finalErrorMessage = "Registro denegado: Se te ha registrado una falta directa en este turno. No puedes registrar asistencia.";
-        isFaltaDirecta = true;
       }
 
-      addMessage(isFaltaDirecta ? `❌ ${finalErrorMessage}` : `❌ Error: ${finalErrorMessage}`, "error");
+      addMessage(`❌ Error: ${finalErrorMessage}`, "error");
 
-      // Detectar errores devueltos por devueltos de API
       const responseData = error.responseData;
       const isBlockCompletedError = error.message && (
-        (error.message.includes('bloque') && error.message.includes('completado')) ||
-        (error.message.includes('jornada') && error.message.includes('completada'))
+        (error.message.includes("bloque") && error.message.includes("completado")) ||
+        (error.message.includes("jornada") && error.message.includes("completada"))
       );
 
-      // Preparar el resultado de error
       const resultadoError = {
         success: false,
         message: finalErrorMessage,
         empleadoId: empleadoId,
         empleado: empleadoData,
         noPuedeRegistrar: responseData?.noPuedeRegistrar || isBlockCompletedError,
-        estadoHorario: responseData?.estadoHorario || (isBlockCompletedError ? 'completado' : undefined),
-        minutosRestantes: responseData?.minutosRestantes
+        estadoHorario: responseData?.estadoHorario || (isBlockCompletedError ? "completado" : undefined),
+        minutosRestantes: responseData?.minutosRestantes,
       };
 
-      console.log("📋 Error en registro:", resultadoError);
-
-      // Desactivar pantalla de identificando
       setIdentificando(false);
-
-      // IMPORTANTE: Establecer el resultado PRIMERO, luego mostrar el modal
       setResult(resultadoError);
 
-      // En modo background, mostrar modal con el error
       if (backgroundMode) {
         setTimeout(() => {
-          console.log("📋 Ejecutando setShowModal(true) - Error");
           setShowModal(true);
         }, 50);
       }
     } finally {
-      // NO resetear isProcessingAttendanceRef aquí - solo se resetea cuando se cierra el modal
-      // Esto previene que mensajes duplicados del servidor creen múltiples registros
       setProcessingAttendance(false);
       setCurrentOperation("None");
       setStatus("ready");
@@ -1085,21 +1009,17 @@ export default function AsistenciaHuella({
                         ? "text-yellow-800 dark:text-yellow-300"
                         : "text-green-800 dark:text-green-300"
                       }`}>
-                      {result.offline ? "Asistencia Pendiente" : "Asistencia Registrada"}
+                      {result.offline ? "Registro pendiente" : "Asistencia Registrada"}
                     </p>
                     {result.empleado?.nombre && (
                       <p className="text-gray-700 dark:text-gray-300 text-lg">
                         {result.empleado.nombre}
                       </p>
                     )}
-                    {result.tipoMovimiento && (
-                      <div className="mt-2">
+                    {result.tipoMovimiento && !result.offline && (
+                      <div className="mt-2 text-center">
                         <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">
-                          {result.offline ? (
-                            <>Pendiente de validación {result.hora && `a las ${result.hora}`}</>
-                          ) : (
-                            <>{result.tipoMovimiento === "ENTRADA" ? "Entrada" : "Salida"} registrada {result.hora && `a las ${result.hora}`}</>
-                          )}
+                          <>{result.tipoMovimiento === "ENTRADA" ? "Entrada" : "Salida"} registrada {result.hora && `a las ${result.hora}`}</>
                         </p>
                         {/* Badge de clasificación */}
                         <span

@@ -13,11 +13,7 @@ import { useFaceDetection } from "../../hooks/useFaceDetection";
 import { identificarPorFacial, guardarSesion } from "../../services/biometricAuthService";
 import { useCamera } from "../../context/CameraContext";
 import { API_CONFIG } from "../../config/apiEndPoint";
-import {
-  obtenerDepartamentoEmpleado,
-  registrarAsistenciaEnServidor,
-  obtenerInfoClasificacion
-} from "../../services/asistenciaLogicService";
+
 import { agregarEvento } from "../../services/bitacoraService";
 import * as faceapi from 'face-api.js';
 import { useConnectivity } from "../../hooks/useConnectivity";
@@ -543,219 +539,186 @@ export default function AsistenciaFacial({
     };
   }, [step, modelsLoaded, shouldMaintainConnection, backgroundMode, stopFaceDetection]);
 
-  // Identificar usuario y registrar asistencia
+  // Identificar usuario y registrar asistencia (OFFLINE-FIRST)
   const identificarYRegistrar = async (descriptorBase64) => {
     let empleadoData = null;
 
     try {
-      if (!isDatabaseConnected) {
-         const offlineForceError = new Error("Server Error (Offline mode forced)");
-         offlineForceError.isApiOffline = true;
-         throw offlineForceError;
+      let empleadoId = null;
+
+      // ── PASO 1: IDENTIFICAR AL EMPLEADO ──────────────────────────────────
+      // Con conexión → API (identificación fresca).
+      // Sin conexión → SQLite local en caché.
+      if (isDatabaseConnected) {
+        // ── Identificación ONLINE ──
+        console.log("🔐 [OfflineFirst/Facial] Identificando via API...");
+        const response = await identificarPorFacial(descriptorBase64);
+
+        if (!response.success) {
+          throw new Error(response.error || "Rostro no reconocido en el sistema");
+        }
+
+        empleadoData = response.usuario;
+        empleadoId = empleadoData?.id_empleado || empleadoData?.id;
+
+        if (!empleadoId) {
+          throw new Error("No se encontró información del empleado");
+        }
+
+      } else {
+        // ── Identificación OFFLINE ──
+        console.log("📴 [OfflineFirst/Facial] Sin conexión — identificando en SQLite...");
+        const { identificarPorFacialOffline } = await import("../../services/offlineAuthService");
+
+        const base64ToFloat32Array = (base64) => {
+          const binary = window.atob(base64);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+          return new Float32Array(bytes.buffer);
+        };
+
+        const floatDescriptor = base64ToFloat32Array(descriptorBase64);
+        const resultadoOffline = await identificarPorFacialOffline(floatDescriptor);
+
+        if (!resultadoOffline) {
+          throw new Error("Rostro no reconocido en base de datos local");
+        }
+
+        empleadoId = resultadoOffline.empleado_id;
+
+        if (window.electronAPI?.offlineDB) {
+          empleadoData = await window.electronAPI.offlineDB.getEmpleado(empleadoId);
+        }
+        empleadoData = empleadoData || resultadoOffline;
+
+        if (!empleadoData) {
+          throw new Error("Empleado no encontrado en base de datos local");
+        }
       }
 
-      // 1. Identificar usuario por facial
-      const response = await identificarPorFacial(descriptorBase64);
+      console.log("👤 Empleado identificado:", empleadoData?.nombre || empleadoId);
 
-      if (!response.success) {
-        throw new Error(response.error || "Rostro no reconocido en el sistema");
-      }
-
-      // identificarPorFacial retorna { usuario: empleado } - datos del empleado directamente
-      empleadoData = response.usuario;
-      const empleadoId = empleadoData.id_empleado || empleadoData.id;
-      const usuarioId = empleadoData.id_usuario || empleadoData.usuario_id;
-
-      if (!empleadoId) {
-        throw new Error("No se encontro informacion del empleado");
-      }
-
-      console.log("Empleado identificado:", empleadoData?.nombre || empleadoId);
-
-      // 2. Registrar asistencia
-      console.log("Registrando asistencia...");
-      const departamentoId = await obtenerDepartamentoEmpleado(empleadoId);
-
-      const data = await registrarAsistenciaEnServidor({
-        empleadoId: empleadoId,
-        departamentoId,
-        metodoRegistro: 'FACIAL',
-        token: localStorage.getItem('auth_token') || ''
+      // ── PASO 2 + 3: GUARDAR LOCAL Y SINCRONIZAR INMEDIATAMENTE ──────────
+      console.log("💾 [EagerSync/Facial] Guardando y sincronizando asistencia...");
+      const { guardarYSincronizarAsistencia } = await import("../../services/offlineAuthService");
+      const syncResult = await guardarYSincronizarAsistencia({
+        empleadoId,
+        metodoRegistro: "FACIAL",
+        isDatabaseConnected,
       });
 
-      // 3. Procesar resultado exitoso
-      const now = new Date();
-      const horaActual = now.toLocaleTimeString("es-MX", {
+      const horaActual = new Date().toLocaleTimeString("es-MX", {
         hour: "2-digit",
         minute: "2-digit",
       });
 
-      const clasificacionFinal = data.data?.clasificacion || data.data?.estado || 'puntual';
-      const tipoRegistro = data.data?.tipo || 'entrada';
-      const tipoMovimiento = tipoRegistro === 'salida' ? 'SALIDA' : 'ENTRADA';
+      let resultPayload;
 
-      const { estadoTexto, tipoEvento } = obtenerInfoClasificacion(clasificacionFinal, tipoRegistro);
+      if (syncResult.rechazado) {
+        // ── Rechazado definitivamente por el servidor ──
+        agregarEvento({
+          user: empleadoData?.nombre || "Usuario",
+          action: `Registro rechazado: ${syncResult.errorServidor} - Facial`,
+          type: "error",
+        });
 
-      agregarEvento({
-        user: empleadoData?.nombre || 'Usuario',
-        action: `${tipoMovimiento === 'SALIDA' ? 'Salida' : 'Entrada'} registrada (${estadoTexto}) - Facial`,
-        type: tipoEvento,
-      });
+        resultPayload = {
+          success: false,
+          message: syncResult.errorServidor,
+          empleado: empleadoData,
+          usuario: empleadoData,
+          empleadoId,
+          rechazado: true,
+          hora: horaActual,
+        };
 
-      // Mensaje de voz estandarizado
-      const tipoVoz = tipoMovimiento === 'SALIDA' ? 'salida' : 'entrada';
-      const voiceMessage = `Registro ${tipoVoz} exitoso`;
+      } else if (!syncResult.pendiente) {
+        // ── Resultado REAL del servidor ──
+        const tipoMovimiento = syncResult.tipo === "salida" ? "SALIDA" : "ENTRADA";
+        const { obtenerInfoClasificacion } = await import("../../services/asistenciaLogicService");
+        const { estadoTexto, tipoEvento } = obtenerInfoClasificacion(syncResult.estado, syncResult.tipo);
 
-      const utterance = new SpeechSynthesisUtterance(voiceMessage);
-      utterance.lang = "es-MX";
-      utterance.rate = 0.9;
-      window.speechSynthesis.speak(utterance);
+        const voiceMsg = syncResult.tipo === "salida" ? "Salida registrada" : "Entrada registrada";
+        const utterance = new SpeechSynthesisUtterance(voiceMsg);
+        utterance.lang = "es-MX";
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
 
-      setResult({
-        success: true,
-        message: "Asistencia registrada",
-        empleado: empleadoData,
-        usuario: empleadoData,
-        empleadoId: empleadoId,
-        tipoMovimiento: tipoMovimiento,
-        hora: data.data?.fecha_registro
-          ? new Date(data.data.fecha_registro).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
-          : horaActual,
-        estado: clasificacionFinal,
-        estadoTexto: estadoTexto,
-        clasificacion: clasificacionFinal,
-      });
+        agregarEvento({
+          user: empleadoData?.nombre || "Usuario",
+          action: `${tipoMovimiento} registrada (${estadoTexto}) - Facial`,
+          type: tipoEvento,
+        });
 
-      setStep("success");
+        resultPayload = {
+          success: true,
+          message: "Asistencia registrada",
+          empleado: empleadoData,
+          usuario: empleadoData,
+          empleadoId,
+          tipoMovimiento,
+          hora: syncResult.hora || horaActual,
+          estado: syncResult.estado,
+          estadoTexto,
+          clasificacion: syncResult.estado,
+        };
 
-      // Callback de exito
-      if (onSuccess) {
+      } else {
+        // ── Pendiente: sin red o push falló temporalmente ──
+        const utterance = new SpeechSynthesisUtterance("Registro pendiente");
+        utterance.lang = "es-MX";
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+
+        agregarEvento({
+          user: empleadoData?.nombre || "Usuario",
+          action: "Asistencia guardada localmente (pendiente de sincronizar) - Facial",
+          type: "warning",
+        });
+
+        resultPayload = {
+          success: true,
+          message: "Registro pendiente",
+          empleado: empleadoData,
+          usuario: empleadoData,
+          empleadoId,
+          tipoMovimiento: "PENDIENTE",
+          hora: horaActual,
+          estado: "pendiente",
+          estadoTexto: "⏳ Asistencia pendiente",
+          clasificacion: "pendiente",
+          pendiente: true,
+        };
+      }
+
+      setResult(resultPayload);
+      setStep(syncResult.rechazado ? "error" : "success");
+
+      if (onSuccess && resultPayload.success) {
         onSuccess({
           empleado: empleadoData,
-          tipo_movimiento: tipoMovimiento,
-          hora: horaActual,
-          estado: data.data?.estado,
-          clasificacion: clasificacionFinal,
-          dispositivo_origen: 'escritorio',
+          tipo_movimiento: resultPayload.tipoMovimiento,
+          hora: resultPayload.hora,
+          estado: resultPayload.estado,
+          clasificacion: resultPayload.clasificacion,
+          pendiente: resultPayload.pendiente || false,
+          dispositivo_origen: "escritorio",
         });
       }
 
     } catch (error) {
-      console.error("Error:", error);
-
-      // === FALLBACK OFFLINE ===
-      // NOTA: identificarPorFacial() captura todos los errores internamente y retorna
-      // { success: false, error: "..." }. El throw de línea 536 convierte ese mensaje
-      // en un Error, pero ya NO contiene el texto original "Failed to fetch".
-      // Por eso también chequeamos navigator.onLine y el mensaje genérico del servicio.
-      const isNetworkError = !navigator.onLine                           // sin conexión a nivel OS
-        || error.name === 'TypeError'
-        || error.message.includes('Failed to fetch')
-        || error.message.includes('NetworkError')
-        || error.message.includes('ERR_INTERNET_DISCONNECTED')
-        || error.message.includes('fetch')
-        || error.message.includes('Error al identificar rostro')         // mensaje genérico cuando falla la red
-        || error.message.includes('Error HTTP: 0')                       // sin respuesta del servidor
-        || error.isApiOffline
-        || error.message.includes('Server Error');
-
-      if (isNetworkError && window.electronAPI && window.electronAPI.offlineDB) {
-        console.log('📴 [AsistenciaFacial] Sin conexión — intentando autenticación offline...');
-
-        try {
-          // 1. Importar servicios offline
-          const {
-            identificarPorFacialOffline,
-            guardarAsistenciaOffline
-          } = await import('../../services/offlineAuthService');
-
-          // Convertir Base64 a array de float para identificar
-          const base64ToFloat32Array = (base64) => {
-            const binary_string = window.atob(base64);
-            const len = binary_string.length;
-            const bytes = new Uint8Array(len);
-            for (let i = 0; i < len; i++) {
-              bytes[i] = binary_string.charCodeAt(i);
-            }
-            return new Float32Array(bytes.buffer);
-          };
-
-          let floatDescriptor;
-          try {
-            floatDescriptor = base64ToFloat32Array(descriptorBase64);
-          } catch (e) {
-            throw new Error("No se pudo parsear descriptor facial para login offline");
-          }
-
-          const resultadoOffline = await identificarPorFacialOffline(floatDescriptor);
-
-          if (!resultadoOffline) {
-            throw new Error("Rostro no reconocido en base de datos local");
-          }
-
-          const empleadoId = resultadoOffline.empleado_id;
-          const empleadoFull = await window.electronAPI.offlineDB.getEmpleado(empleadoId);
-
-          if (!empleadoFull) {
-            throw new Error("Empleado no encontrado en base de datos local");
-          }
-
-          // Cola Inmediata (Asistencia Cruda / Raw Punch)
-          await guardarAsistenciaOffline({
-            empleadoId,
-            metodoRegistro: 'FACIAL',
-          });
-
-          // Mensaje de voz estandarizado offline neutral
-          const utterance = new SpeechSynthesisUtterance(
-            `Asistencia guardada localmente`
-          );
-          utterance.lang = "es-MX";
-          utterance.rate = 0.9;
-          window.speechSynthesis.speak(utterance);
-
-          const resultadoOfflineExito = {
-            success: true,
-            offline: true,
-            message: "Asistencia guardada en dispositivo (Offline). Se sincronizará en automático",
-            empleado: empleadoFull,
-            empleadoId: empleadoId,
-            tipoMovimiento: "OFFLINE",
-            hora: new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }),
-            estado: "Pendiente",
-            estadoTexto: '📴 Modo Offline',
-            clasificacion: 'guardado local',
-            usuario: empleadoFull
-          };
-
-          setResult(resultadoOfflineExito);
-          setStep("success");
-          return;
-
-        } catch (offlineError) {
-          console.error('❌ [AsistenciaFacial] Error en flujo offline:', offlineError);
-          setErrorMessage(`Error Offline: ${offlineError.message}`);
-          setResult({
-            success: false,
-            message: `Error Offline: ${offlineError.message}`,
-            noReconocida: offlineError.message?.includes("no reconocido") || offlineError.message?.includes("No se encontr")
-          });
-          setStep("error");
-          return;
-        }
-      }
+      console.error("❌ Error:", error);
 
       agregarEvento({
-        user: empleadoData?.nombre || 'Usuario',
+        user: empleadoData?.nombre || "Usuario",
         action: `Error en registro facial - ${error.message}`,
         type: "error",
       });
 
-      // Detectar errores devueltos por la API para mostrar UI amarilla
       const responseData = error.responseData;
       const isBlockCompletedError = error.message && (
-        (error.message.includes('bloque') && error.message.includes('completado')) ||
-        (error.message.includes('jornada') && error.message.includes('completada'))
+        (error.message.includes("bloque") && error.message.includes("completado")) ||
+        (error.message.includes("jornada") && error.message.includes("completada"))
       );
 
       let finalErrorMessage = error.message || "Error al registrar asistencia";
@@ -772,7 +735,7 @@ export default function AsistenciaFacial({
         usuario: empleadoData,
         empleadoId: empleadoIdLocal,
         noPuedeRegistrar: responseData?.noPuedeRegistrar || isBlockCompletedError,
-        estadoHorario: responseData?.estadoHorario || (isBlockCompletedError ? 'completado' : undefined),
+        estadoHorario: responseData?.estadoHorario || (isBlockCompletedError ? "completado" : undefined),
         minutosRestantes: responseData?.minutosRestantes,
         noReconocida: error.message?.includes("no reconocido") || error.message?.includes("No se encontr"),
       });
@@ -1279,7 +1242,7 @@ export default function AsistenciaFacial({
                   ? "text-yellow-800 dark:text-yellow-300"
                   : "text-green-800 dark:text-green-300"
                 }`}>
-                {result.offline ? "Asistencia Pendiente" : "Asistencia Registrada"}
+                {result.offline ? "Registro pendiente" : "Asistencia Registrada"}
               </p>
 
               {result.empleado?.nombre && (
@@ -1288,11 +1251,11 @@ export default function AsistenciaFacial({
                 </p>
               )}
 
-              {result.tipoMovimiento && (
+              {result.tipoMovimiento && !result.offline && (
                 <div className="mt-2">
                   <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">
                     {result.offline ? (
-                      <>Pendiente de validación {result.hora && `a las ${result.hora}`}</>
+                      <>Registro pendiente de sincronizar {result.hora && `a las ${result.hora}`}</>
                     ) : (
                       <>{result.tipoMovimiento === "ENTRADA" ? "Entrada" : "Salida"} registrada {result.hora && `a las ${result.hora}`}</>
                     )}

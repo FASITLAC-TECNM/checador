@@ -127,7 +127,14 @@ export async function pushPendingRawPunches() {
             console.log(`[RawSync] Error: id_local=${rej.id_local} : ${rej.error} (Definitivo: ${definitivo})`);
         }
 
-        return { total: pending.length, synced: sincronizados.length, errors: rechazados.length };
+        return {
+            total: pending.length,
+            synced: sincronizados.length,
+            errors: rechazados.length,
+            sincronizados,
+            rechazados,
+        };
+
 
     } catch (error) {
         console.error('[RawSync] Error general en push:', error.message);

@@ -1305,6 +1305,13 @@ export async function getOrdenCredencialesCache() {
 
 // ── DÍAS FESTIVOS ──
 
+export async function clearDiasFestivos(yearStr) {
+  try {
+    const database = await initDatabase();
+    await database.runAsync(`DELETE FROM cache_dias_festivos WHERE fecha LIKE ? || '%'`, [yearStr]);
+  } catch (e) { }
+}
+
 export async function upsertDiasFestivos(diasFestivos) {
   try {
     const database = await initDatabase();
@@ -1403,6 +1410,7 @@ export default {
   saveOrdenCredenciales,
   getOrdenCredenciales: getOrdenCredencialesCache,
 
+  clearDiasFestivos,
   upsertDiasFestivos,
   getDiaFestivo
 };

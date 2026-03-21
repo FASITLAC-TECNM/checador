@@ -196,6 +196,32 @@ function runMigrations() {
     console.warn('[SQLite] Error: Error en migracion de cache_escritorio_info:', e.message);
   }
 
+  // Migración: crear índice UNIQUE para deduplicación por device_id en cache_biometricos
+  try {
+    const bioInfo = db.prepare("PRAGMA index_list(cache_biometricos)").all();
+    const hasUniqueDeviceId = bioInfo.some(idx => idx.name === 'idx_cache_biometricos_device_id_unique');
+    if (!hasUniqueDeviceId) {
+      // Antes de crear el índice UNIQUE, limpiar duplicados existentes (conservar el más reciente)
+      db.exec(`
+        DELETE FROM cache_biometricos
+        WHERE rowid NOT IN (
+          SELECT MAX(rowid)
+          FROM cache_biometricos
+          WHERE device_id IS NOT NULL AND device_id != ''
+          GROUP BY device_id, escritorio_id
+        ) AND device_id IS NOT NULL AND device_id != ''
+      `);
+      db.exec(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_cache_biometricos_device_id_unique
+          ON cache_biometricos(device_id, escritorio_id)
+          WHERE device_id IS NOT NULL AND device_id != ''
+      `);
+      console.log('[SQLite] Action: Migracion - índice UNIQUE (device_id, escritorio_id) creado en cache_biometricos');
+    }
+  } catch (e) {
+    console.warn('[SQLite] Error: Error en migracion de cache_biometricos unique device_id:', e.message);
+  }
+
   console.log('[SQLite] Status: Migraciones completadas');
 }
 
@@ -754,7 +780,20 @@ export function setReferenciaData(data) {
       escStmt.run(esc.id, esc.nombre, bioJson, prioJson, esc.es_activo ? 1 : 0);
     }
 
-    // 6. Biométricos
+    // 6. Biométricos (con deduplicación por device_id)
+    const seenBios = new Map();
+    for (const b of biometricos) {
+      const key = `${b.device_id || ''}::${b.escritorio_id || ''}`;
+      if (!b.device_id || b.device_id.trim() === '') {
+        // Si no tiene device_id, usar su ID como clave para no considerarlo duplicado
+        seenBios.set(b.id, b);
+      } else if (!seenBios.has(key)) {
+        seenBios.set(key, b);
+      } else {
+        console.warn(`[SQLite] Info: Duplicado ignorado en pull: device_id=${b.device_id} ya existe en este lote`);
+      }
+    }
+
     const bioStmt = db.prepare(`
       INSERT INTO cache_biometricos (id, nombre, tipo, device_id, estado, es_activo, escritorio_id, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
@@ -766,9 +805,16 @@ export function setReferenciaData(data) {
         es_activo = excluded.es_activo,
         escritorio_id = excluded.escritorio_id,
         updated_at = excluded.updated_at
+      ON CONFLICT(device_id, escritorio_id) WHERE device_id IS NOT NULL AND device_id != '' DO UPDATE SET
+        nombre = excluded.nombre,
+        tipo = excluded.tipo,
+        estado = excluded.estado,
+        es_activo = excluded.es_activo,
+        updated_at = excluded.updated_at
     `);
-    for (const b of biometricos) {
-      bioStmt.run(b.id, b.nombre, b.tipo, b.device_id, b.estado, b.es_activo ? 1 : 0, b.escritorio_id);
+    
+    for (const b of [...seenBios.values()]) {
+      bioStmt.run(b.id, b.nombre, b.tipo, b.device_id || null, b.estado, b.es_activo ? 1 : 0, b.escritorio_id);
     }
 
     // 7. Actualizar metadata

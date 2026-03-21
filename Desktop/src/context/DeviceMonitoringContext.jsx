@@ -57,9 +57,10 @@ export const DeviceMonitoringProvider = ({ children }) => {
             const localHardware = deviceDetectionService.mergeDetectedDevices(usbDevices, webcams).concat(biometricos);
 
             let finalDevicesState = [];
+            let fetchedFromBackend = false;
 
             if (isOnline) {
-                // ========== MODO ONLINE ==========
+                // ========== INTENTO ONLINE ==========
                 const token = getAuthToken();
                 const headers = {
                     "Content-Type": "application/json",
@@ -75,110 +76,117 @@ export const DeviceMonitoringProvider = ({ children }) => {
                     registeredDevices = Array.isArray(responseReg.data || responseReg)
                         ? (responseReg.data || responseReg)
                         : [];
+                        
+                    fetchedFromBackend = true; // Éxito al consultar backend
                 } catch (e) {
                     if (e.message && e.message.includes('401')) {
                         console.log("[DeviceMonitor] GET restringido (esperado en Kiosk sin auth_token)");
+                        // Si es 401 por estar en Kiosco sin token de admin, asumimos "online" pero no podemos registrar nuevos.
+                        // La validación se apoyará en la caché local para el kiosco.
                     } else {
-                        console.error("[DeviceMonitor] Error obteniendo dispositivos:", e);
+                        console.warn("[DeviceMonitor] Error obteniendo dispositivos del backend (cayendo a modo offline local):", e.message);
                     }
                 }
 
-                // Match backend devices against local hardware
-                const nextDevicesState = [];
+                if (fetchedFromBackend) {
+                    // Match backend devices against local hardware
+                    const nextDevicesState = [];
 
-                for (let regDevice of registeredDevices) {
-                    if (!regDevice.es_activo) {
-                        nextDevicesState.push(regDevice);
-                        continue;
-                    }
-
-                    const regName = normalizeName(regDevice.nombre);
-
-                    let foundInHardware = localHardware.find((hw) => {
-                        const hwId = hw.deviceId || hw.instanceId || hw.device_id;
-
-                        if (regDevice.device_id && hwId) {
-                            return regDevice.device_id === hwId;
+                    for (let regDevice of registeredDevices) {
+                        if (!regDevice.es_activo) {
+                            nextDevicesState.push(regDevice);
+                            continue;
                         }
 
-                        const hwName = normalizeName(hw.name);
-                        if (!hwName || !regName) return false;
+                        const regName = normalizeName(regDevice.nombre);
 
-                        return (regName === hwName || regName.includes(hwName) || hwName.includes(regName));
-                    });
+                        let foundInHardware = localHardware.find((hw) => {
+                            const hwId = hw.deviceId || hw.instanceId || hw.device_id;
 
-                    const hwIdAttached = foundInHardware?.deviceId || foundInHardware?.instanceId || foundInHardware?.device_id;
+                            if (regDevice.device_id && hwId) {
+                                return regDevice.device_id === hwId;
+                            }
 
-                    // Auto-Vinculación
-                    if (foundInHardware && !regDevice.device_id && hwIdAttached) {
-                        try {
-                            await fetchApi(`${API_CONFIG.ENDPOINTS.BIOMETRICO}/${regDevice.id}`, {
-                                method: 'PUT',
-                                headers,
-                                body: JSON.stringify({ device_id: hwIdAttached })
-                            });
-                            console.log(`[DeviceMonitor] Dispositivo vinculado automáticamente al hardware ID: ${hwIdAttached}`);
-                            regDevice.device_id = hwIdAttached;
-                        } catch (e) {
-                            console.error("[DeviceMonitor] Error vinculando dispositivo:", e);
+                            const hwName = normalizeName(hw.name);
+                            if (!hwName || !regName) return false;
+
+                            return (regName === hwName || regName.includes(hwName) || hwName.includes(regName));
+                        });
+
+                        const hwIdAttached = foundInHardware?.deviceId || foundInHardware?.instanceId || foundInHardware?.device_id;
+
+                        // Auto-Vinculación
+                        if (foundInHardware && !regDevice.device_id && hwIdAttached) {
+                            try {
+                                await fetchApi(`${API_CONFIG.ENDPOINTS.BIOMETRICO}/${regDevice.id}`, {
+                                    method: 'PUT',
+                                    headers,
+                                    body: JSON.stringify({ device_id: hwIdAttached })
+                                });
+                                console.log(`[DeviceMonitor] Dispositivo vinculado automáticamente al hardware ID: ${hwIdAttached}`);
+                                regDevice.device_id = hwIdAttached;
+                            } catch (e) {
+                                console.error("[DeviceMonitor] Error vinculando dispositivo:", e);
+                            }
                         }
+
+                        const newEstado = foundInHardware ? "conectado" : "desconectado";
+                        nextDevicesState.push({ ...regDevice, estado: newEstado });
                     }
 
-                    const newEstado = foundInHardware ? "conectado" : "desconectado";
-                    nextDevicesState.push({ ...regDevice, estado: newEstado });
+                    if (!isMountedRef.current) return;
+
+                    const connectedDeviceIds = localHardware
+                        .map(hw => hw.deviceId || hw.instanceId || hw.device_id)
+                        .filter(Boolean);
+
+                    finalDevicesState = nextDevicesState;
+
+                    // Sync-status con backend
+                    try {
+                        const syncResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.BIOMETRICO}/sync-status`, {
+                            method: 'POST',
+                            headers,
+                            body: JSON.stringify({
+                                escritorio_id: escritorioId,
+                                device_ids: connectedDeviceIds
+                            })
+                        });
+
+                        const authDevices = syncResponse?.data || [];
+
+                        if (authDevices.length > 0) {
+                            finalDevicesState = authDevices.map(dbDevice => ({
+                                ...dbDevice,
+                                estado: 'conectado'
+                            }));
+                        } else {
+                            const dactilares = biometricos.filter(b => b.type === 'dactilar' && b.detected);
+                            if (dactilares.length > 0) {
+                                const camerasFromState = nextDevicesState.filter(d => d.tipo === 'facial');
+                                finalDevicesState = [
+                                    ...camerasFromState,
+                                    ...dactilares.map((b, idx) => ({
+                                        id: b.id || `local-dactilar-${idx}`,
+                                        nombre: b.name || 'Lector de Huella',
+                                        device_id: b.instanceId || b.deviceId || null,
+                                        tipo: 'dactilar',
+                                        estado: 'conectado',
+                                        es_activo: true,
+                                    }))
+                                ];
+                            } else if (registeredDevices.length === 0) {
+                                finalDevicesState = [];
+                            }
+                        }
+                    } catch (e) {
+                        console.error("[DeviceMonitor] Error sincronizando estado con el backend:", e);
+                    }
                 }
-
-                if (!isMountedRef.current) return;
-
-                const connectedDeviceIds = localHardware
-                    .map(hw => hw.deviceId || hw.instanceId || hw.device_id)
-                    .filter(Boolean);
-
-                finalDevicesState = nextDevicesState;
-
-                // Sync-status con backend
-                try {
-                    const syncResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.BIOMETRICO}/sync-status`, {
-                        method: 'POST',
-                        headers,
-                        body: JSON.stringify({
-                            escritorio_id: escritorioId,
-                            device_ids: connectedDeviceIds
-                        })
-                    });
-
-                    const authDevices = syncResponse?.data || [];
-
-                    if (authDevices.length > 0) {
-                        finalDevicesState = authDevices.map(dbDevice => ({
-                            ...dbDevice,
-                            estado: 'conectado'
-                        }));
-                    } else {
-                        const dactilares = biometricos.filter(b => b.type === 'dactilar' && b.detected);
-                        if (dactilares.length > 0) {
-                            const camerasFromState = nextDevicesState.filter(d => d.tipo === 'facial');
-                            finalDevicesState = [
-                                ...camerasFromState,
-                                ...dactilares.map((b, idx) => ({
-                                    id: b.id || `local-dactilar-${idx}`,
-                                    nombre: b.name || 'Lector de Huella',
-                                    device_id: b.instanceId || b.deviceId || null,
-                                    tipo: 'dactilar',
-                                    estado: 'conectado',
-                                    es_activo: true,
-                                }))
-                            ];
-                        } else if (registeredDevices.length === 0) {
-                            finalDevicesState = [];
-                        }
-                    }
-                } catch (e) {
-                    console.error("[DeviceMonitor] Error sincronizando estado con el backend:", e);
-                }
-
-            } else {
-                // ========== MODO OFFLINE ==========
+            }
+            
+            if (!fetchedFromBackend) {
+                // ========== MODO OFFLINE (FALLBACK GARANTIZADO) ==========
                 // Validar hardware contra caché SQLite
                 let cachedBio = [];
                 try {
@@ -205,6 +213,9 @@ export const DeviceMonitoringProvider = ({ children }) => {
                         .map(c => ({ ...c, estado: 'desconectado' }));
 
                     finalDevicesState = [...connected, ...disconnected];
+                } else {
+                    // Si no hay caché, no podemos autorizar nada offline
+                    finalDevicesState = [];
                 }
 
                 console.log(`[DeviceMonitor] Modo OFFLINE: ${finalDevicesState.filter(d => d.estado === 'conectado').length}/${cachedBio.length} dispositivos válidos`);

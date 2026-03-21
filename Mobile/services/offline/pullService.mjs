@@ -319,6 +319,7 @@ export async function fullPull(empleadoId) {
         );
 
         if (festivosObligatorios.length > 0) {
+          await sqliteManager.clearDiasFestivos(year.toString());
           await sqliteManager.upsertDiasFestivos(festivosObligatorios.map(f => ({
             fecha: f.fecha?.split('T')[0],
             nombre: f.nombre,
@@ -326,6 +327,7 @@ export async function fullPull(empleadoId) {
           })));
           results.diasFestivos = { success: true, count: festivosObligatorios.length };
         } else {
+          await sqliteManager.clearDiasFestivos(year.toString());
           results.diasFestivos = { success: true, count: 0 };
         }
       } else {

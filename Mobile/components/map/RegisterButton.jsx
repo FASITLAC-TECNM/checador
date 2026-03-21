@@ -88,7 +88,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     return new Date(d.getTime() - off).toISOString().split('T')[0];
   })());
   const styles = darkMode ? registerStylesDark : registerStyles;
-  const [horaActual, setHoraActual] = useState(new Date());
+  const clockOffsetRef = useRef(0);
+  const getTrustedDate = useCallback(() => new Date(Date.now() + clockOffsetRef.current), []);
+  const [horaActual, setHoraActual] = useState(getTrustedDate());
   useEffect(() => { horarioInfoRef.current = horarioInfo; }, [horarioInfo]);
   useEffect(() => { ultimoRegistroHoyRef.current = ultimoRegistroHoy; }, [ultimoRegistroHoy]);
   useEffect(() => { registrosHoyTodosRef.current = registrosHoyTodos; }, [registrosHoyTodos]);
@@ -101,6 +103,14 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   }, []);
 
   useEffect(() => {
+    const cargarOffset = async () => {
+      try {
+        const stored = await AsyncStorage.getItem('@clock_offset');
+        if (stored) clockOffsetRef.current = parseInt(stored, 10);
+      } catch (e) {}
+    };
+    cargarOffset();
+
     const cargarEstadoNotifDiaria = async () => {
       try {
         const stored = await AsyncStorage.getItem(NOTIF_DIARIA_KEY);
@@ -304,6 +314,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       clearTimeout(timeoutId);
 
       if (response.ok) {
+        const serverDateStr = response.headers.get('Date');
+        if (serverDateStr && !isNaN(new Date(serverDateStr).getTime())) {
+          const offset = new Date(serverDateStr).getTime() - Date.now();
+          clockOffsetRef.current = offset;
+          AsyncStorage.setItem('@clock_offset', offset.toString()).catch(() => {});
+        }
         const json = await response.json();
         const data = json.data;
         if (data) {
@@ -334,7 +350,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             if (numSalidasServidor >= numBloquesLocales) {
               const MINUTOS_ANTES = 5;
               const bloqueExtra = horarioLocal.bloques[numSalidasServidor];
-              const ahora = new Date();
+              const ahora = getTrustedDate();
               const ahoraMins = ahora.getHours() * 60 + ahora.getMinutes();
               const ventanaAbierta = bloqueExtra && ahoraMins >= (bloqueExtra.entrada - MINUTOS_ANTES);
               if (!ventanaAbierta) {
@@ -343,6 +359,49 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                 setEstadoHorario('bloque_completo');
                 setJornadaCompletada(true);
                 setMensajeEspera('Jornada completa. No es necesario registrar más asistencias por hoy.');
+                setUsandoEstadoBackend(true);
+                return true;
+              }
+            }
+          }
+
+          // ── Guardia Front-End: Prevenir registro/trackeo prematuro antes de tolerancia ──
+          if (data.puedeRegistrar && data.tipoSiguienteRegistro === 'entrada' && horarioLocal?.bloques?.length) {
+            const ANTICIPO = horarioLocal?.tolerancias?.anticipoEntrada ?? 5;
+            const registrosServidor = registrosHoyTodosRef.current || [];
+            const numEntradas = registrosServidor.filter(r => r.tipo === 'entrada').length;
+            const bloqueActual = horarioLocal.bloques[numEntradas];
+            
+            if (bloqueActual) {
+              const ahora = getTrustedDate();
+              const ahoraMins = ahora.getHours() * 60 + ahora.getMinutes();
+              if (ahoraMins < (bloqueActual.entrada - ANTICIPO)) {
+                setPuedeRegistrar(false);
+                setEstadoHorario('fuera_horario');
+                setTipoSiguienteRegistro('entrada');
+                setJornadaCompletada(false);
+                setMensajeEspera('Aún no es hora de registrar tu entrada.');
+                setUsandoEstadoBackend(true);
+                return true;
+              }
+            }
+          }
+
+          if (data.puedeRegistrar && data.tipoSiguienteRegistro === 'salida' && horarioLocal?.bloques?.length) {
+            const ANTICIPO_SALIDA = horarioLocal?.tolerancias?.anticipoSalida ?? 0;
+            const registrosServidor = registrosHoyTodosRef.current || [];
+            const numSalidas = registrosServidor.filter(r => r.tipo === 'salida').length;
+            const bloqueActual = horarioLocal.bloques[numSalidas];
+            
+            if (bloqueActual) {
+              const ahora = getTrustedDate();
+              const ahoraMins = ahora.getHours() * 60 + ahora.getMinutes();
+              if (ahoraMins < (bloqueActual.salida - ANTICIPO_SALIDA)) {
+                setPuedeRegistrar(false);
+                setEstadoHorario('fuera_horario');
+                setTipoSiguienteRegistro('salida');
+                setJornadaCompletada(false);
+                setMensajeEspera('Aún no es hora de registrar tu salida.');
                 setUsandoEstadoBackend(true);
                 return true;
               }
@@ -375,11 +434,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
   useEffect(() => {
     const intervalo = setInterval(async () => {
-      setHoraActual(new Date());
+      const ahora = getTrustedDate();
+      setHoraActual(ahora);
       ticksRef.current += 1;
 
       // ── Verificar cambio de día (medianoche) para re-evaluar festivo offline ──
-      const ahora = new Date();
       const ahoraOffset = ahora.getTimezoneOffset() * 60000;
       const fechaHoyStr = new Date(ahora.getTime() - ahoraOffset).toISOString().split('T')[0];
       if (fechaHoyStr !== currentDateRef.current) {
@@ -461,6 +520,21 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
 
     if (!ultimoRegistroHoy) {
+      const ANTICIPO = horarioInfo?.tolerancias?.anticipoEntrada ?? 5;
+      const primerBloque = horarioInfo?.bloques?.[0];
+      
+      if (primerBloque) {
+        const ahoraMinsNow = horaActual.getHours() * 60 + horaActual.getMinutes();
+        if (ahoraMinsNow < (primerBloque.entrada - ANTICIPO)) {
+          setPuedeRegistrar(false);
+          setTipoSiguienteRegistro('entrada');
+          setEstadoHorario('fuera_horario');
+          setJornadaCompletada(false);
+          setMensajeEspera('Aún no es hora de registrar tu entrada.');
+          return;
+        }
+      }
+
       setPuedeRegistrar(true);
       setTipoSiguienteRegistro('entrada');
       setEstadoHorario(null);
@@ -550,8 +624,22 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       return;
     }
 
+    // ── MODO OFFLINE: Validar ventana de SALIDA ──
+    const ANTICIPO_SALIDA_LOCAL = horarioInfo?.tolerancias?.anticipoSalida ?? 0;
+    const numSalidasOffline = (registrosHoyTodos || []).filter(r => r.tipo === 'salida').length;
+    const bloqueActualSalida = horarioInfo?.bloques?.[numSalidasOffline];
 
-
+    if (bloqueActualSalida) {
+      const ahoraMinsNow = horaActual.getHours() * 60 + horaActual.getMinutes();
+      if (ahoraMinsNow < (bloqueActualSalida.salida - ANTICIPO_SALIDA_LOCAL)) {
+        setPuedeRegistrar(false);
+        setTipoSiguienteRegistro('salida');
+        setEstadoHorario('fuera_horario');
+        setJornadaCompletada(false);
+        setMensajeEspera('Aún no es hora de registrar tu salida.');
+        return;
+      }
+    }
 
     setPuedeRegistrar(true);
     setTipoSiguienteRegistro('salida');
@@ -943,25 +1031,31 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   useEffect(() => {
     let locationSubscription = null;
 
+    if (!puedeRegistrar && !isOnline) {
+      setUbicacionActual(null);
+      return;
+    }
+
     const iniciarUbicacion = async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') return;
 
-        const location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.High
-        });
-
-        setUbicacionActual({
-          lat: location.coords.latitude,
-          lng: location.coords.longitude
-        });
+        try {
+          const lastKnown = await Location.getLastKnownPositionAsync({ maxAge: 60000 });
+          if (lastKnown) {
+            setUbicacionActual({
+              lat: lastKnown.coords.latitude,
+              lng: lastKnown.coords.longitude
+            });
+          }
+        } catch (e) {}
 
         locationSubscription = await Location.watchPositionAsync(
           {
             accuracy: Location.Accuracy.High,
-            timeInterval: 10000,
-            distanceInterval: 10
+            timeInterval: 5000,
+            distanceInterval: 5
           },
           (newLocation) => {
             setUbicacionActual({
@@ -981,7 +1075,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         locationSubscription.remove();
       }
     };
-  }, []);
+  }, [puedeRegistrar, isOnline]);
 
   useEffect(() => {
     const validarArea = async () => {
@@ -1297,7 +1391,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         departamento_id: departamento.id,
         ip: networkIp,
         wifi: networkWifi,
-        fecha_captura: new Date().toISOString()
+        fecha_captura: getTrustedDate().toISOString()
       };
 
       let success = false;
@@ -1349,7 +1443,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             empleado_id: payload.empleado_id,
             tipo: data?.data?.tipo || tipoActual,
             estado: data?.data?.estado || 'puntual',
-            fecha_registro: new Date().toISOString(),
+            fecha_registro: getTrustedDate().toISOString(),
             dispositivo_origen: 'movil',
             departamento_id: payload.departamento_id
           });
@@ -1384,7 +1478,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           tipo: tipoActual,
           estado: 'pendiente',
           metodo_registro: datosRegistroRef.current.metodo || 'PIN',
-          fecha_registro: new Date().toISOString(),
+          fecha_registro: getTrustedDate().toISOString(),
           ubicacion: payload.ubicacion || [ubicacionFinal.lat, ubicacionFinal.lng],
           ip: payload.ip,
           wifi: payload.wifi,

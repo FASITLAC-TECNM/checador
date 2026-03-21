@@ -58,6 +58,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [ultimoRegistroHoy, setUltimoRegistroHoy] = useState(null);
   const [registrosHoyTodos, setRegistrosHoyTodos] = useState([]);
   const [dentroDelArea, setDentroDelArea] = useState(false);
+  const [forzarUbicacion, setForzarUbicacion] = useState(false);
   const [puedeRegistrar, setPuedeRegistrar] = useState(false);
   const [tipoSiguienteRegistro, setTipoSiguienteRegistro] = useState(null);
   const [estadoHorario, setEstadoHorario] = useState(null);
@@ -1031,7 +1032,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   useEffect(() => {
     let locationSubscription = null;
 
-    if (!puedeRegistrar && !isOnline) {
+    if (!puedeRegistrar && !forzarUbicacion) {
       setUbicacionActual(null);
       return;
     }
@@ -1075,7 +1076,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         locationSubscription.remove();
       }
     };
-  }, [puedeRegistrar, isOnline]);
+  }, [puedeRegistrar, forzarUbicacion]);
 
   useEffect(() => {
     const validarArea = async () => {
@@ -1932,7 +1933,10 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
               {internetReachable ?
                 <TouchableOpacity
                   style={styles.viewMapButton}
-                  onPress={() => setMostrarMapa(true)}
+                  onPress={() => {
+                    setMostrarMapa(true);
+                    setForzarUbicacion(true);
+                  }}
                   activeOpacity={0.7}>
 
                   <Ionicons
@@ -2153,13 +2157,19 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           visible={mostrarMapa}
           animationType="slide"
           transparent={false}
-          onRequestClose={() => setMostrarMapa(false)}>
+          onRequestClose={() => {
+            setMostrarMapa(false);
+            setForzarUbicacion(false);
+          }}>
 
           <MapaZonasPermitidas
             departamento={departamentoSeleccionado}
             departamentos={departamentos}
             ubicacionActual={ubicacionActual}
-            onClose={() => setMostrarMapa(false)}
+            onClose={() => {
+              setMostrarMapa(false);
+              setForzarUbicacion(false);
+            }}
             onDepartamentoSeleccionado={(depto) => {
               if (departamentosDisponibles.find((d) => d.id === depto.id)) {
                 setDepartamentoSeleccionado(depto);

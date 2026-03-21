@@ -320,8 +320,8 @@ export default function AdminDashboard({
                                     }`}
                                 >
                                     <Calendar className="w-8 h-8 mb-2" />
-                                    <h3 className="text-sm font-bold mb-0.5">Historial</h3>
-                                    <p className="text-[10px]">
+                                    <h3 className="text-sm font-bold text-text-primary mb-0.5">Historial</h3>
+                                    <p className="text-[10px] text-text-secondary">
                                         {isOnline ? "Días anteriores" : "Sin conexión"}
                                     </p>
                                 </button>

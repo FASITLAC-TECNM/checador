@@ -11,8 +11,48 @@ export const useEmployeeData = (usuario) => {
     // Cargar datos completos del empleado al montar el componente
     useEffect(() => {
         const cargarDatosEmpleado = async () => {
-            // Solo cargar si es empleado y no tenemos ya el horario
-            if (usuario?.es_empleado && !usuario?.horario && usuario?.horario_id) {
+            if (!usuario?.es_empleado) return;
+
+            // Si ya tenemos horario completo, usar directamente
+            if (usuario?.horario) {
+                setEmpleadoData(usuario);
+                return;
+            }
+
+            // Modo offline: enriquecer desde cache_empleados en SQLite
+            if (usuario?.offline && usuario?.empleado_id) {
+                console.log("📴 [useEmployeeData] Modo offline — cargando desde SQLite...");
+                setLoadingEmpleado(true);
+                try {
+                    if (window.electronAPI?.offlineDB) {
+                        const empCache = await window.electronAPI.offlineDB.getEmpleado(usuario.empleado_id);
+                        if (empCache) {
+                            console.log("✅ [useEmployeeData] Datos offline cargados:", empCache.nombre);
+                            setEmpleadoData({
+                                ...empCache,
+                                ...usuario,
+                                // Campos de cache_empleados tienen prioridad para mostrado en UI
+                                nombre: empCache.nombre || usuario.nombre,
+                                usuario: empCache.usuario || usuario.usuario || '',
+                                correo: empCache.correo || usuario.correo || '',
+                                foto: empCache.foto || usuario.foto || null,
+                                es_empleado: true,
+                                offline: true,
+                            });
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    console.error("❌ [useEmployeeData] Error cargando desde SQLite:", err);
+                } finally {
+                    setLoadingEmpleado(false);
+                }
+                setEmpleadoData(usuario);
+                return;
+            }
+
+            // Modo online: intentar cargar con horario desde API
+            if (usuario?.horario_id) {
                 setLoadingEmpleado(true);
                 try {
                     const datos = await getEmpleadoConHorario(usuario);
@@ -21,13 +61,15 @@ export const useEmployeeData = (usuario) => {
                     }
                 } catch (error) {
                     console.error("❌ Error cargando datos del empleado:", error);
+                    setEmpleadoData(usuario);
                 } finally {
                     setLoadingEmpleado(false);
                 }
-            } else if (usuario?.horario) {
-                // Ya tenemos el horario, no necesitamos cargar
-                setEmpleadoData(usuario);
+                return;
             }
+
+            // Caso general: usar datos del usuario directamente
+            setEmpleadoData(usuario);
         };
 
         cargarDatosEmpleado();

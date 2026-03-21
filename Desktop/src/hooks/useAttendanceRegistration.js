@@ -162,18 +162,23 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
                 }
 
                 empleadoId = empleadoIdentificado.empleado_id;
-                usuarioData = {
-                    id: empleadoIdentificado.usuario_id,
-                    nombre: empleadoIdentificado.nombre,
-                    es_empleado: true,
-                    empleado_id: empleadoId,
-                    offline: true,
-                };
 
+                // Obtener datos completos de cache_empleados (tiene usuario, correo, foto)
                 if (window.electronAPI?.offlineDB) {
                     empleadoData = await window.electronAPI.offlineDB.getEmpleado(empleadoId);
                 }
                 empleadoData = empleadoData || empleadoIdentificado;
+
+                usuarioData = {
+                    id: empleadoIdentificado.usuario_id,
+                    nombre: empleadoData?.nombre || empleadoIdentificado.nombre,
+                    usuario: empleadoData?.usuario || '',
+                    correo: empleadoData?.correo || '',
+                    foto: empleadoData?.foto || null,
+                    es_empleado: true,
+                    empleado_id: empleadoId,
+                    offline: true,
+                };
             }
 
             // Usuario no asociado a empleado
@@ -408,6 +413,9 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
                     es_empleado: result.noEsEmpleado ? false : true,
                     empleado_id: empleadoId,
                     nombre: result.empleado?.nombre || result.usuario?.nombre || result.usuario?.username,
+                    usuario: result.empleado?.usuario || result.usuario?.usuario || '',
+                    correo: result.empleado?.correo || result.usuario?.correo || '',
+                    foto: result.empleado?.foto || result.usuario?.foto || null,
                     token: result.token,
                 };
             }

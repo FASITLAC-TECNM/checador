@@ -5,7 +5,6 @@ import {
     Sliders,
     ChevronRight,
     User,
-    Phone,
     Mail,
     LogOut,
     ShieldOff,
@@ -124,15 +123,7 @@ export default function AdminDashboard({
                                     <p className="text-text-primary font-bold truncate text-xs 2xl:text-sm">{userEmail}</p>
                                 </div>
                             </div>
-                            <div className="col-span-2 flex items-center gap-2 overflow-hidden">
-                                <div className="p-1.5 bg-[#E3F2FD] dark:bg-[#1565C0]/10 rounded-lg flex-shrink-0">
-                                    <Phone className="w-4 h-4 text-[#1976D2]" />
-                                </div>
-                                <div className="overflow-hidden">
-                                    <p className="text-text-tertiary text-[10px] 2xl:text-xs font-bold uppercase leading-none mb-1">Teléfono</p>
-                                    <p className="text-text-primary font-bold truncate text-xs 2xl:text-sm">{userPhone}</p>
-                                </div>
-                            </div>
+
                             {userDepartamento && (
                                 <div className="col-span-2 flex items-center gap-2 overflow-hidden">
                                     <div className="p-1.5 bg-[#E3F2FD] dark:bg-[#1565C0]/10 rounded-lg flex-shrink-0">
@@ -319,12 +310,20 @@ export default function AdminDashboard({
                                 </button>
 
                                 <button
-                                    onClick={onShowHistorial}
-                                    className="bg-bg-secondary hover:bg-bg-tertiary rounded-2xl shadow-sm p-4 transition-all hover:shadow-md flex flex-col items-center justify-center border border-border-subtle text-[#1976D2] dark:text-[#42A5F5]"
+                                    onClick={isOnline ? onShowHistorial : undefined}
+                                    disabled={!isOnline}
+                                    title={!isOnline ? "No disponible sin conexión" : "Ver historial de asistencia"}
+                                    className={`rounded-2xl shadow-sm p-4 transition-all flex flex-col items-center justify-center border ${
+                                        isOnline
+                                            ? "bg-bg-secondary hover:bg-bg-tertiary hover:shadow-md border-border-subtle text-[#1976D2] dark:text-[#42A5F5] cursor-pointer"
+                                            : "bg-bg-secondary/50 border-border-subtle opacity-40 cursor-not-allowed text-text-disabled"
+                                    }`}
                                 >
                                     <Calendar className="w-8 h-8 mb-2" />
-                                    <h3 className="text-sm font-bold text-text-primary mb-0.5">Historial</h3>
-                                    <p className="text-[10px] text-text-secondary">Días anteriores</p>
+                                    <h3 className="text-sm font-bold mb-0.5">Historial</h3>
+                                    <p className="text-[10px]">
+                                        {isOnline ? "Días anteriores" : "Sin conexión"}
+                                    </p>
                                 </button>
                             </div>
                         </div>

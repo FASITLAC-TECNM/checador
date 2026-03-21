@@ -880,7 +880,10 @@ export default function AsistenciaFacial({
             const usuarioOffline = {
               id: empleadoFull.usuario_id,
               nombre: empleadoFull.nombre,
-              username: empleadoFull.nombre,
+              usuario: empleadoFull.usuario || '',
+              correo: empleadoFull.correo || '',
+              foto: empleadoFull.foto || null,
+              username: empleadoFull.usuario || empleadoFull.nombre,
               es_empleado: true,
               empleado_id: empleadoId,
               roles: [],

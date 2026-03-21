@@ -562,11 +562,13 @@ export default function AsistenciaHuella({
             const usuarioOffline = {
               id: empleadoFull.usuario_id,
               nombre: empleadoFull.nombre,
-              username: empleadoFull.nombre, // Fallback
+              usuario: empleadoFull.usuario || '',
+              correo: empleadoFull.correo || '',
+              foto: empleadoFull.foto || null,
+              username: empleadoFull.usuario || empleadoFull.nombre,
               es_empleado: true,
               empleado_id: empleadoId,
-              // Datos extra para simular estructura de usuario
-              roles: [], // Roles se deberían cargar de cache_roles si existieran
+              roles: [],
               permisos: [],
               esAdmin: false,
               offline: true,

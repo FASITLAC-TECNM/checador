@@ -21,7 +21,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
 
   // Focus manual para el input si es necesario
   useEffect(() => {
-    setUsuarioOCorreo("paultn");
+    setUsuarioOCorreo("");
   }, [setUsuarioOCorreo]);
 
   return (
@@ -125,20 +125,18 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
           ) : (
             /* Pantalla de Resultado */
             <div className="animate-in fade-in zoom-in duration-300">
-              <div className={`rounded-xl p-6 text-center border ${
-                result.success 
-                  ? "bg-success/5 border-success/20" 
-                  : "bg-error/5 border-error/20"
-              }`}>
+              <div className={`rounded-xl p-6 text-center border ${result.success
+                ? "bg-success/5 border-success/20"
+                : "bg-error/5 border-error/20"
+                }`}>
                 {result.success ? (
                   <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-success" />
                 ) : (
                   <AlertCircle className="w-12 h-12 mx-auto mb-3 text-error" />
                 )}
 
-                <h3 className={`text-lg font-bold mb-1 ${
-                  result.success ? "text-success" : "text-error"
-                }`}>
+                <h3 className={`text-lg font-bold mb-1 ${result.success ? "text-success" : "text-error"
+                  }`}>
                   {result.message || (result.success ? "Registro Exitoso" : "Error en Registro")}
                 </h3>
 
@@ -165,7 +163,7 @@ export default function PinModal({ onClose, onSuccess, onLoginRequest }) {
                       onClick={() => handleLoginRequest()}
                       className="w-full py-2.5 bg-bg-secondary hover:bg-bg-tertiary text-text-primary border border-border-subtle rounded-md font-bold text-xs transition-all flex items-center justify-center ring-1 ring-border-subtle shadow-sm"
                     >
-                       Iniciar sesión
+                      Iniciar sesión
                     </button>
                   )}
 

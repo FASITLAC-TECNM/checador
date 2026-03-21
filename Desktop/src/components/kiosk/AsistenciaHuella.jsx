@@ -5,12 +5,14 @@ import {
   WifiOff,
   X,
   CheckCircle,
+  CheckCircle2,
   XCircle,
   Clock,
   LogIn,
   Timer,
   Loader2,
   AlertTriangle,
+  AlertCircle,
 } from "lucide-react";
 import { guardarSesion } from "../../services/biometricAuthService";
 import { API_CONFIG, fetchApi } from "../../config/apiEndPoint";
@@ -866,54 +868,42 @@ export default function AsistenciaHuella({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full shadow-2xl">
-        <div className="p-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="bg-[#1976D2] p-2 rounded-lg">
-                <Fingerprint className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                  Registro de Asistencia
-                </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Huella Digital
-                </p>
-              </div>
-            </div>
-
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-backdrop">
+      <div className="bg-bg-primary rounded-lg shadow-2xl max-w-md sm:max-w-lg w-full overflow-hidden border border-border-subtle animate-zoom-in">
+        <div className="p-6 sm:p-8">
+          {/* Header Minimalista */}
+          <div className="text-center mb-6 relative">
             <button
               onClick={handleCloseModal}
-              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+              className="absolute -top-2 -right-2 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-md p-2 transition-all"
             >
               <X className="w-5 h-5" />
             </button>
+            <h2 className="text-2xl font-bold text-text-primary tracking-tight">Registro de Asistencia</h2>
+            <p className="text-text-tertiary text-xs mt-1 opacity-80 uppercase tracking-widest font-medium">Huella Digital</p>
           </div>
 
           {/* Content */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* Reader Status */}
             <div
-              className={`flex items-center justify-between p-4 rounded-xl ${readerConnected
-                ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
-                : "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
+              className={`flex items-center justify-between p-3 rounded-md border ${readerConnected
+                ? "bg-success/5 border-success/20"
+                : "bg-warning/5 border-warning/20"
                 }`}
             >
               <div className="flex items-center gap-3">
                 <Fingerprint
-                  className={`w-6 h-6 ${readerConnected
-                    ? "text-green-600 dark:text-green-400"
-                    : "text-yellow-600 dark:text-yellow-400"
+                  className={`w-5 h-5 ${readerConnected
+                    ? "text-success"
+                    : "text-warning"
                     }`}
                 />
                 <div>
-                  <p className="font-medium text-gray-900 dark:text-white">
+                  <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">
                     Lector de Huellas
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-xs text-text-primary font-medium">
                     {readerConnected ? "Conectado y listo" : "Desconectado"}
                   </p>
                 </div>
@@ -923,60 +913,63 @@ export default function AsistenciaHuella({
             {/* Main Action Area */}
             {identificando ? (
               /* Pantalla de Identificando... */
-              <div className="bg-gray-50 dark:bg-slate-700/50 rounded-xl p-6">
-                <div className="bg-[#E3F2FD] dark:bg-[#1565C0]/20 border border-[#BBDEFB] dark:border-[#1565C0]/40 rounded-lg p-8 text-center">
-                  <div className="relative">
-                    <Fingerprint className="w-24 h-24 mx-auto mb-4 text-[#1976D2] dark:text-[#42A5F5] animate-pulse" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-32 h-32 border-4 border-[#BBDEFB] dark:border-[#1565C0]/40 border-t-[#1976D2] dark:border-t-[#42A5F5] rounded-full animate-spin"></div>
+              <div className="animate-in fade-in zoom-in duration-300">
+                <div className="bg-accent/5 border border-accent/20 rounded-xl p-8 text-center">
+                  <div className="relative inline-flex mb-4">
+                    <Fingerprint className="w-16 h-16 text-accent animate-pulse" />
+                    <div className="absolute -inset-3 flex items-center justify-center">
+                      <div className="w-20 h-20 border-2 border-accent/20 border-t-accent rounded-full animate-spin"></div>
                     </div>
                   </div>
-                  <p className="text-gray-900 dark:text-white font-bold text-xl mb-2 mt-4">
+                  <h3 className="text-xl font-bold text-text-primary mb-1">
                     Identificando...
-                  </p>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">
-                    Por favor espera mientras verificamos tu identidad
+                  </h3>
+                  <p className="text-text-tertiary text-xs">
+                    Por favor espera... verificando identidad
                   </p>
                 </div>
               </div>
             ) : !result ? (
-              <div className="bg-gray-50 dark:bg-slate-700/50 rounded-xl p-6">
-                <div className="bg-[#E3F2FD] dark:bg-[#1565C0]/20 border border-[#BBDEFB] dark:border-[#1565C0]/40 rounded-lg p-6 text-center mb-4">
-                  <Fingerprint
-                    className={`w-20 h-20 mx-auto mb-3 text-[#1976D2] dark:text-[#42A5F5] ${connected && readerConnected ? "animate-pulse" : ""
-                      }`}
-                  />
-                  <p className="text-gray-900 dark:text-white font-medium mb-1">
+              /* Pantalla de Espera/Lectura */
+              <div className="space-y-4">
+                <div className="bg-bg-secondary/40 border border-border-subtle rounded-xl p-6 text-center">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-accent/5 mb-4 ring-1 ring-accent/10">
+                    <Fingerprint
+                      className={`w-10 h-10 text-accent ${connected && readerConnected ? "animate-pulse" : ""
+                        }`}
+                    />
+                  </div>
+                  <p className="text-text-primary font-bold text-base mb-1">
                     {!connected
                       ? "Conectando al servidor..."
                       : !readerConnected
-                        ? "Esperando lector de huellas..."
+                        ? "Esperando lector..."
                         : "Coloca tu dedo en el lector"}
                   </p>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm">
+                  <p className="text-text-tertiary text-xs">
                     {!connected
-                      ? "Por favor espera"
+                      ? "Por favor espera..."
                       : !readerConnected
-                        ? "Asegúrate de que el lector esté conectado"
-                        : "El sistema te identificará automáticamente"}
+                        ? "Verifica la conexión del lector"
+                        : "Identificación automática"}
                   </p>
                 </div>
 
-                {(processingAttendance || cargandoDatosHorario) && (
-                  <div className="bg-[#E3F2FD] dark:bg-[#1565C0]/20 border border-[#BBDEFB] dark:border-[#1565C0]/40 rounded-lg p-3 mb-4">
-                    <p className="text-gray-900 dark:text-white text-center text-sm flex items-center justify-center gap-2">
-                      <Clock className="w-4 h-4 animate-spin text-[#1976D2]" />
-                      {cargandoDatosHorario ? "Verificando horario..." : "Registrando asistencia..."}
+                {(processingAttendance || (typeof cargandoDatosHorario !== 'undefined' && cargandoDatosHorario)) && (
+                  <div className="bg-accent/5 border border-accent/10 rounded-md p-4 flex items-center justify-center gap-3">
+                    <Loader2 className="w-5 h-5 animate-spin text-accent" />
+                    <p className="text-text-primary font-medium text-sm">
+                      {(typeof cargandoDatosHorario !== 'undefined' && cargandoDatosHorario) ? "Verificando horario..." : "Registrando asistencia..."}
                     </p>
                   </div>
                 )}
 
                 {/* Solo mostrar botón cancelar cuando hay operación en curso */}
                 {currentOperation !== "None" && (
-                  <div className="flex gap-3">
+                  <div className="pt-4">
                     <button
                       onClick={cancelOperation}
-                      className="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                      className="w-full py-4 bg-bg-secondary hover:bg-bg-tertiary text-text-primary border border-border-subtle rounded-md font-bold text-lg transition-all flex items-center justify-center gap-2 shadow-sm"
                     >
                       <X className="w-5 h-5" />
                       Cancelar
@@ -986,277 +979,205 @@ export default function AsistenciaHuella({
               </div>
             ) : (
               /* Result Display */
-              <div
-                className={`rounded-xl p-6 text-center ${result.success
-                  ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
-                  : result.noPuedeRegistrar
-                    ? "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
-                    : "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
-                  }`}
-              >
-                {result.success ? (
-                  <>
-                    {/* Icono según clasificación */}
-                    {result.clasificacion === 'retardo_a' || result.clasificacion === 'retardo_b' || result.clasificacion === 'salida_temprana' ? (
-                      <AlertTriangle className="w-16 h-16 mx-auto mb-3 text-yellow-600 dark:text-yellow-400" />
-                    ) : result.clasificacion === 'falta' ? (
-                      <XCircle className="w-16 h-16 mx-auto mb-3 text-red-600 dark:text-red-400" />
-                    ) : (
-                      <CheckCircle className="w-16 h-16 mx-auto mb-3 text-green-600 dark:text-green-400" />
-                    )}
-
-                    <p className={`font-bold text-lg mb-1 ${result.clasificacion === 'falta'
-                      ? "text-red-800 dark:text-red-300"
-                      : result.clasificacion === 'retardo_a' || result.clasificacion === 'retardo_b' || result.clasificacion === 'salida_temprana'
-                        ? "text-yellow-800 dark:text-yellow-300"
-                        : "text-green-800 dark:text-green-300"
-                      }`}>
-                      {result.offline ? "Registro pendiente" : "Asistencia Registrada"}
-                    </p>
-                    {result.empleado?.nombre && (
-                      <p className="text-gray-700 dark:text-gray-300 text-lg">
-                        {result.empleado.nombre}
-                      </p>
-                    )}
-                    {result.tipoMovimiento && !result.offline && (
-                      <div className="mt-2 text-center">
-                        <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">
-                          <>{result.tipoMovimiento === "ENTRADA" ? "Entrada" : "Salida"} registrada {result.hora && `a las ${result.hora}`}</>
-                        </p>
-                        {/* Badge de clasificación */}
-                        <span
-                          className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${result.clasificacion === "entrada" || result.clasificacion === "salida_puntual"
-                            ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
-                            : result.clasificacion === "retardo_a" || result.clasificacion === "retardo_b" || result.clasificacion === "salida_temprana"
-                              ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
-                              : result.clasificacion === "falta"
-                                ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
-                                : result.estado === "puntual"
-                                  ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
-                                  : result.estado === "retardo_a" || result.estado === "retardo_b" || result.estado === "temprana"
-                                    ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
-                                    : result.estado === "falta"
-                                      ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
-                                      : "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300"
-                            }`}
-                        >
-                          {result.estadoTexto || result.estado || "Registrado"}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Separador */}
-                    <div className="border-t border-gray-200 dark:border-gray-700 my-4" />
-
-                    {/* Opción de abrir sesión */}
-                    <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
-                      ¿Deseas abrir tu sesión?
-                    </p>
-
-                    <button
-                      onClick={() => procesarLoginBiometrico(result.empleadoId)}
-                      disabled={processingLogin || !loginHabilitado}
-                      className="w-full px-4 py-3 bg-[#1976D2] hover:bg-[#1565C0] disabled:bg-[#90CAF9] disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mb-3"
-                    >
-                      {processingLogin ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Cargando datos...
-                        </>
-                      ) : !loginHabilitado ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Preparando...
-                        </>
+              <div className="animate-in fade-in zoom-in duration-300">
+                <div
+                  className={`rounded-xl p-6 text-center border ${result.success
+                    ? "bg-success/5 border-success/20"
+                    : result.noPuedeRegistrar
+                      ? "bg-warning/5 border-warning/20"
+                      : "bg-error/5 border-error/20"
+                    }`}
+                >
+                  {result.success ? (
+                    <>
+                      {/* Icono según clasificación */}
+                      {result.clasificacion === 'retardo_a' || result.clasificacion === 'retardo_b' || result.clasificacion === 'salida_temprana' ? (
+                        <AlertTriangle className="w-12 h-12 mx-auto mb-3 text-warning" />
+                      ) : result.clasificacion === 'falta' ? (
+                        <XCircle className="w-12 h-12 mx-auto mb-3 text-error" />
                       ) : (
-                        <>
-                          
-                           Iniciar sesión
-                        </>
+                        <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-success" />
                       )}
-                    </button>
 
-                    {/* Contador de cierre automático */}
-                    {!processingLogin && (
-                      <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm">
-                        <Timer className="w-4 h-4" />
-                        <span>
-                          Esta ventana se cerrará en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
-                        </span>
-                      </div>
-                    )}
-                  </>
-                ) : result.noPuedeRegistrar ? (
-                  /* No puede registrar (fuera de horario o jornada completada) */
-                  <>
-                    <AlertTriangle className="w-16 h-16 mx-auto mb-3 text-yellow-600 dark:text-yellow-400" />
-                    <p className="text-yellow-800 dark:text-yellow-300 font-bold text-lg mb-1">
-                      No Disponible
-                    </p>
-                    {result.empleado?.nombre && (
-                      <p className="text-gray-700 dark:text-gray-300 text-lg mb-2">
-                        {result.empleado.nombre}
-                      </p>
-                    )}
-                    <p className="text-gray-700 dark:text-gray-300 text-sm">
-                      {result.message}
-                    </p>
-                    {/* Badge de estado de horario */}
-                    <span
-                      className={`inline-block mt-3 px-3 py-1 rounded-full text-xs font-semibold ${result.estadoHorario === "completado"
-                        ? "bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300"
-                        : result.estadoHorario === "tiempo_insuficiente"
-                          ? "bg-orange-100 text-orange-800 dark:bg-orange-800/30 dark:text-orange-300"
-                          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
-                        }`}
-                    >
-                      {result.estadoHorario === "completado"
-                        ? "Jornada completada"
-                        : result.estadoHorario === "tiempo_insuficiente"
-                          ? `Aún no disponible`
-                          : "Fuera de horario"}
-                    </span>
+                      <h3 className={`text-lg font-bold mb-1 ${result.clasificacion === 'falta'
+                        ? "text-error"
+                        : result.clasificacion === 'retardo_a' || result.clasificacion === 'retardo_b' || result.clasificacion === 'salida_temprana'
+                          ? "text-warning"
+                          : "text-success"
+                        }`}>
+                        {result.pendiente ? "Registro pendiente" : "Asistencia Registrada"}
+                      </h3>
 
-                    {/* Separador */}
-                    <div className="border-t border-gray-200 dark:border-gray-700 my-4" />
-
-                    {/* Opción de abrir sesión */}
-                    <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
-                      ¿Deseas abrir tu sesión de todas formas?
-                    </p>
-
-                    <button
-                      onClick={() => procesarLoginBiometrico(result.empleadoId)}
-                      disabled={processingLogin || !loginHabilitado}
-                      className="w-full px-4 py-3 bg-[#1976D2] hover:bg-[#1565C0] disabled:bg-[#90CAF9] disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mb-3"
-                    >
-                      {processingLogin ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Cargando datos...
-                        </>
-                      ) : !loginHabilitado ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Preparando...
-                        </>
-                      ) : (
-                        <>
-                          
-                           Iniciar sesión
-                        </>
-                      )}
-                    </button>
-
-                    {/* Contador de cierre automático */}
-                    {!processingLogin && (
-                      <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm">
-                        <Timer className="w-4 h-4" />
-                        <span>
-                          Esta ventana se cerrará en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
-                        </span>
-                      </div>
-                    )}
-                  </>
-                ) : result.noReconocida ? (
-                  /* Huella no reconocida */
-                  <>
-                    <XCircle className="w-16 h-16 mx-auto mb-3 text-red-600 dark:text-red-400" />
-                    <p className="text-red-800 dark:text-red-300 font-bold text-lg mb-2">
-                      Huella No Reconocida
-                    </p>
-                    <p className="text-gray-700 dark:text-gray-300 text-sm mb-4">
-                      Tu huella no se encuentra registrada en el sistema
-                    </p>
-
-                    {/* Contador de cierre automático */}
-                    <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm mb-4">
-                      <Timer className="w-4 h-4" />
-                      <span>
-                        Esta ventana se cerrará en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
-                      </span>
-                    </div>
-
-                    <button
-                      onClick={handleCloseModal}
-                      className="px-4 py-2 md:px-5 md:py-3 2xl:px-6 2xl:py-4 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white rounded-xl text-sm md:text-base 2xl:text-lg font-medium transition-colors"
-                    >
-                      Intentar de nuevo
-                    </button>
-                  </>
-                ) : (
-                  /* Error real */
-                  <>
-                    <XCircle className="w-16 h-16 mx-auto mb-3 text-red-600 dark:text-red-400" />
-                    <p className="text-red-800 dark:text-red-300 font-bold text-lg mb-1">
-                      {result?.message?.includes("Registro denegado") ? "Registro Denegado" : "Error en el Registro"}
-                    </p>
-                    {result.empleado?.nombre && (
-                      <p className="text-gray-700 dark:text-gray-300 text-lg mb-2">
-                        {result.empleado.nombre}
-                      </p>
-                    )}
-                    <p className="text-gray-700 dark:text-gray-300 text-sm">
-                      {result?.message?.replace("Registro denegado: ", "")}
-                    </p>
-
-                    {/* Mostrar opción de abrir sesión si tenemos el empleadoId */}
-                    {result.empleadoId && (
-                      <>
-                        {/* Separador */}
-                        <div className="border-t border-gray-200 dark:border-gray-700 my-4" />
-
-                        {/* Opción de abrir sesión */}
-                        <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
-                          ¿Deseas abrir tu sesión de todas formas?
+                      {result.empleado?.nombre && (
+                        <p className="text-text-primary text-base font-semibold mb-1">
+                          {result.empleado.nombre}
                         </p>
+                      )}
+
+                      {result.tipoMovimiento && !result.pendiente && (
+                        <div className="mt-1 text-center">
+                          <p className="text-text-tertiary text-xs">
+                            {result.tipoMovimiento === "ENTRADA" ? "Entrada" : "Salida"} registrada {result.hora && <>a las <span className="text-text-primary font-bold">{result.hora}</span></>}
+                          </p>
+                          {/* Badge de clasificación */}
+                          <div className="flex justify-center mt-2">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest ${result.clasificacion === "entrada" || result.clasificacion === "salida_puntual"
+                                ? "bg-success/10 text-success ring-1 ring-success/20"
+                                : result.clasificacion === "retardo_a" || result.clasificacion === "retardo_b" || result.clasificacion === "salida_temprana"
+                                  ? "bg-warning/10 text-warning ring-1 ring-warning/20"
+                                  : result.clasificacion === "falta"
+                                    ? "bg-error/10 text-error ring-1 ring-error/20"
+                                    : "bg-bg-tertiary text-text-tertiary ring-1 ring-border-subtle"
+                                }`}
+                            >
+                              {result.estadoTexto || result.estado || "Registrado"}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mt-4 pt-4 border-t border-border-subtle flex flex-col items-center gap-3">
+                        <div className="flex items-center gap-2 text-[9px] font-bold text-text-disabled uppercase tracking-widest">
+                          <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                          Cerrando en {countdown}s
+                        </div>
 
                         <button
                           onClick={() => procesarLoginBiometrico(result.empleadoId)}
                           disabled={processingLogin || !loginHabilitado}
-                          className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mb-3"
+                          className="w-full py-2.5 bg-bg-secondary hover:bg-bg-tertiary text-text-primary border border-border-subtle rounded-md font-bold text-xs transition-all flex items-center justify-center ring-1 ring-border-subtle shadow-sm disabled:opacity-50"
                         >
                           {processingLogin ? (
-                            <>
-                              <Loader2 className="w-5 h-5 animate-spin" />
-                              Cargando datos...
-                            </>
-                          ) : !loginHabilitado ? (
-                            <>
-                              <Loader2 className="w-5 h-5 animate-spin" />
-                              Preparando...
-                            </>
-                          ) : (
-                            <>
-                               Iniciar sesión
-                            </>
-                          )}
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          ) : null}
+                          Iniciar sesión
+                        </button>
+                      </div>
+                    </>
+                  ) : result.noPuedeRegistrar ? (
+                    <>
+                      <AlertCircle className="w-12 h-12 mx-auto mb-3 text-warning" />
+                      <h3 className="text-lg font-bold mb-1 text-warning">
+                        No Disponible
+                      </h3>
+                      {result.empleado?.nombre && (
+                        <p className="text-text-primary text-base font-semibold mb-1">
+                          {result.empleado.nombre}
+                        </p>
+                      )}
+                      <p className="text-text-tertiary text-xs mb-3">
+                        {result.message}
+                      </p>
+                      <div className="flex justify-center mb-4">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest ${result.estadoHorario === "completado"
+                            ? "bg-accent/10 text-accent ring-1 ring-accent/20"
+                            : "bg-warning/10 text-warning ring-1 ring-warning/20"
+                            }`}
+                        >
+                          {result.estadoHorario === "completado"
+                            ? "Jornada completada"
+                            : result.estadoHorario === "tiempo_insuficiente"
+                              ? `Aún no disponible`
+                              : "Fuera de horario"}
+                        </span>
+                      </div>
+
+                      <div className="pt-4 border-t border-border-subtle flex flex-col items-center gap-3">
+
+
+                        <button
+                          onClick={() => procesarLoginBiometrico(result.empleadoId)}
+                          disabled={processingLogin || !loginHabilitado}
+                          className="w-full py-2.5 bg-bg-secondary hover:bg-bg-tertiary text-text-primary border border-border-subtle rounded-md font-bold text-xs transition-all flex items-center justify-center ring-1 ring-border-subtle shadow-sm disabled:opacity-50"
+                        >
+                          {processingLogin ? (
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          ) : null}
+                          Iniciar sesión
                         </button>
 
-                        {/* Contador de cierre automático */}
-                        {!processingLogin && (
-                          <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm mb-3">
-                            <Timer className="w-4 h-4" />
-                            <span>
-                              Esta ventana se cerrará en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
-                            </span>
-                          </div>
-                        )}
-                      </>
-                    )}
+                        <div className="flex items-center gap-2 text-[9px] font-bold text-text-disabled uppercase tracking-widest">
+                          <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                          Cerrando en {countdown}s
+                        </div>
+                      </div>
+                    </>
+                  ) : result.noReconocida ? (
+                    <>
+                      <AlertCircle className="w-12 h-12 mx-auto mb-3 text-error" />
+                      <h3 className="text-lg font-bold mb-1 text-error">
+                        Huella No Reconocida
+                      </h3>
+                      <p className="text-text-tertiary text-xs mb-6">
+                        Huella no registrada. Intenta de nuevo o contacta a soporte.
+                      </p>
 
-                    <button
-                      onClick={handleCloseModal}
-                      className="mt-4 px-4 py-2 md:px-5 md:py-3 2xl:px-6 2xl:py-4 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white rounded-xl text-sm md:text-base 2xl:text-lg font-medium transition-colors"
-                    >
-                      Intentar de nuevo
-                    </button>
-                  </>
-                )}
+                      <div className="flex flex-col items-center gap-3">
+                        <button
+                          onClick={handleCloseModal}
+                          className="w-full py-3 bg-accent hover:bg-accent-hover text-white rounded-md font-bold text-base shadow-lg shadow-accent/10 transition-all"
+                        >
+                          Intentar de nuevo
+                        </button>
+
+                        <div className="flex items-center gap-2 text-[9px] font-bold text-text-disabled uppercase tracking-widest">
+                          <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                          Cerrando en {countdown}s
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="w-12 h-12 mx-auto mb-3 text-error" />
+                      <h3 className="text-lg font-bold mb-1 text-error">
+                        {result?.message?.includes("Registro denegado") ? "Registro Denegado" : "Error en Registro"}
+                      </h3>
+                      {result.empleado?.nombre && (
+                        <p className="text-text-primary text-base font-semibold mb-1">
+                          {result.empleado.nombre}
+                        </p>
+                      )}
+                      <p className="text-text-tertiary text-xs mb-4">
+                        {result?.message?.replace("Registro denegado: ", "")}
+                      </p>
+
+                      {result.empleadoId && (
+                        <div className="pt-4 border-t border-border-subtle flex flex-col items-center gap-3 mb-4">
+
+
+                          <button
+                            onClick={() => procesarLoginBiometrico(result.empleadoId)}
+                            disabled={processingLogin || !loginHabilitado}
+                            className="w-full py-2.5 bg-bg-secondary hover:bg-bg-tertiary text-text-primary border border-border-subtle rounded-md font-bold text-xs transition-all flex items-center justify-center ring-1 ring-border-subtle shadow-sm disabled:opacity-50"
+                          >
+                            {processingLogin ? (
+                              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            ) : null}
+                            Iniciar sesión
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="flex flex-col items-center gap-3">
+                        <button
+                          onClick={handleCloseModal}
+                          className="w-full py-3 bg-bg-tertiary hover:bg-bg-tertiary/80 text-text-primary rounded-md font-bold text-base transition-all"
+                        >
+                          Intentar de nuevo
+                        </button>
+
+                        <div className="flex items-center gap-2 text-[9px] font-bold text-text-disabled uppercase tracking-widest">
+                          <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                          Cerrando en {countdown}s
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             )}
-
-
           </div>
         </div>
       </div>

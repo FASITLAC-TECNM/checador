@@ -1433,9 +1433,6 @@ export default function AsistenciaFacial({
                       <div className="border-t border-gray-200 dark:border-gray-700 my-4" />
 
                       {/* Opcion de abrir sesion */}
-                      <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
-                        ¿Deseas abrir tu sesión de todas formas?
-                      </p>
 
                       <button
                         onClick={procesarLoginBiometrico}

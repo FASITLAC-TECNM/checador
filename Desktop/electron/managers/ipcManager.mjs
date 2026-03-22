@@ -75,9 +75,7 @@ export function registerIpcHandlers() {
         return biometricService.checkDigitalPersonaSdk();
     });
 
-    ipcMain.handle("install-digitalpersona-sdk", async () => {
-        return await biometricService.installDigitalPersonaSdk();
-    });
+
 
     ipcMain.handle("get-biometric-token", () => {
         return biometricService.getBiometricToken();

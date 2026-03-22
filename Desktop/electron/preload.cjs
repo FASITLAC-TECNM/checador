@@ -24,7 +24,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // SDK DigitalPersona
   checkDigitalPersonaSdk: () => ipcRenderer.invoke('check-digitalpersona-sdk'),
-  installDigitalPersonaSdk: () => ipcRenderer.invoke('install-digitalpersona-sdk'),
 
   // Gestión de configuración persistente
   configGet: (key) => ipcRenderer.invoke('config-get', key),

@@ -235,25 +235,20 @@ export function buildBiometricMiddlewareIfNeeded() {
  * Espera a que el SDK esté instalado antes de iniciar
  */
 export async function startBiometricMiddleware() {
+    if (biometricProcess) {
+        console.log("[BiometricService] Info: BiometricMiddleware ya está en ejecución.");
+        return;
+    }
+
     try {
-        // Verificar e instalar SDK si es necesario ANTES de iniciar el middleware
         const sdkStatus = checkDigitalPersonaSdk();
 
         if (!sdkStatus.installed) {
-            console.log("[BiometricService] Info: SDK no instalado, esperando instalacion...");
-            const installResult = await installDigitalPersonaSdk();
-
-            if (!installResult.success) {
-                console.error("[BiometricService] Error: No se pudo instalar el SDK:", installResult.message);
-                console.warn("[BiometricService] Warning: El middleware puede no funcionar correctamente");
-            } else {
-                console.log("[BiometricService] Status: SDK instalado:", installResult.message);
-                // Pequeña pausa para que Windows registre los archivos
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-        } else {
-            console.log("[BiometricService] Info: SDK ya instalado, continuando...");
+            console.warn("[BiometricService] Warning: SDK no instalado. El servidor biométrico no puede iniciar. Ejecute el instalador de la app.");
+            return;
         }
+
+        console.log("[BiometricService] Info: SDK validado correctamente, continuando...");
 
         // Compilar si es necesario
         if (!buildBiometricMiddlewareIfNeeded()) {

@@ -75,12 +75,14 @@
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": true,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Sistema de Asistencia",
       "deleteAppDataOnUninstall": true,
-      "license": "public/license.txt"
+      "license": "public/license.txt",
+      "include": "build/installer.nsh"
     },
     "linux": {
       "target": [

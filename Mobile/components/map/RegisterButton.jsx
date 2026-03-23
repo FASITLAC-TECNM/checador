@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as Network from 'expo-network';
+import NetInfo from '@react-native-community/netinfo';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { isPointInPolygon, extraerCoordenadas } from '../../services/ubicacionService';
 import { getApiEndpoint } from '../../config/api';
@@ -33,6 +34,7 @@ import sqliteManager, { saveOnlineAsistenciaToCache } from '../../services/offli
 import offlineAuthService from '../../services/offline/offlineAuthService.mjs';
 import syncManager from '../../services/offline/syncManager.mjs';
 import pushService from '../../services/offline/pushService.mjs';
+import { srvBuscarBloqueActual, srvEvaluarEstado } from '../../services/offline/evaluadorAsistencias.js';
 
 import { registerStyles, registerStylesDark } from './RegisterButtonStyles';
 
@@ -108,7 +110,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       try {
         const stored = await AsyncStorage.getItem('@clock_offset');
         if (stored) clockOffsetRef.current = parseInt(stored, 10);
-      } catch (e) {}
+      } catch (e) { }
     };
     cargarOffset();
 
@@ -319,7 +321,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         if (serverDateStr && !isNaN(new Date(serverDateStr).getTime())) {
           const offset = new Date(serverDateStr).getTime() - Date.now();
           clockOffsetRef.current = offset;
-          AsyncStorage.setItem('@clock_offset', offset.toString()).catch(() => {});
+          AsyncStorage.setItem('@clock_offset', offset.toString()).catch(() => { });
         }
         const json = await response.json();
         const data = json.data;
@@ -336,78 +338,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
           // ── Guardia local: solo activar si NO hay registros pendientes de sync.
           //    Consultamos SQLite directamente porque online, registrosHoyTodosRef solo
-          //    tiene registros del servidor (no incluye pendientes offline).
-          const horarioLocal = horarioInfoRef.current;
-          let tienePendientesSQLite = false;
-          try {
-            const todosLocal = await sqliteManager.getRegistrosHoy(empleadoId);
-            tienePendientesSQLite = todosLocal.some(r => r.estado === 'pendiente');
-          } catch (_) { /* Si falla, no hay pendientes → guardia activa */ }
-
-          if (!tienePendientesSQLite && data.puedeRegistrar && horarioLocal?.bloques?.length) {
-            const registrosServidor = registrosHoyTodosRef.current || [];
-            const numSalidasServidor = registrosServidor.filter(r => r.tipo === 'salida').length;
-            const numBloquesLocales = horarioLocal.bloques.length;
-            if (numSalidasServidor >= numBloquesLocales) {
-              const MINUTOS_ANTES = 5;
-              const bloqueExtra = horarioLocal.bloques[numSalidasServidor];
-              const ahora = getTrustedDate();
-              const ahoraMins = ahora.getHours() * 60 + ahora.getMinutes();
-              const ventanaAbierta = bloqueExtra && ahoraMins >= (bloqueExtra.entrada - MINUTOS_ANTES);
-              if (!ventanaAbierta) {
-                setPuedeRegistrar(false);
-                setTipoSiguienteRegistro('entrada');
-                setEstadoHorario('bloque_completo');
-                setJornadaCompletada(true);
-                setMensajeEspera('Jornada completa. No es necesario registrar más asistencias por hoy.');
-                setUsandoEstadoBackend(true);
-                return true;
-              }
-            }
-          }
-
-          // ── Guardia Front-End: Prevenir registro/trackeo prematuro antes de tolerancia ──
-          if (data.puedeRegistrar && data.tipoSiguienteRegistro === 'entrada' && horarioLocal?.bloques?.length) {
-            const ANTICIPO = horarioLocal?.tolerancias?.anticipoEntrada ?? 5;
-            const registrosServidor = registrosHoyTodosRef.current || [];
-            const numEntradas = registrosServidor.filter(r => r.tipo === 'entrada').length;
-            const bloqueActual = horarioLocal.bloques[numEntradas];
-            
-            if (bloqueActual) {
-              const ahora = getTrustedDate();
-              const ahoraMins = ahora.getHours() * 60 + ahora.getMinutes();
-              if (ahoraMins < (bloqueActual.entrada - ANTICIPO)) {
-                setPuedeRegistrar(false);
-                setEstadoHorario('fuera_horario');
-                setTipoSiguienteRegistro('entrada');
-                setJornadaCompletada(false);
-                setMensajeEspera('Aún no es hora de registrar tu entrada.');
-                setUsandoEstadoBackend(true);
-                return true;
-              }
-            }
-          }
-
-          if (data.puedeRegistrar && data.tipoSiguienteRegistro === 'salida' && horarioLocal?.bloques?.length) {
-            const ANTICIPO_SALIDA = horarioLocal?.tolerancias?.anticipoSalida ?? 0;
-            const registrosServidor = registrosHoyTodosRef.current || [];
-            const numSalidas = registrosServidor.filter(r => r.tipo === 'salida').length;
-            const bloqueActual = horarioLocal.bloques[numSalidas];
-            
-            if (bloqueActual) {
-              const ahora = getTrustedDate();
-              const ahoraMins = ahora.getHours() * 60 + ahora.getMinutes();
-              if (ahoraMins < (bloqueActual.salida - ANTICIPO_SALIDA)) {
-                setPuedeRegistrar(false);
-                setEstadoHorario('fuera_horario');
-                setTipoSiguienteRegistro('salida');
-                setJornadaCompletada(false);
-                setMensajeEspera('Aún no es hora de registrar tu salida.');
-                setUsandoEstadoBackend(true);
-                return true;
-              }
-            }
-          }
 
           setPuedeRegistrar(data.puedeRegistrar);
           if (data.estadoHorario) setEstadoHorario(data.estadoHorario);
@@ -521,9 +451,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
 
     if (!ultimoRegistroHoy) {
-      const ANTICIPO = horarioInfo?.tolerancias?.anticipoEntrada ?? 5;
+      const ANTICIPO = horarioInfo?.tolerancias?.anticipoEntrada ?? 0;
       const primerBloque = horarioInfo?.bloques?.[0];
-      
+
       if (primerBloque) {
         const ahoraMinsNow = horaActual.getHours() * 60 + horaActual.getMinutes();
         if (ahoraMinsNow < (primerBloque.entrada - ANTICIPO)) {
@@ -547,10 +477,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
     const ultimoEstado = ultimoRegistroHoy.estado;
     const ultimoTipo = ultimoRegistroHoy.tipo;
-
-
-
-
 
     const ESTADOS_FALTA = ['falta', 'falta_directa', 'falta_automatica'];
     if (ultimoTipo === 'entrada' && ESTADOS_FALTA.includes(ultimoEstado)) {
@@ -579,7 +505,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       // Si aún quedan bloques sin cubrir → verificar que ya abrió la ventana del siguiente
       if (numSalidas < numBloques) {
         const bloqueProximo = horarioInfo?.bloques?.[numSalidas];
-        const ANTICIPO_ENT = horarioInfo?.tolerancias?.anticipoEntrada ?? 5;
+        const ANTICIPO_ENT = horarioInfo?.tolerancias?.anticipoEntrada ?? 0;
         const ahoraMinsNow = horaActual.getHours() * 60 + horaActual.getMinutes();
         if (bloqueProximo && ahoraMinsNow < bloqueProximo.entrada - ANTICIPO_ENT) {
           // Ventana aún no abierta — bloquear sin tocar indicadores visuales
@@ -597,16 +523,14 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       }
 
       // ── Último turno completado: jornada terminada ──
-      // Revisar si el admin configuró un bloque extra (índice numSalidas en adelante)
-      // y si ya es hora de abrir la ventana (5 min antes de su entrada).
-      const MINUTOS_ANTES = 5;
-      const bloqueExtra = horarioInfo?.bloques?.[numSalidas]; // bloque que correspondería al siguiente turno
+      // Revisar si ya abrió la ventana del siguiente bloque usando el anticipo dinámico.
+      const ANTICIPO_ENT_EXTRA = horarioInfo?.tolerancias?.anticipoEntrada ?? 0;
+      const bloqueExtra = horarioInfo?.bloques?.[numSalidas];
       if (bloqueExtra) {
-        const ahora = horaActual; // actualizado cada segundo por el ticker
+        const ahora = horaActual;
         const ahoraMins = ahora.getHours() * 60 + ahora.getMinutes();
-        const apertura = bloqueExtra.entrada - MINUTOS_ANTES;
+        const apertura = bloqueExtra.entrada - ANTICIPO_ENT_EXTRA;
         if (ahoraMins >= apertura) {
-          // Ya se abrió la ventana para el bloque extra → habilitar registro
           setPuedeRegistrar(true);
           setTipoSiguienteRegistro('entrada');
           setEstadoHorario('activo');
@@ -864,6 +788,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           anticipoSalida: toleranciasSqlite?.minutos_anticipo_salida != null ? parseInt(toleranciasSqlite.minutos_anticipo_salida) : parseInt(config?.minutos_anticipo_salida) || 0,
           posteriorSalida: toleranciasSqlite?.minutos_posterior_salida != null ? parseInt(toleranciasSqlite.minutos_posterior_salida) : parseInt(config?.minutos_posterior_salida) || 0
         },
+        // Objeto completo de tolerancia (con reglas dinámicas) para evaluación offline
+        toleranciaCompleta: toleranciasSqlite || null,
+        turnosHoy, // guardamos los turnos sin fusionar para evaluadorAsistencias
         entrada: minToHHMM(bloques[0].entrada),
         salida: minToHHMM(bloques[bloques.length - 1].salida)
       };
@@ -1050,7 +977,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
               lng: lastKnown.coords.longitude
             });
           }
-        } catch (e) {}
+        } catch (e) { }
 
         locationSubscription = await Location.watchPositionAsync(
           {
@@ -1367,12 +1294,18 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       let networkWifi = null;
       try {
         const netState = await Network.getNetworkStateAsync();
-        networkIp = await Promise.race([
-          Network.getIpAddressAsync(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))]
-        );
+        
+        // Intentar primero con NetInfo (más confiable nativamente para IPs locales en Wi-Fi)
+        const netInfoObj = await NetInfo.fetch();
+        networkIp = netInfoObj.details?.ipAddress || null;
 
-
+        // Fallback a expo-network si NetInfo no la trajo
+        if (!networkIp) {
+            networkIp = await Promise.race([
+              Network.getIpAddressAsync(),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000))
+            ]);
+        }
 
         if (netState.type === Network.NetworkStateType.WIFI) {
           networkWifi = { tipo: netState.type, isConnected: netState.isConnected };
@@ -1381,12 +1314,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         (function () { })('No se pudo obtener la IP local:', netErr);
       }
 
-
-
-
-
       const payload = {
         empleado_id: userData.empleado_id,
+        empresa_id: userData.empresa_id,
         dispositivo_origen: 'movil',
         ubicacion: [ubicacionFinal.lat, ubicacionFinal.lng],
         departamento_id: departamento.id,
@@ -1443,7 +1373,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             id: data?.data?.id || `local_online_${Date.now()}`,
             empleado_id: payload.empleado_id,
             tipo: data?.data?.tipo || tipoActual,
-            estado: data?.data?.estado || 'puntual',
+            estado: data?.data?.estado || (tipoActual === 'salida' ? 'salida_puntual' : 'pendiente'),
             fecha_registro: getTrustedDate().toISOString(),
             dispositivo_origen: 'movil',
             departamento_id: payload.departamento_id
@@ -1499,7 +1429,32 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
 
       const tipoRegistrado = data?.data?.tipo || tipoActual;
-      const estadoRegistrado = data?.data?.estado || 'puntual';
+
+      // ─── Evaluación dinámica del estado offline ───
+      // Si la respuesta viene del backend online, usar su estado directamente (es la fuente de verdad).
+      // SOLO si fue guardado offline (sin conexión) calcular el estado localmente.
+      const esOffline = data?.data?._offline === true;
+      let estadoRegistrado = data?.data?.estado;
+      if (esOffline) {
+        try {
+          const horarioLocal = horarioInfoRef.current;
+          const tolCompleta = horarioLocal?.toleranciaCompleta;
+          const turnosLocales = horarioLocal?.turnosHoy;
+          if (tolCompleta && turnosLocales && turnosLocales.length > 0) {
+            const ahora = getTrustedDate();
+            const minsHora = ahora.getHours() * 60 + ahora.getMinutes();
+            const intervalo = tolCompleta.intervalo_bloques_minutos ?? 60;
+            const anticipo = tolCompleta.minutos_anticipado_max ?? 0;
+            const posterior = tolCompleta.minutos_posterior_salida ?? 60;
+            const bloqueActivo = srvBuscarBloqueActual(turnosLocales, minsHora, intervalo, anticipo, posterior);
+            estadoRegistrado = srvEvaluarEstado(tipoRegistrado, minsHora, bloqueActivo, tolCompleta);
+          } else {
+            estadoRegistrado = 'pendiente';
+          }
+        } catch (_) {
+          estadoRegistrado = 'pendiente';
+        }
+      }
 
       const registroOptimista = {
         tipo: tipoRegistrado,
@@ -1529,9 +1484,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       await actualizarEstadoPreflight();
 
 
-      const esOffline = data?.data?._offline === true;
       let estadoTexto = estadoRegistrado;
-
 
       if (tipoRegistrado === 'salida') {
         if (estadoRegistrado === 'salida_temprana' || estadoRegistrado === 'salida_temprano') {
@@ -1556,14 +1509,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
         }
       }
-
       const tipoMayuscula = tipoRegistrado === 'entrada' ? 'Entrada' : 'Salida';
       const horaStr = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
       Vibration.vibrate(500);
       Alert.alert(
-        esOffline ? 'Pendiente a revisar' : '¡Éxito!',
+        esOffline ? 'Pendiente a revisar' : 'Registro Exitoso',
         [
-          `${tipoMayuscula} registrada como ${estadoTexto}`,
           `Departamento: ${departamento.nombre}`,
           `Hora: ${horaStr}`,
           esOffline ? '\nSe sincronizará y se analizará tu asistencia automáticamente cuando haya conexión de la base de datos o internet.' : ''].
@@ -1671,93 +1622,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       setMostrarAutenticacion(true);
     };
 
-    if (!usandoEstadoBackend && horarioInfo && horarioInfo.bloques && !jornadaCompletada) {
-      const ahora = new Date();
-      const minsAhora = ahora.getHours() * 60 + ahora.getMinutes();
-      const { bloques, tolerancias } = horarioInfo;
-      const { anticipoEntrada = 0, anticipoSalida = 0, posteriorSalida = 0 } = tolerancias || {};
-
-      const _minsToHHMM = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-
-      if (tipoSiguienteRegistro === 'entrada') {
-
-        const regsTodos = registrosHoyTodosRef.current || [];
-
-        // Tolerancia offline de entrada: mínimo 5 minutos de anticipo garantizado.
-        // Si el admin configuró más (ej. 15 min), se respeta ese valor.
-        const ANTICIPO_OFFLINE_MIN = 5;
-        const anticipoEntradaEfectivo = Math.max(anticipoEntrada, ANTICIPO_OFFLINE_MIN);
-
-        const getMinutosLocales = (fechaStr) => {
-          if (!fechaStr) return -1;
-
-
-          try {
-            const d = new Date(fechaStr);
-            if (isNaN(d.getTime())) return -1;
-            return d.getHours() * 60 + d.getMinutes();
-          } catch (e) {
-            return -1;
-          }
-        };
-
-
-        const bloqueSinEntrada = bloques.find((b) => {
-          const tieneEntrada = regsTodos.some((r) => {
-            if (r.tipo !== 'entrada') return false;
-            const m = getMinutosLocales(r.fecha_registro);
-            return m >= b.entrada - anticipoEntrada && m <= b.salida + posteriorSalida;
-          });
-          // Sin límite de tiempo máximo: permitir entrada aunque haya pasado la hora
-          return !tieneEntrada;
-        });
-
-        if (bloqueSinEntrada) {
-          if (minsAhora < bloqueSinEntrada.entrada - anticipoEntradaEfectivo) {
-            // Bloqueo total: aún no es la hora permitida (máx. 5 min de anticipo offline).
-            Alert.alert(
-              'Aún no es tu hora',
-              `Tu próxima entrada está programada a las ${_minsToHHMM(bloqueSinEntrada.entrada)}.\n` +
-              `\nEl registro se habilitará a las ${_minsToHHMM(bloqueSinEntrada.entrada - anticipoEntradaEfectivo)}.`,
-              [{ text: 'Entendido' }]
-            );
-            return;
-          }
-        } else {
-          Alert.alert(
-            'Aviso',
-            'Parece que ya has registrado todas tus entradas programadas para hoy.\nSe procederá con el registro adicional.',
-            [{ text: 'OK', onPress: continuarProcesoRegistro }]
-          );
-          return;
-        }
-      }
-
-      if (tipoSiguienteRegistro === 'salida') {
-        const MARGEN_SALIDA = 5;
-
-        const bloqueActivoSalida = bloques.find((b) => minsAhora <= b.salida + posteriorSalida);
-
-        if (bloqueActivoSalida) {
-          const horaSalidaPermitida = bloqueActivoSalida.salida - MARGEN_SALIDA;
-
-          if (minsAhora < horaSalidaPermitida) {
-            Alert.alert(
-              'Aviso',
-              `Aún no es momento de registrarte, tu salida es a las ${_minsToHHMM(bloqueActivoSalida.salida)}.\n\nEl sistema se habilitará a las ${_minsToHHMM(horaSalidaPermitida)}.`
-            );
-            return;
-          }
-        } else {
-          Alert.alert(
-            'Aviso',
-            'Tu jornada ha terminado o el tiempo para registrar tu salida ya finalizó.\nSe procederá con el registro adicional.',
-            [{ text: 'OK', onPress: continuarProcesoRegistro }]
-          );
-          return;
-        }
-      }
-    }
 
     continuarProcesoRegistro();
   };

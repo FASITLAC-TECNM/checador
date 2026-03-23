@@ -11,8 +11,9 @@ import {
   Alert,
   Linking,
   Modal,
-  ScrollView } from
-'react-native';
+  ScrollView
+} from
+  'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,46 +24,46 @@ const DEVICE_CONFIG = {
   title: "Configuración del Dispositivo",
   subtitle: "Paso 2 de 3",
   fields: [
-  {
-    id: "email",
-    label: "Correo Electrónico",
-    placeholder: "tu@email.com",
-    icon: "mail-outline",
-    type: "email",
-    required: true,
-    readonly: false,
-    helpText: "Usa tu correo institucional"
-  },
-  {
-    id: "registrationDate",
-    label: "Fecha de Registro",
-    placeholder: "YYYY-MM-DD",
-    icon: "calendar-outline",
-    type: "text",
-    required: true,
-    readonly: true,
-    helpText: "Fecha automática del sistema"
-  },
-  {
-    id: "macAddress",
-    label: "Dirección MAC",
-    placeholder: "AA:BB:CC:DD:EE:FF",
-    icon: "hardware-chip-outline",
-    type: "text",
-    required: true,
-    readonly: false,
-    helpText: "Ingresa la dirección MAC de tu dispositivo (Formato: XX:XX:XX:XX:XX:XX)"
-  },
-  {
-    id: "ipAddress",
-    label: "Dirección IP",
-    placeholder: "192.168.1.1",
-    icon: "globe-outline",
-    type: "text",
-    required: true,
-    readonly: true,
-    helpText: "IP de la red actual"
-  }],
+    {
+      id: "email",
+      label: "Correo Electrónico",
+      placeholder: "tu@email.com",
+      icon: "mail-outline",
+      type: "email",
+      required: true,
+      readonly: false,
+      helpText: "Usa tu correo institucional"
+    },
+    {
+      id: "registrationDate",
+      label: "Fecha de Registro",
+      placeholder: "YYYY-MM-DD",
+      icon: "calendar-outline",
+      type: "text",
+      required: true,
+      readonly: true,
+      helpText: "Fecha automática del sistema"
+    },
+    {
+      id: "macAddress",
+      label: "Dirección MAC",
+      placeholder: "AA:BB:CC:DD:EE:FF",
+      icon: "hardware-chip-outline",
+      type: "text",
+      required: true,
+      readonly: false,
+      helpText: "Ingresa la dirección MAC de tu dispositivo\n(Formato: XX:XX:XX:XX:XX:XX)"
+    },
+    {
+      id: "ipAddress",
+      label: "Dirección IP",
+      placeholder: "192.168.1.1",
+      icon: "globe-outline",
+      type: "text",
+      required: true,
+      readonly: true,
+      helpText: "IP de la red actual"
+    }],
 
   deviceInfo: {
     title: "Información del Dispositivo Detectada"
@@ -220,8 +221,8 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
 
       if (esValido) {
         let mensaje = result.usuario ?
-        `✓ Correo verificado: ${result.usuario.nombre}` :
-        `[Atención] ${result.mensaje || 'Correo pendiente de verificación'}`;
+          `Correo verificado: ${result.usuario.nombre}` :
+          `[Atención] ${result.mensaje || 'Correo pendiente de verificación'}`;
 
         setEmailValidation({
           isValid: true,
@@ -338,8 +339,8 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
       Alert.alert(
         solicitudExistente?.id ? '¡Solicitud Reabierta!' : '¡Solicitud Enviada!',
         solicitudExistente?.id ?
-        'Tu solicitud ha sido reabierta y está pendiente de aprobación nuevamente.' :
-        'Tu solicitud ha sido enviada correctamente. Recibirás una notificación cuando sea aprobada.',
+          'Tu solicitud ha sido reabierta y está pendiente de aprobación nuevamente.' :
+          'Tu solicitud ha sido enviada correctamente. Recibirás una notificación cuando sea aprobada.',
         [{
           text: 'Continuar',
           onPress: () => {
@@ -368,8 +369,8 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
         'Error al Enviar',
         error.message || 'No se pudo enviar la solicitud. Por favor intenta nuevamente.',
         [
-        { text: 'Reintentar', onPress: handleNext },
-        { text: 'Cancelar', style: 'cancel' }]
+          { text: 'Reintentar', onPress: handleNext },
+          { text: 'Cancelar', style: 'cancel' }]
 
       );
     } finally {
@@ -392,17 +393,17 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
           {field.label} {field.required && <Text style={styles.required}>*</Text>}
         </Text>
         <View style={[
-        styles.inputWrapper,
-        fieldIsReadonly && styles.inputWrapperReadonly,
-        isEmailField && emailValidation.checked && emailValidation.isValid && styles.inputWrapperValid,
-        isEmailField && emailValidation.checked && !emailValidation.isValid && styles.inputWrapperInvalid]
+          styles.inputWrapper,
+          fieldIsReadonly && styles.inputWrapperReadonly,
+          isEmailField && emailValidation.checked && emailValidation.isValid && styles.inputWrapperValid,
+          isEmailField && emailValidation.checked && !emailValidation.isValid && styles.inputWrapperInvalid]
         }>
           <Ionicons
             name={field.icon}
             size={15}
             color={fieldIsReadonly ? '#9ca3af' : '#2563eb'}
             style={styles.inputIcon} />
-          
+
           <TextInput
             style={[styles.input, fieldIsReadonly && styles.inputReadonly]}
             placeholder={field.placeholder}
@@ -425,48 +426,48 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
             keyboardType={isMacField ? 'default' : field.type === 'email' ? 'email-address' : 'default'}
             autoCapitalize={isMacField ? 'characters' : field.type === 'email' ? 'none' : 'sentences'}
             editable={isMacField ? true : false} />
-          
+
           {fieldIsReadonly &&
-          <Ionicons
-            name="checkmark-circle"
-            size={15}
-            color="#10b981" />
+            <Ionicons
+              name="checkmark-circle"
+              size={15}
+              color="#10b981" />
 
           }
           {isEmailField && isValidatingEmail &&
-          <ActivityIndicator size="small" color="#2563eb" style={{ marginLeft: 6 }} />
+            <ActivityIndicator size="small" color="#2563eb" style={{ marginLeft: 6 }} />
           }
         </View>
 
         {isEmailField && isValidatingEmail &&
-        <Text style={styles.validatingText}>Verificando correo...</Text>
+          <Text style={styles.validatingText}>Verificando correo...</Text>
         }
         {isEmailField && emailValidation.checked && emailValidation.message &&
-        <Text style={[
-        styles.validationMessage,
-        emailValidation.isValid ? styles.validMessage : styles.invalidMessage]
-        }>
+          <Text style={[
+            styles.validationMessage,
+            emailValidation.isValid ? styles.validMessage : styles.invalidMessage]
+          }>
             {emailValidation.message}
           </Text>
         }
 
         {isEmailField && !emailValidation.checked &&
-        <Text style={styles.helpText}>
+          <Text style={styles.helpText}>
             ✓ Correo detectado automáticamente desde tu sesión
           </Text>
         }
 
         {field.helpText && !isEmailField &&
-        <Text style={styles.helpText}>{field.helpText}</Text>
+          <Text style={styles.helpText}>{field.helpText}</Text>
         }
 
-        {}
+        { }
         {isMacField &&
-        <TouchableOpacity
-          style={styles.macHelpButton}
-          onPress={() => setShowMacHelp(true)}
-          activeOpacity={0.7}>
-          
+          <TouchableOpacity
+            style={styles.macHelpButton}
+            onPress={() => setShowMacHelp(true)}
+            activeOpacity={0.7}>
+
             <Ionicons name="help-circle-outline" size={16} color="#4f46e5" />
             <Text style={styles.macHelpButtonText}>¿Cómo encuentro mi dirección MAC Wi-Fi?</Text>
           </TouchableOpacity>
@@ -489,7 +490,7 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
 
-      {}
+      { }
       <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? insets.top + 16 : insets.top + 8 }]}>
         <Text style={styles.headerTitle}>{deviceConfig.title}</Text>
         <Text style={styles.headerSubtitle}>{deviceConfig.subtitle}</Text>
@@ -509,10 +510,10 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
         </View>
       </View>
 
-      {}
+      { }
       <View style={styles.contentArea}>
         {solicitudExistente &&
-        <View style={styles.retryBadge}>
+          <View style={styles.retryBadge}>
             <Ionicons name="refresh-circle" size={18} color="#f59e0b" />
             <Text style={styles.retryText}>Reintentando solicitud anterior</Text>
           </View>
@@ -546,7 +547,7 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
         </View>
       </View>
 
-      {}
+      { }
       <View style={[styles.footer, { paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 16) : insets.bottom + 8 }]}>
         <View style={styles.buttonRow}>
           <TouchableOpacity
@@ -554,29 +555,29 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
             onPress={onPrevious}
             activeOpacity={0.8}
             disabled={isLoading}>
-            
+
             <Ionicons name="arrow-back" size={18} color="#6b7280" />
             <Text style={styles.backButtonText}>Anterior</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[
-            styles.nextButton,
-            (!emailValidation.isValid || isLoading || isValidatingEmail || !formData.macAddress.trim()) && styles.nextButtonDisabled]
+              styles.nextButton,
+              (!emailValidation.isValid || isLoading || isValidatingEmail || !formData.macAddress.trim()) && styles.nextButtonDisabled]
             }
             onPress={handleNext}
             disabled={!emailValidation.isValid || isLoading || isValidatingEmail || !formData.macAddress.trim()}
             activeOpacity={0.8}>
-            
+
             {isLoading ?
-            <>
+              <>
                 <ActivityIndicator color="#fff" size="small" />
                 <Text style={[styles.nextButtonText, { marginLeft: 8 }]}>
                   {solicitudExistente ? 'Reabriendo...' : 'Enviando...'}
                 </Text>
               </> :
 
-            <>
+              <>
                 <Text style={styles.nextButtonText}>
                   {solicitudExistente ? 'Reabrir Solicitud' : 'Enviar Solicitud'}
                 </Text>
@@ -587,13 +588,13 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
         </View>
       </View>
 
-      {}
+      { }
       <Modal
         visible={showMacHelp}
         animationType="slide"
         transparent={true}
         onRequestClose={() => setShowMacHelp(false)}>
-        
+
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -608,7 +609,7 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
 
             <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
               {Platform.OS === 'android' ?
-              <>
+                <>
                   <View style={styles.stepItem}>
                     <Ionicons name="settings-outline" size={22} color="#4b5563" />
                     <Text style={styles.stepText}>Abre la aplicación de Configuración o Ajustes</Text>
@@ -623,7 +624,7 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
                   </View>
                 </> :
 
-              <>
+                <>
                   <View style={styles.stepItem}>
                     <Ionicons name="settings-outline" size={22} color="#4b5563" />
                     <Text style={styles.stepText}>Abre la aplicación de Configuración</Text>
@@ -651,17 +652,17 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
 
             <View style={styles.modalActions}>
               {Platform.OS === 'android' &&
-              <TouchableOpacity
-                style={styles.modalPrimaryButton}
-                onPress={() => {
-                  Linking.sendIntent('android.settings.DEVICE_INFO_SETTINGS').catch(() => {
+                <TouchableOpacity
+                  style={styles.modalPrimaryButton}
+                  onPress={() => {
+                    Linking.sendIntent('android.settings.DEVICE_INFO_SETTINGS').catch(() => {
 
-                    Linking.sendIntent('android.settings.SETTINGS').catch(() => {
-                      Alert.alert("Aviso", "No se pudo abrir la configuración automáticamente, por favor hazlo manualmente.");
+                      Linking.sendIntent('android.settings.SETTINGS').catch(() => {
+                        Alert.alert("Aviso", "No se pudo abrir la configuración automáticamente, por favor hazlo manualmente.");
+                      });
                     });
-                  });
-                }}>
-                
+                  }}>
+
                   <Ionicons name="open-outline" size={16} color="#fff" />
                   <Text style={styles.modalPrimaryButtonText}>Abrir Ajustes</Text>
                 </TouchableOpacity>
@@ -670,7 +671,7 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
               <TouchableOpacity
                 style={[styles.modalSecondaryButton, Platform.OS !== 'android' && { width: '100%' }]}
                 onPress={() => setShowMacHelp(false)}>
-                
+
                 <Text style={styles.modalSecondaryButtonText}>Cerrar Ayuda</Text>
               </TouchableOpacity>
             </View>

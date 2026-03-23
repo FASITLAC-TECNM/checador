@@ -4,7 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  FlatList,
+  SectionList,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
@@ -40,7 +40,9 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
   const [filtroTipo, setFiltroTipo] = useState('todos');
   const [vistaActual, setVistaActual] = useState('lista');
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [rangoInicio, setRangoInicio] = useState(null);
+  const [rangoFin, setRangoFin] = useState(null);
+  const [modoRango, setModoRango] = useState(false);
   const [expandedCard, setExpandedCard] = useState(null);
   const [modalFiltroVisible, setModalFiltroVisible] = useState(false);
   const [modalFiltroTipoVisible, setModalFiltroTipoVisible] = useState(false);
@@ -232,23 +234,61 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
       filtradas = filtradas.filter((i) => i.tipo === filtroTipo);
     }
 
-    if (selectedDate && vistaActual === 'calendario') {
-      filtradas = filtradas.filter((i) => {
-        const inicioDate = new Date(i.fecha_inicio);
-        const finDate = i.fecha_fin ? new Date(i.fecha_fin) : inicioDate;
-        return selectedDate >= new Date(inicioDate.setHours(0, 0, 0, 0)) &&
-          selectedDate <= new Date(finDate.setHours(23, 59, 59, 999));
-      });
+    if (vistaActual === 'calendario') {
+      if (rangoInicio && rangoFin) {
+        const inicio = new Date(rangoInicio); inicio.setHours(0, 0, 0, 0);
+        const fin = new Date(rangoFin); fin.setHours(23, 59, 59, 999);
+        filtradas = filtradas.filter((i) => {
+          const iInicio = new Date(i.fecha_inicio);
+          const iFin = i.fecha_fin ? new Date(i.fecha_fin) : iInicio;
+          // Incidencia se solapa con el rango seleccionado
+          return iInicio <= fin && iFin >= inicio;
+        });
+      } else if (rangoInicio) {
+        filtradas = filtradas.filter((i) => {
+          const iInicio = new Date(i.fecha_inicio);
+          const iFin = i.fecha_fin ? new Date(i.fecha_fin) : iInicio;
+          const d = new Date(rangoInicio); d.setHours(0, 0, 0, 0);
+          return iInicio <= new Date(d.getTime() + 86399999) && iFin >= d;
+        });
+      }
     }
 
     return filtradas;
-  }, [incidencias, filtroEstado, filtroTipo, selectedDate, vistaActual]);
+  }, [incidencias, filtroEstado, filtroTipo, rangoInicio, rangoFin, vistaActual]);
+
+  const seccionesFiltradas = useMemo(() => {
+    const grupos = {};
+    incidenciasFiltradas.forEach((incidencia) => {
+      // Usamos la fecha_inicio para agrupar (como el día principal del evento)
+      const fecha = new Date(incidencia.fecha_inicio);
+      const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
+      if (!grupos[key]) {
+        grupos[key] = {
+          key,
+          fecha,
+          data: []
+        };
+      }
+      grupos[key].data.push(incidencia);
+    });
+
+    return Object.values(grupos)
+      .sort((a, b) => b.fecha - a.fecha)
+      .map((g) => ({
+        title: g.key,
+        fecha: g.fecha,
+        data: g.data
+      }));
+  }, [incidenciasFiltradas]);
 
   const cambiarMes = useCallback((direccion) => {
     const nuevoMes = new Date(currentMonth);
     nuevoMes.setMonth(currentMonth.getMonth() + direccion);
     setCurrentMonth(nuevoMes);
-    setSelectedDate(null);
+    setRangoInicio(null);
+    setRangoFin(null);
+    setModoRango(false);
   }, [currentMonth]);
 
   const diasCalendario = useMemo(() => {
@@ -324,8 +364,16 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
           <View style={styles.daysGrid}>
             {diasCalendario.map((dia, index) => {
               const incidenciasDia = dia ? incidenciasPorDia[dia] || [] : [];
-              const isSelected = selectedDate && dia === selectedDate.getDate() &&
-                selectedDate.getMonth() === currentMonth.getMonth();
+              const fechaDia = dia
+                ? new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia)
+                : null;
+              const isInicio = rangoInicio && fechaDia &&
+                fechaDia.toDateString() === rangoInicio.toDateString();
+              const isFin = rangoFin && fechaDia &&
+                fechaDia.toDateString() === rangoFin.toDateString();
+              const isEnRango = rangoInicio && rangoFin && fechaDia &&
+                fechaDia >= rangoInicio && fechaDia <= rangoFin && !isInicio && !isFin;
+              const isSelected = isInicio || isFin;
               const isToday = dia &&
                 new Date().toDateString() === new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia).toDateString();
 
@@ -334,14 +382,33 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
                   key={index}
                   style={styles.dayCell}
                   onPress={() => {
-                    if (dia) {
-                      const newDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia);
-                      if (selectedDate && selectedDate.getTime() === newDate.getTime()) {
-                        setSelectedDate(null);
+                    if (!dia) return;
+                    const fecha = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia);
+                    if (!modoRango) {
+                      // Tap simple: filtro de un día (comportamiento original)
+                      setRangoFin(null);
+                      setRangoInicio((prev) =>
+                        prev && prev.toDateString() === fecha.toDateString() ? null : fecha
+                      );
+                    } else {
+                      // Modo rango activo: cerrar rango
+                      setModoRango(false);
+                      if (!rangoInicio || fecha.toDateString() === rangoInicio.toDateString()) {
+                        setRangoFin(null);
+                      } else if (fecha < rangoInicio) {
+                        setRangoFin(rangoInicio);
+                        setRangoInicio(fecha);
                       } else {
-                        setSelectedDate(newDate);
+                        setRangoFin(fecha);
                       }
                     }
+                  }}
+                  onLongPress={() => {
+                    if (!dia) return;
+                    const fecha = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia);
+                    setRangoInicio(fecha);
+                    setRangoFin(null);
+                    setModoRango(true);
                   }}
                   disabled={!dia}>
 
@@ -349,17 +416,19 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
                     <View style={[
                       styles.dayContent,
                       isSelected && styles.dayContentSelected,
-                      isToday && !isSelected && styles.dayContentToday]
+                      isEnRango && styles.dayContentInRange,
+                      isToday && !isSelected && !isEnRango && styles.dayContentToday]
                     }>
                       <Text style={[
                         styles.dayText,
                         isSelected && styles.dayTextSelected,
-                        isToday && !isSelected && styles.dayTextToday]
+                        isEnRango && styles.dayTextInRange,
+                        isToday && !isSelected && !isEnRango && styles.dayTextToday]
                       }>
                         {dia}
                       </Text>
                       { }
-                      {incidenciasDia.length > 0 && !isSelected &&
+                      {incidenciasDia.length > 0 && !isSelected && !isEnRango &&
                         <View style={styles.dayIndicators}>
                           <View style={styles.dayIndicator} />
                         </View>
@@ -490,7 +559,9 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
           style={[styles.viewButton, vistaActual === 'lista' && styles.viewButtonActive]}
           onPress={() => {
             setVistaActual('lista');
-            setSelectedDate(null);
+            setRangoInicio(null);
+            setRangoFin(null);
+            setModoRango(false);
           }}>
 
           <Ionicons name="list" size={20} color={vistaActual === 'lista' ? '#2563eb' : '#6b7280'} />
@@ -534,16 +605,25 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>
-          {selectedDate ?
-            `${selectedDate.getDate()} de ${monthNames[selectedDate.getMonth()]}` :
-            vistaActual === 'calendario' ?
-              'Todas las incidencias' :
-              'Incidencias'
+          {rangoInicio && rangoFin && vistaActual === 'calendario'
+            ? `${rangoInicio.getDate()} – ${rangoFin.getDate()} de ${monthNames[rangoFin.getMonth()]}`
+            : rangoInicio && vistaActual === 'calendario'
+            ? `${rangoInicio.getDate()} de ${monthNames[rangoInicio.getMonth()]}`
+            : vistaActual === 'calendario'
+            ? 'Todas las incidencias'
+            : 'Incidencias'
           }
         </Text>
-        <Text style={styles.sectionCount}>
-          {incidenciasFiltradas.length} {incidenciasFiltradas.length === 1 ? 'registro' : 'registros'}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {(rangoInicio || rangoFin) && vistaActual === 'calendario' &&
+            <TouchableOpacity onPress={() => { setRangoInicio(null); setRangoFin(null); setModoRango(false); }}>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: '#2563eb' }}>Ver todas</Text>
+            </TouchableOpacity>
+          }
+          <Text style={styles.sectionCount}>
+            {incidenciasFiltradas.length} {incidenciasFiltradas.length === 1 ? 'registro' : 'registros'}
+          </Text>
+        </View>
       </View>
     </>;
 
@@ -596,15 +676,26 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
         </View>
       </View>
 
-      <FlatList
-        data={incidenciasFiltradas}
+      <SectionList
+        sections={seccionesFiltradas}
         extraData={expandedCard}
         keyExtractor={keyExtractor}
         renderItem={({ item }) => renderIncidenciaCard(item)}
+        renderSectionHeader={({ section }) => {
+          const mNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+          const dia = section.fecha.getDate();
+          const mes = mNames[section.fecha.getMonth()];
+          const anio = section.fecha.getFullYear();
+          return (
+            <Text style={styles.sectionListHeader}>
+              {dia} de {mes} {anio}
+            </Text>
+          );
+        }}
         ListHeaderComponent={ListHeader}
         ListEmptyComponent={ListEmpty}
         ListFooterComponent={<View style={{ height: 100 }} />}
-        contentContainerStyle={incidenciasFiltradas.length === 0 ? { flexGrow: 1 } : undefined}
+        contentContainerStyle={seccionesFiltradas.length === 0 ? { flexGrow: 1 } : undefined}
         showsVerticalScrollIndicator={false}
         initialNumToRender={10}
         maxToRenderPerBatch={10}
@@ -616,7 +707,6 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
             onRefresh={onRefresh}
             tintColor="#3b82f6"
             colors={['#3b82f6']} />
-
         } />
 
 

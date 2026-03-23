@@ -13,10 +13,13 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { getAsistenciasEmpleado } from '../../services/asistenciasService';
 import sqliteManager from '../../services/offline/sqliteManager.mjs';
+import syncManager from '../../services/offline/syncManager.mjs';
 
 export const HistoryScreen = ({ darkMode, userData }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [rangoInicio, setRangoInicio] = useState(null);
+  const [rangoFin, setRangoFin] = useState(null);
+  const [modoRango, setModoRango] = useState(false); // true solo si el usuario hizo long-press
   const [asistencias, setAsistencias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -116,7 +119,9 @@ export const HistoryScreen = ({ darkMode, userData }) => {
     const nuevo = new Date(currentMonth);
     nuevo.setMonth(currentMonth.getMonth() + dir);
     setCurrentMonth(nuevo);
-    setSelectedDate(null);
+    setRangoInicio(null);
+    setRangoFin(null);
+    setModoRango(false);
   };
 
 
@@ -148,20 +153,65 @@ export const HistoryScreen = ({ darkMode, userData }) => {
     return mapa;
   }, [asistencias, currentMonth]);
 
+  // Tap normal: comportamiento original (un solo día) O, si hay modo rango activo, cierra el rango.
   const seleccionarDia = useCallback((dia) => {
     if (!dia) return;
-    setSelectedDate((prev) => {
-      const fecha = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia);
-      if (prev && prev.toDateString() === fecha.toDateString()) return null;
-      return fecha;
-    });
+    const fecha = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia);
+    if (!modoRango) {
+      // Comportamiento original: filtrar ese día solo
+      setRangoFin(null);
+      setRangoInicio((prev) =>
+        prev && prev.toDateString() === fecha.toDateString() ? null : fecha
+      );
+      return;
+    }
+    // Modo rango activo: este tap cierra el rango
+    setModoRango(false);
+    const inicio = rangoInicio;
+    if (!inicio || fecha.toDateString() === inicio.toDateString()) {
+      // Mismo día → cancelar rango, solo día simple
+      setRangoFin(null);
+      return;
+    }
+    if (fecha < inicio) {
+      setRangoInicio(fecha);
+      setRangoFin(inicio);
+    } else {
+      setRangoFin(fecha);
+    }
+  }, [currentMonth, modoRango, rangoInicio]);
+
+  // Long-press: activa modo rango y fija el día como inicio
+  const iniciarRango = useCallback((dia) => {
+    if (!dia) return;
+    const fecha = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia);
+    setRangoInicio(fecha);
+    setRangoFin(null);
+    setModoRango(true);
   }, [currentMonth]);
+
+  const limpiarRango = useCallback(() => {
+    setRangoInicio(null);
+    setRangoFin(null);
+    setModoRango(false);
+  }, []);
 
 
   const sections = useMemo(() => {
-    const filtrados = selectedDate ?
-    asistencias.filter((r) => new Date(r.fecha_registro).toDateString() === selectedDate.toDateString()) :
-    asistencias;
+    let filtrados = asistencias;
+    if (rangoInicio && rangoFin) {
+      const inicio = new Date(rangoInicio); inicio.setHours(0, 0, 0, 0);
+      const fin = new Date(rangoFin); fin.setHours(23, 59, 59, 999);
+      filtrados = asistencias.filter((r) => {
+        const d = new Date(r.fecha_registro);
+        return d >= inicio && d <= fin;
+      });
+    } else if (rangoInicio) {
+      // Solo inicio seleccionado → filtrar ese día solo
+      filtrados = asistencias.filter((r) =>
+        new Date(r.fecha_registro).toDateString() === rangoInicio.toDateString()
+      );
+    }
 
 
     const grupos = {};
@@ -176,7 +226,7 @@ export const HistoryScreen = ({ darkMode, userData }) => {
     return Object.values(grupos).
     sort((a, b) => b.fecha - a.fecha).
     map((g) => ({ title: g.key, fecha: g.fecha, data: g.registros }));
-  }, [asistencias, selectedDate]);
+  }, [asistencias, rangoInicio, rangoFin]);
 
 
   const formatearHora = useCallback((fechaStr) => {
@@ -325,40 +375,51 @@ export const HistoryScreen = ({ darkMode, userData }) => {
           <View style={styles.daysGrid}>
             {diasCalendario.map((dia, index) => {
           const estado = dia ? estadosPorDia[dia] || null : null;
-          const isSelected = selectedDate && dia === selectedDate.getDate() &&
-          selectedDate.getMonth() === currentMonth.getMonth();
+          const fechaDia = dia
+            ? new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia)
+            : null;
+          const isInicio = rangoInicio && fechaDia &&
+            fechaDia.toDateString() === rangoInicio.toDateString();
+          const isFin = rangoFin && fechaDia &&
+            fechaDia.toDateString() === rangoFin.toDateString();
+          const isEnRango = rangoInicio && rangoFin && fechaDia &&
+            fechaDia >= rangoInicio && fechaDia <= rangoFin && !isInicio && !isFin;
+          const isSelected = isInicio || isFin;
           const isToday = dia &&
-          hoyStr === new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia).toDateString();
+            hoyStr === new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia).toDateString();
           const dotColor = estado === 'falta' ? '#ef4444' :
-          estado === 'retardo' ? '#f59e0b' :
-          estado === 'puntual' ? '#10b981' : null;
+            estado === 'retardo' ? '#f59e0b' :
+            estado === 'puntual' ? '#10b981' : null;
 
           return (
             <TouchableOpacity
               key={index}
               style={styles.dayCell}
               onPress={() => seleccionarDia(dia)}
+              onLongPress={() => iniciarRango(dia)}
               disabled={!dia}>
-              
-                  {dia &&
-              <View style={[
-              styles.dayContent,
-              isSelected && styles.dayContentSelected,
-              isToday && !isSelected && styles.dayContentToday]
-              }>
-                      <Text style={[
-                styles.dayText,
-                isSelected && styles.dayTextSelected,
-                isToday && !isSelected && styles.dayTextToday]
+
+              {dia &&
+                <View style={[
+                  styles.dayContent,
+                  isSelected && styles.dayContentSelected,
+                  isEnRango && styles.dayContentInRange,
+                  isToday && !isSelected && !isEnRango && styles.dayContentToday]
                 }>
-                        {dia}
-                      </Text>
-                      {dotColor && !isSelected &&
-                <View style={[styles.dayIndicator, { backgroundColor: dotColor }]} />
-                }
-                    </View>
+                  <Text style={[
+                    styles.dayText,
+                    isSelected && styles.dayTextSelected,
+                    isEnRango && styles.dayTextInRange,
+                    isToday && !isSelected && !isEnRango && styles.dayTextToday]
+                  }>
+                    {dia}
+                  </Text>
+                  {dotColor && !isSelected && !isEnRango &&
+                    <View style={[styles.dayIndicator, { backgroundColor: dotColor }]} />
+                  }
+                </View>
               }
-                </TouchableOpacity>);
+            </TouchableOpacity>);
 
         })}
           </View>
@@ -369,16 +430,18 @@ export const HistoryScreen = ({ darkMode, userData }) => {
       <View style={styles.recordsHeader}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Text style={styles.recordsTitle}>
-            {selectedDate ?
-          `${selectedDate.getDate()} de ${monthNames[selectedDate.getMonth()]}` :
-          `${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`
-          }
+            {rangoInicio && rangoFin
+              ? `${rangoInicio.getDate()} – ${rangoFin.getDate()} de ${monthNames[rangoFin.getMonth()]}`
+              : rangoInicio
+              ? `${rangoInicio.getDate()} de ${monthNames[rangoInicio.getMonth()]}`
+              : `${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`
+            }
           </Text>
-          {selectedDate &&
-        <TouchableOpacity onPress={() => setSelectedDate(null)}>
+          {(rangoInicio || rangoFin) &&
+            <TouchableOpacity onPress={limpiarRango}>
               <Text style={{ fontSize: 13, fontWeight: '600', color: '#2563eb' }}>Ver mes</Text>
             </TouchableOpacity>
-        }
+          }
         </View>
         <Text style={styles.recordsCount}>
           {asistencias.length} registros en el mes
@@ -392,7 +455,7 @@ export const HistoryScreen = ({ darkMode, userData }) => {
       <Ionicons name="calendar-outline" size={48} color="#cbd5e1" />
       <Text style={styles.emptyText}>Sin registros</Text>
       <Text style={styles.emptySubtext}>
-        {selectedDate ? 'No hay registros para este día' : 'No hay registros este mes'}
+        {(rangoInicio || rangoFin) ? 'No hay registros en este rango de fechas' : 'No hay registros este mes'}
       </Text>
     </View>;
 
@@ -503,6 +566,8 @@ const historyStyles = StyleSheet.create({
   dayTextSelected: { color: '#fff', fontWeight: '700' },
   dayTextToday: { color: '#2563eb', fontWeight: '700' },
   dayIndicator: { width: 4, height: 4, borderRadius: 2, marginTop: 2 },
+  dayContentInRange: { backgroundColor: '#dbeafe', borderRadius: 0 },
+  dayTextInRange: { color: '#1d4ed8', fontWeight: '600' },
 
   statsRow: {
     flexDirection: 'row',

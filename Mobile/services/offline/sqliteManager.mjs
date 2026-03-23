@@ -73,6 +73,7 @@ async function runMigrations() {
       idempotency_key TEXT NOT NULL UNIQUE,
       server_id TEXT,
       empleado_id TEXT NOT NULL,
+      empresa_id TEXT,
       tipo TEXT NOT NULL CHECK(tipo IN ('entrada', 'salida')),
       estado TEXT NOT NULL,
       dispositivo_origen TEXT DEFAULT 'movil',
@@ -126,14 +127,17 @@ async function runMigrations() {
     CREATE TABLE IF NOT EXISTS cache_tolerancias (
       empleado_id TEXT PRIMARY KEY,
       nombre TEXT,
-      minutos_retardo INTEGER DEFAULT 10,
-      minutos_falta INTEGER DEFAULT 30,
+      minutos_retardo INTEGER DEFAULT 0,
+      minutos_falta INTEGER DEFAULT 0,
       permite_anticipado INTEGER DEFAULT 1,
       minutos_anticipado_max INTEGER DEFAULT 60,
       aplica_tolerancia_entrada INTEGER DEFAULT 2,
       aplica_tolerancia_salida INTEGER DEFAULT 0,
       max_retardos INTEGER DEFAULT 0,
       dias_aplica TEXT,
+      reglas TEXT,
+      segmentos_red TEXT,
+      intervalo_bloques_minutos INTEGER DEFAULT 60,
       updated_at TEXT NOT NULL
     );
 
@@ -297,10 +301,15 @@ async function runMigrations() {
     try { await db.execAsync(col); } catch (e) { }
   }
 
+  try { await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN reglas TEXT'); } catch (e) { }
+  try { await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN intervalo_bloques_minutos INTEGER DEFAULT 60'); } catch (e) { }
+  try { await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN segmentos_red TEXT'); } catch (e) { }
+
   // Migración: columnas de anticipo de salida (pueden no existir en DBs antiguas)
   for (const col of [
     'ALTER TABLE cache_tolerancias ADD COLUMN minutos_anticipo_salida INTEGER DEFAULT 5',
-    'ALTER TABLE cache_tolerancias ADD COLUMN minutos_posterior_salida INTEGER DEFAULT 0']) {
+    'ALTER TABLE cache_tolerancias ADD COLUMN minutos_posterior_salida INTEGER DEFAULT 0',
+    'ALTER TABLE offline_asistencias ADD COLUMN empresa_id TEXT']) {
     try { await db.execAsync(col); } catch (e) { /* columna ya existe */ }
   }
 
@@ -343,12 +352,13 @@ export async function saveOfflineAsistencia(data) {
   try {
     const result = await db.runAsync(
       `INSERT INTO offline_asistencias
-        (idempotency_key, empleado_id, tipo, estado, dispositivo_origen, metodo_registro,
+        (idempotency_key, empleado_id, empresa_id, tipo, estado, dispositivo_origen, metodo_registro,
          departamento_id, fecha_registro, payload_biometrico, ubicacion, ip, wifi)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         idempotencyKey,
         data.empleado_id,
+        data.empresa_id || null,
         data.tipo,
         data.estado,
         data.dispositivo_origen || 'movil',
@@ -612,53 +622,67 @@ export async function upsertHorario(empleadoId, horario) {
 
 export async function upsertTolerancia(empleadoId, tolerancia) {
   if (!db) await initDatabase();
-
   const diasAplica = tolerancia.dias_aplica || tolerancia.dias_aplicables ?
     typeof tolerancia.dias_aplica === 'string' ? tolerancia.dias_aplica : JSON.stringify(tolerancia.dias_aplica || tolerancia.dias_aplicables) :
     null;
 
+  const reglasJson = tolerancia.reglas ?
+    (typeof tolerancia.reglas === 'string' ? tolerancia.reglas : JSON.stringify(tolerancia.reglas)) :
+    null;
+
+  const segmentosRedJson = tolerancia.segmentos_red ?
+    (typeof tolerancia.segmentos_red === 'string' ? tolerancia.segmentos_red : JSON.stringify(tolerancia.segmentos_red)) :
+    null;
+
   try {
     await db.runAsync(
-      `INSERT INTO cache_tolerancias
-      (empleado_id, nombre, minutos_retardo, minutos_falta, permite_anticipado, minutos_anticipado_max,
-       aplica_tolerancia_entrada, aplica_tolerancia_salida, max_retardos, dias_aplica,
-       minutos_anticipo_salida, minutos_posterior_salida, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
-    ON CONFLICT(empleado_id) DO UPDATE SET
-      nombre = excluded.nombre,
-      minutos_retardo = excluded.minutos_retardo,
-      minutos_falta = excluded.minutos_falta,
-      permite_anticipado = excluded.permite_anticipado,
-      minutos_anticipado_max = excluded.minutos_anticipado_max,
-      aplica_tolerancia_entrada = excluded.aplica_tolerancia_entrada,
-      aplica_tolerancia_salida = excluded.aplica_tolerancia_salida,
-      max_retardos = excluded.max_retardos,
-      dias_aplica = excluded.dias_aplica,
-      minutos_anticipo_salida = excluded.minutos_anticipo_salida,
-      minutos_posterior_salida = excluded.minutos_posterior_salida,
-      updated_at = excluded.updated_at`,
-      [
-        empleadoId,
-        tolerancia.nombre || null,
-        tolerancia.minutos_retardo ?? 10,
-        tolerancia.minutos_falta ?? 30,
-        tolerancia.permite_registro_anticipado !== false ? 1 : 0,
-        tolerancia.minutos_anticipado_max ?? 0,
-        tolerancia.aplica_tolerancia_entrada !== false ? 1 : 0,
-        tolerancia.aplica_tolerancia_salida ? 1 : 0,
-        tolerancia.max_retardos ?? 0,
-        diasAplica,
-        tolerancia.minutos_anticipo_salida ?? 5,
-        tolerancia.minutos_posterior_salida ?? 0]
-
+      `INSERT INTO cache_tolerancias (
+        empleado_id, nombre, minutos_retardo, minutos_falta,
+        permite_anticipado, minutos_anticipado_max, aplica_tolerancia_entrada,
+        aplica_tolerancia_salida, max_retardos, dias_aplica, reglas, segmentos_red, intervalo_bloques_minutos, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
+      ON CONFLICT(empleado_id) DO UPDATE SET
+        nombre = excluded.nombre,
+        minutos_retardo = excluded.minutos_retardo,
+        minutos_falta = excluded.minutos_falta,
+        permite_anticipado = excluded.permite_anticipado,
+        minutos_anticipado_max = excluded.minutos_anticipado_max,
+        aplica_tolerancia_entrada = excluded.aplica_tolerancia_entrada,
+        aplica_tolerancia_salida = excluded.aplica_tolerancia_salida,
+        max_retardos = excluded.max_retardos,
+        dias_aplica = excluded.dias_aplica,
+        reglas = excluded.reglas,
+        segmentos_red = excluded.segmentos_red,
+        intervalo_bloques_minutos = excluded.intervalo_bloques_minutos,
+        updated_at = excluded.updated_at`,
+        [
+          empleadoId,
+          tolerancia.nombre || null,
+          tolerancia.minutos_retardo ?? 0,
+          tolerancia.minutos_falta ?? 0,
+          tolerancia.permite_registro_anticipado !== false ? 1 : 0,
+          tolerancia.minutos_anticipado_max ?? 0,
+          tolerancia.aplica_tolerancia_entrada !== false ? 1 : 0,
+          tolerancia.aplica_tolerancia_salida !== false ? 1 : 0,
+          tolerancia.max_retardos ?? 0,
+          diasAplica,
+          reglasJson,
+          segmentosRedJson,
+          tolerancia.intervalo_bloques_minutos ?? 60
+        ]
     );
   } catch (ignore) {
-    try {
-      await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN max_retardos INTEGER DEFAULT 0');
-      await upsertTolerancia(empleadoId, tolerancia);
-    } catch (e) {
-
-    }
+    // This catch block is for handling cases where columns might not exist yet
+    // It's generally better to handle migrations in runMigrations, but this provides
+    // a fallback for older DBs or new columns added after initial setup.
+    try { await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN max_retardos INTEGER DEFAULT 0'); } catch (e) { }
+    try { await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN segmentos_red TEXT'); } catch (e) { }
+    try { await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN minutos_anticipo_salida INTEGER DEFAULT 5'); } catch (e) { }
+    try { await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN minutos_posterior_salida INTEGER DEFAULT 0'); } catch (e) { }
+    try { await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN reglas TEXT'); } catch (e) { }
+    try { await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN intervalo_bloques_minutos INTEGER DEFAULT 60'); } catch (e) { }
+    // After attempting to add columns, retry the upsert
+    await upsertTolerancia(empleadoId, tolerancia);
   }
 }
 
@@ -761,14 +785,27 @@ export async function getHorario(empleadoId) {
 export async function getTolerancia(empleadoId) {
   if (!db) await initDatabase();
   const row = await db.getFirstAsync('SELECT * FROM cache_tolerancias WHERE empleado_id = ?', [empleadoId]);
+
   if (row && row.dias_aplica) {
     try {
       row.dias_aplica = JSON.parse(row.dias_aplica);
     } catch (e) { }
   }
+  if (row && row.reglas) {
+    try {
+      row.reglas = JSON.parse(row.reglas);
+    } catch (e) { }
+  }
+  if (row && row.segmentos_red) {
+    try {
+      row.segmentos_red = JSON.parse(row.segmentos_red);
+    } catch (e) { row.segmentos_red = []; }
+  } else if (row) {
+    row.segmentos_red = [];
+  }
   return row || {
-    minutos_retardo: 10,
-    minutos_falta: 30,
+    minutos_retardo: 0,
+    minutos_falta: 0,
     permite_anticipado: 1,
     minutos_anticipado_max: 5,
     minutos_anticipo_salida: 5,

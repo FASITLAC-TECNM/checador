@@ -4,17 +4,17 @@ const API_URL = getApiEndpoint('/api');
 
 
 const DEFAULT_TOLERANCIA = {
-  minutos_retardo: 10,
-  minutos_falta: 30,
+  minutos_retardo: 0,
+  minutos_falta: 0,
   permite_registro_anticipado: true,
-  minutos_anticipado_max: 60,
+  minutos_anticipado_max: 0,
   aplica_tolerancia_entrada: true,
   aplica_tolerancia_salida: false,
 
-  minutos_retardo_a_max: 20,
-  minutos_retardo_b_max: 29,
-  equivalencia_retardo_a: 10,
-  equivalencia_retardo_b: 5
+  minutos_retardo_a_max: 0,
+  minutos_retardo_b_max: 0,
+  equivalencia_retardo_a: 0,
+  equivalencia_retardo_b: 0
 };
 
 

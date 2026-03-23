@@ -350,11 +350,15 @@ export async function saveOfflineAsistencia(data) {
   }
 
   try {
+    // NOTA: ip y wifi NO se guardan intencionalmente.
+    // La validación de red es responsabilidad del backend (movil.sync.controller.js).
+    // Guardar datos de red capturados en modo offline es poco confiable y no debe
+    // usarse para decisiones de seguridad en el servidor.
     const result = await db.runAsync(
       `INSERT INTO offline_asistencias
         (idempotency_key, empleado_id, empresa_id, tipo, estado, dispositivo_origen, metodo_registro,
-         departamento_id, fecha_registro, payload_biometrico, ubicacion, ip, wifi)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         departamento_id, fecha_registro, payload_biometrico, ubicacion)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         idempotencyKey,
         data.empleado_id,
@@ -366,9 +370,7 @@ export async function saveOfflineAsistencia(data) {
         data.departamento_id || null,
         data.fecha_registro || new Date().toISOString(),
         data.payload_biometrico ? JSON.stringify(data.payload_biometrico) : null,
-        ubicacionStr,
-        data.ip || null,
-        wifiStr]
+        ubicacionStr]
 
     );
 

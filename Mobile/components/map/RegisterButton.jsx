@@ -498,58 +498,81 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
 
     if (ultimoTipo === 'salida') {
-      // Contar cuántas salidas hay hoy y cuántos bloques tiene el horario
-      const numSalidas = (registrosHoyTodos || []).filter(r => r.tipo === 'salida').length;
+      // numSalidas: contar de registrosHoyTodos, pero ultimoRegistroHoy (la salida recién hecha)
+      // puede no estar aún en esa lista si el estado es stale. Verificar explícitamente.
+      const salidasEnLista = (registrosHoyTodos || []).filter(r => r.tipo === 'salida');
+      const ultimaYaEnLista = salidasEnLista.some(
+        r => r.fecha_registro === ultimoRegistroHoy?.fecha_registro ||
+             (r.id && r.id === ultimoRegistroHoy?.id) ||
+             (r.local_id && r.local_id === ultimoRegistroHoy?.local_id)
+      );
+      // Si ultimoRegistroHoy (salida) no está en la lista, sumarla al conteo
+      const numSalidas = salidasEnLista.length + (ultimaYaEnLista ? 0 : 1);
       const numBloques = horarioInfo?.bloques?.length || 0;
 
-      // Si aún quedan bloques sin cubrir → verificar que ya abrió la ventana del siguiente
-      if (numSalidas < numBloques) {
-        const bloqueProximo = horarioInfo?.bloques?.[numSalidas];
-        const ANTICIPO_ENT = horarioInfo?.tolerancias?.anticipoEntrada ?? 0;
-        const ahoraMinsNow = horaActual.getHours() * 60 + horaActual.getMinutes();
-        if (bloqueProximo && ahoraMinsNow < bloqueProximo.entrada - ANTICIPO_ENT) {
-          // Ventana aún no abierta — bloquear sin tocar indicadores visuales
-          setPuedeRegistrar(false);
-          setTipoSiguienteRegistro('entrada');
-          setJornadaCompletada(false);
-          return;
-        }
-        setPuedeRegistrar(true);
+      // ── 1. JORNADA COMPLETA: sin más bloques en el horario actual ──
+      // Se bloquea INMEDIATAMENTE sin espera de 1 minuto.
+      // Si el admin agrega un turno nuevo y el dispositivo sincroniza, numBloques aumentará
+      // y este check pasará a false → re-entrará al flujo de "más bloques pendientes".
+      if (numSalidas >= numBloques) {
+        setPuedeRegistrar(false);
         setTipoSiguienteRegistro('entrada');
-        setEstadoHorario('activo');
-        setJornadaCompletada(false);
-        setMensajeEspera('');
+        setEstadoHorario('bloque_completo');
+        setJornadaCompletada(true);
+        setMensajeEspera('Jornada completa. No es necesario registrar más asistencias por hoy.');
         return;
       }
 
-      // ── Último turno completado: jornada terminada ──
-      // Revisar si ya abrió la ventana del siguiente bloque usando el anticipo dinámico.
-      const ANTICIPO_ENT_EXTRA = horarioInfo?.tolerancias?.anticipoEntrada ?? 0;
-      const bloqueExtra = horarioInfo?.bloques?.[numSalidas];
-      if (bloqueExtra) {
-        const ahora = horaActual;
-        const ahoraMins = ahora.getHours() * 60 + ahora.getMinutes();
-        const apertura = bloqueExtra.entrada - ANTICIPO_ENT_EXTRA;
-        if (ahoraMins >= apertura) {
-          setPuedeRegistrar(true);
-          setTipoSiguienteRegistro('entrada');
-          setEstadoHorario('activo');
-          setJornadaCompletada(false);
-          setMensajeEspera('');
-          return;
-        }
+      // ── 2. HAY MÁS BLOQUES: espera obligatoria de 1 minuto post-salida ──
+      // Evita que el botón se reactive inmediatamente entre turnos.
+      const msSinceUltimaSalida = horaActual.getTime() - new Date(ultimoRegistroHoy.fecha_registro).getTime();
+      if (msSinceUltimaSalida < 60 * 1000) {
+        setPuedeRegistrar(false);
+        setTipoSiguienteRegistro('entrada');
+        setJornadaCompletada(false);
+        setEstadoHorario('espera');
+        setMensajeEspera('Espera un momento antes de registrar el siguiente turno.');
+        return;
       }
 
-      // No hay bloque extra o aún no es hora → bloquear botón
-      setPuedeRegistrar(false);
+      // ── 3. VENTANA DEL SIGUIENTE BLOQUE: verificar si ya abrió ──
+      const bloqueProximo = horarioInfo?.bloques?.[numSalidas];
+      const ANTICIPO_ENT = horarioInfo?.tolerancias?.anticipoEntrada ?? 0;
+      const ahoraMinsNow = horaActual.getHours() * 60 + horaActual.getMinutes();
+
+      if (bloqueProximo && ahoraMinsNow < bloqueProximo.entrada - ANTICIPO_ENT) {
+        // Ventana aún no abierta — mantener bloqueado sin mensaje de jornada completa
+        setPuedeRegistrar(false);
+        setTipoSiguienteRegistro('entrada');
+        setJornadaCompletada(false);
+        setEstadoHorario('fuera_horario');
+        setMensajeEspera(`Próximo turno a las ${String(Math.floor(bloqueProximo.entrada / 60)).padStart(2,'0')}:${String(bloqueProximo.entrada % 60).padStart(2,'0')}`);
+        return;
+      }
+
+      // Ventana abierta → habilitar entrada del siguiente bloque
+      setPuedeRegistrar(true);
       setTipoSiguienteRegistro('entrada');
-      setEstadoHorario('bloque_completo');
-      setJornadaCompletada(true);
-      setMensajeEspera('Jornada completa. No es necesario registrar más asistencias por hoy.');
+      setEstadoHorario('activo');
+      setJornadaCompletada(false);
+      setMensajeEspera('');
       return;
     }
 
     // ── MODO OFFLINE: Validar ventana de SALIDA ──
+
+    // FIX: Espera obligatoria de 1 minuto después de registrar entrada.
+    // Evita que el botón de salida se active de inmediato tras la entrada.
+    const msSinceUltimaEntrada = horaActual.getTime() - new Date(ultimoRegistroHoy.fecha_registro).getTime();
+    if (msSinceUltimaEntrada < 60 * 1000) {
+      setPuedeRegistrar(false);
+      setTipoSiguienteRegistro('salida');
+      setEstadoHorario('espera');
+      setJornadaCompletada(false);
+      setMensajeEspera('Espera un momento antes de registrar la salida.');
+      return;
+    }
+
     const ANTICIPO_SALIDA_LOCAL = horarioInfo?.tolerancias?.anticipoSalida ?? 0;
     const numSalidasOffline = (registrosHoyTodos || []).filter(r => r.tipo === 'salida').length;
     const bloqueActualSalida = horarioInfo?.bloques?.[numSalidasOffline];

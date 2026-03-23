@@ -40,8 +40,17 @@ export default function KioskScreen() {
   const { ordenCredenciales, loadingCredenciales, activeMethods, cargarCredenciales } = useKioskConfiguration(isLoggedIn);
   useInactivityTimer();
 
-  // Consumir el estado GLOBAL de todos los dispositivos
-  const { devices } = useGlobalDeviceStatus();
+  // Consumir el estado GLOBAL y la funcion para forzar chequeo de dispositivos
+  const { devices, checkNow } = useGlobalDeviceStatus();
+
+  // Forzar escaneo de dispositivos si venimos de una afiliación nueva
+  useEffect(() => {
+    if (localStorage.getItem("pendingDeviceSync") === "true") {
+      console.log("Primera vez en kiosko después de afiliación. Forzando sincronización de dispositivos...");
+      checkNow();
+      localStorage.removeItem("pendingDeviceSync"); // Limpiar la bandera para que no se repita
+    }
+  }, [checkNow]);
 
   // Calcular estado de cámaras basado en dispositivos registrados / configurados
   const registeredCameras = devices.filter(d => d.tipo === "facial" && d.es_activo);

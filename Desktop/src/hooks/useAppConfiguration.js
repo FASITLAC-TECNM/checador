@@ -24,6 +24,7 @@ export const useAppConfiguration = () => {
 
     const handleAffiliationComplete = async () => {
         await storage.setItem("appConfigured", "true");
+        localStorage.setItem("pendingDeviceSync", "true");
         setCurrentPage("kiosk");
     };
 

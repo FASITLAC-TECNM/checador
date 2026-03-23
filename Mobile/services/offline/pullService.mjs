@@ -148,12 +148,12 @@ export async function fullPull(empleadoId) {
     try {
       if (data.tolerancia) {
         const toleranciaCompleta = {
-          minutos_retardo: data.tolerancia.minutos_retardo ?? 10,
-          minutos_falta: data.tolerancia.minutos_falta ?? 30,
-          minutos_retardo_a_max: data.tolerancia.minutos_retardo_a_max ?? 20,
-          minutos_retardo_b_max: data.tolerancia.minutos_retardo_b_max ?? 29,
-          equivalencia_retardo_a: data.tolerancia.equivalencia_retardo_a ?? 10,
-          equivalencia_retardo_b: data.tolerancia.equivalencia_retardo_b ?? 5,
+          minutos_retardo: data.tolerancia.minutos_retardo ?? 0,
+          minutos_falta: data.tolerancia.minutos_falta ?? 0,
+          minutos_retardo_a_max: data.tolerancia.minutos_retardo_a_max ?? 0,
+          minutos_retardo_b_max: data.tolerancia.minutos_retardo_b_max ?? 0,
+          equivalencia_retardo_a: data.tolerancia.equivalencia_retardo_a ?? 0,
+          equivalencia_retardo_b: data.tolerancia.equivalencia_retardo_b ?? 0,
           permite_registro_anticipado: data.tolerancia.permite_registro_anticipado ?? true,
           minutos_anticipado_max: data.tolerancia.minutos_anticipado_max ?? 0,
           minutos_anticipo_salida: data.tolerancia.minutos_anticipo_salida ?? 0,
@@ -167,6 +167,9 @@ export async function fullPull(empleadoId) {
         await sqliteManager.upsertTolerancia(empleadoId, toleranciaCompleta);
         await sqliteManager.setLastFullSync('cache_tolerancias');
         results.tolerancia = { success: true, count: 1 };
+      } else {
+        try { await sqliteManager.getDatabase().runAsync('DELETE FROM cache_tolerancias WHERE empleado_id = ?', [empleadoId]); } catch(e) {}
+        results.tolerancia = { success: true, count: 0 };
       }
     } catch (tolError) {
       results.tolerancia = { success: false, error: tolError.message };

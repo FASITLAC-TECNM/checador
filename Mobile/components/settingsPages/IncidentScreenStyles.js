@@ -203,6 +203,14 @@ const baseStyles = {
         color: '#2563eb',
         fontWeight: '700',
     },
+    dayContentInRange: {
+        backgroundColor: '#dbeafe',
+        borderRadius: 0,
+    },
+    dayTextInRange: {
+        color: '#1d4ed8',
+        fontWeight: '600',
+    },
     dayIndicators: {
         flexDirection: 'row',
         gap: 2,
@@ -228,6 +236,14 @@ const baseStyles = {
     sectionCount: {
         fontSize: 13,
         color: '#6b7280',
+    },
+    sectionListHeader: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#1f2937',
+        marginHorizontal: 16,
+        marginTop: 16,
+        marginBottom: 8,
     },
     incidenciasList: {
         paddingHorizontal: 16,
@@ -571,6 +587,9 @@ export const incidenciasStylesDark = StyleSheet.create({
     },
     modalListItemBadgeText: {
         ...baseStyles.modalListItemBadgeText,
+        color: '#e2e8f0',
+    },
+    sectionListHeader: {
         color: '#e2e8f0',
     },
 });

@@ -123,6 +123,7 @@ async function pushBatch(records) {
     return {
       id: record.idempotency_key || record.local_id.toString(),
       empleado_id: record.empleado_id,
+      empresa_id: record.empresa_id || null,
       tipo: record.tipo,
       estado: record.estado,
       clasificacion: record.estado,

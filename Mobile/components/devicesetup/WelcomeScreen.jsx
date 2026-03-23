@@ -5,8 +5,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
-  Platform } from
-'react-native';
+  Platform
+} from
+  'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,29 +15,29 @@ const WELCOME_CONFIG = {
   title: "Bienvenido al Sistema de Checador",
   subtitle: "Configura tu dispositivo en 3 simples pasos",
   steps: [
-  {
-    number: 1,
-    icon: "business-outline",
-    title: "Valida tu empresa",
-    description: "Prepara tu solicitud de empresa",
-    color: "#2563eb"
-  },
-  {
-    number: 2,
-    icon: "phone-portrait-outline",
-    title: "Registra tu Dispositivo",
-    description: "Envia la información de tu dispositivo",
-    color: "#2563eb"
-  },
-  {
-    number: 3,
-    icon: "checkmark-circle-outline",
-    title: "Obtén Aprobación",
-    description: "Espera la autorización del administrador",
-    color: "#2563eb"
-  }],
+    {
+      number: 1,
+      icon: "business-outline",
+      title: "Valida tu empresa",
+      description: "Prepara tu solicitud de empresa",
+      color: "#2563eb"
+    },
+    {
+      number: 2,
+      icon: "phone-portrait-outline",
+      title: "Registra tu Dispositivo",
+      description: "Envia la información de tu dispositivo",
+      color: "#2563eb"
+    },
+    {
+      number: 3,
+      icon: "checkmark-circle-outline",
+      title: "Obtén Aprobación",
+      description: "Espera la autorización del administrador",
+      color: "#2563eb"
+    }],
 
-  note: "Este proceso es necesario solo la primera vez que uses la aplicación. Asegúrate de tener el código de tu empresa a la mano y una conexión a internet."
+  note: "Este proceso es necesario solo la primera vez que uses la aplicación. Asegúrate de tener el código de tu empresa a la mano.\n\nUsa una red WiFi durante el proceso, evita usar datos móviles para una configuración estable y correcta."
 };
 
 export const WelcomeScreen = ({ onNext }) => {
@@ -47,7 +48,7 @@ export const WelcomeScreen = ({ onNext }) => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#2563eb" />
 
-      {}
+      { }
       <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? insets.top + 16 : insets.top + 8 }]}>
         <View style={styles.logoContainer}>
           <Ionicons name="shield-checkmark" size={32} color="#fff" />
@@ -56,11 +57,11 @@ export const WelcomeScreen = ({ onNext }) => {
         <Text style={styles.subtitle}>{welcome.subtitle}</Text>
       </View>
 
-      {}
+      { }
       <View style={styles.content}>
-        {}
+        { }
         {welcome.steps.map((step) =>
-        <View key={step.number} style={styles.stepCard}>
+          <View key={step.number} style={styles.stepCard}>
             <View style={styles.iconCircle}>
               <Ionicons name={step.icon} size={22} color="#2563eb" />
             </View>
@@ -77,20 +78,21 @@ export const WelcomeScreen = ({ onNext }) => {
           </View>
         )}
 
-        {}
+        { }
         <View style={styles.alertCard}>
           <Ionicons name="information-circle" size={20} color="#2563eb" />
           <Text style={styles.alertText}>{welcome.note}</Text>
         </View>
       </View>
 
-      {}
+      { }
       <View style={[styles.footer, { paddingBottom: Platform.OS === 'android' ? Math.max(insets.bottom, 20) : insets.bottom + 16 }]}>
+
         <TouchableOpacity
           style={styles.startButton}
           onPress={onNext}
           activeOpacity={0.8}>
-          
+
           <Text style={styles.startButtonText}>Comenzar Configuración</Text>
           <Ionicons name="arrow-forward" size={20} color="#fff" />
         </TouchableOpacity>
@@ -236,6 +238,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5
   },
+
   startButtonText: {
     fontSize: 15,
     fontWeight: 'bold',

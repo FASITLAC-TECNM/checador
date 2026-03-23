@@ -277,6 +277,36 @@ class DeviceMonitorService {
             console.error(`[DeviceMonitor] Error updateDeviceStatus:`, error);
         }
     }
+
+    /**
+     * Desconecta todos los dispositivos activos (usado antes de apagar el sistema)
+     */
+    async setAllDevicesDisconnected() {
+        try {
+            console.log("[DeviceMonitor] 🔌 Cambiando todos los dispositivos activos a desconectado...");
+            const response = await fetchApi(`/api/biometrico?es_activo=true`);
+            
+            if (!response.success) {
+                console.error("[DeviceMonitor] Error obteniendo dispositivos para desconectar");
+                return;
+            }
+            
+            const devices = response.data || [];
+            if (devices.length === 0) {
+                console.log("[DeviceMonitor] No hay dispositivos activos para desconectar.");
+                return;
+            }
+            
+            const promises = devices.map(device => 
+                this.updateDeviceStatus(device.id, 'desconectado')
+            );
+            
+            await Promise.all(promises);
+            console.log("[DeviceMonitor] ✅ Todos los dispositivos marcados como desconectados.");
+        } catch (error) {
+            console.error("[DeviceMonitor] Excepción en setAllDevicesDisconnected:", error);
+        }
+    }
 }
 
 export const deviceMonitorService = new DeviceMonitorService();

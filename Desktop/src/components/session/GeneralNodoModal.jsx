@@ -8,6 +8,7 @@ import {
   desactivarEscritorio,
 } from "../../services/escritorioService";
 import { useAuth } from "../../context/AuthContext";
+import { deviceMonitorService } from "../../services/deviceMonitorService";
 import DynamicLoader from "../common/DynamicLoader";
 
 export default function GeneralNodoModal({ onClose, onBack, inline = false, isAdminProp }) {
@@ -22,6 +23,7 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false, isAd
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [showConfirmShutdown, setShowConfirmShutdown] = useState(false);
+  const [isShuttingDown, setIsShuttingDown] = useState(false);
   const [nodeConfig, setNodeConfig] = useState({
     nodeName: "",
     nodeDescription: "",
@@ -35,11 +37,20 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false, isAd
     setShowConfirmShutdown(true);
   };
 
-  const confirmShutdown = () => {
-    setShowConfirmShutdown(false);
+  const confirmShutdown = async () => {
     if (window.electronAPI && window.electronAPI.closeWindow) {
-      window.electronAPI.closeWindow();
+      setIsShuttingDown(true);
+      try {
+        await deviceMonitorService.setAllDevicesDisconnected();
+        window.electronAPI.closeWindow();
+      } catch (error) {
+        console.error("Error al desconectar dispositivos antes de apagar:", error);
+        showToast("Error al apagar el sistema correctamente", "error");
+        setIsShuttingDown(false);
+        setShowConfirmShutdown(false);
+      }
     } else {
+      setShowConfirmShutdown(false);
       showToast("La función de apagar sistema no está disponible en este entorno", "error");
     }
   };
@@ -268,18 +279,23 @@ export default function GeneralNodoModal({ onClose, onBack, inline = false, isAd
               <div className="flex gap-3 w-full">
                 <button
                   type="button"
-                  onClick={() => setShowConfirmShutdown(false)}
-                  className="flex-1 px-4 py-2.5 text-sm bg-bg-secondary border border-border-subtle text-text-secondary rounded-xl font-semibold hover:bg-bg-primary transition-colors"
+                  onClick={() => !isShuttingDown && setShowConfirmShutdown(false)}
+                  disabled={isShuttingDown}
+                  className={`flex-1 px-4 py-2.5 text-sm bg-bg-secondary border border-border-subtle text-text-secondary rounded-xl font-semibold hover:bg-bg-primary transition-colors ${isShuttingDown ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   Cancelar
                 </button>
                 <button
                   type="button"
                   onClick={confirmShutdown}
-                  className="flex-1 px-4 py-2.5 text-sm bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                  disabled={isShuttingDown}
+                  className={`flex-1 px-4 py-2.5 text-sm bg-orange-500 text-white rounded-xl font-semibold hover:bg-orange-600 transition-colors flex items-center justify-center gap-2 shadow-md hover:shadow-lg ${isShuttingDown ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  <Power className="w-4 h-4" />
-                  Sí, apagar
+                  {isShuttingDown ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Apagando...</>
+                  ) : (
+                    <><Power className="w-4 h-4" /> Sí, apagar</>
+                  )}
                 </button>
               </div>
             </div>

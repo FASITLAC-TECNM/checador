@@ -340,15 +340,14 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           //    Consultamos SQLite directamente porque online, registrosHoyTodosRef solo
 
           setPuedeRegistrar(data.puedeRegistrar);
-          if (data.estadoHorario) setEstadoHorario(data.estadoHorario);
           if (data.tipoSiguienteRegistro) setTipoSiguienteRegistro(data.tipoSiguienteRegistro);
           if (data.motivo) setMensajeEspera(data.motivo);
 
-          if (data.estadoHorario === 'bloque_completo') {
-            setJornadaCompletada(true);
-          } else {
-            setJornadaCompletada(false);
-          }
+          let finalEstadoHorario = data.estadoHorario;
+          let isCompleto = data.estadoHorario === 'bloque_completo';
+
+          if (finalEstadoHorario) setEstadoHorario(finalEstadoHorario);
+          setJornadaCompletada(isCompleto);
 
           setUsandoEstadoBackend(true);
           return true;
@@ -428,7 +427,25 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     return () => clearInterval(intervalo);
   }, [obtenerHorario, obtenerUltimoRegistro, actualizarEstadoPreflight]);
   useEffect(() => {
-    if (usandoEstadoBackend) return;
+    const salidasHechas = (registrosHoyTodos || []).filter(r => r.tipo === 'salida').length;
+    const bloquesTotales = horarioInfo?.bloques?.length || 0;
+
+    // Si el estado dictó bloque completo (sea por el preflight recién, o por un caché viejo que se quedó trabado)
+    // verificamos localmente si llegaron turnos nuevos que no han sido suplidos.
+    if (estadoHorario === 'bloque_completo' && horarioInfo) {
+       if (salidasHechas < bloquesTotales) {
+         setPuedeRegistrar(false);
+         setTipoSiguienteRegistro('entrada');
+         setEstadoHorario('espera');
+         setJornadaCompletada(false);
+         setMensajeEspera('Espera un momento antes de registrar el siguiente turno.');
+         return; // Interrumpimos para que React aplique el state devuelta a espera
+       }
+    }
+
+    // Si viene del backend y no es bloque completo y fue resuelto online, no peleamos
+    if (usandoEstadoBackend && estadoHorario !== 'bloque_completo') return;
+
     if (!horarioInfo && !diaFestivo) return;
 
     if (diaFestivo) {
@@ -501,19 +518,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       // numSalidas: contar de registrosHoyTodos, pero ultimoRegistroHoy (la salida recién hecha)
       // puede no estar aún en esa lista si el estado es stale. Verificar explícitamente.
       const salidasEnLista = (registrosHoyTodos || []).filter(r => r.tipo === 'salida');
-      const ultimaYaEnLista = salidasEnLista.some(
-        r => r.fecha_registro === ultimoRegistroHoy?.fecha_registro ||
-             (r.id && r.id === ultimoRegistroHoy?.id) ||
-             (r.local_id && r.local_id === ultimoRegistroHoy?.local_id)
-      );
-      // Si ultimoRegistroHoy (salida) no está en la lista, sumarla al conteo
-      const numSalidas = salidasEnLista.length + (ultimaYaEnLista ? 0 : 1);
+      // Usamos conteo idéntico al de arriba para evitar desfasaje de lógica y bucles de renderizado
+      const numSalidas = salidasEnLista.length;
       const numBloques = horarioInfo?.bloques?.length || 0;
 
       // ── 1. JORNADA COMPLETA: sin más bloques en el horario actual ──
       // Se bloquea INMEDIATAMENTE sin espera de 1 minuto.
-      // Si el admin agrega un turno nuevo y el dispositivo sincroniza, numBloques aumentará
-      // y este check pasará a false → re-entrará al flujo de "más bloques pendientes".
       if (numSalidas >= numBloques) {
         setPuedeRegistrar(false);
         setTipoSiguienteRegistro('entrada');
@@ -521,6 +531,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         setJornadaCompletada(true);
         setMensajeEspera('Jornada completa. No es necesario registrar más asistencias por hoy.');
         return;
+      } else {
+        // Aseguramos forzosamente resetear estado
+        setJornadaCompletada(false); 
       }
 
       // ── 2. HAY MÁS BLOQUES: espera obligatoria de 1 minuto post-salida ──
@@ -529,7 +542,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       if (msSinceUltimaSalida < 60 * 1000) {
         setPuedeRegistrar(false);
         setTipoSiguienteRegistro('entrada');
-        setJornadaCompletada(false);
         setEstadoHorario('espera');
         setMensajeEspera('Espera un momento antes de registrar el siguiente turno.');
         return;
@@ -544,7 +556,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         // Ventana aún no abierta — mantener bloqueado sin mensaje de jornada completa
         setPuedeRegistrar(false);
         setTipoSiguienteRegistro('entrada');
-        setJornadaCompletada(false);
         setEstadoHorario('fuera_horario');
         setMensajeEspera(`Próximo turno a las ${String(Math.floor(bloqueProximo.entrada / 60)).padStart(2,'0')}:${String(bloqueProximo.entrada % 60).padStart(2,'0')}`);
         return;
@@ -554,7 +565,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       setPuedeRegistrar(true);
       setTipoSiguienteRegistro('entrada');
       setEstadoHorario('activo');
-      setJornadaCompletada(false);
       setMensajeEspera('');
       return;
     }
@@ -1434,8 +1444,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           metodo_registro: datosRegistroRef.current.metodo || 'PIN',
           fecha_registro: getTrustedDate().toISOString(),
           ubicacion: payload.ubicacion || [ubicacionFinal.lat, ubicacionFinal.lng],
-          ip: payload.ip,
-          wifi: payload.wifi,
+          ip: null,
+          wifi: null,
           payload_biometrico: datosRegistroRef.current.payloadBiometrico
         });
 

@@ -245,6 +245,31 @@ export const LoginScreen = ({ onLoginSuccess, darkMode }) => {
       const response = await login(usuario, password, empresaId);
 
       if (response && response.isMultiCompany) {
+        // Validar credenciales con la primera empresa antes de mostrar el selector
+        const primeraEmpresaId = response.empresas[0]?.empresa_id;
+        if (primeraEmpresaId) {
+          try {
+            await login(usuario, password, primeraEmpresaId);
+          } catch (credError) {
+            const msg = credError.message || '';
+            if (
+              msg.includes('401') ||
+              msg.includes('credentials') ||
+              msg.includes('Credenciales') ||
+              msg.includes('contraseña') ||
+              msg.includes('nválid') ||
+              msg.includes('usuario')
+            ) {
+              setGeneralError('Usuario o contraseña incorrectos');
+            } else {
+              setGeneralError(msg || 'Error al iniciar sesión');
+            }
+            setIsLoading(false);
+            return;
+          }
+        }
+
+        // Credenciales correctas — cargar logos y mostrar selector
         try {
           const empresasConLogo = await Promise.all(
             response.empresas.map(async (emp) => {
@@ -261,7 +286,6 @@ export const LoginScreen = ({ onLoginSuccess, darkMode }) => {
             })
           );
           setEmpresasList(empresasConLogo);
-          // Guardar en caché para acceso offline futuro
           cacheEmpresasList(empresasConLogo);
         } catch (error) {
           (function () { })('Error processing public company data:', error);

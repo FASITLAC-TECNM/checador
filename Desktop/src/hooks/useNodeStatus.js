@@ -17,6 +17,12 @@ export const useNodeStatus = () => {
             const nodo = await obtenerEscritorio(escritorioId);
             if (nodo) {
                 setNodeInfo(nodo);
+                
+                // Guardar empresa_id si viene en la respuesta para asegurar consistencia
+                if (nodo.empresa_id) {
+                    localStorage.setItem("empresa_id", nodo.empresa_id);
+                }
+
                 // es_activo puede llegar como boolean false o número 0
                 const disabled = nodo.es_activo === false || nodo.es_activo === 0;
                 setIsNodeDisabled(disabled);

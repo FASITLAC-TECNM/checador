@@ -15,6 +15,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { guardarSesion } from "../../services/biometricAuthService";
+import { obtenerEscritorio } from "../../services/escritorioService";
 import { API_CONFIG, fetchApi } from "../../config/apiEndPoint";
 
 import { useConnectivity } from "../../hooks/useConnectivity";
@@ -146,7 +147,12 @@ export default function AsistenciaHuella({
         // Reiniciar identificación después de cerrar
         setTimeout(() => {
           if (wsRef.current?.readyState === WebSocket.OPEN) {
-            sendCommand("startIdentification", { apiUrl: `${API_CONFIG.BASE_URL}/api` });
+            const empresaId = localStorage.getItem("empresa_id");
+            console.log("🔄 Reiniciando identificación con empresaId:", empresaId);
+            sendCommand("startIdentification", { 
+              apiUrl: `${API_CONFIG.BASE_URL}/api`,
+              empresaId
+            });
           }
         }, 500);
       } else {
@@ -814,11 +820,51 @@ export default function AsistenciaHuella({
     setCurrentOperation("Identifying");
     addMessage("🔍 Iniciando identificación...", "info");
 
-    // Obtener la URL del API
-    const API_URL = "https://9dm7dqf9-3002.usw3.devtunnels.ms/api";
+    // Obtener la URL del API y empresa_id
+    const API_URL = `${API_CONFIG.BASE_URL}/api`;
+    let empresaId = localStorage.getItem("empresa_id");
 
-    // Enviar comando de identificación
-    sendCommand("startIdentification", { apiUrl: API_URL });
+    const startWithId = (id) => {
+      console.log("🚀 Enviando comando startIdentification:", {
+        apiUrl: API_URL,
+        empresaId: id
+      });
+
+      if (!id) {
+        console.warn("⚠️ Advertencia: empresa_id es NULL. Esto causará un error 400 en el backend.");
+      }
+
+      // Enviar comando de identificación
+      sendCommand("startIdentification", { 
+        apiUrl: API_URL,
+        empresaId: id
+      });
+    };
+
+    // Si no hay empresaId, intentar recuperarlo del nodo antes de fallar
+    if (!empresaId) {
+      const escritorioId = localStorage.getItem("escritorio_id");
+      if (escritorioId) {
+        console.log("🔍 EmpresaId no encontrado, intentando recuperarlo del nodo...");
+        obtenerEscritorio(escritorioId)
+          .then(nodo => {
+            if (nodo && nodo.empresa_id) {
+              console.log("✅ EmpresaId recuperado:", nodo.empresa_id);
+              localStorage.setItem("empresa_id", nodo.empresa_id);
+              startWithId(nodo.empresa_id);
+            } else {
+              startWithId(null);
+            }
+          })
+          .catch(err => {
+            console.error("❌ Error recuperando empresa_id:", err);
+            startWithId(null);
+          });
+        return;
+      }
+    }
+
+    startWithId(empresaId);
   };
 
   const cancelOperation = () => {

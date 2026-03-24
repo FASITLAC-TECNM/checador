@@ -330,10 +330,11 @@ export const identificarPorFacial = async (descriptorBase64) => {
   try {
     console.log("🔍 Iniciando identificación facial...");
 
-    // Obtener token de autenticación si existe (para endpoints que lo requieran)
-    const token = localStorage.getItem("auth_token");
+    // Obtener empresa_id de localStorage
+    const empresaId = localStorage.getItem("empresa_id");
+    const queryParams = empresaId ? `?empresa_id=${empresaId}` : "";
 
-    const response = await fetch(`${API_URL}/credenciales/facial/identify`, {
+    const response = await fetch(`${API_URL}/credenciales/facial/identify${queryParams}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -341,6 +342,7 @@ export const identificarPorFacial = async (descriptorBase64) => {
       },
       body: JSON.stringify({
         facial: descriptorBase64,
+        empresa_id: empresaId // También lo mandamos en el body por si acaso
       }),
     });
 

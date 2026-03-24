@@ -105,6 +105,10 @@ export default function AffiliationRequest({ onComplete }) {
             window.electronAPI.configSet("escritorio_id", solicitud.escritorio_id);
           }
         }
+        // Guardar el empresa_id para peticiones públicas del middleware
+        if (solicitud.empresa_id) {
+          localStorage.setItem("empresa_id", solicitud.empresa_id);
+        }
         // Guardar el auth_token si viene en la respuesta
         if (solicitud.auth_token || solicitud.token) {
           localStorage.setItem("auth_token", solicitud.auth_token || solicitud.token);

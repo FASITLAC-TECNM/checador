@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Fingerprint, Wifi, WifiOff, X, Database, CheckCircle } from "lucide-react";
 import { registrarHuella } from "../../services/biometricAuthService";
+import { API_CONFIG } from "../../config/apiEndPoint";
 import useBiometricWebSocket from "../../hooks/useBiometricWebSocket";
 
 export default function BiometricEnroll({
@@ -11,7 +12,7 @@ export default function BiometricEnroll({
 }) {
   if (!isOpen) return null;
 
-  const API_URL = "https://9dm7dqf9-3002.usw3.devtunnels.ms/api";
+  const API_URL = `${API_CONFIG.BASE_URL}/api`;
   const messageHandlerRef = useRef(null);
   const isClosingRef = useRef(false);
 
@@ -81,7 +82,11 @@ export default function BiometricEnroll({
         addMessage("✅ Huella guardada exitosamente", "success");
         addMessage(`📊 Tamaño: ${result.data.template_size} bytes`, "info");
 
-        sendCommand("reloadTemplates", { apiUrl: API_URL });
+        const empresaId = localStorage.getItem("empresa_id");
+        sendCommand("reloadTemplates", { 
+          apiUrl: API_URL,
+          empresaId: empresaId 
+        });
         addMessage("🔄 Actualizando caché de huellas...", "info");
 
         if (onEnrollmentSuccess) {

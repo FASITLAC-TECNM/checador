@@ -140,6 +140,7 @@ namespace BiometricMiddleware
         // Caché estática de templates - compartida entre todas las conexiones
         private static Dictionary<string, byte[]> _templatesCache = null;
         private static string _cachedApiUrl = null;
+        private static string _cachedEmpresaId = null;
         private static DateTime _cacheLoadedAt = DateTime.MinValue;
         private static readonly object _cacheLock = new object();
         private static readonly TimeSpan CACHE_TTL = TimeSpan.FromMinutes(5);
@@ -235,12 +236,12 @@ namespace BiometricMiddleware
 
                     case "startIdentification":
                         if (!RequireAuth()) return;
-                        await StartIdentificationWithDbTemplates(request.ApiUrl);
+                        await StartIdentificationWithDbTemplates(request.ApiUrl, request.EmpresaId);
                         break;
 
                     case "reloadTemplates":
                         if (!RequireAuth()) return;
-                        await ReloadTemplatesCache(request.ApiUrl);
+                        await ReloadTemplatesCache(request.ApiUrl, request.EmpresaId);
                         break;
 
                     case "cacheStatus":
@@ -416,7 +417,7 @@ namespace BiometricMiddleware
             });
         }
 
-        private async Task StartIdentificationWithDbTemplates(string apiUrl)
+        private async Task StartIdentificationWithDbTemplates(string apiUrl, string empresaId)
         {
             try
             {
@@ -433,7 +434,7 @@ namespace BiometricMiddleware
                 // Verificar si ya tenemos templates en caché
                 lock (_cacheLock)
                 {
-                    if (_templatesCache != null && _templatesCache.Count > 0 && _cachedApiUrl == apiUrl)
+                    if (_templatesCache != null && _templatesCache.Count > 0 && _cachedApiUrl == apiUrl && _cachedEmpresaId == empresaId)
                     {
                         templates = _templatesCache;
                         useCachedTemplates = true;
@@ -458,12 +459,13 @@ namespace BiometricMiddleware
                     if (cacheExpired)
                     {
                         var apiUrlCopy = apiUrl; // Capturar para el closure
+                        var empresaIdCopy = empresaId;
                         _ = Task.Run(async () =>
                         {
                             try
                             {
                                 Console.WriteLine("[CACHE] Recargando en background (TTL expirado)...");
-                                var newTemplates = await LoadTemplatesFromApi(apiUrlCopy);
+                                var newTemplates = await LoadTemplatesFromApi(apiUrlCopy, empresaIdCopy);
                                 
                                 if (newTemplates != null && newTemplates.Count > 0)
                                 {
@@ -471,6 +473,7 @@ namespace BiometricMiddleware
                                     {
                                         _templatesCache = newTemplates;
                                         _cachedApiUrl = apiUrlCopy;
+                                        _cachedEmpresaId = empresaIdCopy;
                                         _cacheLoadedAt = DateTime.Now;
                                     }
                                     
@@ -502,7 +505,7 @@ namespace BiometricMiddleware
                 }
 
                 // Si no hay caché, cargar desde la API
-                templates = await LoadTemplatesFromApi(apiUrl);
+                templates = await LoadTemplatesFromApi(apiUrl, empresaId);
 
                 if (templates == null || templates.Count == 0)
                 {
@@ -514,6 +517,7 @@ namespace BiometricMiddleware
                 {
                     _templatesCache = templates;
                     _cachedApiUrl = apiUrl;
+                    _cachedEmpresaId = empresaId;
                     _cacheLoadedAt = DateTime.Now;
                 }
 
@@ -532,7 +536,7 @@ namespace BiometricMiddleware
             }
         }
 
-        private async Task ReloadTemplatesCache(string apiUrl)
+        private async Task ReloadTemplatesCache(string apiUrl, string empresaId)
         {
             try
             {
@@ -546,7 +550,7 @@ namespace BiometricMiddleware
                 await SendStatusUpdate("reloading", "Recargando huellas registradas...");
 
                 // Cargar nuevos templates
-                var templates = await LoadTemplatesFromApi(apiUrl);
+                var templates = await LoadTemplatesFromApi(apiUrl, empresaId);
 
                 if (templates == null || templates.Count == 0)
                 {
@@ -558,6 +562,7 @@ namespace BiometricMiddleware
                 {
                     _templatesCache = templates;
                     _cachedApiUrl = apiUrl;
+                    _cachedEmpresaId = empresaId;
                     _cacheLoadedAt = DateTime.Now;
                 }
 
@@ -598,13 +603,15 @@ namespace BiometricMiddleware
             }
         }
 
-        private async Task<Dictionary<string, byte[]>> LoadTemplatesFromApi(string apiUrl)
+        private async Task<Dictionary<string, byte[]>> LoadTemplatesFromApi(string apiUrl, string empresaId)
         {
             // Usar el endpoint público de credenciales
-            Console.WriteLine($"[API] Cargando templates desde: {apiUrl}/credenciales/publico/lista");
+            string queryParams = !string.IsNullOrEmpty(empresaId) ? $"?empresa_id={empresaId}" : "";
+            string fullUrl = $"{apiUrl}/credenciales/publico/lista{queryParams}";
+            Console.WriteLine($"[API] Solicitando templates: {fullUrl}");
             await SendStatusUpdate("loading", "Cargando huellas registradas...");
 
-            var response = await _httpClient.GetAsync($"{apiUrl}/credenciales/publico/lista");
+            var response = await _httpClient.GetAsync(fullUrl);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -642,7 +649,10 @@ namespace BiometricMiddleware
                 try
                 {
                     // Obtener el template del empleado (ruta pública)
-                    var templateResponse = await _httpClient.GetAsync($"{apiUrl}/credenciales/publico/dactilar/{credencial.EmpleadoId}");
+                    string itemQueryParams = !string.IsNullOrEmpty(empresaId) ? $"?empresa_id={empresaId}" : "";
+                    string itemUrl = $"{apiUrl}/credenciales/publico/dactilar/{credencial.EmpleadoId}{itemQueryParams}";
+                    Console.WriteLine($"   [FETCH] {itemUrl}");
+                    var templateResponse = await _httpClient.GetAsync(itemUrl);
 
                     if (templateResponse.IsSuccessStatusCode)
                     {
@@ -684,6 +694,9 @@ namespace BiometricMiddleware
 
         [JsonProperty("apiUrl")]
         public string ApiUrl { get; set; }
+
+        [JsonProperty("empresaId")]
+        public string EmpresaId { get; set; }
     }
 
     // Respuesta del endpoint GET /api/credenciales

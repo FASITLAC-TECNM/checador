@@ -81,7 +81,14 @@ export async function getAvisosGlobales(forceRefresh = false) {
   }
 
   try {
-    const response = await fetchApi(`${AVISOS_ENDPOINT}/publicos`, { skipAuth: true });
+    const empresaId = localStorage.getItem("empresa_id");
+    let url = `${AVISOS_ENDPOINT}/publicos`;
+
+    if (empresaId) {
+      url += `?empresa_id=${encodeURIComponent(empresaId)}`;
+    }
+
+    const response = await fetchApi(url, { skipAuth: true });
 
     const avisos = response.success && Array.isArray(response.data)
       ? response.data.map(mapearAviso)

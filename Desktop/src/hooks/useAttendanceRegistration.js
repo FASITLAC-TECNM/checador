@@ -100,6 +100,7 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
                         body: JSON.stringify({
                             usuario: usuarioOCorreo.trim(),
                             pin: pin.trim(),
+                            empresa_id: localStorage.getItem("empresa_id")
                         }),
                     }
                 );
@@ -378,7 +379,10 @@ export const useAttendanceRegistration = (onClose, onSuccess, onLoginRequest) =>
                         {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ empleado_id: empleadoId }),
+                            body: JSON.stringify({ 
+                                empleado_id: empleadoId,
+                                empresa_id: localStorage.getItem("empresa_id")
+                            }),
                         }
                     );
 

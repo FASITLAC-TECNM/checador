@@ -1,11 +1,5 @@
-
-
-
-
-
-
-
-
+import * as Network from 'expo-network';
+import NetInfo from '@react-native-community/netinfo';
 import sqliteManager from './sqliteManager.mjs';
 
 
@@ -95,6 +89,42 @@ export async function postEvent(titulo, tipo, descripcion, empleadoId, prioridad
 
 
 async function pushBatch(records) {
+  // Intentar obtener un empresa_id de respaldo desde el caché local por si algún registro no lo tiene
+  let fallbackEmpresaId = null;
+  try {
+    const db = sqliteManager.getDatabase();
+    if (db) {
+      const row = await db.getFirstAsync('SELECT id FROM cache_empresa ORDER BY updated_at DESC LIMIT 1');
+      if (row && row.id) {
+        fallbackEmpresaId = row.id;
+      }
+    }
+  } catch (err) {
+    (function () { })('[DEBUG PUSH] Error getting fallback empresa_id', err);
+  }
+
+  // Obtener IP y WiFi actuales en el momento de la sincronización
+  let currentNetworkIp = null;
+  let currentNetworkWifi = null;
+  try {
+    const netState = await Network.getNetworkStateAsync();
+    const netInfoObj = await NetInfo.fetch();
+    currentNetworkIp = netInfoObj.details?.ipAddress || null;
+
+    if (!currentNetworkIp) {
+      currentNetworkIp = await Promise.race([
+        Network.getIpAddressAsync(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000))
+      ]);
+    }
+
+    if (netState.type === Network.NetworkStateType.WIFI) {
+      currentNetworkWifi = { tipo: netState.type, isConnected: netState.isConnected };
+    }
+  } catch (netErr) {
+    (function () { })('[DEBUG PUSH] No se pudo obtener la IP actual durante sincronización:', netErr);
+  }
+
   const registros = records.map((record) => {
 
     let ubicacion = null;
@@ -123,7 +153,7 @@ async function pushBatch(records) {
     return {
       id: record.idempotency_key || record.local_id.toString(),
       empleado_id: record.empleado_id,
-      empresa_id: record.empresa_id || null,
+      empresa_id: record.empresa_id || fallbackEmpresaId,
       tipo: record.tipo,
       estado: record.estado,
       clasificacion: record.estado,
@@ -131,8 +161,8 @@ async function pushBatch(records) {
       metodo_registro: record.metodo_registro,
       dispositivo_origen: record.dispositivo_origen || 'movil',
       ubicacion,
-      ip: record.ip || null,
-      wifi,
+      ip: currentNetworkIp,
+      wifi: currentNetworkWifi,
       fecha_registro: new Date(record.fecha_registro).getTime(),
       fecha_captura: new Date(record.fecha_registro).toISOString(),
       imagen_base64: record.payload_biometrico ? JSON.parse(record.payload_biometrico) : null

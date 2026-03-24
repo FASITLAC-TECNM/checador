@@ -2,11 +2,13 @@ import { useRef, useEffect } from "react";
 import { Fingerprint, Wifi, WifiOff, X, Database } from "lucide-react";
 import { guardarSesion } from "../../services/biometricAuthService";
 import useBiometricWebSocket from "../../hooks/useBiometricWebSocket";
+import { getApiEndpoint } from "../../config/apiEndPoint";
 
 export default function BiometricAuth({ isOpen = false, onClose, onAuthSuccess }) {
   if (!isOpen) return null;
 
-  const API_URL = "https://9dm7dqf9-3002.usw3.devtunnels.ms/api";
+  const API_URL = getApiEndpoint("/api");
+  const empresaId = localStorage.getItem("empresa_id");
   const messageHandlerRef = useRef(null);
 
   const {
@@ -26,7 +28,10 @@ export default function BiometricAuth({ isOpen = false, onClose, onAuthSuccess }
   });
 
   const iniciarIdentificacion = () => {
-    sendCommand("startIdentification", { apiUrl: API_URL });
+    sendCommand("startIdentification", { 
+      apiUrl: API_URL,
+      empresaId: empresaId
+    });
     setCurrentOperation("Identifying");
     addMessage("🔍 Esperando huella...", "info");
   };
@@ -39,7 +44,10 @@ export default function BiometricAuth({ isOpen = false, onClose, onAuthSuccess }
       const authResponse = await fetch(`${API_URL}/auth/biometric`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ empleado_id: empleadoId }),
+        body: JSON.stringify({ 
+          empleado_id: empleadoId,
+          empresa_id: empresaId
+        }),
       });
 
       if (!authResponse.ok) {

@@ -15,7 +15,7 @@ const PROJECT_ROOT = path.resolve(ELECTRON_ROOT, "..");
 // Cambiar a false para depurar sin pantalla completa o true para producción
 export const FORCE_KIOSK = process.env.NODE_ENV !== "development";
 // Cambiar a true para permitir DevTools en producción si es necesario
-export const ALLOW_DEV_TOOLS = process.env.NODE_ENV === "development";
+export const ALLOW_DEV_TOOLS = true;
 // ==========================================
 
 let mainWindow = null;

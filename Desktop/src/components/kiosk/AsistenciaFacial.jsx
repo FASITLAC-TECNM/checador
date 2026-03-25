@@ -3,11 +3,13 @@ import {
   Camera,
   X,
   CheckCircle,
+  CheckCircle2,
   XCircle,
   LogIn,
   Timer,
   Loader2,
   AlertTriangle,
+  AlertCircle,
 } from "lucide-react";
 import { useFaceDetection } from "../../hooks/useFaceDetection";
 import { identificarPorFacial, guardarSesion } from "../../services/biometricAuthService";
@@ -986,505 +988,345 @@ export default function AsistenciaFacial({
   }
 
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center p-4 transition-opacity duration-300"
-      style={{
-        zIndex: 9999,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        backdropFilter: 'blur(4px)',
-        opacity: isClosing ? 0 : 1
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && step !== "identifying") {
-          handleCloseModal();
-        }
-      }}
-    >
-      <div
-        className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden transition-all duration-300"
-        style={{
-          transform: isClosing ? 'scale(0.95)' : 'scale(1)',
-          opacity: isClosing ? 0 : 1
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="bg-gradient-to-r from-[#1976D2] to-[#001A70] px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                <Camera className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white">Registro de Asistencia</h3>
-                <p className="text-xs text-white/80">Reconocimiento Facial</p>
-              </div>
-            </div>
-            {step !== "identifying" && (
-              <button
-                onClick={handleCloseModal}
-                className="w-8 h-8 flex items-center justify-center text-white hover:bg-white/20 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            )}
+    <div className={`fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all duration-300 animate-backdrop ${isClosing ? 'opacity-0' : 'opacity-100'}`}>
+      <div className={`bg-bg-primary rounded-lg shadow-2xl max-w-md sm:max-w-lg w-full overflow-hidden border border-border-subtle transition-all duration-300 animate-zoom-in ${isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}>
+        <div className="p-6 sm:p-8">
+          {/* Header Minimalista */}
+          <div className="text-center mb-6 relative">
+            <button
+              onClick={handleCloseModal}
+              className="absolute -top-2 -right-2 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-md p-2 transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h2 className="text-2xl font-bold text-text-primary tracking-tight">Registro de Asistencia</h2>
+            <p className="text-text-tertiary text-xs mt-1 opacity-80 uppercase tracking-widest font-medium">Reconocimiento Facial</p>
           </div>
-        </div>
 
-        {/* Contenido */}
-        <div className="p-6">
-          {/* Liveness Detection */}
-          {(step === "liveness" || step === "capturing") && (
-            <div className="space-y-4">
-              <div className="relative bg-black rounded-xl overflow-hidden w-full" style={{ aspectRatio: "4/3", minHeight: "280px" }}>
-                <video
-                  id="facialAttendanceVideo"
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover"
-                  style={{ transform: "scaleX(-1)", minHeight: "280px" }}
-                />
+          {/* Contenido */}
+          <div className="space-y-4">
+            {/* Liveness Detection / Capturing */}
+            {(step === "liveness" || step === "capturing") && (
+              <div className="space-y-4">
+                <div className="relative bg-black rounded-xl overflow-hidden w-full aspect-[4/3] ring-1 ring-border-subtle shadow-inner">
+                  <video
+                    id="facialAttendanceVideo"
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                    style={{ transform: "scaleX(-1)" }}
+                  />
 
-                {/* Guias de captura - Ovalo facial con animaciones */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  {/* Oscurecer areas fuera del ovalo */}
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
-                    <defs>
-                      <mask id="faceMaskOverlay">
-                        <rect width="400" height="300" fill="white" />
-                        <ellipse cx="200" cy="140" rx="80" ry="105" fill="black" />
-                      </mask>
-                      {/* Glow filter para deteccion */}
-                      <filter id="faceGuideGlow">
-                        <feGaussianBlur stdDeviation="4" result="blur" />
-                        <feMerge>
-                          <feMergeNode in="blur" />
-                          <feMergeNode in="SourceGraphic" />
-                        </feMerge>
-                      </filter>
-                      {/* Gradiente para linea de escaneo */}
-                      <linearGradient id="scanLineGradient" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="transparent" />
-                        <stop offset="30%" stopColor={faceDetected ? "rgba(25, 118, 210, 0.6)" : "rgba(255,255,255,0.3)"} />
-                        <stop offset="50%" stopColor={faceDetected ? "rgba(25, 118, 210, 0.9)" : "rgba(255,255,255,0.5)"} />
-                        <stop offset="70%" stopColor={faceDetected ? "rgba(25, 118, 210, 0.6)" : "rgba(255,255,255,0.3)"} />
-                        <stop offset="100%" stopColor="transparent" />
-                      </linearGradient>
-                    </defs>
-                    {/* Overlay semi-oscuro */}
-                    <rect width="400" height="300" fill="rgba(0,0,0,0.45)" mask="url(#faceMaskOverlay)" />
-                    {/* Ovalo guia principal */}
-                    <ellipse
-                      cx="200" cy="140" rx="80" ry="105"
-                      fill="none"
-                      stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.6)"}
-                      strokeWidth={faceDetected ? "3" : "2"}
-                      strokeDasharray={faceDetected ? "none" : "8 4"}
-                      filter={faceDetected ? "url(#faceGuideGlow)" : "none"}
-                      style={{ transition: "all 0.4s ease" }}
-                    />
-                    {/* Segundo ovalo glow (solo visible con rostro detectado) */}
-                    {faceDetected && (
+                  {/* Guias de captura - Ovalo facial con animaciones */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
+                      <defs>
+                        <mask id="faceMaskOverlay">
+                          <rect width="400" height="300" fill="white" />
+                          <ellipse cx="200" cy="140" rx="80" ry="105" fill="black" />
+                        </mask>
+                        <filter id="faceGuideGlow">
+                          <feGaussianBlur stdDeviation="4" result="blur" />
+                          <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                          </feMerge>
+                        </filter>
+                        <linearGradient id="scanLineGradient" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="transparent" />
+                          <stop offset="30%" stopColor={faceDetected ? "rgba(var(--accent), 0.6)" : "rgba(255,255,255,0.3)"} />
+                          <stop offset="50%" stopColor={faceDetected ? "rgba(var(--accent), 0.9)" : "rgba(255,255,255,0.5)"} />
+                          <stop offset="70%" stopColor={faceDetected ? "rgba(var(--accent), 0.6)" : "rgba(255,255,255,0.3)"} />
+                          <stop offset="100%" stopColor="transparent" />
+                        </linearGradient>
+                      </defs>
+                      <rect width="400" height="300" fill="rgba(0,0,0,0.5)" mask="url(#faceMaskOverlay)" />
                       <ellipse
-                        cx="200" cy="140" rx="84" ry="109"
+                        cx="200" cy="140" rx="80" ry="105"
                         fill="none"
-                        stroke="rgba(25, 118, 210, 0.25)"
-                        strokeWidth="6"
-                        style={{ animation: "facePulse 2s ease-in-out infinite" }}
+                        stroke={faceDetected ? "rgb(var(--accent))" : "rgba(255,255,255,0.4)"}
+                        strokeWidth={faceDetected ? "3" : "2"}
+                        strokeDasharray={faceDetected ? "none" : "8 4"}
+                        filter={faceDetected ? "url(#faceGuideGlow)" : "none"}
+                        style={{ transition: "all 0.4s ease" }}
                       />
-                    )}
-                    {/* Linea de escaneo animada */}
-                    {!faceDetected && (
-                      <line
-                        x1="120" y1="140" x2="280" y2="140"
-                        stroke="url(#scanLineGradient)"
-                        strokeWidth="2"
-                        style={{ animation: "scanLine 2.5s ease-in-out infinite" }}
-                      />
-                    )}
-                    {/* Marcas de alineacion - esquinas */}
-                    {/* Superior izquierda */}
-                    <path d="M 135 55 L 135 40 L 155 40" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.7)"} strokeWidth="3" strokeLinecap="round" style={{ transition: "stroke 0.3s ease" }} />
-                    {/* Superior derecha */}
-                    <path d="M 265 55 L 265 40 L 245 40" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.7)"} strokeWidth="3" strokeLinecap="round" style={{ transition: "stroke 0.3s ease" }} />
-                    {/* Inferior izquierda */}
-                    <path d="M 135 245 L 135 260 L 155 260" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.7)"} strokeWidth="3" strokeLinecap="round" style={{ transition: "stroke 0.3s ease" }} />
-                    {/* Inferior derecha */}
-                    <path d="M 265 245 L 265 260 L 245 260" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.7)"} strokeWidth="3" strokeLinecap="round" style={{ transition: "stroke 0.3s ease" }} />
-                    {/* Cruz de alineacion central (sutil) */}
-                    <line x1="196" y1="135" x2="204" y2="135" stroke={faceDetected ? "rgba(25,118,210,0.4)" : "rgba(255,255,255,0.2)"} strokeWidth="1" />
-                    <line x1="200" y1="131" x2="200" y2="139" stroke={faceDetected ? "rgba(25,118,210,0.4)" : "rgba(255,255,255,0.2)"} strokeWidth="1" />
-                    {/* ── Guía visual de Liveness Challenge Point ── */}
-                    {step === "liveness" && challengePoint && (
-                      <circle
-                        cx={challengePoint.x}
-                        cy={challengePoint.y}
-                        r={challengeDone ? "28" : "18"}
-                        fill={challengeDone ? "#22c55e" : "#ef4444"}
-                        opacity="1"
-                        stroke="white"
-                        strokeWidth="4"
-                        style={{
-                          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                          animation: challengeDone ? 'none' : 'facePulse 1.5s infinite'
-                        }}
-                      />
-                    )}
-                  </svg>
-                  {/* Keyframes para animaciones */}
-                  <style>{`
-                    @keyframes scanLine {
-                      0% { transform: translateY(-60px); opacity: 0; }
-                      15% { opacity: 1; }
-                      85% { opacity: 1; }
-                      100% { transform: translateY(60px); opacity: 0; }
-                    }
-                    @keyframes facePulse {
-                      0%, 100% { opacity: 0.3; }
-                      50% { opacity: 0.8; }
-                    }
-                  `}</style>
+                      {faceDetected && (
+                        <ellipse
+                          cx="200" cy="140" rx="84" ry="109"
+                          fill="none"
+                          stroke="rgb(var(--accent))"
+                          strokeWidth="2"
+                          opacity="0.3"
+                          style={{ animation: "facePulse 2s ease-in-out infinite" }}
+                        />
+                      )}
+                      {!faceDetected && (
+                        <line
+                          x1="120" y1="140" x2="280" y2="140"
+                          stroke="url(#scanLineGradient)"
+                          strokeWidth="2"
+                          style={{ animation: "scanLine 2.5s ease-in-out infinite" }}
+                        />
+                      )}
+                      {/* Marcas de alineacion */}
+                      <path d="M 135 55 L 135 40 L 155 40" fill="none" stroke={faceDetected ? "rgb(var(--accent))" : "rgba(255,255,255,0.5)"} strokeWidth="3" strokeLinecap="round" />
+                      <path d="M 265 55 L 265 40 L 245 40" fill="none" stroke={faceDetected ? "rgb(var(--accent))" : "rgba(255,255,255,0.5)"} strokeWidth="3" strokeLinecap="round" />
+                      <path d="M 135 245 L 135 260 L 155 260" fill="none" stroke={faceDetected ? "rgb(var(--accent))" : "rgba(255,255,255,0.5)"} strokeWidth="3" strokeLinecap="round" />
+                      <path d="M 265 245 L 265 260 L 245 260" fill="none" stroke={faceDetected ? "rgb(var(--accent))" : "rgba(255,255,255,0.5)"} strokeWidth="3" strokeLinecap="round" />
+                      
+                      {step === "liveness" && challengePoint && (
+                        <circle
+                          cx={challengePoint.x}
+                          cy={challengePoint.y}
+                          r={challengeDone ? "28" : "18"}
+                          fill={challengeDone ? "rgb(var(--success))" : "rgb(var(--error))"}
+                          opacity="1"
+                          stroke="white"
+                          strokeWidth="4"
+                          style={{
+                            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                            animation: challengeDone ? 'none' : 'facePulse 1.5s infinite'
+                          }}
+                        />
+                      )}
+                    </svg>
+                    
+                    <style>{`
+                      @keyframes scanLine {
+                        0% { transform: translateY(-70px); opacity: 0; }
+                        15% { opacity: 1; }
+                        85% { opacity: 1; }
+                        100% { transform: translateY(70px); opacity: 0; }
+                      }
+                      @keyframes facePulse {
+                        0%, 100% { opacity: 0.3; transform: scale(1); }
+                        50% { opacity: 0.6; transform: scale(1.02); }
+                      }
+                    `}</style>
 
-                  {/* ── Guía visual y feedback de Liveness ── */}
-                  {step === "liveness" && modelsLoaded && challengePoint && (
-                    <div className="absolute bottom-3 left-3 right-3 pointer-events-none">
-                      <div style={{
-                        background: 'rgba(0,0,0,0.55)',
-                        backdropFilter: 'blur(6px)',
-                        borderRadius: '10px',
-                        padding: '8px 14px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '10px',
-                      }}>
-                        <span style={{
-                          color: challengeDone ? '#86efac' : 'white',
-                          fontSize: 14, fontWeight: 600,
-                          transition: 'all 0.3s ease',
-                          textAlign: 'center'
-                        }}>
-                          {challengeDone ? '¡Excelente!' : 'Apunta con la nariz hacia el punto rojo'}
+                    {step === "liveness" && modelsLoaded && challengePoint && (
+                      <div className="absolute bottom-4 left-4 right-4 text-center">
+                        <div className="inline-block bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 ring-1 ring-black/20 shadow-xl">
+                          <p className={`text-xs font-bold uppercase tracking-wider ${challengeDone ? 'text-success' : 'text-white'}`}>
+                            {challengeDone ? '¡Excelente!' : 'Apunta con la nariz hacia el punto'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Status Indicators */}
+                <div className="bg-bg-secondary/40 border border-border-subtle rounded-xl p-4 text-center">
+                  <p className={`text-sm font-semibold transition-colors duration-300 ${
+                    proximityMessage === "¡Posición perfecta!" || challengeDone
+                      ? "text-success"
+                      : "text-text-primary"
+                  }`}>
+                    {!modelsLoaded && "Cargando modelos..."}
+                    {modelsLoaded && step === "liveness" && !challengePoint && (proximityMessage || "Coloca tu rostro en el óvalo")}
+                    {modelsLoaded && step === "liveness" && challengePoint && !challengeDone && "Sigue el punto con tu rostro"}
+                    {modelsLoaded && step === "capturing" && "Mantén la posición..."}
+                  </p>
+                  
+                  {modelsLoaded && (
+                    <div className="flex items-center justify-center gap-2 mt-2">
+                       <div className={`w-2 h-2 rounded-full ${faceDetected ? 'bg-accent animate-pulse' : 'bg-text-disabled'}`} />
+                       <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">
+                         {faceDetected ? "Rostro detectado" : "Buscando rostro..."}
+                       </span>
+                    </div>
+                  )}
+
+                  {detectionError && (
+                    <p className="text-error text-[10px] font-bold uppercase tracking-widest mt-2">{detectionError}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Identifying Screen */}
+            {step === "identifying" && (
+              <div className="animate-in fade-in zoom-in duration-300">
+                <div className="bg-accent/5 border border-accent/20 rounded-xl p-8 text-center">
+                  <div className="relative inline-flex mb-4">
+                    <Camera className="w-16 h-16 text-accent animate-pulse" />
+                    <div className="absolute -inset-3 flex items-center justify-center">
+                      <div className="w-20 h-20 border-2 border-accent/20 border-t-accent rounded-full animate-spin"></div>
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-bold text-text-primary mb-1">Identificando...</h3>
+                  <p className="text-text-tertiary text-xs">Por favor espera... verificando identidad</p>
+                </div>
+              </div>
+            )}
+
+            {/* Success Screen */}
+            {step === "success" && result && (
+              <div className="animate-in fade-in zoom-in duration-300">
+                <div className={`rounded-xl p-6 text-center border ${
+                  result.clasificacion === 'falta' ? "bg-error/5 border-error/20" :
+                  (result.clasificacion?.includes('retardo') || result.clasificacion === 'salida_temprana') ? "bg-warning/5 border-warning/20" :
+                  "bg-success/5 border-success/20"
+                }`}>
+                  {result.clasificacion === 'retardo_a' || result.clasificacion === 'retardo_b' || result.clasificacion === 'salida_temprana' ? (
+                    <AlertTriangle className="w-12 h-12 mx-auto mb-3 text-warning" />
+                  ) : result.clasificacion === 'falta' ? (
+                    <XCircle className="w-12 h-12 mx-auto mb-3 text-error" />
+                  ) : (
+                    <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-success" />
+                  )}
+
+                  <h3 className={`text-lg font-bold mb-1 ${
+                    result.clasificacion === 'falta' ? "text-error" :
+                    (result.clasificacion?.includes('retardo') || result.clasificacion === 'salida_temprana') ? "text-warning" :
+                    "text-success"
+                  }`}>
+                    {result.offline ? "Registro pendiente" : "Asistencia Registrada"}
+                  </h3>
+
+                  {result.empleado?.nombre && (
+                    <p className="text-text-primary text-base font-semibold mb-1">
+                      {result.empleado.nombre}
+                    </p>
+                  )}
+
+                  {result.tipoMovimiento && !result.offline && (
+                    <div className="mt-1 text-center">
+                      <p className="text-text-tertiary text-xs">
+                        {result.tipoMovimiento === "ENTRADA" ? "Entrada" : "Salida"} registrada {result.hora && <>a las <span className="text-text-primary font-bold">{result.hora}</span></>}
+                      </p>
+                      <div className="flex justify-center mt-2">
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest ${
+                          result.clasificacion === "entrada" || result.clasificacion === "salida_puntual"
+                            ? "bg-success/10 text-success ring-1 ring-success/20"
+                            : result.clasificacion?.includes("retardo") || result.clasificacion === "salida_temprana"
+                              ? "bg-warning/10 text-warning ring-1 ring-warning/20"
+                              : result.clasificacion === "falta"
+                                ? "bg-error/10 text-error ring-1 ring-error/20"
+                                : "bg-bg-tertiary text-text-tertiary ring-1 ring-border-subtle"
+                        }`}>
+                          {result.estadoTexto || result.estado || "Registrado"}
                         </span>
                       </div>
                     </div>
                   )}
-                </div>
-              </div>
 
-              {/* Indicadores */}
-              <div className="space-y-2">
-                <p className={`text-center text-sm font-medium ${proximityMessage === "¡Posición perfecta!" || challengeDone
-                  ? "text-green-600 dark:text-green-400"
-                  : (proximityMessage && !challengePoint)
-                    ? "text-[#1976D2] dark:text-[#42A5F5]"
-                    : "text-gray-700 dark:text-gray-300"
-                  }`}>
-                  {!modelsLoaded && "Cargando modelos de reconocimiento..."}
-                  {modelsLoaded && step === "liveness" && !challengePoint && (proximityMessage || "Coloca tu rostro frente a la cámara...")}
-                  {modelsLoaded && step === "liveness" && challengePoint && !challengeDone && "Apunta con la nariz hacia el punto rojo"}
-                  {modelsLoaded && step === "capturing" && "Mantén tu rostro quieto para el registro..."}
-                </p>
-
-                {modelsLoaded && (
-                  <div className="flex items-center justify-center gap-4 text-sm">
-                    <div className={`flex items-center gap-1.5 ${faceDetected ? 'text-[#1976D2] dark:text-[#42A5F5]' : 'text-gray-500 dark:text-gray-400'}`}>
-                      <div className={`w-2.5 h-2.5 rounded-full ${faceDetected ? 'bg-[#1976D2] animate-pulse' : 'bg-gray-400'}`} />
-                      <span className="font-medium">Rostro detectado</span>
+                  <div className="mt-4 pt-4 border-t border-border-subtle flex flex-col items-center gap-3">
+                    <div className="flex items-center gap-2 text-[9px] font-bold text-text-disabled uppercase tracking-widest">
+                      <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                      Cerrando en {countdown}s
                     </div>
+
+                    <button
+                      onClick={procesarLoginBiometrico}
+                      disabled={processingLogin || !loginHabilitado}
+                      className="w-full py-2.5 bg-bg-secondary hover:bg-bg-tertiary text-text-primary border border-border-subtle rounded-md font-bold text-xs transition-all flex items-center justify-center ring-1 ring-border-subtle shadow-sm disabled:opacity-50"
+                    >
+                      {processingLogin ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                      Iniciar sesión
+                    </button>
                   </div>
-                )}
-
-                {!modelsLoaded && (
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#1976D2] border-t-transparent"></div>
-                    <span className="text-gray-600 dark:text-gray-400 text-xs">Cargando modelos...</span>
-                  </div>
-                )}
-
-                {detectionError && (
-                  <p className="text-center text-red-500 dark:text-red-400 text-xs font-medium">{detectionError}</p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Identificando */}
-          {step === "identifying" && (
-            <div className="bg-[#E3F2FD] dark:bg-[#1565C0]/20 border border-[#BBDEFB] dark:border-[#1565C0]/40 rounded-xl p-8 text-center">
-              <div className="relative">
-                <Camera className="w-20 h-20 mx-auto mb-4 text-[#1976D2] dark:text-[#42A5F5] animate-pulse" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-28 h-28 border-4 border-[#BBDEFB] dark:border-[#1565C0]/40 border-t-[#1976D2] dark:border-t-[#42A5F5] rounded-full animate-spin"></div>
                 </div>
               </div>
-              <p className="text-gray-900 dark:text-white font-bold text-xl mb-2 mt-4">
-                Identificando...
-              </p>
-              <p className="text-gray-600 dark:text-gray-400 text-sm">
-                Por favor espera mientras verificamos tu identidad
-              </p>
-            </div>
-          )}
+            )}
 
-          {/* Exito */}
-          {step === "success" && result && (
-            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6 text-center">
-              {result.clasificacion === 'retardo_a' || result.clasificacion === 'retardo_b' || result.clasificacion === 'salida_temprana' ? (
-                <AlertTriangle className="w-16 h-16 mx-auto mb-3 text-yellow-600 dark:text-yellow-400" />
-              ) : result.clasificacion === 'falta' ? (
-                <XCircle className="w-16 h-16 mx-auto mb-3 text-red-600 dark:text-red-400" />
-              ) : (
-                <CheckCircle className="w-16 h-16 mx-auto mb-3 text-green-600 dark:text-green-400" />
-              )}
-
-              <p className={`font-bold text-lg mb-1 ${result.clasificacion === 'falta'
-                ? "text-red-800 dark:text-red-300"
-                : result.clasificacion === 'retardo_a' || result.clasificacion === 'retardo_b' || result.clasificacion === 'salida_temprana'
-                  ? "text-yellow-800 dark:text-yellow-300"
-                  : "text-green-800 dark:text-green-300"
+            {/* Error Screen */}
+            {step === "error" && (
+              <div className="animate-in fade-in zoom-in duration-300">
+                <div className={`rounded-xl p-6 text-center border ${
+                  result?.noPuedeRegistrar ? "bg-warning/5 border-warning/20" : "bg-error/5 border-error/20"
                 }`}>
-                {result.offline ? "Registro pendiente" : "Asistencia Registrada"}
-              </p>
-
-              {result.empleado?.nombre && (
-                <p className="text-gray-700 dark:text-gray-300 text-lg">
-                  {result.empleado.nombre}
-                </p>
-              )}
-
-              {result.tipoMovimiento && !result.offline && (
-                <div className="mt-2">
-                  <p className="text-gray-600 dark:text-gray-400 text-sm font-medium">
-                    {result.offline ? (
-                      <>Registro pendiente de sincronizar {result.hora && `a las ${result.hora}`}</>
-                    ) : (
-                      <>{result.tipoMovimiento === "ENTRADA" ? "Entrada" : "Salida"} registrada {result.hora && `a las ${result.hora}`}</>
-                    )}
-                  </p>
-                  <span
-                    className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${result.clasificacion === "entrada" || result.clasificacion === "salida_puntual"
-                      ? "bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-300"
-                      : result.clasificacion === "retardo_a" || result.clasificacion === "retardo_b" || result.clasificacion === "salida_temprana"
-                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
-                        : result.clasificacion === "falta"
-                          ? "bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-300"
-                          : "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300"
-                      }`}
-                  >
-                    {result.estadoTexto || result.estado || "Registrado"}
-                  </span>
-                </div>
-              )}
-
-              {/* Separador */}
-              <div className="border-t border-gray-200 dark:border-gray-700 my-4" />
-
-              {/* Opcion de abrir sesion */}
-              <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
-                Deseas abrir tu sesion?
-              </p>
-
-              <button
-                onClick={procesarLoginBiometrico}
-                disabled={processingLogin || !loginHabilitado}
-                className="w-full px-4 py-3 bg-[#1976D2] hover:bg-[#1565C0] disabled:bg-[#90CAF9] disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mb-3"
-              >
-                {processingLogin ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Cargando datos...
-                  </>
-                ) : !loginHabilitado ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Preparando...
-                  </>
-                ) : (
-                  <>
-                     Iniciar sesión
-                  </>
-                )}
-              </button>
-
-              {!processingLogin && (
-                <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm">
-                  <Timer className="w-4 h-4" />
-                  <span>
-                    Esta ventana se cerrara en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Error */}
-          {step === "error" && (
-            <div className={`rounded-xl p-6 text-center ${result?.noPuedeRegistrar
-              ? "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
-              : "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
-              }`}>
-              {result?.noPuedeRegistrar ? (
-                <>
-                  <AlertTriangle className="w-16 h-16 mx-auto mb-3 text-yellow-600 dark:text-yellow-400" />
-                  <p className="text-yellow-800 dark:text-yellow-300 font-bold text-lg mb-1">
-                    No Disponible
-                  </p>
-                  {result.empleado?.nombre && (
-                    <p className="text-gray-700 dark:text-gray-300 text-lg mb-2">
-                      {result.empleado.nombre}
-                    </p>
-                  )}
-                  <p className="text-gray-700 dark:text-gray-300 text-sm">
-                    {result.message}
-                  </p>
-                  <span
-                    className={`inline-block mt-3 px-3 py-1 rounded-full text-xs font-semibold ${result.estadoHorario === "completado"
-                      ? "bg-blue-100 text-blue-800 dark:bg-blue-800/30 dark:text-blue-300"
-                      : result.estadoHorario === "tiempo_insuficiente"
-                        ? "bg-orange-100 text-orange-800 dark:bg-orange-800/30 dark:text-orange-300"
-                        : "bg-yellow-100 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
-                      }`}
-                  >
-                    {result.estadoHorario === "completado"
-                      ? "Jornada completada"
-                      : result.estadoHorario === "tiempo_insuficiente"
-                        ? `Aún no disponible`
-                        : "Fuera de horario"}
-                  </span>
-
-                  {/* Separador */}
-                  <div className="border-t border-gray-200 dark:border-gray-700 my-4" />
-
-                  {/* Opcion de abrir sesion */}
-                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-3">
-                    Deseas abrir tu sesion de todas formas?
-                  </p>
-
-                  <button
-                    onClick={procesarLoginBiometrico}
-                    disabled={processingLogin || !loginHabilitado}
-                    className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2 mb-3"
-                  >
-                    {processingLogin ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Cargando datos...
-                      </>
-                    ) : !loginHabilitado ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Preparando...
-                      </>
-                    ) : (
-                      <>
-                         Iniciar sesión
-                      </>
-                    )}
-                  </button>
-
-                  {!processingLogin && (
-                    <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm">
-                      <Timer className="w-4 h-4" />
-                      <span>
-                        Esta ventana se cerrara en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
-                      </span>
-                    </div>
-                  )}
-                </>
-              ) : result?.noReconocida ? (
-                <>
-                  <XCircle className="w-16 h-16 mx-auto mb-3 text-red-600 dark:text-red-400" />
-                  <p className="text-red-800 dark:text-red-300 font-bold text-lg mb-2">
-                    Rostro No Reconocido
-                  </p>
-                  <p className="text-gray-700 dark:text-gray-300 text-sm mb-4">
-                    Tu rostro no se encuentra registrado en el sistema
-                  </p>
-
-                  <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm mb-4">
-                    <Timer className="w-4 h-4" />
-                    <span>
-                      Esta ventana se cerrara en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
-                    </span>
-                  </div>
-
-                  <button
-                    onClick={handleRetry}
-                    className="px-4 py-2 md:px-5 md:py-3 2xl:px-6 2xl:py-4 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white rounded-xl text-sm md:text-base 2xl:text-lg font-medium transition-colors"
-                  >
-                    Intentar de nuevo
-                  </button>
-                </>
-              ) : (
-                <>
-                  <XCircle className="w-16 h-16 mx-auto mb-3 text-red-600 dark:text-red-400" />
-                  <p className="text-red-800 dark:text-red-300 font-bold text-lg mb-1">
-                    {(result?.message?.includes("Registro denegado") || errorMessage?.includes("Registro denegado")) ? "Registro Denegado" : "Error"}
-                  </p>
-                  <p className="text-gray-700 dark:text-gray-300 text-sm mb-4">
-                    {(errorMessage?.replace("Registro denegado: ", "") || result?.message?.replace("Registro denegado: ", "") || "Error al registrar asistencia")}
-                  </p>
-
-                  {result?.empleadoId && (
+                  {result?.noPuedeRegistrar ? (
                     <>
-                      {/* Separador */}
-                      <div className="border-t border-gray-200 dark:border-gray-700 my-4" />
-
-                      {/* Opcion de abrir sesion */}
-
-                      <button
-                        onClick={procesarLoginBiometrico}
-                        disabled={processingLogin || !loginHabilitado}
-                        className="w-full px-4 py-3 md:py-4 2xl:py-5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white rounded-xl font-medium text-base md:text-lg 2xl:text-xl transition-colors flex items-center justify-center gap-2 mb-4"
-                      >
-                        {processingLogin ? (
-                          <>
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            Cargando datos...
-                          </>
-                        ) : !loginHabilitado ? (
-                          <>
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                            Preparando...
-                          </>
-                        ) : (
-                          <>
-                             Iniciar sesión
-                          </>
-                        )}
-                      </button>
-
-                      {!processingLogin && (
-                        <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 text-sm mb-4">
-                          <Timer className="w-4 h-4" />
-                          <span>
-                            Esta ventana se cerrará en <strong className="text-gray-700 dark:text-gray-300">{countdown}</strong> segundos
-                          </span>
-                        </div>
+                      <AlertCircle className="w-12 h-12 mx-auto mb-3 text-warning" />
+                      <h3 className="text-lg font-bold mb-1 text-warning">No Disponible</h3>
+                      {result.empleado?.nombre && (
+                        <p className="text-text-primary text-base font-semibold mb-1">{result.empleado.nombre}</p>
                       )}
+                      <p className="text-text-tertiary text-xs mb-3">{result.message}</p>
+                      <div className="flex justify-center mb-4">
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest ${
+                          result.estadoHorario === "completado" ? "bg-accent/10 text-accent ring-1 ring-accent/20" : "bg-warning/10 text-warning ring-1 ring-warning/20"
+                        }`}>
+                          {result.estadoHorario === "completado" ? "Jornada completada" : "Fuera de horario"}
+                        </span>
+                      </div>
+                      
+                      <div className="pt-4 border-t border-border-subtle flex flex-col items-center gap-3">
+                        <button
+                          onClick={procesarLoginBiometrico}
+                          disabled={processingLogin || !loginHabilitado}
+                          className="w-full py-2.5 bg-bg-secondary hover:bg-bg-tertiary text-text-primary border border-border-subtle rounded-md font-bold text-xs transition-all flex items-center justify-center ring-1 ring-border-subtle shadow-sm disabled:opacity-50"
+                        >
+                          {processingLogin ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                          Iniciar sesión de todas formas
+                        </button>
+                        <div className="flex items-center gap-2 text-[9px] font-bold text-text-disabled uppercase tracking-widest">
+                          <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                          Cerrando en {countdown}s
+                        </div>
+                      </div>
+                    </>
+                  ) : result?.noReconocida ? (
+                    <>
+                      <AlertCircle className="w-12 h-12 mx-auto mb-3 text-error" />
+                      <h3 className="text-lg font-bold mb-1 text-error">Rostro No Reconocido</h3>
+                      <p className="text-text-tertiary text-xs mb-6">El rostro no se encuentra registrado en el sistema.</p>
+                      <div className="flex flex-col items-center gap-3">
+                        <button onClick={handleRetry} className="w-full py-3 bg-accent hover:bg-accent-hover text-white rounded-md font-bold text-base shadow-lg shadow-accent/10 transition-all">
+                          Intentar de nuevo
+                        </button>
+                        <div className="flex items-center gap-2 text-[9px] font-bold text-text-disabled uppercase tracking-widest">
+                          <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                          Cerrando en {countdown}s
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="w-12 h-12 mx-auto mb-3 text-error" />
+                      <h3 className="text-lg font-bold mb-1 text-error">
+                        {result?.message?.includes("Registro denegado") ? "Registro Denegado" : "Error en Registro"}
+                      </h3>
+                      {result?.empleado?.nombre && (
+                        <p className="text-text-primary text-base font-semibold mb-1">{result.empleado.nombre}</p>
+                      )}
+                      <p className="text-text-tertiary text-xs mb-4">
+                        {errorMessage?.replace("Registro denegado: ", "") || result?.message?.replace("Registro denegado: ", "") || "Ocurrió un error al procesar el registro."}
+                      </p>
+                      
+                      <div className="flex flex-col gap-3">
+                        {result?.empleadoId && (
+                           <button
+                             onClick={procesarLoginBiometrico}
+                             disabled={processingLogin || !loginHabilitado}
+                             className="w-full py-2.5 bg-bg-secondary hover:bg-bg-tertiary text-text-primary border border-border-subtle rounded-md font-bold text-xs transition-all flex items-center justify-center ring-1 ring-border-subtle shadow-sm disabled:opacity-50"
+                           >
+                             {processingLogin ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                             Iniciar sesión
+                           </button>
+                        )}
+                        <div className="grid grid-cols-2 gap-3">
+                          <button onClick={handleRetry} className="py-2.5 bg-bg-tertiary hover:bg-bg-tertiary/80 text-text-primary rounded-md font-bold text-xs transition-all">
+                            Reintentar
+                          </button>
+                          <button onClick={handleCloseModal} className="py-2.5 bg-error/10 hover:bg-error/20 text-error rounded-md font-bold text-xs transition-all">
+                            Cancelar
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-center gap-2 text-[9px] font-bold text-text-disabled uppercase tracking-widest">
+                           <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                           Cerrando en {countdown}s
+                        </div>
+                      </div>
                     </>
                   )}
-
-                  <div className="flex gap-3 justify-center">
-                    <button
-                      onClick={handleRetry}
-                      className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-2 px-4 md:py-3 md:px-5 2xl:py-4 2xl:px-6 rounded-xl text-sm md:text-base 2xl:text-lg transition-colors"
-                    >
-                      Intentar de Nuevo
-                    </button>
-                    <button
-                      onClick={handleCloseModal}
-                      className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-300 font-semibold py-2 px-4 md:py-3 md:px-5 2xl:py-4 2xl:px-6 rounded-xl text-sm md:text-base 2xl:text-lg transition-colors"
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

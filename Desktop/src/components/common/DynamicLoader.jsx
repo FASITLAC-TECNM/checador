@@ -15,7 +15,7 @@ const DynamicLoader = ({ text, size = "large", layout = "col", className = "" })
         <div className={`flex ${flexDirection} items-center justify-center ${currentSize.padding} ${className}`}>
             <div className={`relative ${currentSize.container} ${(text && layout === 'col') ? 'mb-2' : ''} flex items-center justify-center`}>
                 <img
-                    src="/images/loading.gif"
+                    src="./images/loading.gif"
                     alt="Cargando..."
                     className={`${currentSize.img} object-contain`}
                 />

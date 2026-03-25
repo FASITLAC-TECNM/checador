@@ -12,11 +12,21 @@ console.log("🔗 API URL:", API_URL); // Para debug
  * Autenticar usuario por usuario/correo y PIN usando el endpoint de autenticación
  * @param {string} usuarioOCorreo - Nombre de usuario o correo
  * @param {string} pin - PIN del usuario (contraseña)
+ * @param {string} [empresaId] - (Opcional) ID de la empresa del kiosco para multi-tenant
  * @returns {Promise<Object>} - Usuario autenticado o error
  */
-export const loginUsuario = async (usuarioOCorreo, pin) => {
+export const loginUsuario = async (usuarioOCorreo, pin, empresaId = null) => {
   try {
     console.log("🔐 Iniciando login para:", usuarioOCorreo);
+
+    const bodyData = {
+      usuario: usuarioOCorreo,
+      contraseña: pin,
+    };
+    
+    if (empresaId) {
+      bodyData.empresa_id = empresaId;
+    }
 
     // 1. Autenticar con el endpoint /api/auth/login
     const loginResponse = await fetch(`${API_URL}${API_CONFIG.ENDPOINTS.AUTH}/login`, {
@@ -24,10 +34,7 @@ export const loginUsuario = async (usuarioOCorreo, pin) => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        usuario: usuarioOCorreo,
-        contraseña: pin,
-      }),
+      body: JSON.stringify(bodyData),
     });
 
     if (!loginResponse.ok) {

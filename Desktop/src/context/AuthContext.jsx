@@ -56,12 +56,19 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setError(null);
 
+      const empresaId = localStorage.getItem("empresa_id");
+      
+      const bodyData = { usuario, contraseña: contrasena };
+      if (empresaId) {
+        bodyData.empresa_id = empresaId;
+      }
+
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ usuario, contraseña: contrasena }),
+        body: JSON.stringify(bodyData),
       });
 
       const data = await response.json();
@@ -136,7 +143,8 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      const result = await loginUsuario(username, pin);
+      const empresaId = localStorage.getItem("empresa_id");
+      const result = await loginUsuario(username, pin, empresaId);
 
       if (!result.success) {
         throw new Error(result.error || "Error al iniciar sesión");

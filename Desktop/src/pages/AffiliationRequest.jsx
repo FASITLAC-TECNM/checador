@@ -106,8 +106,10 @@ export default function AffiliationRequest({ onComplete }) {
           }
         }
         // Guardar el empresa_id para peticiones públicas del middleware
-        if (solicitud.empresa_id) {
-          localStorage.setItem("empresa_id", solicitud.empresa_id);
+        const idEmpresa = solicitud.id_empresa || solicitud.empresa_id;
+        if (idEmpresa) {
+          localStorage.setItem("empresa_id", idEmpresa);
+          console.log("💾 ID de empresa guardado en localStorage:", idEmpresa);
         }
         // Guardar el auth_token si viene en la respuesta
         if (solicitud.auth_token || solicitud.token) {

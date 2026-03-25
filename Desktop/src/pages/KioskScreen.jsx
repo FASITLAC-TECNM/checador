@@ -62,6 +62,7 @@ export default function KioskScreen() {
   const isReaderConnected = registeredReaders.some(d => d.estado === "conectado");
 
   useEffect(() => {
+    console.log("🏢 ID de empresa en localStorage al cargar Kiosko:", localStorage.getItem("empresa_id"));
     const timer = setInterval(() => {
       setTime(new Date());
     }, 1000);

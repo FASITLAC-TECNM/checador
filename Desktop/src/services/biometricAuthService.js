@@ -330,8 +330,9 @@ export const identificarPorFacial = async (descriptorBase64) => {
   try {
     console.log("🔍 Iniciando identificación facial...");
 
-    // Obtener empresa_id de localStorage
+    // Obtener empresa_id y token de localStorage
     const empresaId = localStorage.getItem("empresa_id");
+    const token = localStorage.getItem("auth_token");
     const queryParams = empresaId ? `?empresa_id=${empresaId}` : "";
 
     const response = await fetch(`${API_URL}/credenciales/facial/identify${queryParams}`, {

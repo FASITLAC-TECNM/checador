@@ -225,6 +225,13 @@ export const DeviceMonitoringProvider = ({ children }) => {
                 setDevices(finalDevicesState);
             }
 
+            // MANTENER RETROCOMPATIBILIDAD CON MODALES FACIALES BÁSADOS EN LOCALSTORAGE
+            // Si hay alguna cámara facial registrada en la BD o conectada localmente
+            const hasRegisteredCamera = finalDevicesState.some(
+                d => d.tipo === 'facial' && (d.estado === 'conectado' || d.es_activo)
+            );
+            localStorage.setItem("cached_camera_registered", JSON.stringify(hasRegisteredCamera));
+
             setLastChecked(new Date());
 
         } catch (error) {

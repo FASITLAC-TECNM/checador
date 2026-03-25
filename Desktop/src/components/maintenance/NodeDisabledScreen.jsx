@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShieldOff, RefreshCw, UserPlus, AlertTriangle, X, CheckCircle2 } from 'lucide-react';
+import { ShieldOff, UserPlus, AlertTriangle, X, CheckCircle2 } from 'lucide-react';
 
 /**
  * Pantalla que se muestra cuando el nodo de escritorio está deshabilitado por un administrador.
@@ -106,15 +106,7 @@ const NodeDisabledScreen = ({ nodeName, isChecking, onRetry, onNewAffiliation })
 
                     {/* Acciones */}
                     <div className="flex flex-col gap-3 w-full">
-                        {/* Reintentar */}
-                        <button
-                            onClick={onRetry}
-                            disabled={isChecking}
-                            className="w-full py-2.5 px-4 bg-transparent hover:bg-bg-secondary text-text-secondary hover:text-text-primary border border-border-subtle hover:border-border-strong rounded-xl transition-all flex items-center justify-center gap-2 font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                        >
-                            <RefreshCw className={`w-4 h-4 ${isChecking ? 'animate-spin' : ''}`} />
-                            {isChecking ? 'Verificando...' : 'Reintentar ahora'}
-                        </button>
+
 
                         {/* Nueva afiliación */}
                         <button

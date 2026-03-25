@@ -205,6 +205,38 @@ export const verificarEscritorioActivo = async (escritorioId) => {
 };
 
 /**
+ * Verificar el estado público del escritorio de forma ligera para detecciones en tiempo real.
+ * Usa un endpoint que no requiere token.
+ * @param {string} escritorioId - ID del escritorio
+ * @returns {Promise<Object>} - Resultado del estado del servidor
+ */
+export const verificarEstadoPublico = async (escritorioId) => {
+  try {
+    if (!escritorioId) {
+      throw new Error("No se proporcionó el ID del escritorio");
+    }
+
+    const url = getApiEndpoint(`${ESCRITORIO_ENDPOINT}/public/status/${escritorioId}`);
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (response.ok) {
+      const resultado = await response.json();
+      return resultado;
+    }
+    return null;
+  } catch (error) {
+    console.warn("❌ Error al verificar estado público del escritorio:", error);
+    return null;
+  }
+};
+
+/**
  * Desactiva el escritorio en el servidor
  * @param {string} escritorioId - ID del escritorio a desactivar
  * @returns {Promise<Object>} - Respuesta del servidor

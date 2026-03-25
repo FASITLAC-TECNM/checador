@@ -103,28 +103,6 @@ async function pushBatch(records) {
     (function () { })('[DEBUG PUSH] Error getting fallback empresa_id', err);
   }
 
-  // Obtener IP y WiFi actuales en el momento de la sincronización
-  let currentNetworkIp = null;
-  let currentNetworkWifi = null;
-  try {
-    const netState = await Network.getNetworkStateAsync();
-    const netInfoObj = await NetInfo.fetch();
-    currentNetworkIp = netInfoObj.details?.ipAddress || null;
-
-    if (!currentNetworkIp) {
-      currentNetworkIp = await Promise.race([
-        Network.getIpAddressAsync(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000))
-      ]);
-    }
-
-    if (netState.type === Network.NetworkStateType.WIFI) {
-      currentNetworkWifi = { tipo: netState.type, isConnected: netState.isConnected };
-    }
-  } catch (netErr) {
-    (function () { })('[DEBUG PUSH] No se pudo obtener la IP actual durante sincronización:', netErr);
-  }
-
   const registros = records.map((record) => {
 
     let ubicacion = null;
@@ -161,8 +139,8 @@ async function pushBatch(records) {
       metodo_registro: record.metodo_registro,
       dispositivo_origen: record.dispositivo_origen || 'movil',
       ubicacion,
-      ip: currentNetworkIp,
-      wifi: currentNetworkWifi,
+      ip: record.ip || null,
+      wifi: wifi,
       fecha_registro: new Date(record.fecha_registro).getTime(),
       fecha_captura: new Date(record.fecha_registro).toISOString(),
       imagen_base64: record.payload_biometrico ? JSON.parse(record.payload_biometrico) : null

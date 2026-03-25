@@ -1345,26 +1345,28 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       let networkIp = null;
       let networkWifi = null;
-      try {
-        const netState = await Network.getNetworkStateAsync();
+      if (isOnline) {
+        try {
+          const netState = await Network.getNetworkStateAsync();
 
-        // Intentar primero con NetInfo (más confiable nativamente para IPs locales en Wi-Fi)
-        const netInfoObj = await NetInfo.fetch();
-        networkIp = netInfoObj.details?.ipAddress || null;
+          // Intentar primero con NetInfo (más confiable nativamente para IPs locales en Wi-Fi)
+          const netInfoObj = await NetInfo.fetch();
+          networkIp = netInfoObj.details?.ipAddress || null;
 
-        // Fallback a expo-network si NetInfo no la trajo
-        if (!networkIp) {
-          networkIp = await Promise.race([
-            Network.getIpAddressAsync(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000))
-          ]);
+          // Fallback a expo-network si NetInfo no la trajo
+          if (!networkIp) {
+            networkIp = await Promise.race([
+              Network.getIpAddressAsync(),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000))
+            ]);
+          }
+
+          if (netState.type === Network.NetworkStateType.WIFI) {
+            networkWifi = { tipo: netState.type, isConnected: netState.isConnected };
+          }
+        } catch (netErr) {
+          (function () { })('No se pudo obtener la IP local:', netErr);
         }
-
-        if (netState.type === Network.NetworkStateType.WIFI) {
-          networkWifi = { tipo: netState.type, isConnected: netState.isConnected };
-        }
-      } catch (netErr) {
-        (function () { })('No se pudo obtener la IP local:', netErr);
       }
 
       const payload = {

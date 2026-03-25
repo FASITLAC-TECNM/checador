@@ -440,7 +440,7 @@ export async function getRegistrosHoy(empleadoId) {
 
   return await db.getAllAsync(
     `SELECT tipo, estado, fecha_registro FROM offline_asistencias
-         WHERE empleado_id = ? AND fecha_registro LIKE ? || '%'
+         WHERE empleado_id = ? AND fecha_registro LIKE ? || '%' AND is_synced != -1
          UNION
          SELECT tipo, estado, fecha_registro FROM cache_asistencias
          WHERE empleado_id = ? AND fecha_registro LIKE ? || '%'
@@ -657,21 +657,21 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
         segmentos_red = excluded.segmentos_red,
         intervalo_bloques_minutos = excluded.intervalo_bloques_minutos,
         updated_at = excluded.updated_at`,
-        [
-          empleadoId,
-          tolerancia.nombre || null,
-          tolerancia.minutos_retardo ?? 0,
-          tolerancia.minutos_falta ?? 0,
-          tolerancia.permite_registro_anticipado !== false ? 1 : 0,
-          tolerancia.minutos_anticipado_max ?? 0,
-          tolerancia.aplica_tolerancia_entrada !== false ? 1 : 0,
-          tolerancia.aplica_tolerancia_salida !== false ? 1 : 0,
-          tolerancia.max_retardos ?? 0,
-          diasAplica,
-          reglasJson,
-          segmentosRedJson,
-          tolerancia.intervalo_bloques_minutos ?? 60
-        ]
+      [
+        empleadoId,
+        tolerancia.nombre || null,
+        tolerancia.minutos_retardo ?? 0,
+        tolerancia.minutos_falta ?? 0,
+        tolerancia.permite_registro_anticipado !== false ? 1 : 0,
+        tolerancia.minutos_anticipado_max ?? 0,
+        tolerancia.aplica_tolerancia_entrada !== false ? 1 : 0,
+        tolerancia.aplica_tolerancia_salida !== false ? 1 : 0,
+        tolerancia.max_retardos ?? 0,
+        diasAplica,
+        reglasJson,
+        segmentosRedJson,
+        tolerancia.intervalo_bloques_minutos ?? 60
+      ]
     );
   } catch (ignore) {
     // This catch block is for handling cases where columns might not exist yet

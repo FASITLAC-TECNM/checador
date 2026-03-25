@@ -8,7 +8,8 @@ import {
   Alert,
   Modal,
   ScrollView,
-  Vibration
+  Vibration,
+  DeviceEventEmitter
 } from
   'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -426,6 +427,25 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
     return () => clearInterval(intervalo);
   }, [obtenerHorario, obtenerUltimoRegistro, actualizarEstadoPreflight]);
+
+  // Limpiar el estado optimista silenciosamente cuando la sincronización rechaza un registro,
+  // sin forzar cambios de modo (usandoEstadoBackend) que causen parpadeo en la UI.
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('sync_rechazado', async () => {
+      try {
+        const resultado = await obtenerUltimoRegistro();
+        if (resultado) {
+          const { ultimo, todos } = resultado;
+          setUltimoRegistroHoy(ultimo);
+          setRegistrosHoyTodos(todos);
+          ultimoRegistroHoyRef.current = ultimo;
+          registrosHoyTodosRef.current = todos;
+        }
+      } catch (_) { }
+    });
+    return () => sub.remove();
+  }, [obtenerUltimoRegistro]);
+
   useEffect(() => {
     const salidasHechas = (registrosHoyTodos || []).filter(r => r.tipo === 'salida').length;
     const bloquesTotales = horarioInfo?.bloques?.length || 0;
@@ -433,14 +453,14 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     // Si el estado dictó bloque completo (sea por el preflight recién, o por un caché viejo que se quedó trabado)
     // verificamos localmente si llegaron turnos nuevos que no han sido suplidos.
     if (estadoHorario === 'bloque_completo' && horarioInfo) {
-       if (salidasHechas < bloquesTotales) {
-         setPuedeRegistrar(false);
-         setTipoSiguienteRegistro('entrada');
-         setEstadoHorario('espera');
-         setJornadaCompletada(false);
-         setMensajeEspera('Espera un momento antes de registrar el siguiente turno.');
-         return; // Interrumpimos para que React aplique el state devuelta a espera
-       }
+      if (salidasHechas < bloquesTotales) {
+        setPuedeRegistrar(false);
+        setTipoSiguienteRegistro('entrada');
+        setEstadoHorario('espera');
+        setJornadaCompletada(false);
+        setMensajeEspera('Espera un momento antes de registrar el siguiente turno.');
+        return; // Interrumpimos para que React aplique el state devuelta a espera
+      }
     }
 
     // Si viene del backend y no es bloque completo y fue resuelto online, no peleamos
@@ -533,7 +553,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         return;
       } else {
         // Aseguramos forzosamente resetear estado
-        setJornadaCompletada(false); 
+        setJornadaCompletada(false);
       }
 
       // ── 2. HAY MÁS BLOQUES: espera obligatoria de 1 minuto post-salida ──
@@ -557,7 +577,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         setPuedeRegistrar(false);
         setTipoSiguienteRegistro('entrada');
         setEstadoHorario('fuera_horario');
-        setMensajeEspera(`Próximo turno a las ${String(Math.floor(bloqueProximo.entrada / 60)).padStart(2,'0')}:${String(bloqueProximo.entrada % 60).padStart(2,'0')}`);
+        setMensajeEspera(`Próximo turno a las ${String(Math.floor(bloqueProximo.entrada / 60)).padStart(2, '0')}:${String(bloqueProximo.entrada % 60).padStart(2, '0')}`);
         return;
       }
 
@@ -1327,17 +1347,17 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       let networkWifi = null;
       try {
         const netState = await Network.getNetworkStateAsync();
-        
+
         // Intentar primero con NetInfo (más confiable nativamente para IPs locales en Wi-Fi)
         const netInfoObj = await NetInfo.fetch();
         networkIp = netInfoObj.details?.ipAddress || null;
 
         // Fallback a expo-network si NetInfo no la trajo
         if (!networkIp) {
-            networkIp = await Promise.race([
-              Network.getIpAddressAsync(),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000))
-            ]);
+          networkIp = await Promise.race([
+            Network.getIpAddressAsync(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000))
+          ]);
         }
 
         if (netState.type === Network.NetworkStateType.WIFI) {

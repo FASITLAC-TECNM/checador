@@ -192,11 +192,6 @@ export const LoginScreen = ({ onLoginSuccess, darkMode }) => {
       return;
     }
 
-    if (password.length < 6) {
-      setPasswordError('Mínimo 6 caracteres');
-      return;
-    }
-
     setIsLoading(true);
 
     if (syncManager.getIsBackendDown()) {

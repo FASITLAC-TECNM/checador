@@ -291,7 +291,10 @@ export async function pushPendingRecords() {
         r.idempotency_key === rej.id_local || r.local_id.toString() === rej.id_local
       );
       if (record) {
-        const definitivo = ['CAMPOS_FALTANTES', 'EMPLEADO_NO_EXISTE', 'DUPLICADO'].includes(rej.codigo);
+        // Si el backend procesó el registro y lo incluyó en "rechazados" explícitamente, 
+        // el rechazo es definitivo (ej: IP inválida, datos faltantes).
+        // Mandar el mismo payload inmutable de SQLite nuevamente no cambiará la respuesta.
+        const definitivo = true;
         await sqliteManager.markSyncError(record.local_id, rej.error, definitivo);
       }
     }

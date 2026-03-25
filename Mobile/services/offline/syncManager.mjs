@@ -9,6 +9,7 @@
 
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { DeviceEventEmitter } from 'react-native';
 import sqliteManager from './sqliteManager.mjs';
 import pullService from './pullService.mjs';
 import pushService from './pushService.mjs';
@@ -346,7 +347,11 @@ export async function performSync(reason = 'manual') {
 
 
     if (authToken) {
-      await pushData().catch(() => { });
+      const pushResult = await pushData().catch(() => null);
+      // Si hubo rechazos definitivos, avisar a RegisterButton para limpiar estado optimista
+      if (pushResult && pushResult.errors > 0) {
+        DeviceEventEmitter.emit('sync_rechazado', { errors: pushResult.errors });
+      }
     }
 
 

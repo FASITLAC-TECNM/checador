@@ -88,8 +88,8 @@ function App() {
     );
   }
 
-  // Si el nodo está deshabilitado, mostrar la pantalla correspondiente
-  if (isNodeDisabled && nodeInfo) {
+  // Si el nodo está deshabilitado, mostrar la pantalla correspondiente (solo después de la afiliación)
+  if (isNodeDisabled && nodeInfo && currentPage !== "affiliation") {
     return (
       <ThemeProvider>
         <NodeDisabledScreen

@@ -65,7 +65,7 @@ export default function AffiliationStep({
                       value={companyId}
                       onChange={(e) => setCompanyId(e.target.value)}
                       placeholder="nombre-empresa-XXX"
-                      className="w-full px-4 py-3 bg-bg-primary border border-border-subtle rounded-lg focus:ring-1 focus:ring-accent focus:border-accent transition-all outline-none text-center font-mono text-sm tracking-[0.15em] shadow-inner placeholder:text-text-disabled uppercase"
+                      className="w-full px-4 py-3 bg-bg-primary border border-border-subtle rounded-lg focus:ring-1 focus:ring-accent focus:border-accent transition-all outline-none text-center font-mono text-sm tracking-[0.15em] shadow-inner placeholder:text-text-disabled"
                     />
                   </div>
                   

@@ -1,4 +1,4 @@
-Los presentes Terminos y Condiciones regulan el acceso y uso del software de control de asistencia (en adelante, "el Sistema"), desarrollado bajo una arquitectura de escritorio nativa con Electron. Al utilizar el Sistema, el Usuario y la Entidad contratante aceptan cumplir con las siguientes clausulas:
+﻿Los presentes Terminos y Condiciones regulan el acceso y uso del software de control de asistencia (en adelante, "el Sistema"), desarrollado bajo una arquitectura de escritorio nativa con Electron. Al utilizar el Sistema, el Usuario y la Entidad contratante aceptan cumplir con las siguientes clausulas:
 
 1. OBJETO Y ALCANCE DEL SISTEMA
 El Sistema es una herramienta integral diseñada para la gestion de jornada laboral. Utiliza una interfaz basada en un dashboard minimalista y logotipos oficiales para facilitar la interaccion del usuario. El software permite el registro de asistencia mediante metodos hibridos de biometria: reconocimiento facial y lectura de huella dactilar.

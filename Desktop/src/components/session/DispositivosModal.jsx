@@ -15,6 +15,9 @@ export default function DispositivosModal({ onClose, onBack, escritorioId, inlin
   const [showSaveMessage, setShowSaveMessage] = useState(false);
   const [showErrorMessage, setShowErrorMessage] = useState(false);
 
+  // IDs de dispositivos existentes en BD marcados para borrado diferido
+  const [pendingDeletes, setPendingDeletes] = useState([]);
+
   // Auto-detección de dispositivos
   const [isDetecting, setIsDetecting] = useState(false);
   const [detectionStatus, setDetectionStatus] = useState(null);
@@ -167,16 +170,34 @@ export default function DispositivosModal({ onClose, onBack, escritorioId, inlin
   };
 
   const removeDevice = (id) => {
-    setDevices(devices.filter((dev) => dev.id !== id));
+    const device = devices.find((dev) => dev.id === id);
+    if (device && !device.isNew) {
+      // Dispositivo existente en BD → marcar para borrado diferido
+      setPendingDeletes((prev) => [...prev, id]);
+    }
+    // Siempre quitar de la vista
+    setDevices((prev) => prev.filter((dev) => dev.id !== id));
   };
 
   const handleSave = async () => {
     try {
       setSaving(true);
       const token = getAuthToken();
+      const headers = {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      };
       const allDeviceIds = [];
 
-      // Guardar cambios en la BD
+      // 1. Borrado diferido: desactivar (es_activo=false) dispositivos marcados
+      for (const deletedId of pendingDeletes) {
+        await fetch(`${API_URL}/biometrico/${deletedId}`, {
+          method: "DELETE",
+          headers,
+        });
+      }
+
+      // 2. Guardar cambios en la BD
       for (const device of devices) {
         const payload = {
           nombre: device.nombre,
@@ -187,11 +208,6 @@ export default function DispositivosModal({ onClose, onBack, escritorioId, inlin
           estado: device.estado,
           es_activo: device.es_activo,
           escritorio_id: escritorioId,
-        };
-
-        const headers = {
-          "Content-Type": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
         };
 
         if (device.isNew) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { X, Smartphone, Plus, Trash2, Save, Loader2, AlertCircle, RefreshCw, Search, CheckCircle2, Usb } from "lucide-react";
+import { X, Smartphone, Plus, Trash2, Save, Loader2, AlertCircle, RefreshCw, Search, CheckCircle2, Usb, Camera } from "lucide-react";
 import { getApiEndpoint } from "../../config/apiEndPoint";
 import { deviceDetectionService } from "../../services/deviceDetectionService";
 import { useGlobalDeviceStatus } from "../../context/DeviceMonitoringContext";
@@ -378,106 +378,80 @@ export default function DispositivosModal({ onClose, onBack, escritorioId, inlin
                     return (
                       <div
                         key={device.id}
-                        className={`bg-bg-primary border-2 rounded-xl p-4 transition-all duration-200 ${device.isNew
-                          ? "border-emerald-300 bg-emerald-50/30 dark:border-emerald-700 dark:bg-emerald-900/10"
-                          : "border-border-subtle"
-                          }`}
+                        className={`group relative bg-bg-secondary/40 border rounded-lg p-5 transition-all duration-300 hover:shadow-md ${
+                          device.isNew ? "border-success/30 ring-1 ring-success/10" : "border-border-subtle"
+                        }`}
                       >
-                        {device.isNew && (
-                          <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs mb-2">
-                            <Usb className="w-3 h-3" />
-                            <span>Detectado automáticamente</span>
-                          </div>
-                        )}
-
-                        {/* Fila 1: Nombre, Estado, Eliminar */}
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <h4 className="font-bold text-text-primary text-sm flex items-center gap-2">
-                              <Smartphone className="w-4 h-4 text-[#1976D2] dark:text-[#42A5F5]" />
-                              {device.nombre || "Dispositivo"}
-                            </h4>
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1.5 ${getEstadoColor(realTimeEstado)}`}>
-                              {realTimeEstado === "conectado" && (
-                                <span className="relative flex h-2 w-2">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                        {/* Device Badge / Header */}
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-2">
+                            <div className={`p-2 rounded-lg ${realTimeEstado === 'conectado' ? 'bg-success/10 text-success' : 'bg-accent/5 text-accent'}`}>
+                               {device.tipo === 'facial' ? <Camera className="w-4 h-4" /> : <Usb className="w-4 h-4" />}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary block leading-none">
+                                  {device.isNew ? "Detectado automáticamente" : "Configuración Guardada"}
                                 </span>
-                              )}
-                              {realTimeEstado}
-                            </span>
+                                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-tighter flex items-center gap-1 ${getEstadoColor(realTimeEstado)}`}>
+                                  {realTimeEstado === "conectado" && (
+                                    <span className="relative flex h-1.5 w-1.5">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
+                                    </span>
+                                  )}
+                                  {realTimeEstado}
+                                </span>
+                              </div>
+                              <h4 className="font-semibold text-sm text-text-primary">{device.nombre || "Nuevo Dispositivo"}</h4>
+                            </div>
                           </div>
                           <button
                             onClick={() => removeDevice(device.id)}
-                            className="text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 p-1.5 rounded-lg transition-colors"
+                            className="p-1.5 text-text-tertiary hover:text-error transition-all rounded-md hover:bg-error/5"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
 
-                        {/* Fila 2: Nombre y Tipo */}
-                        <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-xs font-medium text-text-secondary mb-1">
-                              Nombre del Dispositivo
-                            </label>
+                            <label className="block text-[10px] font-bold text-text-tertiary uppercase mb-1.5 ml-1">Nombre</label>
                             <input
                               type="text"
                               value={device.nombre}
-                              onChange={(e) =>
-                                updateDevice(device.id, "nombre", e.target.value)
-                              }
-                              className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-[#1976D2] focus:border-transparent transition-all duration-200 text-text-primary placeholder:text-text-disabled"
-                              placeholder="Ej: Lector de Huella"
+                              onChange={(e) => updateDevice(device.id, "nombre", e.target.value)}
+                              placeholder="Ej. Cámara Sur"
+                              className="w-full px-3 py-2 bg-bg-primary border border-border-subtle rounded-lg text-xs focus:ring-1 focus:ring-accent outline-none transition-all shadow-inner text-text-primary"
                             />
                           </div>
-
                           <div>
-                            <label className="block text-xs font-medium text-text-secondary mb-1">
-                              Tipo
-                            </label>
-                            <select
-                              value={device.tipo}
-                              onChange={(e) =>
-                                updateDevice(device.id, "tipo", e.target.value)
-                              }
-                              className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm focus:ring-2 focus:ring-[#1976D2] focus:border-transparent transition-all duration-200 text-text-primary"
-                            >
-                              <option value="facial">Facial</option>
-                              <option value="dactilar">Dactilar</option>
-                            </select>
+                            <label className="block text-[10px] font-bold text-text-tertiary uppercase mb-1.5 ml-1">Tipo</label>
+                            <input
+                              type="text"
+                              readOnly
+                              value={device.tipo === "facial" ? "Reconocimiento Facial" : "Lector de Huella"}
+                              className="w-full px-3 py-2 bg-bg-primary/50 border border-border-subtle rounded-lg text-xs outline-none transition-all shadow-inner cursor-not-allowed text-text-tertiary"
+                            />
                           </div>
-                        </div>
-
-                        {/* Fila 3: Puerto e IP */}
-                        <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-xs font-medium text-text-secondary mb-1">
-                              Puerto
-                            </label>
+                            <label className="block text-[10px] font-bold text-text-tertiary uppercase mb-1.5 ml-1">Puerto / Conexión</label>
                             <input
                               type="text"
                               value={device.puerto}
-                              onChange={(e) =>
-                                updateDevice(device.id, "puerto", e.target.value)
-                              }
-                              className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#1976D2] focus:border-transparent transition-all duration-200 text-text-primary placeholder:text-text-disabled"
-                              placeholder="Ej: USB-001"
+                              onChange={(e) => updateDevice(device.id, "puerto", e.target.value)}
+                              placeholder="Ej. USB-001"
+                              className="w-full px-3 py-2 bg-bg-primary border border-border-subtle rounded-lg text-xs font-mono focus:ring-1 focus:ring-accent outline-none transition-all shadow-inner text-text-primary"
                             />
                           </div>
-
                           <div>
-                            <label className="block text-xs font-medium text-text-secondary mb-1">
-                              IP
-                            </label>
+                            <label className="block text-[10px] font-bold text-text-tertiary uppercase mb-1.5 ml-1">Dirección IP</label>
                             <input
                               type="text"
                               value={device.ip}
-                              onChange={(e) =>
-                                updateDevice(device.id, "ip", e.target.value)
-                              }
-                              className="w-full px-3 py-2.5 bg-bg-primary border border-border-subtle rounded-xl text-sm font-mono focus:ring-2 focus:ring-[#1976D2] focus:border-transparent transition-all duration-200 text-text-primary placeholder:text-text-disabled"
-                              placeholder="Ej: 192.168.1.100"
+                              onChange={(e) => updateDevice(device.id, "ip", e.target.value)}
+                              placeholder="192.168.1..."
+                              className="w-full px-3 py-2 bg-bg-primary border border-border-subtle rounded-lg text-xs font-mono focus:ring-1 focus:ring-accent outline-none transition-all shadow-inner text-text-primary"
                             />
                           </div>
                         </div>

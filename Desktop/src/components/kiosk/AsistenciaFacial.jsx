@@ -44,6 +44,7 @@ export default function AsistenciaFacial({
   const [proximityMessage, setProximityMessage] = useState(""); // Guía visual de proximidad
 
   const { isDatabaseConnected } = useConnectivity();
+  const isDatabaseConnectedRef = useRef(isDatabaseConnected);
 
   // Refs
   const countdownIntervalRef = useRef(null);
@@ -363,7 +364,8 @@ export default function AsistenciaFacial({
   useEffect(() => {
     onCloseRef.current = onClose;
     backgroundModeRef.current = backgroundMode;
-  }, [onClose, backgroundMode]);
+    isDatabaseConnectedRef.current = isDatabaseConnected;
+  }, [onClose, backgroundMode, isDatabaseConnected]);
 
   // Reset al montar
   useEffect(() => {
@@ -551,7 +553,7 @@ export default function AsistenciaFacial({
       // ── PASO 1: IDENTIFICAR AL EMPLEADO ──────────────────────────────────
       // Con conexión → API (identificación fresca).
       // Sin conexión → SQLite local en caché.
-      if (isDatabaseConnected) {
+      if (isDatabaseConnectedRef.current) {
         // ── Identificación ONLINE ──
         console.log("🔐 [OfflineFirst/Facial] Identificando via API...");
         const response = await identificarPorFacial(descriptorBase64);
@@ -606,7 +608,7 @@ export default function AsistenciaFacial({
       const syncResult = await guardarYSincronizarAsistencia({
         empleadoId,
         metodoRegistro: "FACIAL",
-        isDatabaseConnected,
+        isDatabaseConnected: isDatabaseConnectedRef.current,
       });
 
       const horaActual = new Date().toLocaleTimeString("es-MX", {

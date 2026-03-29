@@ -57,12 +57,14 @@ export default function AsistenciaHuella({
   const MAX_RECONNECT_ATTEMPTS = 5;
 
   const { isDatabaseConnected } = useConnectivity();
+  const isDatabaseConnectedRef = useRef(isDatabaseConnected);
 
   // Mantener las refs actualizadas
   useEffect(() => {
     onCloseRef.current = onClose;
     backgroundModeRef.current = backgroundMode;
-  }, [onClose]);
+    isDatabaseConnectedRef.current = isDatabaseConnected;
+  }, [onClose, backgroundMode, isDatabaseConnected]);
 
   // Notificar al padre cuando cambia el estado del lector
   useEffect(() => {
@@ -322,7 +324,7 @@ export default function AsistenciaHuella({
       // ── PASO 1: OBTENER DATOS DEL EMPLEADO ───────────────────────────────
       // La identificación ya fue hecha por el BiometricMiddleware (proceso local).
       // Solo necesitamos los datos del empleado para mostrar en el modal.
-      if (isDatabaseConnected) {
+      if (isDatabaseConnectedRef.current) {
         // ── Datos ONLINE ──
         try {
           const empleadoResponse = await fetchApi(`${API_CONFIG.ENDPOINTS.EMPLEADOS}/${empleadoId}`);
@@ -352,7 +354,7 @@ export default function AsistenciaHuella({
       const syncResult = await guardarYSincronizarAsistencia({
         empleadoId: empleadoIdNumerico,
         metodoRegistro: "HUELLA",
-        isDatabaseConnected,
+        isDatabaseConnected: isDatabaseConnectedRef.current,
       });
 
       const horaActual = new Date().toLocaleTimeString("es-MX", {

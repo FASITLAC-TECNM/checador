@@ -199,7 +199,7 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
                 );
 
                 if (response.success) {
-                  setSuccessMessage(`Descriptor facial registrado para empleado ${empleadoId}`);
+                  setSuccessMessage(`El rostro ha sido vinculado correctamente al sistema.`);
                   setStep("success");
                   setTimeout(() => {
                     handleClose();
@@ -267,240 +267,234 @@ export default function RegisterFaceModal({ onClose, empleadoId: propEmpleadoId 
   };
 
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center p-4 transition-opacity duration-300"
-      style={{
-        zIndex: 9999,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-        backdropFilter: 'blur(4px)',
-        opacity: isClosing ? 0 : 1
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          handleClose();
-        }
-      }}
-    >
-      <div
-        className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-2xl 2xl:max-w-4xl max-h-[90vh] overflow-y-auto w-full transition-all duration-300"
-        style={{
-          transform: isClosing ? 'scale(0.95)' : 'scale(1)',
-          opacity: isClosing ? 0 : 1
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="bg-gradient-to-r from-[#1976D2] to-[#001A70] px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-bold text-white">Registro Facial - Pruebas</h3>
-              <p className="text-xs text-blue-100 mt-0.5">Agregar descriptor a la base de datos</p>
-            </div>
+    <div className={`fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-[9999] p-4 transition-all duration-300 animate-backdrop ${isClosing ? 'opacity-0' : 'opacity-100'}`}>
+      <div className={`bg-bg-primary rounded-xl shadow-2xl max-w-md sm:max-w-lg w-full overflow-hidden border border-border-subtle transition-all duration-300 animate-zoom-in ${isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}>
+        <div className="p-6 sm:p-8">
+          {/* Header Minimalista (Estilo AsistenciaFacial) */}
+          <div className="text-center mb-6 relative">
             <button
               onClick={handleClose}
-              className="w-8 h-8 flex items-center justify-center text-white hover:bg-white/20 rounded-lg transition-colors"
+              className="absolute -top-2 -right-2 text-text-tertiary hover:text-text-primary hover:bg-bg-secondary rounded-md p-2 transition-all"
             >
               <X className="w-5 h-5" />
             </button>
+            <h2 className="text-2xl font-bold text-text-primary tracking-tight">Registro Facial</h2>
+            <p className="text-text-tertiary text-xs mt-1 opacity-80 uppercase tracking-widest font-medium">Configuración Biométrica</p>
           </div>
-        </div>
 
-        {/* Contenido */}
-        <div className="p-6">
-          {/* Paso 1: Ingresar ID */}
-          {step === "input" && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  ID del Empleado
-                </label>
-                <input
-                  type="text"
-                  value={empleadoId}
-                  onChange={(e) => setEmpleadoId(e.target.value.slice(0, 8))}
-                  placeholder="Ejemplo: EMP00001"
-                  maxLength={8}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#1976D2] uppercase"
-                  autoFocus
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
-                      handleStartCapture();
-                    }
-                  }}
-                />
-              </div>
-
-              {errorMessage && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
-                  <p className="text-sm text-red-700 dark:text-red-400">{errorMessage}</p>
+          {/* Contenido */}
+          <div className="space-y-4">
+            {/* Paso 1: Ingresar ID (Solo si no hay propEmpleadoId) */}
+            {step === "input" && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="bg-bg-secondary/40 border border-border-subtle rounded-xl p-5">
+                  <label className="block text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-2 ml-1">
+                    ID del Empleado
+                  </label>
+                  <input
+                    type="text"
+                    value={empleadoId}
+                    onChange={(e) => setEmpleadoId(e.target.value.slice(0, 8))}
+                    placeholder="Ejemplo: EMP001"
+                    maxLength={8}
+                    className="w-full px-4 py-3 rounded-lg border border-border-subtle bg-bg-primary text-text-primary focus:outline-none focus:ring-2 focus:ring-[#1976D2] uppercase font-bold tracking-wider transition-all"
+                    autoFocus
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleStartCapture();
+                      }
+                    }}
+                  />
+                  {errorMessage && (
+                    <p className="text-xs text-error mt-2 font-medium flex items-center gap-1.5">
+                      <XCircle className="w-3.5 h-3.5" />
+                      {errorMessage}
+                    </p>
+                  )}
                 </div>
-              )}
 
-              <button
-                onClick={handleStartCapture}
-                className="w-full bg-[#1976D2] hover:bg-[#1565C0] text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 mb-2"
-              >
-                <UserPlus className="w-5 h-5" />
-                Capturar Rostro
-              </button>
+                <button
+                  onClick={handleStartCapture}
+                  className="w-full bg-[#1976D2] hover:bg-[#1565C0] text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-[#1976D2]/20 flex items-center justify-center gap-3 active:scale-[0.98]"
+                >
+                  <UserPlus className="w-5 h-5 font-bold" />
+                  Capturar Rostro
+                </button>
 
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
-                <p className="text-xs text-yellow-700 dark:text-yellow-400">
-                  ⚠️ <strong>Nota:</strong> El descriptor facial se guardará en la tabla Credenciales, columna Facial (BYTEA).
-                  El ID del empleado es un código de máximo 8 caracteres.
-                </p>
+                <div className="bg-accent/5 border border-accent/20 rounded-xl p-4 flex gap-3">
+                  <div className="p-2 bg-accent/10 rounded-lg h-fit">
+                    <XCircle className="w-4 h-4 text-[#1976D2]" />
+                  </div>
+                  <p className="text-[10px] text-text-secondary leading-normal">
+                    <strong className="text-[#1976D2] uppercase">Protocolo:</strong> El descriptor facial generado será encriptado y guardado permanentemente para fines de autenticación administrativa y asistencia.
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Paso 2: Capturando */}
-          {step === "capturing" && (
-            <div className="space-y-4">
-              <div className="relative bg-black rounded-xl overflow-hidden w-full aspect-[4/3] min-h-[300px] 2xl:min-h-[500px]">
-                <video
-                  id="registerVideo"
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover min-h-[300px] 2xl:min-h-[500px]"
-                  style={{ transform: "scaleX(-1)" }}
-                />
+            {/* Paso 2: Capturando (Premium Camera UI) */}
+            {step === "capturing" && (
+              <div className="space-y-4 animate-in fade-in duration-500">
+                <div className="relative bg-black rounded-xl overflow-hidden w-full aspect-[4/3] ring-1 ring-border-subtle shadow-inner">
+                  <video
+                    id="registerVideo"
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                    style={{ transform: "scaleX(-1)" }}
+                  />
 
-                {/* Guias de captura - Ovalo facial con animaciones */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
-                    <defs>
-                      <mask id="regFaceMask">
-                        <rect width="400" height="300" fill="white" />
-                        <ellipse cx="200" cy="140" rx="80" ry="105" fill="black" />
-                      </mask>
-                      <filter id="regGlow">
-                        <feGaussianBlur stdDeviation="4" result="blur" />
-                        <feMerge>
-                          <feMergeNode in="blur" />
-                          <feMergeNode in="SourceGraphic" />
-                        </feMerge>
-                      </filter>
-                      <linearGradient id="regScanGradient" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="transparent" />
-                        <stop offset="30%" stopColor={faceDetected ? "rgba(25, 118, 210, 0.6)" : "rgba(255,255,255,0.3)"} />
-                        <stop offset="50%" stopColor={faceDetected ? "rgba(25, 118, 210, 0.9)" : "rgba(255,255,255,0.5)"} />
-                        <stop offset="70%" stopColor={faceDetected ? "rgba(25, 118, 210, 0.6)" : "rgba(255,255,255,0.3)"} />
-                        <stop offset="100%" stopColor="transparent" />
-                      </linearGradient>
-                    </defs>
-                    <rect width="400" height="300" fill="rgba(0,0,0,0.45)" mask="url(#regFaceMask)" />
-                    <ellipse
-                      cx="200" cy="140" rx="80" ry="105"
-                      fill="none"
-                      stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.6)"}
-                      strokeWidth={faceDetected ? "3" : "2"}
-                      strokeDasharray={faceDetected ? "none" : "8 4"}
-                      filter={faceDetected ? "url(#regGlow)" : "none"}
-                      style={{ transition: "all 0.4s ease" }}
-                    />
-                    {faceDetected && (
+                  {/* Mascara SVG Estilo AsistenciaFacial */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice">
+                      <defs>
+                        <mask id="registerMask">
+                          <rect width="400" height="300" fill="white" />
+                          <ellipse cx="200" cy="140" rx="80" ry="105" fill="black" />
+                        </mask>
+                        <filter id="registerGlow">
+                          <feGaussianBlur stdDeviation="4" result="blur" />
+                          <feMerge>
+                            <feMergeNode in="blur" />
+                            <feMergeNode in="SourceGraphic" />
+                          </feMerge>
+                        </filter>
+                        <linearGradient id="registerScanGradient" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="transparent" />
+                          <stop offset="30%" stopColor={faceDetected ? "rgba(25, 118, 210, 0.6)" : "rgba(255,255,255,0.3)"} />
+                          <stop offset="50%" stopColor={faceDetected ? "rgba(25, 118, 210, 0.9)" : "rgba(255,255,255,0.5)"} />
+                          <stop offset="70%" stopColor={faceDetected ? "rgba(25, 118, 210, 0.6)" : "rgba(255,255,255,0.3)"} />
+                          <stop offset="100%" stopColor="transparent" />
+                        </linearGradient>
+                      </defs>
+                      <rect width="400" height="300" fill="rgba(0,0,0,0.5)" mask="url(#registerMask)" />
                       <ellipse
-                        cx="200" cy="140" rx="84" ry="109"
+                        cx="200" cy="140" rx="80" ry="105"
                         fill="none"
-                        stroke="rgba(25, 118, 210, 0.25)"
-                        strokeWidth="6"
-                        style={{ animation: "regFacePulse 2s ease-in-out infinite" }}
+                        stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.4)"}
+                        strokeWidth={faceDetected ? "3" : "2"}
+                        strokeDasharray={faceDetected ? "none" : "8 4"}
+                        filter={faceDetected ? "url(#registerGlow)" : "none"}
+                        style={{ transition: "all 0.4s ease" }}
                       />
-                    )}
-                    {!faceDetected && (
-                      <line
-                        x1="120" y1="140" x2="280" y2="140"
-                        stroke="url(#regScanGradient)"
-                        strokeWidth="2"
-                        style={{ animation: "regScanLine 2.5s ease-in-out infinite" }}
-                      />
-                    )}
-                    <path d="M 135 55 L 135 40 L 155 40" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.7)"} strokeWidth="3" strokeLinecap="round" style={{ transition: "stroke 0.3s ease" }} />
-                    <path d="M 265 55 L 265 40 L 245 40" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.7)"} strokeWidth="3" strokeLinecap="round" style={{ transition: "stroke 0.3s ease" }} />
-                    <path d="M 135 245 L 135 260 L 155 260" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.7)"} strokeWidth="3" strokeLinecap="round" style={{ transition: "stroke 0.3s ease" }} />
-                    <path d="M 265 245 L 265 260 L 245 260" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.7)"} strokeWidth="3" strokeLinecap="round" style={{ transition: "stroke 0.3s ease" }} />
-                    <line x1="196" y1="135" x2="204" y2="135" stroke={faceDetected ? "rgba(25,118,210,0.4)" : "rgba(255,255,255,0.2)"} strokeWidth="1" />
-                    <line x1="200" y1="131" x2="200" y2="139" stroke={faceDetected ? "rgba(25,118,210,0.4)" : "rgba(255,255,255,0.2)"} strokeWidth="1" />
-                  </svg>
-                  <style>{`
-                    @keyframes regScanLine {
-                      0% { transform: translateY(-60px); opacity: 0; }
-                      15% { opacity: 1; }
-                      85% { opacity: 1; }
-                      100% { transform: translateY(60px); opacity: 0; }
-                    }
-                    @keyframes regFacePulse {
-                      0%, 100% { opacity: 0.3; }
-                      50% { opacity: 0.8; }
-                    }
-                  `}</style>
+                      {faceDetected && (
+                        <ellipse
+                          cx="200" cy="140" rx="84" ry="109"
+                          fill="none"
+                          stroke="#1976D2"
+                          strokeWidth="2"
+                          opacity="0.3"
+                          style={{ animation: "facePulse 2s ease-in-out infinite" }}
+                        />
+                      )}
+                      {!faceDetected && (
+                        <line
+                          x1="120" y1="140" x2="280" y2="140"
+                          stroke="url(#registerScanGradient)"
+                          strokeWidth="2"
+                          style={{ animation: "scanLine 2.5s ease-in-out infinite" }}
+                        />
+                      )}
+                      {/* Marcas de alineacion */}
+                      <path d="M 135 55 L 135 40 L 155 40" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.5)"} strokeWidth="3" strokeLinecap="round" />
+                      <path d="M 265 55 L 265 40 L 245 40" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.5)"} strokeWidth="3" strokeLinecap="round" />
+                      <path d="M 135 245 L 135 260 L 155 260" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.5)"} strokeWidth="3" strokeLinecap="round" />
+                      <path d="M 265 245 L 265 260 L 245 260" fill="none" stroke={faceDetected ? "#1976D2" : "rgba(255,255,255,0.5)"} strokeWidth="3" strokeLinecap="round" />
+                    </svg>
 
+                    <style>{`
+                      @keyframes scanLine {
+                        0% { transform: translateY(-70px); opacity: 0; }
+                        15% { opacity: 1; }
+                        85% { opacity: 1; }
+                        100% { transform: translateY(70px); opacity: 0; }
+                      }
+                      @keyframes facePulse {
+                        0%, 100% { opacity: 0.3; transform: scale(1); }
+                        50% { opacity: 0.6; transform: scale(1.02); }
+                      }
+                    `}</style>
+                  </div>
+                </div>
+
+                <div className="bg-bg-secondary/40 border border-border-subtle rounded-xl p-4 text-center">
+                  <p className={`text-sm font-semibold transition-colors duration-300 ${
+                    proximityMessage.includes("Posición perfecta")
+                      ? "text-success font-bold"
+                      : "text-text-primary"
+                  }`}>
+                    {!modelsLoaded && "Iniciando captura..."}
+                    {modelsLoaded && (proximityMessage || "Coloca tu rostro frente a la cámara")}
+                  </p>
+                  
+                  {modelsLoaded && (
+                    <div className="flex items-center justify-center gap-2 mt-2">
+                       <div className={`w-2 h-2 rounded-full ${faceDetected ? 'bg-[#1976D2] animate-pulse' : 'bg-text-disabled'}`} />
+                       <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">
+                         {faceDetected ? "Rostro Detectado" : "Buscando Rostro..."}
+                       </span>
+                    </div>
+                  )}
+
+                  {!modelsLoaded && (
+                    <div className="flex items-center justify-center gap-2 mt-2">
+                       <div className="w-4 h-4 border-2 border-[#1976D2] border-t-transparent rounded-full animate-spin" />
+                       <span className="text-[10px] font-bold text-text-tertiary">Detectando modelos...</span>
+                    </div>
+                  )}
                 </div>
               </div>
+            )}
 
-              <div className="space-y-2">
-                <p className={`text-center text-sm font-medium ${proximityMessage === "¡Posición perfecta! Registrando..." ? "text-green-600 dark:text-green-400" : proximityMessage ? "text-[#1976D2] dark:text-[#42A5F5]" : "text-gray-700 dark:text-gray-300"}`}>
-                  {!modelsLoaded && "Cargando modelos de reconocimiento..."}
-                  {modelsLoaded && (proximityMessage || "Coloca tu rostro frente a la cámara y mantén la posición...")}
-                </p>
-
-                {modelsLoaded && (
-                  <div className="flex items-center justify-center gap-4 text-sm">
-                    <div className={`flex items-center gap-1.5 ${faceDetected ? 'text-[#1976D2] dark:text-[#42A5F5]' : 'text-gray-500 dark:text-gray-400'}`}>
-                      <div className={`w-2.5 h-2.5 rounded-full ${faceDetected ? 'bg-[#1976D2] animate-pulse' : 'bg-gray-400'}`} />
-                      <span className="font-medium">Rostro detectado</span>
-                    </div>
-                  </div>
-                )}
-
-                {!modelsLoaded && (
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-[#1976D2] border-t-transparent"></div>
-                    <span className="text-gray-600 dark:text-gray-400 text-xs">Cargando modelos...</span>
-                  </div>
-                )}
-
-                {detectionError && (
-                  <p className="text-center text-red-500 dark:text-red-400 text-xs font-medium">{detectionError}</p>
-                )}
+            {/* Paso 3: Éxito (Estilo Premium) */}
+            {step === "success" && (
+              <div className="text-center py-8 animate-in fade-in zoom-in duration-300">
+                <div className="w-20 h-20 mx-auto mb-6 bg-success/10 rounded-full flex items-center justify-center ring-4 ring-success/5">
+                  <CheckCircle className="w-12 h-12 text-success" strokeWidth={2.5} />
+                </div>
+                <h4 className="text-2xl font-bold text-text-primary mb-6">
+                  ¡Registro Exitoso!
+                </h4>
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-bg-secondary rounded-full border border-border-subtle">
+                  <div className="w-2 h-2 bg-success rounded-full animate-pulse" />
+                  <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">Cerrando automáticamente</span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Paso 3: Éxito */}
-          {step === "success" && (
-            <div className="text-center py-8">
-              <div className="w-20 h-20 mx-auto mb-4 bg-green-500 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-12 h-12 text-white" strokeWidth={2.5} />
+            {/* Paso 4: Error (Estilo Premium) */}
+            {step === "error" && (
+              <div className="text-center py-8 animate-in fade-in zoom-in duration-300">
+                <div className="w-20 h-20 mx-auto mb-6 bg-error/10 rounded-full flex items-center justify-center ring-4 ring-error/5">
+                  <XCircle className="w-12 h-12 text-error" strokeWidth={2.5} />
+                </div>
+                <h4 className="text-2xl font-bold text-text-primary mb-2">Error de Registro</h4>
+                <p className="text-text-secondary text-sm mb-8 max-w-[280px] mx-auto">{errorMessage}</p>
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => {
+                      setStep(propEmpleadoId ? "capturing" : "input");
+                      setErrorMessage("");
+                      releaseCamera();
+                      if (propEmpleadoId) {
+                        setTimeout(() => handleStartCapture(), 100);
+                      }
+                    }}
+                    className="w-full bg-[#1976D2] hover:bg-[#1565C0] text-white font-bold py-3 rounded-xl transition-all shadow-md active:scale-95"
+                  >
+                    Intentar de Nuevo
+                  </button>
+                  <button
+                    onClick={handleClose}
+                    className="w-full text-text-tertiary font-bold text-sm hover:text-text-primary transition-colors h-10"
+                  >
+                    Cancelar y Salir
+                  </button>
+                </div>
               </div>
-              <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                ¡Registro Exitoso!
-              </h4>
-              <p className="text-gray-600 dark:text-gray-400">{successMessage}</p>
-            </div>
-          )}
-
-          {/* Paso 4: Error */}
-          {step === "error" && (
-            <div className="text-center py-8">
-              <div className="w-20 h-20 mx-auto mb-4 bg-red-500 rounded-full flex items-center justify-center">
-                <XCircle className="w-12 h-12 text-white" strokeWidth={2.5} />
-              </div>
-              <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Error</h4>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">{errorMessage}</p>
-              <button
-                onClick={() => {
-                  setStep("input");
-                  setErrorMessage("");
-                  releaseCamera();
-                }}
-                className="bg-[#1976D2] hover:bg-[#1565C0] text-white font-semibold py-2 px-6 rounded-lg transition-colors"
-              >
-                Intentar de Nuevo
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>

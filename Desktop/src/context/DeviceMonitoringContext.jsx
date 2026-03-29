@@ -160,24 +160,8 @@ export const DeviceMonitoringProvider = ({ children }) => {
                                 ...dbDevice,
                                 estado: 'conectado'
                             }));
-                        } else {
-                            const dactilares = biometricos.filter(b => b.type === 'dactilar' && b.detected);
-                            if (dactilares.length > 0) {
-                                const camerasFromState = nextDevicesState.filter(d => d.tipo === 'facial');
-                                finalDevicesState = [
-                                    ...camerasFromState,
-                                    ...dactilares.map((b, idx) => ({
-                                        id: b.id || `local-dactilar-${idx}`,
-                                        nombre: b.name || 'Lector de Huella',
-                                        device_id: b.instanceId || b.deviceId || null,
-                                        tipo: 'dactilar',
-                                        estado: 'conectado',
-                                        es_activo: true,
-                                    }))
-                                ];
-                            } else if (registeredDevices.length === 0) {
-                                finalDevicesState = [];
-                            }
+                        } else if (registeredDevices.length === 0) {
+                            finalDevicesState = [];
                         }
                     } catch (e) {
                         console.error("[DeviceMonitor] Error sincronizando estado con el backend:", e);

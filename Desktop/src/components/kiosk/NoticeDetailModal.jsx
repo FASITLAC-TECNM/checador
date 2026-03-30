@@ -42,7 +42,7 @@ export default function NoticeDetailModal({ notice, onClose }) {
 
           {/* Body/Detail section */}
           <div className="bg-bg-secondary/40 rounded-2xl p-8 border border-border-subtle/50 mb-8">
-            <p className="text-text-primary leading-relaxed whitespace-pre-wrap text-lg opacity-90">
+            <p className="text-text-primary leading-relaxed whitespace-pre-wrap text-lg opacity-90 text-justify">
               {notice.detail}
             </p>
           </div>

@@ -330,16 +330,28 @@ export default function AsistenciaFacial({
                       advanceToCapture();
                     } else {
                       console.log("❌ Posible video detectado (Flash no reflejado en rostro)");
-                      setProximityMessage("Verificación anti-spoofing fallida. Rostro no iluminado.");
+                      setProximityMessage("Reflejo no detectado. Reiniciando prueba...");
+                      
+                      // Para evitar parpadeo infinito, reiniciamos el reto por completo
+                      currentChallengeRef.current = null;
+                      setChallengePoint(null);
                       framesHeldRef.current = 0;
-                      processingFlashRef.current = false;
+                      startNoseRef.current = null;
+                      
+                      // Cooldown antes de permitir que comience de nuevo y parpadee
+                      setTimeout(() => {
+                        processingFlashRef.current = false;
+                        setProximityMessage("");
+                      }, 2000);
                     }
-                  }, 150);
+                  }, 400); // 400ms para la animación de "tenue a fuerte"
                 }
               }
             } else {
-              framesHeldRef.current = 0;
-              setProximityMessage("Movimiento irreal. Gire el cuello, no la cámara.");
+              if (!processingFlashRef.current) {
+                framesHeldRef.current = 0;
+                setProximityMessage("Movimiento irreal. Gire el cuello, no la cámara.");
+              }
             }
           } else {
             framesHeldRef.current = 0;
@@ -1050,7 +1062,7 @@ export default function AsistenciaFacial({
 
   return (
     <div className={`fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all duration-300 animate-backdrop ${isClosing ? 'opacity-0' : 'opacity-100'}`}>
-      {flashActive && <div className="fixed inset-0 bg-white z-[9999] pointer-events-none transition-none"></div>}
+      {flashActive && <div className="fixed inset-0 bg-white z-[9999] pointer-events-none" style={{ animation: "flashFadeIn 400ms ease-out forwards" }}></div>}
       <div className={`bg-bg-primary rounded-lg shadow-2xl max-w-md sm:max-w-lg w-full overflow-hidden border border-border-subtle transition-all duration-300 animate-zoom-in ${isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}>
         <div className="p-6 sm:p-8">
           {/* Header Minimalista */}
@@ -1164,6 +1176,10 @@ export default function AsistenciaFacial({
                       @keyframes facePulse {
                         0%, 100% { opacity: 0.3; transform: scale(1); }
                         50% { opacity: 0.6; transform: scale(1.02); }
+                      }
+                      @keyframes flashFadeIn {
+                        from { opacity: 0.1; }
+                        to { opacity: 1; }
                       }
                     `}</style>
 

@@ -345,10 +345,12 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           if (data.motivo) setMensajeEspera(data.motivo);
 
           let finalEstadoHorario = data.estadoHorario;
-          let isCompleto = data.estadoHorario === 'bloque_completo';
+          if (finalEstadoHorario === 'bloque_completo') {
+            finalEstadoHorario = 'activo';
+          }
 
           if (finalEstadoHorario) setEstadoHorario(finalEstadoHorario);
-          setJornadaCompletada(isCompleto);
+          setJornadaCompletada(false);
 
           setUsandoEstadoBackend(true);
           return true;
@@ -523,12 +525,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       setPuedeRegistrar(true);
       setTipoSiguienteRegistro('entrada');
-      // Si hay más turnos, lo ponemos en 'activo' (verde) para que pueda checar el siguiente
       setEstadoHorario(tieneMasBloques ? 'activo' : 'falta_previa');
-      setJornadaCompletada(!tieneMasBloques);
+      setJornadaCompletada(false);
       setMensajeEspera(tieneMasBloques
         ? 'Tu entrada anterior fue marcada como falta. Ya puedes registrar la entrada de tu siguiente turno.'
-        : 'Tu entrada fue registrada como falta. No es necesario registrar salida.');
+        : 'Tu entrada fue registrada como falta. Puedes registrar un nuevo turno extra si lo requieres.');
       return;
     }
 
@@ -542,19 +543,13 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const numSalidas = salidasEnLista.length;
       const numBloques = horarioInfo?.bloques?.length || 0;
 
-      // ── 1. JORNADA COMPLETA: sin más bloques en el horario actual ──
-      // Se bloquea INMEDIATAMENTE sin espera de 1 minuto.
-      if (numSalidas >= numBloques) {
-        setPuedeRegistrar(false);
-        setTipoSiguienteRegistro('entrada');
-        setEstadoHorario('bloque_completo');
-        setJornadaCompletada(true);
-        setMensajeEspera('Jornada completa. No es necesario registrar más asistencias por hoy.');
-        return;
-      } else {
-        // Aseguramos forzosamente resetear estado
-        setJornadaCompletada(false);
+      // ── 1. JORNADA COMPLETA: permitir turnos/horas extra ──
+      // Nunca bloqueamos la UI ni le avisamos que acabó su turno, permitimos siempre
+      // la posibilidad de registrar un nuevo turno (hora extra) según instrucción.
+      if (estadoHorario === 'bloque_completo') {
+        setEstadoHorario('activo');
       }
+      setJornadaCompletada(false);
 
       // ── 2. HAY MÁS BLOQUES: espera obligatoria de 1 minuto post-salida ──
       // Evita que el botón se reactive inmediatamente entre turnos.
@@ -1345,28 +1340,26 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       let networkIp = null;
       let networkWifi = null;
-      if (isOnline) {
-        try {
-          const netState = await Network.getNetworkStateAsync();
+      try {
+        const netState = await Network.getNetworkStateAsync();
 
-          // Intentar primero con NetInfo (más confiable nativamente para IPs locales en Wi-Fi)
-          const netInfoObj = await NetInfo.fetch();
-          networkIp = netInfoObj.details?.ipAddress || null;
+        // Intentar primero con NetInfo (más confiable nativamente para IPs locales en Wi-Fi)
+        const netInfoObj = await NetInfo.fetch();
+        networkIp = netInfoObj.details?.ipAddress || null;
 
-          // Fallback a expo-network si NetInfo no la trajo
-          if (!networkIp) {
-            networkIp = await Promise.race([
-              Network.getIpAddressAsync(),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000))
-            ]);
-          }
-
-          if (netState.type === Network.NetworkStateType.WIFI) {
-            networkWifi = { tipo: netState.type, isConnected: netState.isConnected };
-          }
-        } catch (netErr) {
-          (function () { })('No se pudo obtener la IP local:', netErr);
+        // Fallback a expo-network si NetInfo no la trajo
+        if (!networkIp) {
+          networkIp = await Promise.race([
+            Network.getIpAddressAsync(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000))
+          ]);
         }
+
+        if (netState.type === Network.NetworkStateType.WIFI) {
+          networkWifi = { tipo: netState.type, isConnected: netState.isConnected };
+        }
+      } catch (netErr) {
+        (function () { })('No se pudo obtener la IP local:', netErr);
       }
 
       const payload = {
@@ -1466,8 +1459,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
           metodo_registro: datosRegistroRef.current.metodo || 'PIN',
           fecha_registro: getTrustedDate().toISOString(),
           ubicacion: payload.ubicacion || [ubicacionFinal.lat, ubicacionFinal.lng],
-          ip: null,
-          wifi: null,
+          ip: networkIp || null,
+          wifi: networkWifi || null,
           payload_biometrico: datosRegistroRef.current.payloadBiometrico
         });
 

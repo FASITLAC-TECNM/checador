@@ -20,6 +20,38 @@ import { agregarEvento } from "../../services/bitacoraService";
 import * as faceapi from 'face-api.js';
 import { useConnectivity } from "../../hooks/useConnectivity";
 
+const getFaceLuminance = (videoElement, faceBox) => {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  
+  canvas.width = faceBox.width;
+  canvas.height = faceBox.height;
+  
+  context.drawImage(
+    videoElement, 
+    faceBox.x, faceBox.y, faceBox.width, faceBox.height, 
+    0, 0, faceBox.width, faceBox.height 
+  );
+  
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height).data;
+  
+  let totalLuminance = 0;
+  const totalPixels = imageData.length / 4;
+
+  for (let i = 0; i < imageData.length; i += 4) {
+    const r = imageData[i];
+    const g = imageData[i + 1];
+    const b = imageData[i + 2];
+    
+    // Aplicar la fórmula de luminancia a cada pixel
+    const pixelLuminance = (0.299 * r) + (0.587 * g) + (0.114 * b);
+    totalLuminance += pixelLuminance;
+  }
+
+  // Devolver el brillo promedio del rostro (será un valor entre 0 y 255)
+  return totalLuminance / totalPixels;
+};
+
 export default function AsistenciaFacial({
   isOpen = false,
   onClose,
@@ -42,6 +74,7 @@ export default function AsistenciaFacial({
   const [challengePoint, setChallengePoint] = useState(null); // {x, y, angle}
   const [challengeDone, setChallengeDone] = useState(false);
   const [proximityMessage, setProximityMessage] = useState(""); // Guía visual de proximidad
+  const [flashActive, setFlashActive] = useState(false); // <--- Add this
 
   const { isDatabaseConnected } = useConnectivity();
   const isDatabaseConnectedRef = useRef(isDatabaseConnected);
@@ -63,6 +96,7 @@ export default function AsistenciaFacial({
   const smoothedPoseRef = useRef(null); // Guardar la posición suavizada actual (filtro EMA)
   const currentChallengeRef = useRef(null); // Referencia al challenge actual para el closure de setInterval
   const framesHeldRef = useRef(0); // Para requerir múltiples fotogramas sostenidos
+  const processingFlashRef = useRef(false); // Impide múltiple disparo de flash
 
   // Hook de camara singleton
   const { initCamera, releaseCamera } = useCamera();
@@ -112,6 +146,8 @@ export default function AsistenciaFacial({
     framesHeldRef.current = 0;
     setChallengePoint(null);
     setChallengeDone(false);
+    setFlashActive(false);
+    processingFlashRef.current = false;
 
     const advanceToCapture = () => {
       stopLiveness();
@@ -122,7 +158,7 @@ export default function AsistenciaFacial({
     };
 
     livenessIntervalRef.current = setInterval(async () => {
-      if (!video || video.paused || video.ended) return;
+      if (!video || video.paused || video.ended || processingFlashRef.current) return;
       try {
         const detections = await faceapi
           .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 }))
@@ -273,10 +309,33 @@ export default function AsistenciaFacial({
             if (isTrue3D) {
               framesHeldRef.current += 1;
               if (framesHeldRef.current >= 3) {
-                console.log("✅ Rotación 3D intencional correcta hacia el punto detectado");
-                challengeDoneRef.current = true;
-                setChallengeDone(true);
-                advanceToCapture();
+                if (!processingFlashRef.current) {
+                  processingFlashRef.current = true;
+                  // Tomar luminancia pre-flash
+                  const baseLuminance = getFaceLuminance(video, detections.detection.box);
+                  setFlashActive(true);
+                  
+                  setTimeout(() => {
+                    // Tomar luminancia mid-flash
+                    const midLuminance = getFaceLuminance(video, detections.detection.box);
+                    setFlashActive(false);
+                    
+                    const diff = midLuminance - baseLuminance;
+                    console.log(`[Flash Liveness] Base: ${baseLuminance.toFixed(2)}, Mid: ${midLuminance.toFixed(2)}, Diff: ${diff.toFixed(2)}`);
+                    
+                    if (diff > 2.0) { // Umbral de aumento de luz
+                      console.log("✅ Rotación 3D intencional y Flash Liveness correctos");
+                      challengeDoneRef.current = true;
+                      setChallengeDone(true);
+                      advanceToCapture();
+                    } else {
+                      console.log("❌ Posible video detectado (Flash no reflejado en rostro)");
+                      setProximityMessage("Verificación anti-spoofing fallida. Rostro no iluminado.");
+                      framesHeldRef.current = 0;
+                      processingFlashRef.current = false;
+                    }
+                  }, 150);
+                }
               }
             } else {
               framesHeldRef.current = 0;
@@ -991,6 +1050,7 @@ export default function AsistenciaFacial({
 
   return (
     <div className={`fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50 p-4 transition-all duration-300 animate-backdrop ${isClosing ? 'opacity-0' : 'opacity-100'}`}>
+      {flashActive && <div className="fixed inset-0 bg-white z-[9999] pointer-events-none transition-none"></div>}
       <div className={`bg-bg-primary rounded-lg shadow-2xl max-w-md sm:max-w-lg w-full overflow-hidden border border-border-subtle transition-all duration-300 animate-zoom-in ${isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}>
         <div className="p-6 sm:p-8">
           {/* Header Minimalista */}

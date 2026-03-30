@@ -107,11 +107,17 @@ export default function NodeConfigStep({
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-[11px] font-bold text-text-tertiary uppercase mb-1.5 ml-1">
-                      Nombre del Nodo *
-                    </label>
+                    <div className="flex justify-between items-end mb-1.5 px-1">
+                      <label className="block text-[11px] font-bold text-text-tertiary uppercase">
+                        Nombre del Nodo *
+                      </label>
+                      <span className="text-[10px] text-text-tertiary font-mono">
+                        {nodeConfig.nodeName?.length || 0}/55
+                      </span>
+                    </div>
                     <input
                       type="text"
+                      maxLength={55}
                       value={nodeConfig.nodeName}
                       onChange={(e) => setNodeConfig({ ...nodeConfig, nodeName: e.target.value })}
                       placeholder="Ej. Recepción Principal, Edificio A"
@@ -120,10 +126,16 @@ export default function NodeConfigStep({
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-text-tertiary uppercase mb-1.5 ml-1">
-                      Descripción *
-                    </label>
+                    <div className="flex justify-between items-end mb-1.5 px-1">
+                      <label className="block text-[11px] font-bold text-text-tertiary uppercase">
+                        Descripción *
+                      </label>
+                      <span className="text-[10px] text-text-tertiary font-mono">
+                        {nodeConfig.description?.length || 0}/255
+                      </span>
+                    </div>
                     <textarea
+                      maxLength={255}
                       value={nodeConfig.description}
                       onChange={(e) => setNodeConfig({ ...nodeConfig, description: e.target.value })}
                       placeholder="Detalles sobre la ubicación o uso de esta terminal"

@@ -103,6 +103,26 @@ async function pushBatch(records) {
     (function () { })('[DEBUG PUSH] Error getting fallback empresa_id', err);
   }
 
+  // ========== NUEVO: Capturar red en el momento del sync (online) ============
+  let currentIp = null;
+  let currentWifi = null;
+  try {
+    const netState = await Network.getNetworkStateAsync();
+    const netInfoObj = await NetInfo.fetch();
+    currentIp = netInfoObj.details?.ipAddress || null;
+
+    if (!currentIp) {
+      currentIp = await Network.getIpAddressAsync();
+    }
+
+    if (netState.type === Network.NetworkStateType.WIFI) {
+      currentWifi = { tipo: netState.type, isConnected: netState.isConnected };
+    }
+  } catch (err) {
+    (function () { })('[DEBUG PUSH] Error getting current IP at sync time', err);
+  }
+  // ===========================================================================
+
   const registros = records.map((record) => {
 
     let ubicacion = null;
@@ -128,6 +148,10 @@ async function pushBatch(records) {
       }
     }
 
+    // Usar la IP del momento de la sincronicación en línea si está disponible
+    const finalIp = currentIp || record.ip || null;
+    const finalWifi = currentWifi || wifi || null;
+
     return {
       id: record.idempotency_key || record.local_id.toString(),
       empleado_id: record.empleado_id,
@@ -139,8 +163,8 @@ async function pushBatch(records) {
       metodo_registro: record.metodo_registro,
       dispositivo_origen: record.dispositivo_origen || 'movil',
       ubicacion,
-      ip: record.ip || null,
-      wifi: wifi,
+      ip: finalIp,
+      wifi: finalWifi,
       fecha_registro: new Date(record.fecha_registro).getTime(),
       fecha_captura: new Date(record.fecha_registro).toISOString(),
       imagen_base64: record.payload_biometrico ? JSON.parse(record.payload_biometrico) : null
@@ -158,10 +182,12 @@ async function pushBatch(records) {
       headers['Authorization'] = `Bearer ${authToken}`;
     }
 
+    const payloadBody = JSON.stringify({ registros });
+
     const response = await fetch(`${apiBaseUrl}/movil/sync/asistencias`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ registros }),
+      body: payloadBody,
       signal: controller.signal
     });
 

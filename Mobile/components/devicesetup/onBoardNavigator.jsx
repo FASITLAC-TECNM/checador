@@ -9,6 +9,7 @@ import { PendingApprovalScreen } from './PendingApprovalScreen';
 import { ApprovedScreen } from './ApprovedScreen';
 import { RejectedScreen } from './RejectedScreen';
 import { getSolicitudPorToken } from '../../services/solicitudMovilService';
+import { getEmpresaPublicaById } from '../../services/empresaService';
 
 const STORAGE_KEYS = {
   DEVICE_ID: '@device_id',
@@ -29,6 +30,7 @@ export const OnboardingNavigator = ({ onComplete, userData, onLogout }) => {
     email: userData?.correo || '',
     empresaId: userData?.empleadoInfo?.empresa_id || '',
     empresaNombre: userData?.empleadoInfo?.empresa_nombre || '',
+    empresaIdentificador: userData?.empleadoInfo?.empresa_identificador || '',
     nombreUsuario: userData?.nombre || '',
     empleadoId: userData?.empleado_id || null,
     deviceInfo: {},
@@ -99,6 +101,21 @@ export const OnboardingNavigator = ({ onComplete, userData, onLogout }) => {
         }
       }
 
+      // Si el usuario tiene empresa_id, obtener el identificador slug desde el endpoint público
+      const empresaId = userData?.empleadoInfo?.empresa_id || userData?.empresa_id;
+      if (empresaId) {
+        try {
+          const publicData = await getEmpresaPublicaById(empresaId);
+          if (publicData?.success && publicData?.data?.identificador) {
+            setOnboardingData((prev) => ({
+              ...prev,
+              empresaIdentificador: publicData.data.identificador
+            }));
+          }
+        } catch (_) {
+          // Si falla, simplemente no pre-llena el campo, sin bloquear el flujo
+        }
+      }
 
       setIsLoading(false);
 
@@ -229,7 +246,8 @@ export const OnboardingNavigator = ({ onComplete, userData, onLogout }) => {
         <CompanyAffiliationScreen
           onNext={handleNext}
           onPrevious={() => setCurrentStep(0)}
-          initialEmpresaId={onboardingData.empresaId} />
+          initialEmpresaId={onboardingData.empresaId}
+          initialEmpresaIdentificador={onboardingData.empresaIdentificador} />
 
         }
 

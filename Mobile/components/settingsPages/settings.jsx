@@ -149,9 +149,9 @@ export const SettingsScreen = ({
                 </View>
               </View>
 
-              <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>{userData.nombre}</Text>
-                <Text style={styles.profileEmail}>{emailMostrar}</Text>
+              <View style={[styles.profileInfo, { width: '100%', paddingHorizontal: 20, overflow: 'hidden' }]}>
+                <Text style={[styles.profileName, { textAlign: 'center', width: '100%' }]} numberOfLines={1} ellipsizeMode="tail">{userData.nombre}</Text>
+                <Text style={[styles.profileEmail, { textAlign: 'center', width: '100%' }]} numberOfLines={1} ellipsizeMode="tail">{emailMostrar}</Text>
 
                 <View style={styles.badgesContainer}>
                   <View style={[

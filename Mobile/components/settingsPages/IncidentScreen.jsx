@@ -273,14 +273,16 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
       grupos[key].data.push(incidencia);
     });
 
+    const esRangoSeleccionado = rangoInicio && rangoFin;
+
     return Object.values(grupos)
-      .sort((a, b) => b.fecha - a.fecha)
+      .sort((a, b) => esRangoSeleccionado ? (a.fecha - b.fecha) : (b.fecha - a.fecha))
       .map((g) => ({
         title: g.key,
         fecha: g.fecha,
-        data: g.data
+        data: esRangoSeleccionado ? [...g.data].sort((a, b) => new Date(a.fecha_inicio) - new Date(b.fecha_inicio)) : g.data
       }));
-  }, [incidenciasFiltradas]);
+  }, [incidenciasFiltradas, rangoInicio, rangoFin]);
 
   const cambiarMes = useCallback((direccion) => {
     const nuevoMes = new Date(currentMonth);
@@ -584,7 +586,7 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
             <Text style={styles.filtroChipText}>{filtrosEstado.find((f) => f.value === filtroEstado)?.label || 'Todos'}</Text>
             <View style={styles.filtroChipBadge}>
               <Text style={styles.filtroChipBadgeText}>
-                {filtroEstado === 'todos' ? incidencias.length : incidencias.filter((i) => i.estado === filtroEstado).length}
+                {incidenciasFiltradas.length}
               </Text>
             </View>
           </TouchableOpacity>
@@ -594,7 +596,7 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
             <Text style={styles.filtroChipText}>{filtroTipo === 'todos' ? 'Tipo' : filtrosTipo.find((f) => f.value === filtroTipo)?.label}</Text>
             <View style={[styles.filtroChipBadge, { backgroundColor: `${getTipoColor(filtroTipo)}20` }]}>
               <Text style={[styles.filtroChipBadgeText, { color: getTipoColor(filtroTipo) }]}>
-                {filtroTipo === 'todos' ? incidencias.length : incidencias.filter((i) => i.tipo === filtroTipo).length}
+                {incidenciasFiltradas.length}
               </Text>
             </View>
           </TouchableOpacity>
@@ -771,8 +773,8 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
                 <View style={styles.modalListItemBadge}>
                   <Text style={styles.modalListItemBadgeText}>
                     {filtro.value === 'todos' ?
-                      incidencias.length :
-                      incidencias.filter((i) => i.tipo === filtro.value).length
+                      incidencias.filter(i => filtroEstado === 'todos' || i.estado?.toLowerCase() === filtroEstado).length :
+                      incidencias.filter((i) => i.tipo === filtro.value && (filtroEstado === 'todos' || i.estado?.toLowerCase() === filtroEstado)).length
                     }
                   </Text>
                 </View>
@@ -838,8 +840,8 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
                 <View style={styles.modalListItemBadge}>
                   <Text style={styles.modalListItemBadgeText}>
                     {filtro.value === 'todos' ?
-                      incidencias.length :
-                      incidencias.filter((i) => i.estado === filtro.value).length
+                      incidencias.filter(i => filtroTipo === 'todos' || i.tipo === filtroTipo).length :
+                      incidencias.filter((i) => (i.estado?.toLowerCase() || 'pendiente') === filtro.value && (filtroTipo === 'todos' || i.tipo === filtroTipo)).length
                     }
                   </Text>
                 </View>

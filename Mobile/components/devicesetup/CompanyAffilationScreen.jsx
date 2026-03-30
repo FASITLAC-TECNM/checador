@@ -26,13 +26,14 @@ const AFFILIATION_CONFIG = {
   supportText: "Contacta a tu administrador"
 };
 
-export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
+export const CompanyAffiliationScreen = ({ onNext, onPrevious, initialEmpresaIdentificador }) => {
   const insets = useSafeAreaInsets();
   const affiliation = AFFILIATION_CONFIG;
-  const [companyCode, setCompanyCode] = useState('');
+  const [companyCode, setCompanyCode] = useState(initialEmpresaIdentificador || '');
   const [isLoading, setIsLoading] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [verifiedCompanyName, setVerifiedCompanyName] = useState('');
+  const isPreFilled = !!(initialEmpresaIdentificador && companyCode === initialEmpresaIdentificador);
 
   const handleNext = async () => {
     const trimmedCode = companyCode.trim();
@@ -160,6 +161,7 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
             <View style={styles.inputCard}>
               <Text style={styles.inputLabel}>Identificador de la Empresa</Text>
               <Text style={styles.formatHint}>Ingresa el código único proporcionado por tu empresa.</Text>
+
               <TextInput
                 style={[styles.input, isVerified && styles.inputVerified]}
                 placeholder="Identificador"
@@ -170,7 +172,7 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious }) => {
                   setIsVerified(false);
                 }}
                 autoCapitalize="none"
-                editable={!isLoading && !isVerified} />
+                editable={!isLoading && !isVerified && !initialEmpresaIdentificador} />
               
               {isVerified &&
               <View style={styles.verifiedContainer}>
@@ -451,5 +453,23 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: 'bold'
+  },
+  autoFilledBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#eff6ff',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    gap: 6
+  },
+  autoFilledText: {
+    fontSize: 11,
+    color: '#1d4ed8',
+    fontWeight: '600',
+    flexShrink: 1
   }
 });

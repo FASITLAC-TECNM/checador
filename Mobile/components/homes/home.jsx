@@ -128,7 +128,7 @@ export const HomeScreen = ({ userData, darkMode, onOpenAvisos }) => {
       <View style={styles.headerWrapper}>
         <View style={styles.header}>
           <View style={styles.headerTop}>
-            <View style={styles.headerLeft}>
+            <View style={[styles.headerLeft, { marginRight: 24 }]}>
               <View style={styles.avatarContainer}>
                 {fotoUrl ?
                 <Image
@@ -146,9 +146,9 @@ export const HomeScreen = ({ userData, darkMode, onOpenAvisos }) => {
                 } />
               </View>
 
-              <View style={styles.headerInfo}>
-                <Text style={styles.headerGreeting}>{obtenerSaludo()}</Text>
-                <Text style={styles.headerName} numberOfLines={1}>{userData.nombre}</Text>
+              <View style={[styles.headerInfo, { flexShrink: 1, overflow: 'hidden' }]}>
+                <Text style={styles.headerGreeting} numberOfLines={1} ellipsizeMode="tail">{obtenerSaludo()}</Text>
+                <Text style={styles.headerName} numberOfLines={1} ellipsizeMode="tail">{userData.nombre}</Text>
                 <View style={styles.userTypeChip}>
                   <Ionicons
                     name={esEmpleado ? "briefcase" : "person"}

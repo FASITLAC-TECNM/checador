@@ -178,7 +178,7 @@ const baseStyles = {
     dayContent: {
         width: '80%',
         height: '80%',
-        borderRadius: 10,
+        borderRadius: 8,
         justifyContent: 'center',
         alignItems: 'center',
         position: 'relative',
@@ -205,7 +205,6 @@ const baseStyles = {
     },
     dayContentInRange: {
         backgroundColor: '#dbeafe',
-        borderRadius: 0,
     },
     dayTextInRange: {
         color: '#1d4ed8',

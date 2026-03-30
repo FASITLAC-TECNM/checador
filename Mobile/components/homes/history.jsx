@@ -144,11 +144,21 @@ export const HistoryScreen = ({ darkMode, userData }) => {
       const fecha = new Date(r.fecha_registro);
       if (fecha.getMonth() !== currentMonth.getMonth() || fecha.getFullYear() !== currentMonth.getFullYear()) return;
       const dia = fecha.getDate();
-      const esFalta = r.estado === 'falta' || r.estado === 'falta_por_retardo';
-      const esRetardo = r.estado === 'retardo_a' || r.estado === 'retardo_b' || r.estado === 'retardo';
-      if (esFalta) mapa[dia] = 'falta';else
-      if (esRetardo && mapa[dia] !== 'falta') mapa[dia] = 'retardo';else
-      if (r.estado === 'puntual' && !mapa[dia]) mapa[dia] = 'puntual';
+      
+      const current = mapa[dia];
+      const esFalta = r.estado?.startsWith('falta');
+      const esRetardo = r.estado?.startsWith('retardo');
+      const esPuntual = r.estado === 'puntual';
+      
+      if (esFalta) {
+        mapa[dia] = r.estado;
+      } else if (esRetardo && !current?.startsWith('falta')) {
+        mapa[dia] = r.estado;
+      } else if (esPuntual && !current?.startsWith('falta') && !current?.startsWith('retardo')) {
+        mapa[dia] = r.estado;
+      } else if (!current) {
+        mapa[dia] = r.estado || 'pendiente';
+      }
     });
     return mapa;
   }, [asistencias, currentMonth]);
@@ -223,9 +233,39 @@ export const HistoryScreen = ({ darkMode, userData }) => {
     });
 
 
+    const esRangoSeleccionado = rangoInicio && rangoFin;
+
     return Object.values(grupos).
-    sort((a, b) => b.fecha - a.fecha).
-    map((g) => ({ title: g.key, fecha: g.fecha, data: g.registros }));
+    sort((a, b) => esRangoSeleccionado ? (a.fecha - b.fecha) : (b.fecha - a.fecha)).
+    map((g) => {
+      const sorted = [...g.registros].sort((a, b) => new Date(a.fecha_registro) - new Date(b.fecha_registro));
+      const pairs = [];
+      let currentEn = null;
+      for (const r of sorted) {
+         if (r.tipo === 'entrada') {
+            if (currentEn) { pairs.push({ isPair: true, entrada: currentEn, salida: null, id: currentEn.id }); }
+            currentEn = r;
+         } else if (r.tipo === 'salida') {
+            if (currentEn) {
+               pairs.push({ isPair: true, entrada: currentEn, salida: r, id: currentEn.id + '_' + r.id });
+               currentEn = null;
+            } else {
+               pairs.push({ isPair: true, entrada: null, salida: r, id: r.id });
+            }
+         } else {
+            pairs.push({ isPair: false, record: r, id: r.id });
+         }
+      }
+      if (currentEn) pairs.push({ isPair: true, entrada: currentEn, salida: null, id: currentEn.id });
+      
+      // En modo rango, invertimos el lógica para que dentro del mismo día también
+      // se vea de forma cronológica (es decir, el primer turno del día hasta arriba).
+      if (!esRangoSeleccionado) {
+         pairs.reverse();
+      }
+      
+      return { title: g.key, fecha: g.fecha, data: pairs, rawRegistros: g.registros };
+    });
   }, [asistencias, rangoInicio, rangoFin]);
 
 
@@ -234,13 +274,11 @@ export const HistoryScreen = ({ darkMode, userData }) => {
   }, []);
 
   const formatearTituloDia = useCallback((fecha) => {
-    const hoy = new Date();
-    const ayer = new Date();ayer.setDate(hoy.getDate() - 1);
-    if (fecha.toDateString() === hoy.toDateString()) return 'Hoy';
-    if (fecha.toDateString() === ayer.toDateString()) return 'Ayer';
     const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-    return `${diasSemana[fecha.getDay()]} ${fecha.getDate()} de ${monthNames[fecha.getMonth()]}`;
-  }, [monthNames]);
+    const diaNum = String(fecha.getDate()).padStart(2, '0');
+    const mesNum = String(fecha.getMonth() + 1).padStart(2, '0');
+    return `${diasSemana[fecha.getDay()]} - ${diaNum}/${mesNum}/${fecha.getFullYear()}`;
+  }, []);
 
   const obtenerColorEstado = useCallback((estado) => {
     switch (estado) {
@@ -255,51 +293,85 @@ export const HistoryScreen = ({ darkMode, userData }) => {
 
   const obtenerLabelEstado = useCallback((estado) => {
     if (!estado) return '';
-    if (estado === 'puntual') return 'Puntual';
-    if (estado === 'salida_puntual') return 'Salida puntual';
-    if (estado === 'salida_temprano') return 'Salida temprana';
+    
+    // Casos especiales donde queramos mantener una letra en mayúscula sola (ej. "Retardo A")
     if (estado.startsWith('retardo')) {
-      const tipo = estado.split('_')[1];
-      return `Retardo ${tipo ? tipo.toUpperCase() : ''}`.trim();
+      const partes = estado.split('_');
+      if (partes.length > 1 && partes[1].length === 1) {
+        return `Retardo ${partes[1].toUpperCase()}`;
+      }
+      return 'Retardo';
     }
     if (estado.startsWith('falta')) return 'Falta';
-    return estado;
+
+    // Para cualquier otro como "salida_temprana", "salida_puntual", etc.
+    // Transforma a "Salida Temprana", "Salida Puntual" dinámicamente.
+    return estado
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
   }, []);
 
   const hoyStr = useMemo(() => new Date().toDateString(), []);
 
 
   const renderRecord = useCallback(({ item: r }) => {
-    const color = r.tipo === 'entrada' ? obtenerColorEstado(r.estado) : '#2563eb';
+    if (r.isPair) {
+      const ent = r.entrada;
+      const sal = r.salida;
+      const colorEnt = ent ? obtenerColorEstado(ent.estado) : '#9ca3af';
+      const colorSal = sal ? '#2563eb' : '#9ca3af';
+
+      return (
+        <View style={styles.recordItemPair}>
+          <View style={styles.pairHalf}>
+            <View style={styles.pairHeader}>
+              <View style={[styles.recordIconContainerSmall, { backgroundColor: colorEnt + '18' }]}>
+                <Ionicons name="log-in-outline" size={14} color={colorEnt} />
+              </View>
+              <Text style={styles.recordType}>Entrada</Text>
+            </View>
+            <Text style={styles.recordHora}>{ent ? formatearHora(ent.fecha_registro) : '--:--'}</Text>
+            {ent && ent.estado && <Text style={[styles.recordEstado, {color: colorEnt}]}>{obtenerLabelEstado(ent.estado)}</Text>}
+          </View>
+
+          <View style={styles.pairDivider} />
+
+          <View style={styles.pairHalf}>
+            <View style={styles.pairHeader}>
+              <View style={[styles.recordIconContainerSmall, { backgroundColor: colorSal + '18' }]}>
+                <Ionicons name="log-out-outline" size={14} color={colorSal} />
+              </View>
+              <Text style={styles.recordType}>Salida</Text>
+            </View>
+            <Text style={styles.recordHora}>{sal ? formatearHora(sal.fecha_registro) : '--:--'}</Text>
+            {sal && sal.estado && <Text style={[styles.recordEstado, {color: colorSal}]}>{obtenerLabelEstado(sal.estado)}</Text>}
+          </View>
+        </View>
+      );
+    }
+
+    const rec = r.record;
+    if (!rec) return null;
+    const color = rec.tipo === 'entrada' ? obtenerColorEstado(rec.estado) : '#2563eb';
     return (
       <View style={styles.recordItem}>
         <View style={[styles.recordIconContainer, { backgroundColor: color + '18' }]}>
-          <Ionicons
-            name={r.tipo === 'entrada' ? 'log-in-outline' : 'log-out-outline'}
-            size={20}
-            color={color} />
-          
+          <Ionicons name={rec.tipo === 'entrada' ? 'log-in-outline' : 'log-out-outline'} size={20} color={color} />
         </View>
-
         <View style={styles.recordContent}>
-          <Text style={styles.recordType}>
-            {r.tipo === 'entrada' ? 'Entrada' : 'Salida'}
-          </Text>
-          {r.tipo === 'entrada' && r.estado &&
-          <Text style={[styles.recordEstado, { color }]}>
-              {obtenerLabelEstado(r.estado)}
-            </Text>
-          }
+          <Text style={styles.recordType}>{rec.tipo === 'entrada' ? 'Entrada' : 'Salida'}</Text>
+          {rec.tipo === 'entrada' && rec.estado && <Text style={[styles.recordEstado, { color }]}>{obtenerLabelEstado(rec.estado)}</Text>}
         </View>
-
-        <Text style={styles.recordHora}>{formatearHora(r.fecha_registro)}</Text>
+        <Text style={styles.recordHora}>{formatearHora(rec.fecha_registro)}</Text>
       </View>);
 
   }, [styles, formatearHora, obtenerColorEstado, obtenerLabelEstado]);
 
 
   const renderSectionHeader = useCallback(({ section }) => {
-    const entradas = section.data.filter((r) => r.tipo === 'entrada');
+    const entradas = section.rawRegistros.filter((r) => r.tipo === 'entrada');
+    const totalRegistros = section.rawRegistros.length;
     const tieneProblema = entradas.some((r) =>
     r.estado === 'falta' || r.estado === 'falta_por_retardo'
     );
@@ -320,7 +392,7 @@ export const HistoryScreen = ({ darkMode, userData }) => {
         } />
         <Text style={styles.sectionTitle}>{formatearTituloDia(section.fecha)}</Text>
         <Text style={styles.sectionCount}>
-          {section.data.length} {section.data.length === 1 ? 'registro' : 'registros'}
+          {totalRegistros} {totalRegistros === 1 ? 'registro' : 'registros'}
         </Text>
       </View>);
 
@@ -385,11 +457,10 @@ export const HistoryScreen = ({ darkMode, userData }) => {
           const isEnRango = rangoInicio && rangoFin && fechaDia &&
             fechaDia >= rangoInicio && fechaDia <= rangoFin && !isInicio && !isFin;
           const isSelected = isInicio || isFin;
+          const isMultiMode = modoRango || rangoFin !== null;
           const isToday = dia &&
             hoyStr === new Date(currentMonth.getFullYear(), currentMonth.getMonth(), dia).toDateString();
-          const dotColor = estado === 'falta' ? '#ef4444' :
-            estado === 'retardo' ? '#f59e0b' :
-            estado === 'puntual' ? '#10b981' : null;
+          const dotColor = estado ? obtenerColorEstado(estado) : null;
 
           return (
             <TouchableOpacity
@@ -402,7 +473,8 @@ export const HistoryScreen = ({ darkMode, userData }) => {
               {dia &&
                 <View style={[
                   styles.dayContent,
-                  isSelected && styles.dayContentSelected,
+                  isSelected && !isMultiMode && styles.dayContentSelected,
+                  isSelected && isMultiMode && styles.dayContentSelectedRange,
                   isEnRango && styles.dayContentInRange,
                   isToday && !isSelected && !isEnRango && styles.dayContentToday]
                 }>
@@ -557,16 +629,17 @@ const historyStyles = StyleSheet.create({
   daysGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   dayCell: { width: '14.28%', aspectRatio: 1, justifyContent: 'center', alignItems: 'center' },
   dayContent: {
-    width: '80%', height: '80%', borderRadius: 12,
+    width: '80%', height: '80%', borderRadius: 8,
     justifyContent: 'center', alignItems: 'center', position: 'relative'
   },
   dayContentSelected: { backgroundColor: '#2563eb' },
+  dayContentSelectedRange: { backgroundColor: '#2563eb' },
   dayContentToday: { borderWidth: 2, borderColor: '#2563eb' },
   dayText: { fontSize: 14, fontWeight: '500', color: '#1f2937' },
   dayTextSelected: { color: '#fff', fontWeight: '700' },
   dayTextToday: { color: '#2563eb', fontWeight: '700' },
   dayIndicator: { width: 4, height: 4, borderRadius: 2, marginTop: 2 },
-  dayContentInRange: { backgroundColor: '#dbeafe', borderRadius: 0 },
+  dayContentInRange: { backgroundColor: '#dbeafe' },
   dayTextInRange: { color: '#1d4ed8', fontWeight: '600' },
 
   statsRow: {
@@ -630,6 +703,39 @@ const historyStyles = StyleSheet.create({
   recordEstado: { fontSize: 12, fontWeight: '500', marginTop: 2 },
   recordHora: { fontSize: 15, fontWeight: '700', color: '#374151' },
 
+  recordIconContainerSmall: {
+    width: 24, height: 24, borderRadius: 6,
+    justifyContent: 'center', alignItems: 'center', marginRight: 8
+  },
+  recordItemPair: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+    marginHorizontal: 16,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2
+  },
+  pairHalf: {
+    flex: 1
+  },
+  pairHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6
+  },
+  pairDivider: {
+    width: 1,
+    backgroundColor: '#e2e8f0',
+    marginHorizontal: 16,
+    height: '80%'
+  },
+
   emptyState: { alignItems: 'center', paddingVertical: 60, marginHorizontal: 16 },
   emptyText: { fontSize: 16, fontWeight: '600', color: '#475569', marginTop: 12 },
   emptySubtext: { fontSize: 14, color: '#94a3b8', marginTop: 4 }
@@ -645,6 +751,9 @@ const historyStylesDark = StyleSheet.create({
   calendarContainer: { ...historyStyles.calendarContainer, backgroundColor: '#1e293b' },
   weekDayText: { ...historyStyles.weekDayText, color: '#94a3b8' },
   dayContentSelected: { backgroundColor: '#3b82f6' },
+  dayContentSelectedRange: { backgroundColor: '#3b82f6' },
+  dayContentInRange: { backgroundColor: 'rgba(59, 130, 246, 0.2)' },
+  dayTextInRange: { color: '#93c5fd' },
   dayContentToday: { ...historyStyles.dayContentToday, borderColor: '#3b82f6' },
   dayText: { ...historyStyles.dayText, color: '#e2e8f0' },
   dayTextToday: { ...historyStyles.dayTextToday, color: '#60a5fa' },
@@ -656,6 +765,7 @@ const historyStylesDark = StyleSheet.create({
   sectionTitle: { ...historyStyles.sectionTitle, color: '#cbd5e1' },
   sectionCount: { ...historyStyles.sectionCount, color: '#64748b' },
   recordItem: { ...historyStyles.recordItem, backgroundColor: '#1e293b' },
+  recordItemPair: { ...historyStyles.recordItemPair, backgroundColor: '#1e293b' },
   recordType: { ...historyStyles.recordType, color: '#f1f5f9' },
   recordEstado: { ...historyStyles.recordEstado },
   recordHora: { ...historyStyles.recordHora, color: '#e2e8f0' },

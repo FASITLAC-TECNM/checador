@@ -66,6 +66,7 @@ export default function DispositivosModal({ onClose, onBack, escritorioId, inlin
             ip: d.ip || "",
             estado: d.estado || "desconectado",
             es_activo: d.es_activo ?? true,
+            device_id: d.device_id || null,
           }))
         : [];
 
@@ -109,9 +110,14 @@ export default function DispositivosModal({ onClose, onBack, escritorioId, inlin
       let addedCount = 0;
       setDevices(prev => {
         const newDevices = mappedDetected.filter(detected =>
-          !prev.some(existing =>
-            existing.nombre.toLowerCase() === detected._key
-          )
+          !prev.some(existing => {
+            // 1. Validar por identificador único de hardware
+            if (existing.device_id && detected.device_id && existing.device_id === detected.device_id) {
+              return true;
+            }
+            // 2. Fallback por nombre normalizado (para los que no tienen ID físico)
+            return (existing.nombre || "").toLowerCase() === detected._key;
+          })
         );
         addedCount = newDevices.length;
         if (newDevices.length === 0) return prev;

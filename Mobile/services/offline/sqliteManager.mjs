@@ -641,8 +641,9 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
       `INSERT INTO cache_tolerancias (
         empleado_id, nombre, minutos_retardo, minutos_falta,
         permite_anticipado, minutos_anticipado_max, aplica_tolerancia_entrada,
-        aplica_tolerancia_salida, max_retardos, dias_aplica, reglas, segmentos_red, intervalo_bloques_minutos, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
+        aplica_tolerancia_salida, max_retardos, dias_aplica, reglas, segmentos_red,
+        intervalo_bloques_minutos, minutos_anticipo_salida, minutos_posterior_salida, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
       ON CONFLICT(empleado_id) DO UPDATE SET
         nombre = excluded.nombre,
         minutos_retardo = excluded.minutos_retardo,
@@ -656,6 +657,8 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
         reglas = excluded.reglas,
         segmentos_red = excluded.segmentos_red,
         intervalo_bloques_minutos = excluded.intervalo_bloques_minutos,
+        minutos_anticipo_salida = excluded.minutos_anticipo_salida,
+        minutos_posterior_salida = excluded.minutos_posterior_salida,
         updated_at = excluded.updated_at`,
       [
         empleadoId,
@@ -670,7 +673,9 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
         diasAplica,
         reglasJson,
         segmentosRedJson,
-        tolerancia.intervalo_bloques_minutos ?? 60
+        tolerancia.intervalo_bloques_minutos ?? 60,
+        tolerancia.minutos_anticipo_salida ?? 0,
+        tolerancia.minutos_posterior_salida ?? 0
       ]
     );
   } catch (ignore) {

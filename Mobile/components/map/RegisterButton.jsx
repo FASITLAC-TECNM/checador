@@ -338,8 +338,26 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
             return true;
           }
 
-          // ── Guardia local: solo activar si NO hay registros pendientes de sync.
-          //    Consultamos SQLite directamente porque online, registrosHoyTodosRef solo
+          // ── NOTA: NO confiamos ciegamente en puedeRegistrar del backend.
+          //    Si el siguiente tipo es 'salida', la validación de ventana de tiempo
+          //    la hace el useEffect local para evitar activar el botón antes de hora.
+          //    El backend solo sabe si el empleado PUEDE registrar en términos de estado,
+          //    NO valida la ventana horaria de salida.
+
+          // Si el backend dice que el siguiente es salida, NO aplicamos su puedeRegistrar
+          // directamente: dejamos que el useEffect de tiempo lo decida.
+          if (data.tipoSiguienteRegistro === 'salida') {
+            if (data.tipoSiguienteRegistro) setTipoSiguienteRegistro(data.tipoSiguienteRegistro);
+            if (data.motivo) setMensajeEspera(data.motivo);
+            let finalEstadoHorario = data.estadoHorario;
+            if (finalEstadoHorario === 'bloque_completo') finalEstadoHorario = 'activo';
+            if (finalEstadoHorario) setEstadoHorario(finalEstadoHorario);
+            setJornadaCompletada(false);
+            // Marcamos como backend pero NO seteamos puedeRegistrar para salida;
+            // el useEffect evaluará la ventana de tiempo y lo seteará.
+            setUsandoEstadoBackend(false); // Desactivar para que el useEffect local tome el control
+            return true;
+          }
 
           setPuedeRegistrar(data.puedeRegistrar);
           if (data.tipoSiguienteRegistro) setTipoSiguienteRegistro(data.tipoSiguienteRegistro);
@@ -462,12 +480,16 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         setEstadoHorario('espera');
         setJornadaCompletada(false);
         setMensajeEspera('Espera un momento antes de registrar el siguiente turno.');
-        return; // Interrumpimos para que React aplique el state devuelta a espera
+        return;
       }
     }
 
     // Si viene del backend y no es bloque completo y fue resuelto online, no peleamos
-    if (usandoEstadoBackend && estadoHorario !== 'bloque_completo') return;
+    // EXCEPCIÓN: si el siguiente tipo es salida, NO saltamos — la validación de ventana
+    // de tiempo SIEMPRE debe aplicarse localmente incluso en modo online.
+    if (usandoEstadoBackend && estadoHorario !== 'bloque_completo') {
+      return;
+    }
 
     if (!horarioInfo && !diaFestivo) return;
 
@@ -489,14 +511,14 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       return;
     }
 
-
     if (!ultimoRegistroHoy) {
       const ANTICIPO = horarioInfo?.tolerancias?.anticipoEntrada ?? 0;
       const primerBloque = horarioInfo?.bloques?.[0];
 
       if (primerBloque) {
         const ahoraMinsNow = horaActual.getHours() * 60 + horaActual.getMinutes();
-        if (ahoraMinsNow < (primerBloque.entrada - ANTICIPO)) {
+        const minutosParaAbrir = primerBloque.entrada - ANTICIPO;
+        if (ahoraMinsNow < minutosParaAbrir) {
           setPuedeRegistrar(false);
           setTipoSiguienteRegistro('entrada');
           setEstadoHorario('fuera_horario');
@@ -513,7 +535,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       setMensajeEspera('');
       return;
     }
-
 
     const ultimoEstado = ultimoRegistroHoy.estado;
     const ultimoTipo = ultimoRegistroHoy.tipo;
@@ -534,26 +555,13 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       return;
     }
 
-
-
     if (ultimoTipo === 'salida') {
-      // numSalidas: contar de registrosHoyTodos, pero ultimoRegistroHoy (la salida recién hecha)
-      // puede no estar aún en esa lista si el estado es stale. Verificar explícitamente.
       const salidasEnLista = (registrosHoyTodos || []).filter(r => r.tipo === 'salida');
-      // Usamos conteo idéntico al de arriba para evitar desfasaje de lógica y bucles de renderizado
       const numSalidas = salidasEnLista.length;
-      const numBloques = horarioInfo?.bloques?.length || 0;
 
-      // ── 1. JORNADA COMPLETA: permitir turnos/horas extra ──
-      // Nunca bloqueamos la UI ni le avisamos que acabó su turno, permitimos siempre
-      // la posibilidad de registrar un nuevo turno (hora extra) según instrucción.
-      if (estadoHorario === 'bloque_completo') {
-        setEstadoHorario('activo');
-      }
+      if (estadoHorario === 'bloque_completo') setEstadoHorario('activo');
       setJornadaCompletada(false);
 
-      // ── 2. HAY MÁS BLOQUES: espera obligatoria de 1 minuto post-salida ──
-      // Evita que el botón se reactive inmediatamente entre turnos.
       const msSinceUltimaSalida = horaActual.getTime() - new Date(ultimoRegistroHoy.fecha_registro).getTime();
       if (msSinceUltimaSalida < 60 * 1000) {
         setPuedeRegistrar(false);
@@ -563,13 +571,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         return;
       }
 
-      // ── 3. VENTANA DEL SIGUIENTE BLOQUE: verificar si ya abrió ──
       const bloqueProximo = horarioInfo?.bloques?.[numSalidas];
       const ANTICIPO_ENT = horarioInfo?.tolerancias?.anticipoEntrada ?? 0;
       const ahoraMinsNow = horaActual.getHours() * 60 + horaActual.getMinutes();
 
       if (bloqueProximo && ahoraMinsNow < bloqueProximo.entrada - ANTICIPO_ENT) {
-        // Ventana aún no abierta — mantener bloqueado sin mensaje de jornada completa
         setPuedeRegistrar(false);
         setTipoSiguienteRegistro('entrada');
         setEstadoHorario('fuera_horario');
@@ -577,7 +583,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         return;
       }
 
-      // Ventana abierta → habilitar entrada del siguiente bloque
       setPuedeRegistrar(true);
       setTipoSiguienteRegistro('entrada');
       setEstadoHorario('activo');
@@ -585,10 +590,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       return;
     }
 
-    // ── MODO OFFLINE: Validar ventana de SALIDA ──
-
-    // FIX: Espera obligatoria de 1 minuto después de registrar entrada.
-    // Evita que el botón de salida se active de inmediato tras la entrada.
+    // ── Validar ventana de SALIDA ──
     const msSinceUltimaEntrada = horaActual.getTime() - new Date(ultimoRegistroHoy.fecha_registro).getTime();
     if (msSinceUltimaEntrada < 60 * 1000) {
       setPuedeRegistrar(false);
@@ -600,12 +602,18 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     }
 
     const ANTICIPO_SALIDA_LOCAL = horarioInfo?.tolerancias?.anticipoSalida ?? 0;
+    const POSTERIOR_SALIDA_LOCAL = horarioInfo?.tolerancias?.posteriorSalida ?? 0;
     const numSalidasOffline = (registrosHoyTodos || []).filter(r => r.tipo === 'salida').length;
-    const bloqueActualSalida = horarioInfo?.bloques?.[numSalidasOffline];
+    const totalBloques = horarioInfo?.bloques?.length || 0;
+    const bloqueIdxSalida = totalBloques > 0 ? Math.min(numSalidasOffline, totalBloques - 1) : 0;
+    const bloqueActualSalida = horarioInfo?.bloques?.[bloqueIdxSalida];
 
     if (bloqueActualSalida) {
       const ahoraMinsNow = horaActual.getHours() * 60 + horaActual.getMinutes();
-      if (ahoraMinsNow < (bloqueActualSalida.salida - ANTICIPO_SALIDA_LOCAL)) {
+      const inicioVentanaSalida = bloqueActualSalida.salida - ANTICIPO_SALIDA_LOCAL;
+      const finVentanaSalida = bloqueActualSalida.salida + POSTERIOR_SALIDA_LOCAL;
+
+      if (ahoraMinsNow < inicioVentanaSalida) {
         setPuedeRegistrar(false);
         setTipoSiguienteRegistro('salida');
         setEstadoHorario('fuera_horario');
@@ -613,6 +621,47 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         setMensajeEspera('Aún no es hora de registrar tu salida.');
         return;
       }
+
+      if (POSTERIOR_SALIDA_LOCAL > 0 && ahoraMinsNow > finVentanaSalida) {
+        setPuedeRegistrar(false);
+        setTipoSiguienteRegistro('salida');
+        setEstadoHorario('fuera_horario');
+        setJornadaCompletada(false);
+        setMensajeEspera('Ha superado el tiempo límite permitido para registrar la salida.');
+        return;
+      }
+    } else if (totalBloques > 0) {
+      // Índice fuera de rango — usar el último bloque como referencia (NUNCA habilitar sin validación)
+      const bloqueRef = horarioInfo.bloques[totalBloques - 1];
+      const ahoraMinsNow = horaActual.getHours() * 60 + horaActual.getMinutes();
+      const inicioVentanaSalida = bloqueRef.salida - ANTICIPO_SALIDA_LOCAL;
+      const finVentanaSalida = bloqueRef.salida + POSTERIOR_SALIDA_LOCAL;
+
+      if (ahoraMinsNow < inicioVentanaSalida) {
+        setPuedeRegistrar(false);
+        setTipoSiguienteRegistro('salida');
+        setEstadoHorario('fuera_horario');
+        setJornadaCompletada(false);
+        setMensajeEspera('Aún no es hora de registrar tu salida.');
+        return;
+      }
+
+      if (POSTERIOR_SALIDA_LOCAL > 0 && ahoraMinsNow > finVentanaSalida) {
+        setPuedeRegistrar(false);
+        setTipoSiguienteRegistro('salida');
+        setEstadoHorario('fuera_horario');
+        setJornadaCompletada(false);
+        setMensajeEspera('Ha superado el tiempo límite permitido para registrar la salida.');
+        return;
+      }
+    } else {
+      // Sin bloques configurados — bloquear por defecto
+      setPuedeRegistrar(false);
+      setTipoSiguienteRegistro('salida');
+      setEstadoHorario('fuera_horario');
+      setJornadaCompletada(false);
+      setMensajeEspera('No hay horario configurado para validar la salida.');
+      return;
     }
 
     setPuedeRegistrar(true);
@@ -761,11 +810,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         const hLocal = await sqliteManager.getHorario(empleadoId);
         if (hLocal) horario = hLocal;
       }
-
-
       let toleranciasSqlite = null;
       try { toleranciasSqlite = await sqliteManager.getTolerancia(empleadoId); } catch (e) { }
-
       if (!horario?.configuracion) return { trabaja: false, numTurnos: 0, entrada: null, salida: null };
 
       let config = typeof horario.configuracion === 'string' ?

@@ -48,11 +48,14 @@ export const HistoryScreen = ({ darkMode, userData }) => {
     const mesKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
 
     try {
-      const primerDia = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-      const ultimoDia = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+      const year = currentMonth.getFullYear();
+      const month = currentMonth.getMonth();
+      const ultimoDiaNum = new Date(year, month + 1, 0).getDate();
+      // Usar formato local manualmente para evitar el desplazamiento UTC de toISOString()
+      const pad = (n) => String(n).padStart(2, '0');
       const filtros = {
-        fecha_inicio: primerDia.toISOString().split('T')[0],
-        fecha_fin: ultimoDia.toISOString().split('T')[0]
+        fecha_inicio: `${year}-${pad(month + 1)}-01 00:00:00`,
+        fecha_fin: `${year}-${pad(month + 1)}-${pad(ultimoDiaNum)} 23:59:59`
       };
 
       let cargoOnline = false;
@@ -117,6 +120,7 @@ export const HistoryScreen = ({ darkMode, userData }) => {
 
   const cambiarMes = (dir) => {
     const nuevo = new Date(currentMonth);
+    nuevo.setDate(1); // Evitar salto de mes en días 31
     nuevo.setMonth(currentMonth.getMonth() + dir);
     setCurrentMonth(nuevo);
     setRangoInicio(null);

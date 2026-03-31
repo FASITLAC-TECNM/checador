@@ -138,6 +138,41 @@ export default function SessionScreen({ onLogout, usuario, isReaderConnected = f
     return () => clearInterval(timer);
   }, []);
 
+  // Monitor de inactividad (15 segundos)
+  const onLogoutRef = React.useRef(onLogout);
+  
+  // Actualizar la referencia siempre que la prop cambie
+  useEffect(() => {
+    onLogoutRef.current = onLogout;
+  }, [onLogout]);
+
+  useEffect(() => {
+    let inactivityTimer;
+
+    const resetInactivityTimer = () => {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        if (onLogoutRef.current) {
+          console.log("Cerrando sesión por inactividad...");
+          onLogoutRef.current();
+        }
+      }, 15000); // 15 segundos
+    };
+
+    const activityEvents = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+
+    // Registrar los listeners
+    activityEvents.forEach(event => window.addEventListener(event, resetInactivityTimer));
+
+    // Inicializar el timer
+    resetInactivityTimer();
+
+    return () => {
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      activityEvents.forEach(event => window.removeEventListener(event, resetInactivityTimer));
+    };
+  }, []); // Sin dependencias para que no se reinicie en cada render
+
   const handleGuardarConfigNodo = () => {
     console.log({
       nombreNodo,

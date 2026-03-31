@@ -69,6 +69,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
   const [mensajeEspera, setMensajeEspera] = useState('');
   const [isOnline, setIsOnline] = useState(false);
   const [internetReachable, setInternetReachable] = useState(false);
+  const [omisionesGlobales, setOmisionesGlobales] = useState(null);
   const [usandoEstadoBackend, setUsandoEstadoBackend] = useState(false);
   const [diaFestivo, setDiaFestivo] = useState(null);
 
@@ -976,10 +977,11 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         }
 
 
-        const [resultadoRegistro, horario, deptos] = await Promise.all([
+        const [resultadoRegistro, horario, deptos, omis] = await Promise.all([
           obtenerUltimoRegistro(),
           obtenerHorario(),
-          obtenerDepartamentos()]
+          obtenerDepartamentos(),
+          sqliteManager.getOmisionesGlobales()]
         );
 
         const { ultimo, todos } = resultadoRegistro || { ultimo: null, todos: [] };
@@ -987,6 +989,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         setRegistrosHoyTodos(todos);
         setHorarioInfo(horario);
         setDepartamentos(deptos);
+        setOmisionesGlobales(omis || null);
 
 
         await actualizarEstadoPreflight();
@@ -1001,6 +1004,18 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
     cargarDatos();
   }, [obtenerUltimoRegistro, obtenerHorario, obtenerDepartamentos]);
+
+  // Escuchar actualizaciones de configuración provenientes del pull sync
+  // para refrescar el estado de omisiones de GPS en tiempo real sin afectar el flujo online
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('config_actualizada', async () => {
+      try {
+        const omis = await sqliteManager.getOmisionesGlobales();
+        setOmisionesGlobales(omis || null);
+      } catch (_) {}
+    });
+    return () => subscription.remove();
+  }, []);
 
 
 
@@ -1053,36 +1068,53 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     };
   }, [puedeRegistrar, forzarUbicacion]);
 
+  const tieneOmisionGps = React.useMemo(() => {
+    if (!omisionesGlobales?.omision_gps_activa) return false;
+    const empleadosOmitidos = omisionesGlobales.omision_gps_empleados || [];
+    const empIdStr = String(userData?.empleado_id);
+    const usuIdStr = userData?.id ? String(userData.id) : null;
+    return empleadosOmitidos.includes(empIdStr) || (usuIdStr && empleadosOmitidos.includes(usuIdStr));
+  }, [omisionesGlobales, userData]);
+
   useEffect(() => {
     const validarArea = async () => {
+      const omitirGps = tieneOmisionGps;
+
       if (!ubicacionActual || !departamentos.length) {
-        setDentroDelArea(false);
-        setDepartamentosDisponibles([]);
-        setDepartamentoSeleccionado(null);
-        return;
+        if (!omitirGps) {
+          setDentroDelArea(false);
+          setDepartamentosDisponibles([]);
+          setDepartamentoSeleccionado(null);
+          return;
+        }
       }
 
       const deptsDisponibles = [];
 
       for (const depto of departamentos) {
         try {
-          if (!depto.ubicacion) continue;
+          if (!depto.ubicacion) {
+            if (omitirGps) deptsDisponibles.push(depto);
+            continue;
+          }
 
           const coordenadas = extraerCoordenadas(depto.ubicacion);
-          if (!coordenadas || coordenadas.length < 3) continue;
+          let dentro = false;
+          if (coordenadas && coordenadas.length >= 3 && ubicacionActual) {
+            dentro = isPointInPolygon(ubicacionActual, coordenadas);
+          }
 
-          const dentro = isPointInPolygon(ubicacionActual, coordenadas);
-
-          if (dentro) {
+          if (dentro || omitirGps) {
             deptsDisponibles.push(depto);
           }
         } catch (err) {
+          if (omitirGps) deptsDisponibles.push(depto);
           continue;
         }
       }
 
       setDepartamentosDisponibles(deptsDisponibles);
-      setDentroDelArea(deptsDisponibles.length > 0);
+      setDentroDelArea(omitirGps || deptsDisponibles.length > 0);
 
       if (deptsDisponibles.length > 0 && !departamentoSeleccionado) {
         setDepartamentoSeleccionado(deptsDisponibles[0]);
@@ -1095,7 +1127,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
     validarArea();
 
-  }, [ubicacionActual, departamentos]);
+  }, [ubicacionActual, departamentos, omisionesGlobales, userData]);
 
   const handleVerificarPin = async (pin) => {
     let pinVerificado = false;
@@ -1325,7 +1357,18 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         throw new Error('No se pudo obtener el departamento');
       }
 
-      if (departamento.ubicacion) {
+      let omitirGpsError = false;
+      const cachedOmis = await sqliteManager.getOmisionesGlobales();
+      if (cachedOmis?.omision_gps_activa) {
+        const empOmis = cachedOmis.omision_gps_empleados || [];
+        const empIdStr = String(userData?.empleado_id);
+        const usuIdStr = userData?.id ? String(userData.id) : null;
+        if (empOmis.includes(empIdStr) || (usuIdStr && empOmis.includes(usuIdStr))) {
+          omitirGpsError = true;
+        }
+      }
+
+      if (departamento.ubicacion && !omitirGpsError) {
         const coordsDepto = extraerCoordenadas(departamento.ubicacion);
         if (coordsDepto && coordsDepto.length >= 3) {
           const dentroAhora = isPointInPolygon(ubicacionFinal, coordsDepto);
@@ -1770,8 +1813,8 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
                   size={16}
                   color={dentroDelArea ? '#10b981' : '#ef4444'} />
 
-                <Text style={[styles.indicatorText, { color: dentroDelArea ? '#10b981' : '#ef4444' }]}>
-                  {dentroDelArea ? 'Dentro de zona' : 'Fuera de zona'}
+                <Text style={[styles.indicatorText, { color: dentroDelArea || tieneOmisionGps ? '#10b981' : '#ef4444' }]}>
+                  {tieneOmisionGps ? 'Zona libre' : dentroDelArea ? 'Dentro de zona' : 'Fuera de zona'}
                 </Text>
               </View>
 
@@ -1816,20 +1859,22 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
           {!loading && departamentos.length > 0 &&
             <>
-              {departamentosDisponibles.length > 0 ?
+              {departamentosDisponibles.length > 0 || tieneOmisionGps ?
                 <TouchableOpacity
                   style={styles.locationInfo}
-                  onPress={() => setMostrarDepartamentos(true)}
+                  onPress={() => { if (!tieneOmisionGps) setMostrarDepartamentos(true); }}
                   activeOpacity={0.7}>
 
-                  <Ionicons name="location" size={14} color="#10b981" />
+                  <Ionicons name={tieneOmisionGps ? "shield-checkmark" : "location"} size={14} color="#10b981" />
                   <Text style={[styles.locationText, { color: '#10b981' }]} numberOfLines={1}>
-                    {departamentoSeleccionado ?
-                      departamentoSeleccionado.nombre :
-                      `${departamentosDisponibles.length} ${departamentosDisponibles.length === 1 ? 'disponible' : 'disponibles'}`
+                    {tieneOmisionGps
+                      ? "GPS Omitido"
+                      : departamentoSeleccionado ?
+                        departamentoSeleccionado.nombre :
+                        `${departamentosDisponibles.length} ${departamentosDisponibles.length === 1 ? 'disponible' : 'disponibles'}`
                     }
                   </Text>
-                  {departamentosDisponibles.length > 1 &&
+                  {departamentosDisponibles.length > 1 && !tieneOmisionGps &&
                     <Ionicons name="chevron-down" size={14} color="#10b981" style={{ marginLeft: 4 }} />
                   }
                 </TouchableOpacity> :

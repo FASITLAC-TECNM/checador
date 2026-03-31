@@ -302,8 +302,26 @@ export async function fullPull(empleadoId) {
             return { metodo: ALIAS_MAP[item.metodo] || item.metodo || '', activo: item.activo !== false, nivel: item.nivel || i + 1 };
           });
           await sqliteManager.saveOrdenCredenciales(ordenNorm);
-          results.configuracion = { success: true, count: 1 };
         }
+
+        let omisionRedEmpleados = cfg.omision_red_empleados;
+        if (typeof omisionRedEmpleados === 'string') {
+          try { omisionRedEmpleados = JSON.parse(omisionRedEmpleados); } catch { omisionRedEmpleados = []; }
+        }
+        let omisionGpsEmpleados = cfg.omision_gps_empleados;
+        if (typeof omisionGpsEmpleados === 'string') {
+          try { omisionGpsEmpleados = JSON.parse(omisionGpsEmpleados); } catch { omisionGpsEmpleados = []; }
+        }
+
+        const omisionesGlobales = {
+          omision_red_activa: cfg.omision_red_activa === true,
+          omision_red_empleados: Array.isArray(omisionRedEmpleados) ? omisionRedEmpleados : [],
+          omision_gps_activa: cfg.omision_gps_activa === true,
+          omision_gps_empleados: Array.isArray(omisionGpsEmpleados) ? omisionGpsEmpleados : []
+        };
+        await sqliteManager.saveOmisionesGlobales(omisionesGlobales);
+
+        results.configuracion = { success: true, count: 1 };
       }
     } catch (cfgError) {
       results.configuracion = { success: false, error: cfgError.message };

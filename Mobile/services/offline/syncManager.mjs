@@ -368,14 +368,17 @@ export async function performSync(reason = 'manual') {
     if (authToken && storedEmpleadoId) {
       const pullRes = await pullData(storedEmpleadoId).catch(() => null);
 
-
       if (pullRes && pullRes.incidencias && pullRes.incidencias.success && pullRes.incidencias.data) {
         detectarCambiosIncidencias(pullRes.incidencias.data);
       }
 
-
       if (pullRes && pullRes.avisos && pullRes.avisos.success && pullRes.avisos.data) {
         detectarAvisosNuevos(pullRes.avisos.data);
+      }
+
+      // Notificar a los componentes que escuchen que la configuración puede haber cambiado
+      if (pullRes && pullRes.configuracion && pullRes.configuracion.success) {
+        DeviceEventEmitter.emit('config_actualizada');
       }
     }
 

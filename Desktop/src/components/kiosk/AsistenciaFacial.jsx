@@ -389,12 +389,12 @@ export default function AsistenciaFacial({
       }
     }, 150);
 
-    // Timeout de 25s para liveness
+    // Timeout de 15s para liveness
     livenessTimeoutRef.current = setTimeout(() => {
       stopLiveness();
-      setErrorMessage("Verificación de vida fallida. Sigue el punto rojo mostrado en pantalla.");
+      setErrorMessage("Verificación de vida fallida. Tiempo de prueba agotado.");
       setStep("error");
-    }, 25000);
+    }, 15000);
   };
 
   // ── Fin helpers de Liveness ──────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { ThemeProvider } from "./context/ThemeContext";
 import { SoundProvider } from "./context/SoundContext";
 import { AuthProvider } from "./context/AuthContext";
@@ -10,6 +10,7 @@ import KioskScreen from "./pages/KioskScreen";
 import SessionScreen from "./pages/SessionScreen";
 import MaintenanceScreen from "./components/maintenance/MaintenanceScreen";
 import NodeDisabledScreen from "./components/maintenance/NodeDisabledScreen";
+import ConfirmModal from "./components/common/ConfirmModal";
 
 // Hooks
 import { useAppConfiguration } from "./hooks/useAppConfiguration";
@@ -18,6 +19,8 @@ import { useNodeStatus } from "./hooks/useNodeStatus";
 import { useSyncIp } from "./hooks/useSyncIp";
 
 function App() {
+  const [showRestartConfirm, setShowRestartConfirm] = useState(false);
+
   // Activar sincronización automática de IP
   useSyncIp();
 
@@ -51,15 +54,26 @@ function App() {
     const handleKeyDown = (e) => {
       if (e.ctrlKey && e.shiftKey && (e.key === 'a' || e.key === 'A')) {
         e.preventDefault();
-        if (window.confirm("¿Estás seguro de que deseas reiniciar el sistema a la pantalla de afiliación?")) {
-          handleNewAffiliation();
-        }
+        setShowRestartConfirm(true);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  });
+  }, []);
+
+  const renderConfirmModal = () => (
+    <ConfirmModal
+      isOpen={showRestartConfirm}
+      onClose={() => setShowRestartConfirm(false)}
+      onConfirm={() => {
+        setShowRestartConfirm(false);
+        handleNewAffiliation();
+      }}
+      title="Reiniciar Sistema"
+      message="¿Estás seguro de que deseas reiniciar el sistema a la pantalla de afiliación? Se perderán las configuraciones actuales."
+    />
+  );
 
 
   // Mostrar pantalla de carga mientras se verifica la configuración inicial
@@ -72,6 +86,7 @@ function App() {
             <p className="text-text-secondary">Cargando...</p>
           </div>
         </div>
+        {renderConfirmModal()}
       </ThemeProvider>
     );
   }
@@ -84,6 +99,7 @@ function App() {
           isChecking={isCheckingMaintenance}
           onRetry={window.location.reload}
         />
+        {renderConfirmModal()}
       </ThemeProvider>
     );
   }
@@ -98,6 +114,7 @@ function App() {
           onRetry={checkNodeStatus}
           onNewAffiliation={handleNewAffiliation}
         />
+        {renderConfirmModal()}
       </ThemeProvider>
     );
   }
@@ -118,6 +135,7 @@ function App() {
                     <SessionScreen onLogout={() => setCurrentPage("kiosk")} />
                   )}
                 </div>
+                {renderConfirmModal()}
               </CameraProvider>
             </DeviceMonitoringProvider>
           </AuthProvider>

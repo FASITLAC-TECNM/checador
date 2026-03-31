@@ -149,7 +149,8 @@ async function runMigrations() {
       ubicacion TEXT,
       es_activo INTEGER DEFAULT 1,
       updated_at TEXT NOT NULL,
-      PRIMARY KEY (empleado_id, departamento_id)
+      PRIMARY KEY (empleado_id, departamento_id),
+      UNIQUE(empleado_id, nombre)
     );
 
     -- Metadata de sincronización
@@ -276,6 +277,7 @@ async function runMigrations() {
     CREATE INDEX IF NOT EXISTS idx_cache_asistencias_empleado ON cache_asistencias(empleado_id, mes_key);
     CREATE INDEX IF NOT EXISTS idx_cache_avisos_tipo ON cache_avisos(tipo, empleado_id);
     CREATE INDEX IF NOT EXISTS idx_offline_events_synced ON offline_events(is_synced);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_cache_deps_unique_nombre ON cache_departamentos(empleado_id, nombre);
 
     -- Caché de Días Festivos
     CREATE TABLE IF NOT EXISTS cache_dias_festivos (

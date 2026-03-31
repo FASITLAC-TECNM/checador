@@ -64,20 +64,30 @@ const MapaZonasPermitidas = ({
         if (!depto.ubicacion) continue;
 
         const coords = extraerCoordenadas(depto.ubicacion);
+        if (!coords || coords.length === 0) continue;
 
-        if (!coords || coords.length < 3) continue;
-
-
-        const coordsFormateadas = coords.map((coord) => {
-          const lat = coord.lat || coord[0];
-          const lng = coord.lng || coord[1];
-          return [lat, lng];
-        });
+        let coordsFormateadas;
+        const isMultiPolygon = Array.isArray(coords[0]);
+        
+        if (isMultiPolygon) {
+          coordsFormateadas = coords.map(poly => poly.map(coord => {
+            const lat = coord.lat || coord[0];
+            const lng = coord.lng || coord[1];
+            return [lat, lng];
+          }));
+        } else {
+          coordsFormateadas = coords.map((coord) => {
+            const lat = coord.lat || coord[0];
+            const lng = coord.lng || coord[1];
+            return [lat, lng];
+          });
+        }
 
         zonas.push({
           id: depto.id,
           nombre: depto.nombre,
           coordenadas: coordsFormateadas,
+          esMultiPolygon: isMultiPolygon,
           color: depto.color || '#3b82f6'
         });
       }
@@ -153,11 +163,21 @@ const MapaZonasPermitidas = ({
     let totalPuntos = 0;
 
     zonas.forEach((zona) => {
-      zona.coordenadas.forEach((coord) => {
-        totalLat += coord[0];
-        totalLng += coord[1];
-        totalPuntos++;
-      });
+      if (zona.esMultiPolygon) {
+        zona.coordenadas.forEach(poly => {
+          poly.forEach(coord => {
+            totalLat += coord[0];
+            totalLng += coord[1];
+            totalPuntos++;
+          });
+        });
+      } else {
+        zona.coordenadas.forEach((coord) => {
+          totalLat += coord[0];
+          totalLng += coord[1];
+          totalPuntos++;
+        });
+      }
     });
 
     const centerLat = totalLat / totalPuntos;
@@ -262,13 +282,57 @@ const MapaZonasPermitidas = ({
 
       zonas.forEach(function(zona) {
         var isSelected = selectedDepartamentoId === zona.id;
-        var polygon = L.polygon(zona.coordenadas, {
-          color: isSelected ? '#10b981' : '#3b82f6',
-          fillColor: isSelected ? '#10b981' : '#3b82f6',
-          fillOpacity: 0.3,
-          weight: 3,
-          opacity: 0.8
-        }).addTo(map);
+        var polygon; // referiremos genéricamente como polygon localmente
+
+        // Filtrar puntos duplicados exactos (para evitar poligonos de area 0)
+        var uniqueCoords = [];
+        var handlePoly = function(arr) {
+          var u = [];
+          arr.forEach(function(c) {
+            var isDuplicate = u.some(function(x) { return x[0] === c[0] && x[1] === c[1]; });
+            if (!isDuplicate) u.push(c);
+          });
+          return u;
+        };
+
+        if (zona.esMultiPolygon) {
+          // Ya viene preparado como Array de Arrays de LatLngs. 
+          // Limpiamos los duplicados internamente pero pasamos directamente a Leaflet (MultiPolygon nativo)
+          var cleanMulti = zona.coordenadas.map(function(p) { return handlePoly(p); });
+          polygon = L.polygon(cleanMulti, {
+            color: isSelected ? '#10b981' : '#3b82f6',
+            fillColor: isSelected ? '#10b981' : '#3b82f6',
+            fillOpacity: 0.3,
+            weight: 3,
+            opacity: 0.8
+          }).addTo(map);
+          cleanMulti.forEach(function(p) { p.forEach(function(ll) { bounds.push(ll); }); });
+        } else {
+          // Standard Poligono simple
+          uniqueCoords = handlePoly(zona.coordenadas);
+          if (uniqueCoords.length < 3) {
+            var centerLat = uniqueCoords[0][0];
+            var centerLng = uniqueCoords[0][1];
+            polygon = L.circle([centerLat, centerLng], {
+              radius: 200,
+              color: isSelected ? '#10b981' : '#3b82f6',
+              fillColor: isSelected ? '#10b981' : '#3b82f6',
+              fillOpacity: 0.3,
+              weight: 3,
+              opacity: 0.8
+            }).addTo(map);
+            bounds.push([centerLat, centerLng]);
+          } else {
+            polygon = L.polygon(uniqueCoords, {
+              color: isSelected ? '#10b981' : '#3b82f6',
+              fillColor: isSelected ? '#10b981' : '#3b82f6',
+              fillOpacity: 0.3,
+              weight: 3,
+              opacity: 0.8
+            }).addTo(map);
+            uniqueCoords.forEach(function(latlng) { bounds.push(latlng); });
+          }
+        }
 
         polygons[zona.id] = polygon;
 
@@ -276,8 +340,6 @@ const MapaZonasPermitidas = ({
           ? '<b>' + zona.nombre + '</b><br>Departamento seleccionado<br>Zona permitida para registro'
           : '<b>' + zona.nombre + '</b><br>Zona permitida para registro';
         polygon.bindPopup(popupContent);
-
-        polygon.getLatLngs()[0].forEach(function(latlng) { bounds.push(latlng); });
       });
 
       if (bounds.length > 0) {

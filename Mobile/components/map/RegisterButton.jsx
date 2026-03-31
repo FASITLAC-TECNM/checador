@@ -1012,7 +1012,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       try {
         const omis = await sqliteManager.getOmisionesGlobales();
         setOmisionesGlobales(omis || null);
-      } catch (_) {}
+      } catch (_) { }
     });
     return () => subscription.remove();
   }, []);

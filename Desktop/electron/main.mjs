@@ -32,21 +32,28 @@ app.commandLine.appendSwitch("log-level", "3");
 app.whenReady().then(() => {
 
   const ALLOW_DEV_TOOLS = windowManager.ALLOW_DEV_TOOLS;
+  const isProd = process.env.NODE_ENV !== "development";
 
-  // Registrar atajos SOLO si NO se permiten herramientas de desarrollo
-  if (!ALLOW_DEV_TOOLS) {
-    // 1. Bloquear F12 y Ctrl+Shift+I (DevTools)
-    globalShortcut.register('F12', () => {
-      console.log('F12 bloqueado por politica de seguridad');
-    });
+  // Registrar atajos bloqueados para Kiosko estricto
+  if (isProd || !ALLOW_DEV_TOOLS) {
+    const blockedShortcuts = [
+      'Alt+F4',
+      'CommandOrControl+I',
+      'CommandOrControl+Shift+I',
+      'F12',
+      'F11',
+      'Alt+Tab',
+      'Alt+Space'
+    ];
 
-    globalShortcut.register('CommandOrControl+Shift+I', () => {
-      console.log('DevTools bloqueado por politica de seguridad');
-    });
-
-    // 2. Bloquear recarga forzada (opcional, evita Ctrl+R)
-    globalShortcut.register('CommandOrControl+R', () => {
-      console.log('Recarga bloqueada');
+    blockedShortcuts.forEach(shortcut => {
+      try {
+        globalShortcut.register(shortcut, () => {
+          console.log(`[Seguridad Kiosko] Combinación bloqueada: ${shortcut}`);
+        });
+      } catch (err) {
+        // Ignorar si no se puede registrar
+      }
     });
   }
 
@@ -68,6 +75,27 @@ app.whenReady().then(() => {
 
   // Crear la ventana principal
   const mainWindow = windowManager.createWindow();
+
+  // Bloqueo preventivo en el nivel enfocado (BrowserWindow Input)
+  if (isProd) {
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+      const keyLowerCase = input.key ? input.key.toLowerCase() : '';
+      const isBlocked = (
+        (input.alt && input.key === 'F4') ||
+        (input.alt && input.key === 'Tab') ||
+        (input.control && keyLowerCase === 'i') ||
+        (input.key === 'Meta') ||    // Tecla Windows
+        (input.key === 'F11') ||
+        (input.key === 'F12')
+      );
+
+      // No bloqueamos command/control + r ni F5, ni Ctrl+Shift+A (React)
+      if (isBlocked) {
+        event.preventDefault();
+        console.log(`[Seguridad Kiosko] Tecla prevenida en ventana: ${input.key}`);
+      }
+    });
+  }
 
   // Iniciar monitoreo de red
   networkService.startMonitoring(mainWindow);

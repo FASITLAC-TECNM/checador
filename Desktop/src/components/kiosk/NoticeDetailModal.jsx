@@ -34,15 +34,15 @@ export default function NoticeDetailModal({ notice, onClose }) {
           <div className="h-px bg-gradient-to-r from-transparent via-border-subtle to-transparent mb-8 opacity-50" />
 
           {/* Title section */}
-          <div className="mb-6">
-            <h3 className="text-3xl font-black text-text-primary leading-tight tracking-tight">
+          <div className="mb-6 w-full overflow-hidden">
+            <h3 className="text-3xl font-black text-text-primary leading-tight tracking-tight break-words">
               {notice.subject}
             </h3>
           </div>
 
           {/* Body/Detail section */}
-          <div className="bg-bg-secondary/40 rounded-2xl p-8 border border-border-subtle/50 mb-8">
-            <p className="text-text-primary leading-relaxed whitespace-pre-wrap text-lg opacity-90 text-justify">
+          <div className="bg-bg-secondary/40 rounded-2xl p-8 border border-border-subtle/50 mb-8 w-full overflow-hidden">
+            <p className="text-text-primary leading-relaxed whitespace-pre-wrap text-lg opacity-90 text-justify break-words">
               {notice.detail}
             </p>
           </div>

@@ -1285,7 +1285,7 @@ export default function AsistenciaFacial({
                     (result.clasificacion?.includes('retardo') || result.clasificacion === 'salida_temprana') ? "text-warning" :
                     "text-success"
                   }`}>
-                    {result.offline ? "Registro pendiente" : "Asistencia Registrada"}
+                    {result.pendiente ? (result.message || "Registro pendiente") : "Asistencia Registrada"}
                   </h3>
 
                   {result.empleado?.nombre && (
@@ -1294,7 +1294,7 @@ export default function AsistenciaFacial({
                     </p>
                   )}
 
-                  {result.tipoMovimiento && !result.offline && (
+                  {result.tipoMovimiento && !result.pendiente && (
                     <div className="mt-1 text-center">
                       <p className="text-text-tertiary text-xs">
                         {result.tipoMovimiento === "ENTRADA" ? "Entrada" : "Salida"} registrada {result.hora && <>a las <span className="text-text-primary font-bold">{result.hora}</span></>}

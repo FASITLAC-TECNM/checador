@@ -300,7 +300,7 @@ export const MetodoAutenticacionModal = ({
       if (!validation.isValid) {
         (function () { })('️ Validación de calidad falló:', validation.errors);
         Alert.alert(
-          '⚠️ Calidad insuficiente',
+          '️ Calidad insuficiente',
           validation.errors.join('\n') + '\n\n¿Deseas intentar de nuevo?',
           [
             { text: 'Cancelar', style: 'cancel', onPress: () => setProcesando(false) },

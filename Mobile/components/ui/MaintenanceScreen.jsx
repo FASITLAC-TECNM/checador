@@ -157,7 +157,7 @@ const MaintenanceScreen = ({ onRetry, darkMode = false }) => {
 
             {}
             <Animated.Text style={[styles.footer, { color: colors.footer, opacity: fadeAnim }]}>
-                FASITLAC © {new Date().getFullYear()}
+                FASITLAC  {new Date().getFullYear()}
             </Animated.Text>
         </View>);
 

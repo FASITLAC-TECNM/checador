@@ -216,7 +216,7 @@ export const FacialCaptureScreen = ({
 
     try {
       setIsProcessing(true);
-      setInstruction('📸 Capturando foto...');
+      setInstruction(' Capturando foto...');
 
       const photo = await camera.current.takePhoto({
         qualityPrioritization: 'quality',
@@ -242,7 +242,7 @@ export const FacialCaptureScreen = ({
         throw new Error('La captura falló. Intenta de nuevo con mejor iluminación.');
       }
 
-      setInstruction('🔍 Analizando rostro...');
+      setInstruction(' Analizando rostro...');
       setIsValidating(true);
 
       if (!lastFaceData) {
@@ -250,7 +250,7 @@ export const FacialCaptureScreen = ({
         setIsProcessing(false);
         setCountdown(null);
         Alert.alert(
-          '❌ No se detectó rostro',
+          ' No se detectó rostro',
           'No se detectó ningún rostro en el momento de la captura.\n\nPor favor:\n• Asegúrate de que tu rostro esté visible\n• Verifica que haya buena iluminación\n• Posiciónate dentro del óvalo',
           [{ text: 'Tomar otra foto', onPress: () => setInstruction('Centra tu rostro dentro del óvalo') }]
         );
@@ -263,7 +263,7 @@ export const FacialCaptureScreen = ({
         setIsProcessing(false);
         setCountdown(null);
         Alert.alert(
-          '⚠️ Rostro fuera del óvalo',
+          '️ Rostro fuera del óvalo',
           'Tu rostro no estaba centrado en el óvalo al momento de capturar.\n\nPor favor posiciona tu rostro dentro del óvalo e inténtalo de nuevo.',
           [{ text: 'Reintentar', onPress: () => setInstruction('Centra tu rostro dentro del óvalo') }]
         );
@@ -281,7 +281,7 @@ export const FacialCaptureScreen = ({
         setIsProcessing(false);
         setCountdown(null);
         Alert.alert(
-          '⚠️ Calidad insuficiente',
+          '️ Calidad insuficiente',
           'Se detectó un rostro pero la calidad no es suficiente.\n\n' + (
           leftEyeOpen < 0.2 || rightEyeOpen < 0.2 ? '• Mantén los ojos abiertos\n' : '') + (
           yaw > 40 ? '• Mira de frente a la cámara\n' : '') + (
@@ -307,7 +307,7 @@ export const FacialCaptureScreen = ({
         rightCheekPosition: detectedFace.landmarks?.RIGHT_CHEEK
       };
 
-      setInstruction('✅ Rostro verificado correctamente');
+      setInstruction(' Rostro verificado correctamente');
       await new Promise((resolve) => setTimeout(resolve, 800));
 
       onCapture({
@@ -326,7 +326,7 @@ export const FacialCaptureScreen = ({
       setIsProcessing(false);
       setCountdown(null);
       Alert.alert(
-        '❌ Error de captura',
+        ' Error de captura',
         error.message || 'No se pudo capturar o analizar la foto correctamente.',
         [{ text: 'Reintentar', onPress: () => setInstruction('Centra tu rostro en el óvalo') }]
       );

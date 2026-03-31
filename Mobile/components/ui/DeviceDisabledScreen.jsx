@@ -224,7 +224,7 @@ const DeviceDisabledScreen = ({ onReRequest, onReEnabled, darkMode = false }) =>
 
             {}
             <Animated.Text style={[styles.footer, { color: colors.footer, opacity: fadeAnim }]}>
-                FASITLAC © {new Date().getFullYear()}
+                FASITLAC  {new Date().getFullYear()}
             </Animated.Text>
         </View>);
 

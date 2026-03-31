@@ -513,7 +513,7 @@ export const LoginScreen = ({ onLoginSuccess, darkMode }) => {
                   resizeMode="contain" />
 
               </View>
-              <Text style={styles.title}>FASITLAC™</Text>
+              <Text style={styles.title}>FASITLAC</Text>
               <Text style={styles.subtitle}>Fábrica de Software del ITLAC</Text>
             </View>
 
@@ -636,7 +636,7 @@ export const LoginScreen = ({ onLoginSuccess, darkMode }) => {
                 </LinearGradient>
               </TouchableOpacity>
             </View>
-            <Text style={styles.copyright}>© {new Date().getFullYear()} FASITLAC™</Text>
+            <Text style={styles.copyright}> {new Date().getFullYear()} FASITLAC</Text>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>

@@ -518,6 +518,7 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       if (primerBloque) {
         const ahoraMinsNow = horaActual.getHours() * 60 + horaActual.getMinutes();
         const minutosParaAbrir = primerBloque.entrada - ANTICIPO;
+
         if (ahoraMinsNow < minutosParaAbrir) {
           setPuedeRegistrar(false);
           setTipoSiguienteRegistro('entrada');
@@ -879,9 +880,9 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         numBloques: bloques.length,
         bloques,
         tolerancias: {
-          anticipoEntrada: toleranciasSqlite?.minutos_anticipado_max != null ? parseInt(toleranciasSqlite.minutos_anticipado_max) : parseInt(config?.minutos_anticipado_max) || 0,
-          anticipoSalida: toleranciasSqlite?.minutos_anticipo_salida != null ? parseInt(toleranciasSqlite.minutos_anticipo_salida) : parseInt(config?.minutos_anticipo_salida) || 0,
-          posteriorSalida: toleranciasSqlite?.minutos_posterior_salida != null ? parseInt(toleranciasSqlite.minutos_posterior_salida) : parseInt(config?.minutos_posterior_salida) || 0
+          anticipoEntrada: parseInt(toleranciasSqlite?.minutos_anticipado_max ?? config?.minutos_anticipado_max) || 0,
+          anticipoSalida: parseInt(toleranciasSqlite?.minutos_anticipo_salida ?? config?.minutos_anticipo_salida) || 0,
+          posteriorSalida: parseInt(toleranciasSqlite?.minutos_posterior_salida ?? config?.minutos_posterior_salida) || 0
         },
         // Objeto completo de tolerancia (con reglas dinámicas) para evaluación offline
         toleranciaCompleta: toleranciasSqlite || null,

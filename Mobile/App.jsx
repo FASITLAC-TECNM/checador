@@ -85,11 +85,11 @@ export default function App() {
     const initOffline = async () => {
       try {
         await sqliteManager.initDatabase();
-        (function () { })('✅ Offline DB Initialized');
+        (function () { })(' Offline DB Initialized');
         syncManager.initAutoSync();
         await initNotifications();
       } catch (e) {
-        (function () { })('❌ Failed to init offline DB', e);
+        (function () { })(' Failed to init offline DB', e);
       }
     };
     initOffline();
@@ -424,13 +424,13 @@ export default function App() {
   };
 
   const verificarEstadoDispositivo = async () => {
-    (function () { })('🔍 [App] verificandoEstadoDispositivo INICIO');
+    (function () { })(' [App] verificandoEstadoDispositivo INICIO');
     try {
       const online = await syncManager.isOnline();
-      (function () { })('🔍 [App] isOnline:', online);
+      (function () { })(' [App] isOnline:', online);
 
       if (!online) {
-        (function () { })('🔍 [App] Offline -> Saltando verificación periódica de servidor');
+        (function () { })(' [App] Offline -> Saltando verificación periódica de servidor');
         return;
       }
 
@@ -441,12 +441,12 @@ export default function App() {
       );
 
       if (onboardingCompleted !== 'true') {
-        (function () { })('🔍 [App] Onboarding no completado.');
+        (function () { })(' [App] Onboarding no completado.');
         return;
       }
 
       if (!storedUserData || !storedToken) {
-        (function () { })('🔍 [App] Faltan datos de sesión para verificar estado del servidor');
+        (function () { })(' [App] Faltan datos de sesión para verificar estado del servidor');
         return;
       }
 
@@ -458,7 +458,7 @@ export default function App() {
         return;
       }
 
-      (function () { })('🔍 [App] Verificando dispositivo periódicamente por empleado en servidor...');
+      (function () { })(' [App] Verificando dispositivo periódicamente por empleado en servidor...');
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
       let dispositivoEnBD = null;
@@ -474,23 +474,23 @@ export default function App() {
         clearTimeout(timeoutId);
       } catch (err) {
         clearTimeout(timeoutId);
-        (function () { })('⚠️ [App] Timeout/Error verificando dispositivo periódicamente. Asumiendo estado local.');
+        (function () { })('️ [App] Timeout/Error verificando dispositivo periódicamente. Asumiendo estado local.');
         return; // Mantiene el estado validado offline
       }
 
       if (dispositivoEnBD.existe && dispositivoEnBD.activo) {
-        (function () { })('✅ [App] Dispositivo verificado periódicamente en nube: ACTIVO');
+        (function () { })(' [App] Dispositivo verificado periódicamente en nube: ACTIVO');
         return;
       } else if (dispositivoEnBD.existe && !dispositivoEnBD.activo) {
-        (function () { })('⛔ [App] Dispositivo periódico: INACTIVO en nube.');
+        (function () { })(' [App] Dispositivo periódico: INACTIVO en nube.');
         await handleDeviceInvalidated('Tu dispositivo fue desactivado por el administrador', true);
       } else {
-        (function () { })('ℹ️ [App] Dispositivo periódico: No encontrado en nube.');
+        (function () { })('️ [App] Dispositivo periódico: No encontrado en nube.');
         await handleDeviceInvalidated('Tu registro de dispositivo fue eliminado del servidor', false);
       }
 
     } catch (error) {
-      (function () { })('❌ [App] Error consultando estado periódico del servidor:', error);
+      (function () { })(' [App] Error consultando estado periódico del servidor:', error);
 
 
     }
@@ -538,7 +538,7 @@ export default function App() {
         try {
           const { maintenance } = await getMaintenanceStatus();
           if (maintenance) {
-            (function () { })('🔧 [App] Modo mantenimiento activo');
+            (function () { })(' [App] Modo mantenimiento activo');
             setIsMaintenance(true);
           }
         } catch (e) {
@@ -556,7 +556,7 @@ export default function App() {
       setDarkMode(savedDarkMode === 'true');
       setIsLoggedIn(false);
       setCurrentScreen('home');
-      (function () { })('🔒 [App] Login screen enforced on startup');
+      (function () { })(' [App] Login screen enforced on startup');
 
 
 
@@ -566,7 +566,7 @@ export default function App() {
           const empleadoId = parsedUser.empleado_id || parsedUser.empleadoInfo?.id;
 
           if (empleadoId) {
-            (function () { })('🔍 [App] Verificando estado del dispositivo en servidor al arrancar...');
+            (function () { })(' [App] Verificando estado del dispositivo en servidor al arrancar...');
             
             // Si el backend se sabe que está caído por el healthcheck previo
             // O si queremos evitar que se trabe, metemos un timeout
@@ -592,15 +592,15 @@ export default function App() {
             }
 
             if (dispositivoEnBD.existe && dispositivoEnBD.activo) {
-              (function () { })('✅ [App] Dispositivo activo en servidor. Onboarding OK.');
+              (function () { })(' [App] Dispositivo activo en servidor. Onboarding OK.');
               setDeviceRegistered(true);
             } else if (dispositivoEnBD.existe && !dispositivoEnBD.activo) {
-              (function () { })('⛔ [App] Dispositivo DESACTIVADO en servidor. Limpiando onboarding.');
+              (function () { })(' [App] Dispositivo DESACTIVADO en servidor. Limpiando onboarding.');
               await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
               setDeviceRegistered(false);
 
             } else {
-              (function () { })('ℹ️ [App] Dispositivo no encontrado en servidor. Limpiando onboarding.');
+              (function () { })('️ [App] Dispositivo no encontrado en servidor. Limpiando onboarding.');
               await AsyncStorage.multiRemove([
                 STORAGE_KEYS.ONBOARDING_COMPLETED,
                 STORAGE_KEYS.SOLICITUD_ID,
@@ -614,7 +614,7 @@ export default function App() {
           }
         } catch (verifyError) {
 
-          (function () { })('⚠️ [App] No se pudo verificar dispositivo al arrancar, usando estado local:', verifyError.message);
+          (function () { })('️ [App] No se pudo verificar dispositivo al arrancar, usando estado local:', verifyError.message);
           setDeviceRegistered(deviceCompleted === 'true');
         }
       } else {
@@ -663,7 +663,7 @@ export default function App() {
 
 
       if (!empleadoId) {
-        (function () { })('⚠️ [App] Usuario no es empleado, no requiere dispositivo');
+        (function () { })('️ [App] Usuario no es empleado, no requiere dispositivo');
         setDeviceRegistered(true);
         setIsLoggedIn(true);
         return;
@@ -674,11 +674,11 @@ export default function App() {
       const currentlyOnline = await syncManager.isOnline();
       const treatAsOnline = !isOffline && currentlyOnline;
 
-      (function () { })(`🔍 [App] Login Mode: ${isOffline ? 'OFFLINE' : 'ONLINE'}, Net: ${currentlyOnline}`);
+      (function () { })(` [App] Login Mode: ${isOffline ? 'OFFLINE' : 'ONLINE'}, Net: ${currentlyOnline}`);
 
       if (treatAsOnline && data.token && !syncManager.getIsBackendDown()) {
         try {
-          (function () { })('🔍 [App] ☁️ ONLINE: Verificando dispositivo estrictamente en servidor...');
+          (function () { })(' [App] ️ ONLINE: Verificando dispositivo estrictamente en servidor...');
           
           let dispositivoEnBD = null;
           const controller = new AbortController();
@@ -697,7 +697,7 @@ export default function App() {
 
 
           if (dispositivoEnBD.existe && dispositivoEnBD.activo) {
-            (function () { })('✅ [App] Dispositivo verificado en nube y ACTIVO');
+            (function () { })(' [App] Dispositivo verificado en nube y ACTIVO');
 
 
             if (dispositivoEnBD.token) {
@@ -715,14 +715,14 @@ export default function App() {
 
 
             if (dispositivoEnBD.existe && !dispositivoEnBD.activo) {
-              (function () { })('⛔ [App] Dispositivo INACTIVO en nube. Mostrando DeviceDisabledScreen.');
+              (function () { })(' [App] Dispositivo INACTIVO en nube. Mostrando DeviceDisabledScreen.');
               await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
               setDeviceDisabled(true);
               setDeviceRegistered(false);
               setIsLoggedIn(true);
               return;
             } else {
-              (function () { })('ℹ️ [App] No se encontró dispositivo registrado. Primera afiliación.');
+              (function () { })('️ [App] No se encontró dispositivo registrado. Primera afiliación.');
               await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
               await AsyncStorage.removeItem(STORAGE_KEYS.SOLICITUD_ID);
               await AsyncStorage.removeItem(STORAGE_KEYS.TOKEN_SOLICITUD);
@@ -733,7 +733,7 @@ export default function App() {
             }
 
         } catch (error) {
-          (function () { })('❌ [App] Error verificando en nube:', error);
+          (function () { })(' [App] Error verificando en nube:', error);
 
 
 
@@ -764,7 +764,7 @@ export default function App() {
 
 
 
-      (function () { })('📴 [App] Modo OFFLINE detectado. Usando validación local.');
+      (function () { })(' [App] Modo OFFLINE detectado. Usando validación local.');
       const deviceCompleted = await AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
 
       if (deviceCompleted === 'true') {
@@ -846,7 +846,7 @@ export default function App() {
     if (userData) {
 
 
-      (function () { })('🚪 [App] Cerrando sesión (sin registrar evento logout)');
+      (function () { })(' [App] Cerrando sesión (sin registrar evento logout)');
     }
 
     await Promise.all([

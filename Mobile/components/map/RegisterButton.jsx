@@ -576,7 +576,16 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       const ANTICIPO_ENT = horarioInfo?.tolerancias?.anticipoEntrada ?? 0;
       const ahoraMinsNow = horaActual.getHours() * 60 + horaActual.getMinutes();
 
-      if (bloqueProximo && ahoraMinsNow < bloqueProximo.entrada - ANTICIPO_ENT) {
+      if (!bloqueProximo) {
+        setPuedeRegistrar(false);
+        setTipoSiguienteRegistro('entrada');
+        setEstadoHorario('bloque_completo');
+        setJornadaCompletada(true);
+        setMensajeEspera('Has completado tus turnos programados de hoy.');
+        return;
+      }
+
+      if (ahoraMinsNow < bloqueProximo.entrada - ANTICIPO_ENT) {
         setPuedeRegistrar(false);
         setTipoSiguienteRegistro('entrada');
         setEstadoHorario('fuera_horario');

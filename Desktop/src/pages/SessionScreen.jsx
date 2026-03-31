@@ -58,6 +58,7 @@ export default function SessionScreen({ onLogout, usuario, isReaderConnected = f
   const [showEmployeeSelectionModal, setShowEmployeeSelectionModal] = useState(false);
   const [selectedBiometricType, setSelectedBiometricType] = useState('huella');
   const [targetEmployeeId, setTargetEmployeeId] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(15); // 15 segundos para cierre de sesión
 
   // Custom hook para datos del empleado
   const { datosCompletos, loadingEmpleado, departamentos, notices, setNotices } = useEmployeeData(usuario);
@@ -147,29 +148,37 @@ export default function SessionScreen({ onLogout, usuario, isReaderConnected = f
   }, [onLogout]);
 
   useEffect(() => {
-    let inactivityTimer;
+    const INACTIVITY_TIMEOUT = 15;
+    let lastActivityTime = Date.now();
 
-    const resetInactivityTimer = () => {
-      if (inactivityTimer) clearTimeout(inactivityTimer);
-      inactivityTimer = setTimeout(() => {
-        if (onLogoutRef.current) {
-          console.log("Cerrando sesión por inactividad...");
-          onLogoutRef.current();
-        }
-      }, 15000); // 15 segundos
+    const updateActivity = () => {
+      lastActivityTime = Date.now();
+      setTimeLeft(INACTIVITY_TIMEOUT);
     };
 
     const activityEvents = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
 
     // Registrar los listeners
-    activityEvents.forEach(event => window.addEventListener(event, resetInactivityTimer));
+    activityEvents.forEach(event => window.addEventListener(event, updateActivity));
 
-    // Inicializar el timer
-    resetInactivityTimer();
+    // Verificar inactividad cada segundo
+    const verifyInactivity = setInterval(() => {
+      const remaining = INACTIVITY_TIMEOUT - Math.floor((Date.now() - lastActivityTime) / 1000);
+      
+      if (remaining <= 0) {
+        clearInterval(verifyInactivity);
+        if (onLogoutRef.current) {
+          console.log("Cerrando sesión por inactividad...");
+          onLogoutRef.current();
+        }
+      } else {
+        setTimeLeft(remaining);
+      }
+    }, 1000);
 
     return () => {
-      if (inactivityTimer) clearTimeout(inactivityTimer);
-      activityEvents.forEach(event => window.removeEventListener(event, resetInactivityTimer));
+      clearInterval(verifyInactivity);
+      activityEvents.forEach(event => window.removeEventListener(event, updateActivity));
     };
   }, []); // Sin dependencias para que no se reinicie en cada render
 
@@ -376,6 +385,16 @@ export default function SessionScreen({ onLogout, usuario, isReaderConnected = f
           onClose={() => setShowEmployeeSelectionModal(false)}
           onSelect={handleSelectEmployee}
         />
+      )}
+
+      {/* Indicador de cierre de sesión inminente */}
+      {timeLeft <= 5 && (
+        <div className="fixed bottom-6 right-6 bg-red-600/90 backdrop-blur-sm text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-bounce z-[9999] border border-red-500/50">
+          <Clock className="w-6 h-6 animate-pulse" />
+          <span className="font-semibold tracking-wide">
+            Cerrando sesión automática en {timeLeft}s por inactividad
+          </span>
+        </div>
       )}
     </div>
   );

@@ -1340,6 +1340,32 @@ export async function getOrdenCredencialesCache() {
   }
 }
 
+export async function saveOmisionesGlobales(omisiones) {
+  try {
+    const database = await initDatabase();
+    const now = new Date().toISOString();
+    await database.runAsync(
+      `INSERT INTO cache_configuracion (clave, valor, updated_at)
+       VALUES ('omisiones_globales', ?, ?)
+       ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor, updated_at = excluded.updated_at`,
+      [JSON.stringify(omisiones), now]
+    );
+  } catch (e) {}
+}
+
+export async function getOmisionesGlobalesCache() {
+  try {
+    const database = await initDatabase();
+    const row = await database.getFirstAsync(
+      `SELECT valor FROM cache_configuracion WHERE clave = 'omisiones_globales'`
+    );
+    if (!row) return null;
+    return JSON.parse(row.valor);
+  } catch (e) {
+    return null;
+  }
+}
+
 // ── DÍAS FESTIVOS ──
 
 export async function clearDiasFestivos(yearStr) {
@@ -1446,6 +1472,9 @@ export default {
 
   saveOrdenCredenciales,
   getOrdenCredenciales: getOrdenCredencialesCache,
+
+  saveOmisionesGlobales,
+  getOmisionesGlobales: getOmisionesGlobalesCache,
 
   clearDiasFestivos,
   upsertDiasFestivos,

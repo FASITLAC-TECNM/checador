@@ -92,6 +92,7 @@ export default function AsistenciaFacial({
   const livenessIntervalRef = useRef(null);
   const livenessTimeoutRef = useRef(null);
   const challengeDoneRef = useRef(false);
+  const challengeSequenceRef = useRef(0); // 0 = primer punto, 1 = segundo punto
   const startNoseRef = useRef(null); // Guardar posicion inicial de la nariz
   const smoothedPoseRef = useRef(null); // Guardar la posición suavizada actual (filtro EMA)
   const currentChallengeRef = useRef(null); // Referencia al challenge actual para el closure de setInterval
@@ -140,6 +141,7 @@ export default function AsistenciaFacial({
   const startLivenessLoop = (video) => {
     stopLiveness();
     challengeDoneRef.current = false;
+    challengeSequenceRef.current = 0;
     startNoseRef.current = null;
     smoothedPoseRef.current = null;
     currentChallengeRef.current = null;
@@ -309,42 +311,64 @@ export default function AsistenciaFacial({
             if (isTrue3D) {
               framesHeldRef.current += 1;
               if (framesHeldRef.current >= 3) {
-                if (!processingFlashRef.current) {
-                  processingFlashRef.current = true;
-                  // Tomar luminancia pre-flash
-                  const baseLuminance = getFaceLuminance(video, detections.detection.box);
-                  setFlashActive(true);
-                  
-                  setTimeout(() => {
-                    // Tomar luminancia mid-flash
-                    const midLuminance = getFaceLuminance(video, detections.detection.box);
-                    setFlashActive(false);
+                if (challengeSequenceRef.current === 0) {
+                  if (!processingFlashRef.current) {
+                    processingFlashRef.current = true;
+                    setChallengeDone(true);
                     
-                    const diff = midLuminance - baseLuminance;
-                    console.log(`[Flash Liveness] Base: ${baseLuminance.toFixed(2)}, Mid: ${midLuminance.toFixed(2)}, Diff: ${diff.toFixed(2)}`);
-                    
-                    if (diff > 2.0) { // Umbral de aumento de luz
-                      console.log("✅ Rotación 3D intencional y Flash Liveness correctos");
-                      challengeDoneRef.current = true;
-                      setChallengeDone(true);
-                      advanceToCapture();
-                    } else {
-                      console.log("❌ Posible video detectado (Flash no reflejado en rostro)");
-                      setProximityMessage("Reflejo no detectado. Reiniciando prueba...");
-                      
-                      // Para evitar parpadeo infinito, reiniciamos el reto por completo
-                      currentChallengeRef.current = null;
-                      setChallengePoint(null);
+                    setTimeout(() => {
+                      challengeSequenceRef.current = 1;
                       framesHeldRef.current = 0;
                       startNoseRef.current = null;
+                      smoothedPoseRef.current = null;
                       
-                      // Cooldown antes de permitir que comience de nuevo y parpadee
-                      setTimeout(() => {
-                        processingFlashRef.current = false;
-                        setProximityMessage("");
-                      }, 2000);
-                    }
-                  }, 400); // 400ms para la animación de "tenue a fuerte"
+                      const newChal = generateChallengePoint();
+                      currentChallengeRef.current = newChal;
+                      setChallengePoint(newChal);
+                      setChallengeDone(false);
+                      
+                      processingFlashRef.current = false;
+                    }, 500); 
+                  }
+                } else if (challengeSequenceRef.current === 1) {
+                  if (!processingFlashRef.current) {
+                    processingFlashRef.current = true;
+                    // Tomar luminancia pre-flash
+                    const baseLuminance = getFaceLuminance(video, detections.detection.box);
+                    setFlashActive(true);
+                    
+                    setTimeout(() => {
+                      // Tomar luminancia mid-flash
+                      const midLuminance = getFaceLuminance(video, detections.detection.box);
+                      setFlashActive(false);
+                      
+                      const diff = midLuminance - baseLuminance;
+                      console.log(`[Flash Liveness] Base: ${baseLuminance.toFixed(2)}, Mid: ${midLuminance.toFixed(2)}, Diff: ${diff.toFixed(2)}`);
+                      
+                      if (diff > 2.0) { // Umbral de aumento de luz
+                        console.log("✅ Rotación 3D intencional y Flash Liveness correctos");
+                        challengeDoneRef.current = true;
+                        setChallengeDone(true);
+                        advanceToCapture();
+                      } else {
+                        console.log("❌ Posible video detectado (Flash no reflejado en rostro)");
+                        setProximityMessage("Reflejo no detectado. Reiniciando prueba...");
+                        
+                        // Para evitar parpadeo infinito, reiniciamos el reto por completo
+                        currentChallengeRef.current = null;
+                        setChallengePoint(null);
+                        framesHeldRef.current = 0;
+                        startNoseRef.current = null;
+                        challengeSequenceRef.current = 0;
+                        
+                        // Cooldown antes de permitir que comience de nuevo y parpadee
+                        setTimeout(() => {
+                          processingFlashRef.current = false;
+                          setProximityMessage("");
+                        }, 2000);
+                      }
+                    }, 400); // 400ms para la animación de "tenue a fuerte"
+                  }
                 }
               }
             } else {
@@ -365,12 +389,12 @@ export default function AsistenciaFacial({
       }
     }, 150);
 
-    // Timeout de 20s para liveness
+    // Timeout de 25s para liveness
     livenessTimeoutRef.current = setTimeout(() => {
       stopLiveness();
-      setErrorMessage("Verificación de vida fallida. Sigue el punto verde mostrado en pantalla.");
+      setErrorMessage("Verificación de vida fallida. Sigue el punto rojo mostrado en pantalla.");
       setStep("error");
-    }, 20000);
+    }, 25000);
   };
 
   // ── Fin helpers de Liveness ──────────────────────────────────────────────

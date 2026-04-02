@@ -76,7 +76,7 @@ export const DeviceMonitoringProvider = ({ children }) => {
                     registeredDevices = Array.isArray(responseReg.data || responseReg)
                         ? (responseReg.data || responseReg)
                         : [];
-                        
+
                     fetchedFromBackend = true; // Éxito al consultar backend
                 } catch (e) {
                     if (e.message && e.message.includes('401')) {
@@ -168,7 +168,7 @@ export const DeviceMonitoringProvider = ({ children }) => {
                     }
                 }
             }
-            
+
             if (!fetchedFromBackend) {
                 // ========== MODO OFFLINE (FALLBACK GARANTIZADO) ==========
                 // Validar hardware contra caché SQLite

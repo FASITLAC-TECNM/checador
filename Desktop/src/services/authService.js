@@ -156,6 +156,42 @@ export const loginUsuario = async (usuarioOCorreo, pin, empresaId = null) => {
 };
 
 /**
+ * Autenticar un kiosco solo con el identificador de la empresa
+ * @param {string} identificador - El identificador de la empresa
+ * @returns {Promise<Object>} - El token de acceso y datos de la empresa
+ */
+export const loginKiosco = async (identificador) => {
+  try {
+    console.log("🔐 Generando token de kiosco para empresa:", identificador);
+
+    const response = await fetch(`${API_URL}${API_CONFIG.ENDPOINTS.AUTH}/token-kiosco`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ identificador }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Identificador inválido o empresa inactiva");
+    }
+
+    const loginData = await response.json();
+    console.log("✅ Respuesta token kiosco:", JSON.stringify(loginData, null, 2));
+
+    if (!loginData.success) {
+      throw new Error(loginData.message || "Error al obtener el token del kiosco");
+    }
+
+    return loginData;
+  } catch (error) {
+    console.error("❌ Error en login kiosco:", error);
+    throw error;
+  }
+};
+
+/**
  * Obtener usuario por ID
  * @param {number} id - ID del usuario
  * @returns {Promise<Object>} - Usuario encontrado

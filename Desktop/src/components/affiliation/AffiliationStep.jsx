@@ -47,12 +47,12 @@ export default function AffiliationStep({
             <div className="bg-bg-secondary/40 border border-border-subtle rounded-lg p-6 shadow-sm relative overflow-hidden group">
               {/* Decorative Subtle Background Icon */}
               <Building2 className="absolute -right-8 -bottom-8 w-40 h-40 text-accent/5 -rotate-12 transition-transform group-hover:rotate-0 duration-700" />
-              
+
               <div className="relative z-10 flex flex-col items-center text-center">
                 <div className="w-16 h-16 rounded-2xl bg-accent/5 flex items-center justify-center border border-accent/10 mb-6">
                   <ShieldCheck className="w-8 h-8 text-accent" />
                 </div>
-                
+
                 <h3 className="text-lg font-semibold mb-2">ID de Afiliación</h3>
                 <p className="text-sm text-text-tertiary mb-8 max-w-xs">
                   Ingrese el código alfanumérico proporcionado por su administrador.
@@ -68,7 +68,7 @@ export default function AffiliationStep({
                       className="w-full px-4 py-3 bg-bg-primary border border-border-subtle rounded-lg focus:ring-1 focus:ring-accent focus:border-accent transition-all outline-none text-center font-mono text-sm tracking-[0.15em] shadow-inner placeholder:text-text-disabled"
                     />
                   </div>
-                  
+
                   <div className="pt-4">
                     <p className="text-xs text-text-tertiary">
                       ¿No tiene su ID?{" "}
@@ -155,9 +155,9 @@ export default function AffiliationStep({
                 </div>
               ))}
             </div>
-            
+
             <div className="p-6 bg-bg-secondary/20 flex justify-center">
-              <button 
+              <button
                 onClick={() => setShowHelpModal(false)}
                 className="text-xs font-bold uppercase tracking-widest text-text-tertiary hover:text-accent transition-colors"
               >

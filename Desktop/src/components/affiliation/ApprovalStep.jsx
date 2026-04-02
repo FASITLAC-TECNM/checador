@@ -1,7 +1,7 @@
-import { 
-  Clock, Lock, CheckCircle, XCircle, 
-  Info, ChevronRight, RefreshCw, 
-  ShieldAlert, ShieldCheck, HelpCircle 
+import {
+  Clock, Lock, CheckCircle, XCircle,
+  Info, ChevronRight, RefreshCw,
+  ShieldAlert, ShieldCheck, HelpCircle
 } from "lucide-react";
 import StepIndicator from "./StepIndicator";
 
@@ -29,13 +29,13 @@ export default function ApprovalStep({
             <div className="bg-bg-secondary/40 border border-border-subtle rounded-lg p-12 text-center shadow-xl relative overflow-hidden group">
               {/* Decorative Background Icon */}
               <CheckCircle className="absolute -right-8 -bottom-8 w-48 h-48 text-success/5 rotate-12 group-hover:rotate-0 transition-transform duration-1000" />
-              
+
               <div className="relative z-10 flex flex-col items-center">
                 <div className="w-20 h-20 bg-success/5 rounded-full flex items-center justify-center mb-8 border border-success/10 relative">
-                   <div className="absolute inset-0 rounded-full bg-success/10 animate-ping opacity-20" />
-                   <ShieldCheck className="w-10 h-10 text-success" />
+                  <div className="absolute inset-0 rounded-full bg-success/10 animate-ping opacity-20" />
+                  <ShieldCheck className="w-10 h-10 text-success" />
                 </div>
-                
+
                 <h2 className="text-xs font-semibold text-success uppercase tracking-[0.2em] mb-3">
                   Paso 04 - Finalizado
                 </h2>
@@ -47,8 +47,8 @@ export default function ApprovalStep({
                 </p>
 
                 <div className="w-full bg-bg-primary/60 border border-border-subtle rounded-lg p-4 mb-2 flex items-center justify-center gap-3">
-                   <Building2Icon className="w-4 h-4 text-text-tertiary" />
-                   <span className="text-xs font-mono uppercase tracking-wider text-text-secondary">{companyId}</span>
+                  <Building2Icon className="w-4 h-4 text-text-tertiary" />
+                  <span className="text-xs font-mono uppercase tracking-wider text-text-secondary">{companyId}</span>
                 </div>
               </div>
             </div>
@@ -85,19 +85,19 @@ export default function ApprovalStep({
           <div className="max-w-xl w-full px-6 py-12 animate-slide-up">
             <div className="bg-bg-secondary/40 border border-border-subtle rounded-lg p-12 text-center shadow-xl relative overflow-hidden group">
               <ShieldAlert className="absolute -right-8 -bottom-8 w-48 h-48 text-error/5 rotate-12 group-hover:rotate-0 transition-transform duration-1000" />
-              
+
               <div className="relative z-10 flex flex-col items-center">
                 <div className="w-20 h-20 bg-error/5 rounded-full flex items-center justify-center mb-8 border border-error/10">
-                   <XCircle className="w-10 h-10 text-error" />
+                  <XCircle className="w-10 h-10 text-error" />
                 </div>
-                
+
                 <h2 className="text-xs font-semibold text-error uppercase tracking-[0.2em] mb-3">
                   Error de Afiliación
                 </h2>
                 <h1 className="text-3xl font-light tracking-tight mb-4">
                   Solicitud <span className="font-semibold text-error/80">Rechazada</span>
                 </h1>
-                
+
                 {error && (
                   <div className="w-full bg-error/5 border border-error/20 rounded-lg p-4 mb-6 shadow-inner text-sm text-error/90 max-w-sm">
                     {error}
@@ -141,31 +141,31 @@ export default function ApprovalStep({
         <div className="max-w-2xl w-full px-6 py-12 animate-slide-up">
           <div className="bg-bg-secondary/40 border border-border-subtle rounded-lg p-10 text-center shadow-xl relative overflow-hidden group">
             <Clock className="absolute -right-8 -bottom-8 w-48 h-48 text-warning/5 rotate-12 group-hover:rotate-0 transition-transform duration-1000" />
-            
+
             <div className="relative z-10 flex flex-col items-center">
               <div className="w-20 h-20 bg-warning/5 rounded-full flex items-center justify-center mb-8 border border-warning/10 relative">
-                 <div className="absolute inset-0 rounded-full border-2 border-warning/20 border-t-warning animate-spin" />
-                 <Clock className="w-10 h-10 text-warning" />
+                <div className="absolute inset-0 rounded-full border-2 border-warning/20 border-t-warning animate-spin" />
+                <Clock className="w-10 h-10 text-warning" />
               </div>
-              
+
               <h2 className="text-xs font-semibold text-warning uppercase tracking-[0.2em] mb-3">
                 Proceso en curso
               </h2>
               <h1 className="text-3xl font-light tracking-tight mb-4">
                 Solicitud <span className="font-semibold text-warning/80">Pendiente</span>
               </h1>
-              
+
               <div className="w-full max-w-sm grid grid-cols-2 gap-3 mb-8">
                 <div className="bg-bg-primary/60 border border-border-subtle rounded-lg p-4 text-left">
-                   <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider mb-1">Empresa</p>
-                   <p className="text-xs font-mono text-text-secondary truncate">{companyId || "Cargando..."}</p>
+                  <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider mb-1">Empresa</p>
+                  <p className="text-xs font-mono text-text-secondary truncate">{companyId || "Cargando..."}</p>
                 </div>
                 <div className="bg-bg-primary/60 border border-border-subtle rounded-lg p-4 text-left">
-                   <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider mb-1">Estado</p>
-                   <p className="text-xs font-medium text-text-secondary flex items-center gap-2">
-                     <span className="w-1.5 h-1.5 bg-warning rounded-full animate-pulse" />
-                     En revisión
-                   </p>
+                  <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-wider mb-1">Estado</p>
+                  <p className="text-xs font-medium text-text-secondary flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-warning rounded-full animate-pulse" />
+                    En revisión
+                  </p>
                 </div>
               </div>
 
@@ -194,18 +194,18 @@ export default function ApprovalStep({
 // Minimalist local icon helper
 function Building2Icon(props) {
   return (
-    <svg 
-      {...props} 
-      xmlns="http://www.w3.org/2000/svg" 
-      width="24" height="24" 
-      viewBox="0 0 24 24" fill="none" 
-      stroke="currentColor" strokeWidth="2" 
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24" height="24"
+      viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2"
       strokeLinecap="round" strokeLinejoin="round"
     >
-      <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/>
-      <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/>
-      <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/>
-      <path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/>
+      <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" />
+      <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" />
+      <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2" />
+      <path d="M10 6h4" /><path d="M10 10h4" /><path d="M10 14h4" /><path d="M10 18h4" />
     </svg>
   );
 }

@@ -12,6 +12,7 @@ import {
   cancelarSolicitud,
   actualizarSolicitudAPendiente,
 } from "../services/affiliationService";
+import { loginKiosco } from "../services/authService";
 
 export default function AffiliationRequest({ onComplete }) {
   const [showWelcome, setShowWelcome] = useState(true);
@@ -144,6 +145,10 @@ export default function AffiliationRequest({ onComplete }) {
     try {
       setError(null);
 
+      // 1. Obtener token mágico del backend mediante el identificador
+      const authResponse = await loginKiosco(companyId);
+      const tempToken = authResponse.data.token;
+
       // Usar la información del sistema que ya se capturó en el paso 1
       // Esta información ya fue detectada y está en nodeConfig
       const solicitud = await crearSolicitudAfiliacion({
@@ -152,15 +157,19 @@ export default function AffiliationRequest({ onComplete }) {
         ip: nodeConfig.ipAddress || '127.0.0.1',
         mac: nodeConfig.macAddress || '00:00:00:00:00:00',
         sistema_operativo: nodeConfig.operatingSystem || 'Unknown',
-        identificador: companyId,
+        // Aseguramos enviar el company id y el token que obtuvimos
+        identificador: authResponse.data.empresa.identificador || companyId,
         observaciones: null,
         dispositivos: devices,
+        installToken: tempToken
       });
 
       setSolicitudId(solicitud.id);
-      // Obtener el token guardado en localStorage
+      // Guardar localmente para reintentos y para polling
       const tokenGuardado = localStorage.getItem("solicitud_token");
       setSolicitudToken(tokenGuardado);
+      localStorage.setItem("install_token", tempToken);
+
       setStep(4);
       setRequestStatus("pending");
     } catch (error) {

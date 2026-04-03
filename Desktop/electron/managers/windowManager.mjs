@@ -63,7 +63,7 @@ export function createWindow() {
     // Cargar la aplicación
     if (process.env.NODE_ENV === "development") {
         // En desarrollo, cargar desde el servidor de desarrollo de Vite
-        mainWindow.loadURL("http://localhost:5174");
+        mainWindow.loadURL("http://localhost:5173");
         // Abrir DevTools solo si se necesita para debugging
         // mainWindow.webContents.openDevTools();
     } else {

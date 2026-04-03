@@ -2,8 +2,6 @@
   "name": "sistema-asistencia",
   "private": true,
   "version": "1.0.0",
-  "description": "Sistema de Asistencia Kiosko - FASITLAC",
-  "author": "FASITLAC",
   "type": "module",
   "main": "electron/main.mjs",
   "scripts": {
@@ -11,7 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "electron": "cross-env NODE_ENV=development electron .",
-    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://127.0.0.1:5174 && cross-env NODE_ENV=development electron .\"",
+    "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
     "electron:build": "npm run build && electron-builder",
     "rebuild": "npx electron-rebuild -f -w better-sqlite3"
   },
@@ -61,10 +59,6 @@
           "**/*.dll",
           "**/*.config"
         ]
-      },
-      {
-        "from": "electron/BiometricMiddleware/installers/",
-        "to": "installers"
       }
     ],
     "win": {
@@ -87,7 +81,8 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Sistema de Asistencia",
       "deleteAppDataOnUninstall": true,
-      "license": "public/license.txt"
+      "license": "public/license.txt",
+      "include": "build/installer.nsh"
     },
     "linux": {
       "target": [

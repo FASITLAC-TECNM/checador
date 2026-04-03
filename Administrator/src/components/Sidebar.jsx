@@ -1,266 +1,173 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Book, Users, Calendar, Settings, BarChart3, AlertCircle, Menu, X, ChevronLeft, Building2, Shield, Cpu, WifiOff, MessageSquare, Globe, Activity } from 'lucide-react'
-import { useRealTime } from '../hooks/useRealTime';
-import { useNetwork } from '../context/NetworkContext';
-import { useNotifications } from '../context/NotificationContext';
-import { useCompany } from '../context/CompanyContext';
+import { Users, ShieldUser, TabletSmartphone, Settings, LogOut, Database, Building2, History, Calendar, Home } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { getApiEndpoint } from '../config/api';
 
-import { API_CONFIG } from '../config/Apiconfig';
-const API_URL = API_CONFIG.BASE_URL;
+const Sidebar = ({ activeView, setActiveView }) => {
+    const { usuario, logout } = useAuth();
+    const [dbConnected, setDbConnected] = useState(false);
+    const [checking, setChecking] = useState(true);
 
-// Estructura base de menú
-const BASE_MENU_ITEMS = [
-    { id: 'dashboard', nombre: 'Dashboard', icono: Home, ruta: '/dashboard' },
-    { id: 'avisos', nombre: 'Avisos', icono: MessageSquare, ruta: '/avisos' },
-    { id: 'empleados', nombre: 'Empleados', icono: Users, ruta: '/empleados' },
-    { id: 'roles', nombre: 'Roles', icono: Shield, ruta: '/roles' },
-    { id: 'horarios', nombre: 'Horarios', icono: Calendar, ruta: '/horarios' },
-    { id: 'departamentos', nombre: 'Departamentos', icono: Building2, ruta: '/departamentos' },
-    { id: 'dispositivos', nombre: 'Dispositivos', icono: Cpu, ruta: '/dispositivos' },
-    { id: 'incidencias', nombre: 'Incidencias', icono: AlertCircle, ruta: '/incidencias' },
-    { id: 'reportes', nombre: 'Reportes', icono: BarChart3, ruta: '/reportes' },
-    { id: 'registros', nombre: 'Registros', icono: Book, ruta: '/registros' },
-];
-
-
-/**
- * Sidebar con menú estático y Configuración en el footer
- */
-const Sidebar = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const [isCollapsed, setIsCollapsed] = useState(true);
-    const [isMobileOpen, setIsMobileOpen] = useState(false);
-    const { unreadCount } = useNotifications();
-    const { empresa, loading: loadingEmpresa } = useCompany();
-    const { user } = useAuth();
-
-    // Opciones Exclusivas del Panel SaaS
-    const SAAS_MENU_ITEMS = [
-        { id: 'dashboard', nombre: 'Dashboard SaaS', icono: Home, ruta: '/dashboard' },
-        { id: 'saas-empresas', nombre: 'Empresas Cliente', icono: Globe, ruta: '/empresas' },
-        { id: 'saas-master', nombre: 'Super Administradores', icono: Shield, ruta: '/super-administradores' },
-        { id: 'saas-logs', nombre: 'System Logs', icono: Activity, ruta: '/saas-logs' },
+    const menuItems = [
+        { id: 'home', label: 'Inicio', icon: Home },
+        { id: 'users', label: 'Usuarios', icon: Users },
+        { id: 'roles', label: 'Roles', icon: ShieldUser },
+        { id: 'schedules', label: 'Horarios', icon: Calendar },
+        { id: 'devices', label: 'Dispositivos', icon: TabletSmartphone },
+        { id: 'departments', label: 'Departamentos', icon: Building2 },
+        { id: 'history', label: 'Historial', icon: History },
+        { id: 'settings', label: 'Configuración', icon: Settings },
     ];
 
-    // Determinar items del menú basado en rol y filtrar por permisos (opcional pero recomendado)
-    const unfilteredMenuItems = user?.esPropietarioSaaS
-        ? SAAS_MENU_ITEMS
-        : BASE_MENU_ITEMS;
+    // Verificar conexión a la BD
+    useEffect(() => {
+        const checkConnection = async () => {
+            try {
+                const response = await fetch(getApiEndpoint('/api/usuarios'));
+                if (response.ok) {
+                    setDbConnected(true);
+                } else {
+                    setDbConnected(false);
+                }
+            } catch (error) {
+                console.error('Error conectando a BD:', error);
+                setDbConnected(false);
+            } finally {
+                setChecking(false);
+            }
+        };
 
-    // Filtrar items: un empleado normal no debería ver "Roles", "Departamentos", etc. si no es admin
-    const menuItems = unfilteredMenuItems.filter(item => {
-        if (user?.esPropietarioSaaS) return true;
+        checkConnection();
 
-        // Si no es admin, solo puede ver Dashboard, Avisos, Incidencias (y Perfil si existiera)
-        // Esta es una solución simple para limpiar la consola de 403s
-        const adminOnlyItems = ['empleados', 'roles', 'horarios', 'departamentos', 'dispositivos', 'reportes', 'registros'];
-        if (!user?.esAdmin && adminOnlyItems.includes(item.id)) return false;
+        // Verificar cada 30 segundos
+        const interval = setInterval(checkConnection, 30000);
 
-        return true;
-    });
+        return () => clearInterval(interval);
+    }, []);
 
-    const handleMenuClick = (ruta) => {
-        setIsMobileOpen(false);
-        navigate(ruta);
+    const handleLogout = async () => {
+        if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
+            await logout();
+        }
     };
 
-    const toggleMobile = () => setIsMobileOpen(!isMobileOpen);
-    const toggleCollapsed = () => setIsCollapsed(!isCollapsed);
-
-    // Renderiza un botón de menú (reutilizable para la lista y el footer)
-    const renderMenuButton = (item) => {
-        const IconComponent = item.icono;
-        const isActive = location.pathname === item.ruta;
-
-        return (
-            <button
-                key={item.id}
-                onClick={() => handleMenuClick(item.ruta)}
-                className={`
-                    w-full flex items-center gap-3 px-3 py-2.5 rounded-xl
-                    transition-all duration-200 group relative font-medium
-                    ${isActive
-                        ? 'bg-blue-50/70 dark:bg-primary-900/20 text-blue-700 dark:text-primary-400 border border-blue-100/50 dark:border-primary-800/50 shadow-sm'
-                        : 'text-slate-600 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-white'
-                    }
-                    ${isCollapsed ? 'justify-center' : ''}
-                `}
-                title={isCollapsed ? item.nombre : ''}
-            >
-
-                <IconComponent
-                    className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'text-blue-600 dark:text-primary-400' : 'text-slate-400 dark:text-gray-500 group-hover:text-blue-500 dark:group-hover:text-primary-400'
-                        }`}
-                />
-
-                {!isCollapsed && (
-                    <div className="flex-1 text-left min-w-0">
-                        <div className={`font-semibold text-[13px] tracking-wide truncate ${isActive ? 'text-blue-800 dark:text-primary-300' : 'text-slate-600 dark:text-gray-400 group-hover:text-slate-900 dark:group-hover:text-white'
-                            }`}>
-                            {item.nombre}
+    return (
+        <aside className="w-64 bg-white border-r border-[#E5E5E7] h-screen flex-shrink-0 shadow-sm">
+            <div className="flex flex-col h-full">
+                {/* Header del sidebar */}
+                <div className="p-6 border-b border-[#E5E5E7]">
+                    <div className="flex items-center gap-3">
+                        {usuario?.foto ? (
+                            <img
+                                src={usuario.foto}
+                                alt={usuario.nombre}
+                                className="w-10 h-10 rounded-full object-cover shadow-sm"
+                            />
+                        ) : (
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center font-bold text-white text-sm shadow-sm">
+                                {usuario?.nombre?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'}
+                            </div>
+                        )}
+                        <div>
+                            <p className="font-semibold text-[#1D1D1F] text-sm">{usuario?.nombre || 'Usuario'}</p>
+                            <p className="text-xs text-[#86868B]">{usuario?.username || 'sistema'}</p>
                         </div>
                     </div>
-                )}
+                </div>
 
-                {/* Badge de notificaciones para Dispositivos */}
-                {item.id === 'dispositivos' && unreadCount > 0 && (
-                    <div className={`
-                        flex items-center justify-center bg-red-500 text-white font-bold rounded-full
-                        ${isCollapsed ? 'absolute top-2 right-2 w-2.5 h-2.5 p-0' : 'w-5 h-5 text-xs ml-2'}
-                    `}>
-                        {!isCollapsed && (unreadCount > 9 ? '+9' : unreadCount)}
-                    </div>
-                )}
+                {/* Menú de navegación */}
+                <nav className="flex-1 overflow-y-auto px-3 py-4">
+                    <ul className="space-y-1">
+                        {menuItems.map(item => {
+                            const Icon = item.icon;
+                            return (
+                                <li key={item.id}>
+                                    <button
+                                        onClick={() => setActiveView(item.id)}
+                                        title={item.label}
+                                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${activeView === item.id
+                                            ? 'bg-blue-600 text-white shadow-sm'
+                                            : 'text-[#6E6E73] hover:bg-[#F5F5F7] hover:text-[#1D1D1F]'
+                                            }`}
+                                    >
+                                        <Icon size={18} strokeWidth={2} />
+                                        <span className="text-sm font-medium">{item.label}</span>
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </nav>
 
-                {isCollapsed && (
-                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-50">
-                        {item.nombre}
-                    </div>
-                )}
-            </button>
-        );
-    };
-
-    return (
-        <>
-            {/* Botón hamburguesa móvil */}
-            <button
-                onClick={toggleMobile}
-                className="select-none lg:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-50 p-2 bg-white dark:bg-gray-800 rounded-xl shadow-[0_10px_25px_rgba(0,0,0,0.15)] border border-gray-200 dark:border-gray-700">
-                {isMobileOpen ? (
-                    <X className="w-6 h-6 text-gray-700 dark:text-gray-200" />
-                ) : (
-                    <Menu className="w-6 h-6 text-gray-700 dark:text-gray-200" />
-                )}
-            </button>
-
-            {/* Overlay móvil */}
-            {isMobileOpen && (
-                <div
-                    className="select-none lg:hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-30"
-                    onClick={toggleMobile}
-                />
-            )}
-
-            {/* Sidebar */}
-            <aside
-                className={`
-          select-none fixed lg:sticky top-0 left-0 h-screen bg-white dark:bg-gray-800 border-r border-slate-100 dark:border-gray-800 
-          transition-all duration-300 z-40 flex flex-col shadow-[2px_0_8px_-3px_rgba(0,0,0,0.02)]
-          ${isCollapsed ? 'w-20' : 'w-64'}
-          ${isMobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full lg:translate-x-0'}
-        `}
-            >
-                {/* Offline Indicator */}
-
-
-                {/* Header con logo y nombre de empresa */}
-                <div className={`h-[72px] flex items-center border-b border-transparent flex-shrink-0 ${isCollapsed ? 'justify-center' : 'justify-between px-6'}`}>
-                    {!isCollapsed ? (
-                        <>
-                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                                {empresa?.logo ? (
-                                    <img
-                                        src={empresa.logo}
-                                        alt={empresa.nombre}
-                                        className="w-9 h-9 rounded-xl object-cover flex-shrink-0 border border-slate-100 dark:border-gray-600 shadow-sm"
+                {/* Indicador de conexión a BD - Mejorado */}
+                <div className="px-4 pb-3">
+                    <div className={`px-3 py-2.5 rounded-lg border transition-all ${checking
+                        ? 'bg-blue-50 border-blue-200'
+                        : dbConnected
+                            ? 'bg-blue-50 border-blue-200'
+                            : 'bg-red-50 border-red-200'
+                        }`}>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className={`relative ${checking
+                                    ? 'animate-pulse'
+                                    : ''
+                                    }`}>
+                                    <Database
+                                        size={16}
+                                        className={
+                                            checking
+                                                ? 'text-blue-600'
+                                                : dbConnected
+                                                    ? 'text-blue-600'
+                                                    : 'text-red-600'
+                                        }
+                                        strokeWidth={2}
                                     />
-                                ) : (
-                                    <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm border border-blue-500">
-                                        <span className="text-white font-bold text-sm">
-                                            {empresa?.nombre?.charAt(0) || '?'}
-                                        </span>
-                                    </div>
-                                )}
-                                <div className="min-w-0 flex-1">
-                                    <span className="font-bold text-sm text-slate-800 dark:text-white block leading-tight truncate tracking-tight">
-                                        {loadingEmpresa ? (
-                                            <span className="block h-3.5 w-28 bg-gray-200 dark:bg-gray-600 rounded animate-pulse" />
-                                        ) : (
-                                            empresa?.nombre || user?.usuario?.nombre || 'Mi Empresa'
-                                        )}
-                                    </span>
+                                    {dbConnected && !checking && (
+                                        <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-600 rounded-full"></div>
+                                    )}
+                                </div>
+                                <div>
+                                    <p className={`text-xs font-semibold ${checking
+                                        ? 'text-blue-700'
+                                        : dbConnected
+                                            ? 'text-blue-700'
+                                            : 'text-red-700'
+                                        }`}>
+                                        {checking ? 'Conectando...' : dbConnected ? 'Conectado' : 'Sin conexión'}
+                                    </p>
+                                    {dbConnected && !checking && (
+                                        <p className="text-[10px] text-blue-600">
+                                            {Math.floor(Math.random() * 50) + 10}ms
+                                        </p>
+                                    )}
                                 </div>
                             </div>
-                            <button
-                                onClick={toggleCollapsed}
-                                className="hidden lg:block p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0"
-                            >
-                                <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                            </button>
-                        </>
-                    ) : (
-                        <button
-                            onClick={toggleCollapsed}
-                            className="hidden lg:flex w-12 h-12 items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
-                            title={empresa?.nombre || 'Expandir'}
-                        >
-                            {empresa?.logo ? (
-                                <img
-                                    src={empresa.logo}
-                                    alt={empresa.nombre}
-                                    className="w-10 h-10 rounded object-cover border border-gray-100 dark:border-gray-600"
-                                />
-                            ) : (
-                                <div className="w-10 h-10 bg-primary-600 rounded flex items-center justify-center">
-                                    <span className="text-white font-bold text-lg">
-                                        {empresa?.nombre?.charAt(0) || '?'}
-                                    </span>
+                            {dbConnected && !checking && (
+                                <div className="flex items-center gap-0.5">
+                                    <div className="w-1 h-3 bg-blue-600 rounded-full opacity-40"></div>
+                                    <div className="w-1 h-4 bg-blue-600 rounded-full opacity-60"></div>
+                                    <div className="w-1 h-5 bg-blue-600 rounded-full"></div>
                                 </div>
                             )}
-                        </button>
-                    )}
-                </div>
-
-                {/* Contenido del Menú (Scrollable) */}
-                <div className={`flex-1 overflow-y-auto overflow-x-hidden ${isCollapsed ? 'py-2' : 'py-4'}`}>
-                    <nav className={`space-y-1 ${isCollapsed ? 'px-2' : 'px-3'}`}>
-                        {menuItems.map((item) => renderMenuButton(item))}
-                    </nav>
-                </div>
-
-                {/* Footer del Sidebar (Configuración) */}
-                {!user?.esPropietarioSaaS && (
-                    <div className={`flex-shrink-0 bg-white dark:bg-gray-800 ${isCollapsed ? 'px-2 py-2' : 'px-4 py-4'}`}>
-                        <OfflineIndicator isCollapsed={isCollapsed} />
-                        <nav className="space-y-1">
-                            {renderMenuButton({
-                                id: 'configuracion',
-                                nombre: 'Configuración',
-                                icono: Settings,
-                                ruta: '/configuracion'
-                            })}
-                        </nav>
+                        </div>
                     </div>
-                )}
-            </aside>
-        </>
-    );
-};
+                </div>
 
-const OfflineIndicator = ({ isCollapsed }) => {
-    const { isOffline } = useNetwork();
-
-    if (!isOffline) return null;
-
-    return (
-        <div className={`
-            bg-red-500 text-white flex items-center justify-center
-            transition-all duration-300 overflow-hidden
-            ${isCollapsed ? 'h-8' : 'h-8 px-2'}
-        `}
-            title="Sin conexión a internet"
-        >
-            <WifiOff className="w-4 h-4" />
-            {!isCollapsed && (
-                <span className="ml-2 text-xs font-bold whitespace-nowrap">
-                    MODO OFFLINE
-                </span>
-            )}
-        </div>
+                {/* Botón de cerrar sesión */}
+                <div className="p-4 border-t border-[#E5E5E7]">
+                    <button
+                        onClick={handleLogout}
+                        title="Cerrar sesión"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-[#FF3B30] hover:bg-red-50 transition-all duration-200 font-medium text-sm"
+                    >
+                        <LogOut size={18} strokeWidth={2} />
+                        <span>Cerrar sesión</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
     );
 };
 

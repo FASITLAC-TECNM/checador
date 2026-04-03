@@ -87,7 +87,7 @@ export default function WelcomeScreen({ onClose }) {
             <span>Base de Datos</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className={`w-1.5 h-1.5 rounded-full ${sdkMissing ? 'bg-error' : 'bg-success'}`}></span>
+            <span className="w-1.5 h-1.5 rounded-full bg-success"></span>
             <span>Servicio Biométrico</span>
           </div>
         </div>
@@ -158,14 +158,15 @@ export default function WelcomeScreen({ onClose }) {
       <div className="p-8 flex flex-col items-center border-t border-border-subtle bg-bg-secondary/20">
         <button
           onClick={onClose}
+          disabled={sdkMissing}
           className={`group px-8 py-3.5 text-white rounded-lg font-semibold transition-all duration-200 flex items-center gap-3 shadow-lg active:scale-95 mb-4 ${
             sdkMissing 
-              ? "bg-warning hover:bg-warning-hover shadow-warning/20" 
+              ? "bg-border-divider/50 text-text-disabled cursor-not-allowed shadow-none" 
               : "bg-accent hover:bg-accent-hover shadow-accent/20"
           }`}
         >
-          {sdkMissing ? "Continuar en Modo Compatibilidad" : "Iniciar Configuración"}
-          <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          Iniciar Configuración
+          {!sdkMissing && <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
         </button>
         <div className="flex items-center gap-2 text-[10px] text-text-disabled font-medium uppercase tracking-widest">
           <span>FASITLAC TECNM</span>

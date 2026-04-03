@@ -52,8 +52,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Información del entorno
   isElectron: true,
-  platform: process.platform,
-  versions: process.versions,
+  // platform: process.platform, // Eliminado por seguridad en sandbox
+  // versions: process.versions, // Eliminado por seguridad en sandbox
 
   // ===== Sistema Offline-First =====
   offlineDB: {

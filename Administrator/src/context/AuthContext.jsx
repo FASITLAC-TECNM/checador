@@ -1,190 +1,15 @@
-import { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { getApiEndpoint } from '../config/api';
+import { createContext, useContext, useState, useEffect } from 'react';
 
+import { API_CONFIG } from '../config/Apiconfig';
+import { useRealTime } from '../hooks/useRealTime';
+const API_URL = API_CONFIG.BASE_URL;
+
+// Crear el contexto
 const AuthContext = createContext(null);
 
-export const AuthProvider = ({ children }) => {
-    const [usuario, setUsuario] = useState(null);
-    const [empleado, setEmpleado] = useState(null);
-    const [rol, setRol] = useState(null);
-    const [permisos, setPermisos] = useState([]);
-    const [departamento, setDepartamento] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const pingIntervalRef = useRef(null);
-
-    // Verificar si hay una sesión guardada al cargar
-    useEffect(() => {
-        const verificarSesion = async () => {
-            const usuarioGuardado = localStorage.getItem('usuario');
-            if (usuarioGuardado) {
-                try {
-                    const usuarioData = JSON.parse(usuarioGuardado);
-                    // Verificar con el backend que la sesión sigue válida
-                    const response = await fetch(
-                        getApiEndpoint(`/api/session/check?userId=${usuarioData.id_usuario || usuarioData.id}`)
-                    );
-
-                    if (response.ok) {
-                        const data = await response.json();
-                        setUsuario(data.usuario);
-                        setEmpleado(data.empleado);
-                        setRol(data.rol);
-                        setPermisos(data.permisos || []);
-                        setDepartamento(data.departamento);
-                    } else {
-                        // Sesión inválida, limpiar
-                        localStorage.removeItem('usuario');
-                        localStorage.removeItem('empleado');
-                        localStorage.removeItem('rol');
-                        localStorage.removeItem('permisos');
-                        localStorage.removeItem('departamento');
-                        setUsuario(null);
-                        setEmpleado(null);
-                        setRol(null);
-                        setPermisos([]);
-                        setDepartamento(null);
-                    }
-                } catch (error) {
-                    console.error('Error verificando sesión:', error);
-                    localStorage.removeItem('usuario');
-                    localStorage.removeItem('empleado');
-                    localStorage.removeItem('rol');
-                    localStorage.removeItem('permisos');
-                    localStorage.removeItem('departamento');
-                    setUsuario(null);
-                    setEmpleado(null);
-                    setRol(null);
-                    setPermisos([]);
-                    setDepartamento(null);
-                }
-            }
-            setLoading(false);
-        };
-
-        verificarSesion();
-    }, []);
-
-    // Enviar ping cada 30 segundos cuando hay un usuario autenticado
-    useEffect(() => {
-        if (usuario) {
-            // Iniciar el intervalo de ping
-            pingIntervalRef.current = setInterval(() => {
-                fetch(getApiEndpoint('/api/usuarios/ping'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: usuario.id_usuario || usuario.id })
-                }).catch(error => {
-                    console.error('Error en ping:', error);
-                });
-            }, 30000); // cada 30 segundos
-
-            return () => {
-                // Limpiar el intervalo cuando el usuario cierra sesión
-                if (pingIntervalRef.current) {
-                    clearInterval(pingIntervalRef.current);
-                    pingIntervalRef.current = null;
-                }
-            };
-        }
-    }, [usuario]);
-
-    // Detectar cierre de pestaña o navegador
-    useEffect(() => {
-        const handleBeforeUnload = async (e) => {
-            if (usuario) {
-                // Usar sendBeacon para asegurar que la petición se envíe antes de cerrar
-                const data = JSON.stringify({ userId: usuario.id_usuario || usuario.id });
-                const blob = new Blob([data], { type: 'application/json' });
-                navigator.sendBeacon(getApiEndpoint('/api/session/close'), blob);
-            }
-        };
-
-        window.addEventListener('beforeunload', handleBeforeUnload);
-
-        return () => {
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-        };
-    }, [usuario]);
-
-    const login = async (username, password) => {
-        try {
-            const response = await fetch(getApiEndpoint('/api/session/validate'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ username, password }),
-            });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                // Guardar toda la información del usuario
-                setUsuario(data.usuario);
-                setEmpleado(data.empleado);
-                setRol(data.rol);
-                setPermisos(data.permisos || []);
-                setDepartamento(data.departamento);
-
-                // Guardar en localStorage
-                localStorage.setItem('usuario', JSON.stringify(data.usuario));
-                localStorage.setItem('empleado', JSON.stringify(data.empleado));
-                localStorage.setItem('rol', JSON.stringify(data.rol));
-                localStorage.setItem('permisos', JSON.stringify(data.permisos || []));
-                localStorage.setItem('departamento', JSON.stringify(data.departamento));
-
-                return { success: true, mensaje: data.message };
-            } else {
-                return { success: false, mensaje: data.error || 'Error al iniciar sesión' };
-            }
-        } catch (error) {
-            console.error('Error en login:', error);
-            return { success: false, mensaje: 'Error de conexión con el servidor' };
-        }
-    };
-
-    const logout = async () => {
-        try {
-            if (usuario) {
-                await fetch(getApiEndpoint('/api/session/close'), {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ userId: usuario.id_usuario || usuario.id }),
-                });
-            }
-        } catch (error) {
-            console.error('Error en logout:', error);
-        } finally {
-            setUsuario(null);
-            setEmpleado(null);
-            setRol(null);
-            setPermisos([]);
-            setDepartamento(null);
-            localStorage.removeItem('usuario');
-            localStorage.removeItem('empleado');
-            localStorage.removeItem('rol');
-            localStorage.removeItem('permisos');
-            localStorage.removeItem('departamento');
-        }
-    };
-
-    const value = {
-        usuario,
-        empleado,
-        rol,
-        permisos,
-        departamento,
-        login,
-        logout,
-        loading,
-        isAuthenticated: !!usuario,
-    };
-
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
+/**
+ * Hook para usar el contexto de autenticación
+ */
 export const useAuth = () => {
     const context = useContext(AuthContext);
     if (!context) {
@@ -192,3 +17,222 @@ export const useAuth = () => {
     }
     return context;
 };
+
+/**
+ * Provider del contexto de autenticación
+ * Maneja el estado global del usuario autenticado
+ */
+export const AuthProvider = ({ children }) => {
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    // Verificar sesión al cargar la app
+    useEffect(() => {
+        checkAuth();
+    }, []);
+
+    // Escuchar cambios en el usuario en tiempo real
+    useRealTime({
+        'usuario-actualizado': (data) => {
+            if (user && user.usuario && (data.id === user.usuario.id || data.id === user.id)) {
+                // Actualizar estado local
+                const updatedUser = {
+                    ...user,
+                    usuario: {
+                        ...user.usuario,
+                        ...data
+                    }
+                };
+                setUser(updatedUser);
+
+                // Actualizar localStorage para persistencia
+                localStorage.setItem('user_data', JSON.stringify(updatedUser));
+            }
+        }
+    });
+
+    /**
+     * Verificar si hay una sesión activa
+     */
+    /**
+     * Verificar si hay una sesión activa y validarla con el servidor
+     */
+    const checkAuth = async () => {
+        try {
+            const token = localStorage.getItem('auth_token');
+            const userData = localStorage.getItem('user_data');
+
+            if (token) {
+                // Verificar con el servidor si el token es válido y obtener datos frescos
+                try {
+                    const response = await fetch(`${API_URL}/api/auth/verificar`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success) {
+                            // Actualizar con datos frescos del servidor
+                            setUser(data.data);
+                            localStorage.setItem('user_data', JSON.stringify(data.data));
+                        } else {
+                            logout();
+                        }
+                    } else {
+                        // Si falla la verificación (401, 403), cerrar sesión de inmediato
+                        if (response.status === 401 || response.status === 403) {
+                            logout();
+                            return;
+                        }
+                        // Si es otro error (500), usar datos locales si existen
+                        if (userData) {
+                            console.warn('Usando datos en caché debido a error del servidor');
+                            setUser(JSON.parse(userData));
+                        }
+                    }
+                } catch (networkError) {
+                    console.error('Error de red al verificar auth:', networkError);
+                    // Fallback a localStorage solo si hay error de red genuino
+                    if (userData) {
+                        setUser(JSON.parse(userData));
+                    } else {
+                        logout();
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error al verificar autenticación:', error);
+            logout();
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    /**
+     * Iniciar sesión
+     */
+    /**
+     * Iniciar sesión
+     * @param {string} usuario 
+     * @param {string} contraseña 
+     * @param {boolean} deferUpdate - Si es true, no actualiza el estado inmediatamente (para animaciones)
+     */
+    const login = async (usuario, contraseña, deferUpdate = false, empresa_id = null) => {
+        try {
+            setError(null);
+
+            const endpoint = usuario === 'admin_saas' ? '/api/auth/login-saas' : '/api/auth/login';
+            const bodyPayload = { usuario, contraseña };
+            if (empresa_id) bodyPayload.empresa_id = empresa_id;
+
+            const response = await fetch(`${API_URL}${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(bodyPayload),
+            });
+
+            const data = await response.json();
+
+            // Multi-tenant: usuario existe en varias empresas → devolver lista
+            if (response.status === 300 && data.empresas) {
+                return {
+                    success: false,
+                    multiTenant: true,
+                    empresas: data.empresas,
+                    message: data.message
+                };
+            }
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Error al iniciar sesión');
+            }
+            if (!data.success) {
+                throw new Error(data.message || 'Credenciales inválidas');
+            }
+
+            const finalizeLogin = () => {
+                localStorage.setItem('auth_token', data.data.token);
+                localStorage.setItem('user_data', JSON.stringify(data.data));
+                setUser(data.data);
+            };
+
+            if (deferUpdate) {
+                return { success: true, confirmLogin: finalizeLogin };
+            }
+
+            finalizeLogin();
+            return { success: true };
+        } catch (error) {
+            console.error('Error en login:', error);
+            setError(error.message);
+            return { success: false, message: error.message };
+        }
+    };
+
+    /**
+     * Cerrar sesión
+     */
+    const logout = async () => {
+        try {
+            // Llamar al endpoint de logout (opcional)
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                await fetch(`${API_URL}/api/auth/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
+            }
+        } catch (error) {
+            console.error('Error al cerrar sesión:', error);
+        } finally {
+            // Limpiar localStorage y estado
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_data');
+            setUser(null);
+            setError(null);
+        }
+    };
+
+    /**
+     * Verificar si el usuario tiene un permiso específico
+     */
+    const hasPermission = (permiso) => {
+        if (!user) return false;
+        if (user.esAdmin) return true;
+
+        // Verificar permisos bitwise (implementar según tu lógica)
+        // Por ahora retornamos true si está autenticado
+        return true;
+    };
+
+    /**
+     * Verificar si el usuario es admin
+     */
+    const isAdmin = () => {
+        return user?.esAdmin || false;
+    };
+
+    const value = {
+        user,
+        loading,
+        error,
+        login,
+        logout,
+        isAuthenticated: !!user,
+        hasPermission,
+        isAdmin,
+        checkAuth,
+    };
+
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};
+
+export default AuthContext;

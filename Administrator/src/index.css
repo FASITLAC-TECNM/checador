@@ -2,100 +2,83 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Estilos personalizados globales */
 @layer base {
-    :root {
-        /* Fondos */
-        --bg-primary: 255 255 255;
-        /* #FFFFFF */
-        --bg-secondary: 245 245 247;
-        /* #F5F5F7 */
-        --bg-tertiary: 251 251 253;
-        /* #FBFBFD */
+  body {
+    @apply bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 antialiased transition-colors duration-200;
+  }
 
-        /* Textos */
-        --text-primary: 29 29 31;
-        /* #1D1D1F */
-        --text-secondary: 110 110 115;
-        /* #6E6E73 */
-        --text-tertiary: 134 134 139;
-        /* #86868B */
-        --text-disabled: 210 210 215;
-        /* #D2D2D7 */
+  /* Scrollbar personalizada */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
 
-        /* Acento/Brand */
-        --accent: 0 113 227;
-        /* #0071E3 */
-        --accent-hover: 0 119 237;
-        /* #0077ED */
-        --accent-active: 0 110 219;
-        /* #006EDB */
-        --accent-light: 232 243 255;
-        /* #E8F3FF */
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-gray-800;
+  }
 
-        /* Bordes */
-        --border-subtle: 210 210 215;
-        /* #D2D2D7 */
-        --border-medium: 184 184 189;
-        /* #B8B8BD */
-        --border-divider: 229 229 231;
-        /* #E5E5E7 */
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-400 dark:bg-gray-600 rounded-full;
+  }
 
-        /* Estados */
-        --success: 52 199 89;
-        /* #34C759 */
-        --warning: 255 149 0;
-        /* #FF9500 */
-        --error: 255 59 48;
-        /* #FF3B30 */
-        --info: 0 122 255;
-        /* #007AFF */
-
-        /* Sombras */
-        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
-        --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
-        --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.12);
-    }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500 dark:bg-gray-500;
+  }
 }
 
-@keyframes slideInRight {
-    from {
-        transform: translateX(100%);
-        opacity: 0;
-    }
-    to {
-        transform: translateX(0);
-        opacity: 1;
-    }
+@layer components {
+
+  /* Botón primario */
+  .btn-primary {
+    @apply px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:ring-4 focus:ring-primary-500/20 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Botón secundario */
+  .btn-secondary {
+    @apply px-4 py-2 bg-secondary-100 dark:bg-gray-700 text-secondary-700 dark:text-gray-200 rounded-lg hover:bg-secondary-200 dark:hover:bg-gray-600 transition-colors duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Card */
+  .card {
+    @apply bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700 transition-colors duration-200;
+  }
+
+  /* Input */
+  .input {
+    @apply w-full px-4 py-2.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-lg focus:outline-none focus:ring-4 focus:ring-primary-500/10 focus:border-primary-500 transition-all duration-200 disabled:bg-gray-50 dark:disabled:bg-gray-900 disabled:cursor-not-allowed;
+  }
+
+  /* Label */
+  .label {
+    @apply block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1;
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  /* Badge variantes */
+  .badge-success {
+    @apply bg-green-100 text-green-800;
+  }
+
+  .badge-warning {
+    @apply bg-yellow-100 text-yellow-800;
+  }
+
+  .badge-error {
+    @apply bg-red-100 text-red-800;
+  }
+
+  .badge-info {
+    @apply bg-blue-100 text-blue-800;
+  }
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
-}
-
-@keyframes scaleIn {
-    from {
-        transform: scale(0.9);
-        opacity: 0;
-    }
-    to {
-        transform: scale(1);
-        opacity: 1;
-    }
-}
-
-.animate-slideInRight {
-    animation: slideInRight 0.3s ease-out;
-}
-
-.animate-fadeIn {
-    animation: fadeIn 0.2s ease-out;
-}
-
-.animate-scaleIn {
-    animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
 }

@@ -61,6 +61,7 @@ export const crearSolicitudAfiliacion = async (datos) => {
       identificador: datos.identificador || "",
       observaciones: datos.observaciones || "",
       dispositivos_temp: dispositivosTemp,
+      installToken: datos.installToken || null,
     };
 
     const response = await fetch(`${API_URL}/solicitudes`, {

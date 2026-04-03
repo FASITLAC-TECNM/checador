@@ -1,58 +1,45 @@
-module.exports = {
-    content: ['./src/**/*.{js,jsx,ts,tsx}'],
+/** @type {import('tailwindcss').Config} */
+export default {
+    content: [
+        "./index.html",
+        "./src/**/*.{js,ts,jsx,tsx}",
+    ],
+    darkMode: 'class',
     theme: {
         extend: {
             colors: {
-                // Fondos
-                bg: {
-                    primary: 'rgb(var(--bg-primary) / <alpha-value>)',
-                    secondary: 'rgb(var(--bg-secondary) / <alpha-value>)',
-                    tertiary: 'rgb(var(--bg-tertiary) / <alpha-value>)',
+                primary: {
+                    50: '#eff6ff',
+                    100: '#dbeafe',
+                    200: '#bfdbfe',
+                    300: '#93c5fd',
+                    400: '#60a5fa',
+                    500: '#3b82f6',
+                    600: '#2563eb',  // Basic blue primary
+                    700: '#1d4ed8',
+                    800: '#1e40af',
+                    900: '#1e3a8a',
+                    950: '#172554',
                 },
-
-                // Textos
-                text: {
-                    primary: 'rgb(var(--text-primary) / <alpha-value>)',
-                    secondary: 'rgb(var(--text-secondary) / <alpha-value>)',
-                    tertiary: 'rgb(var(--text-tertiary) / <alpha-value>)',
-                    disabled: 'rgb(var(--text-disabled) / <alpha-value>)',
+                secondary: {
+                    50: '#f8fafc',
+                    100: '#f1f5f9',
+                    200: '#e2e8f0',
+                    300: '#cbd5e1',
+                    400: '#94a3b8',
+                    500: '#64748b',
+                    600: '#475569',
+                    700: '#334155',
+                    800: '#1e293b',
+                    900: '#0f172a',
+                    950: '#020617',
                 },
-
-                // Acento/Brand
-                accent: {
-                    DEFAULT: 'rgb(var(--accent) / <alpha-value>)',
-                    hover: 'rgb(var(--accent-hover) / <alpha-value>)',
-                    active: 'rgb(var(--accent-active) / <alpha-value>)',
-                    light: 'rgb(var(--accent-light) / <alpha-value>)',
-                },
-
-                // Bordes
-                border: {
-                    subtle: 'rgb(var(--border-subtle) / <alpha-value>)',
-                    medium: 'rgb(var(--border-medium) / <alpha-value>)',
-                    divider: 'rgb(var(--border-divider) / <alpha-value>)',
-                },
-
-                // Estados
-                success: 'rgb(var(--success) / <alpha-value>)',
-                warning: 'rgb(var(--warning) / <alpha-value>)',
-                error: 'rgb(var(--error) / <alpha-value>)',
-                info: 'rgb(var(--info) / <alpha-value>)',
-            },
-            boxShadow: {
-                'sm': 'var(--shadow-sm)',
-                'md': 'var(--shadow-md)',
-                'lg': 'var(--shadow-lg)',
-            },
-            borderRadius: {
-                'card': '12px',
-                'button': '8px',
-            },
-            transitionDuration: {
-                'smooth': '300ms',
             },
             fontFamily: {
-                'sans': ['-apple-system', 'BlinkMacSystemFont', 'Inter', 'SF Pro Display', 'sans-serif'],
+                sans: ['Inter', 'system-ui', 'sans-serif'],
+            },
+            boxShadow: {
+                'custom': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
             },
         },
     },

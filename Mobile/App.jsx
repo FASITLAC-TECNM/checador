@@ -30,7 +30,6 @@ import {
   detectarAvisosNuevos
 } from
   './services/localNotificationService';
-import { scheduleAttendanceNotifications } from './services/backgroundNotificationService';
 import { getApiEndpoint } from './config/api';
 
 const STORAGE_KEYS = {
@@ -567,28 +566,28 @@ export default function App() {
 
           if (empleadoId) {
             (function () { })(' [App] Verificando estado del dispositivo en servidor al arrancar...');
-            
+
             // Si el backend se sabe que está caído por el healthcheck previo
             // O si queremos evitar que se trabe, metemos un timeout
             let dispositivoEnBD = null;
             if (syncManager.getIsBackendDown()) {
-               throw new Error("Backend caído");
+              throw new Error("Backend caído");
             } else {
-               const controller = new AbortController();
-               const timeoutId = setTimeout(() => controller.abort(), 5000);
-               try {
-                  dispositivoEnBD = await Promise.race([
-                    verificarDispositivoPorEmpleado(empleadoId, storedToken),
-                    new Promise((_, reject) => {
-                       const id = setTimeout(() => reject(new Error('Timeout de 5s')), 5000);
-                       controller.signal.addEventListener('abort', () => clearTimeout(id));
-                    })
-                  ]);
-               } catch (e) {
-                  throw new Error(e.message || "Error al verificar");
-               } finally {
-                  clearTimeout(timeoutId);
-               }
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 5000);
+              try {
+                dispositivoEnBD = await Promise.race([
+                  verificarDispositivoPorEmpleado(empleadoId, storedToken),
+                  new Promise((_, reject) => {
+                    const id = setTimeout(() => reject(new Error('Timeout de 5s')), 5000);
+                    controller.signal.addEventListener('abort', () => clearTimeout(id));
+                  })
+                ]);
+              } catch (e) {
+                throw new Error(e.message || "Error al verificar");
+              } finally {
+                clearTimeout(timeoutId);
+              }
             }
 
             if (dispositivoEnBD.existe && dispositivoEnBD.activo) {
@@ -679,20 +678,20 @@ export default function App() {
       if (treatAsOnline && data.token && !syncManager.getIsBackendDown()) {
         try {
           (function () { })(' [App] ️ ONLINE: Verificando dispositivo estrictamente en servidor...');
-          
+
           let dispositivoEnBD = null;
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 5000);
           try {
-             dispositivoEnBD = await Promise.race([
-                verificarDispositivoPorEmpleado(empleadoId, data.token),
-                new Promise((_, reject) => {
-                   const id = setTimeout(() => reject(new Error('Timeout 5s')), 5000);
-                   controller.signal.addEventListener('abort', () => clearTimeout(id));
-                })
-             ]);
+            dispositivoEnBD = await Promise.race([
+              verificarDispositivoPorEmpleado(empleadoId, data.token),
+              new Promise((_, reject) => {
+                const id = setTimeout(() => reject(new Error('Timeout 5s')), 5000);
+                controller.signal.addEventListener('abort', () => clearTimeout(id));
+              })
+            ]);
           } finally {
-             clearTimeout(timeoutId);
+            clearTimeout(timeoutId);
           }
 
 
@@ -810,8 +809,8 @@ export default function App() {
           syncManager.markBackendUp();
           healthFailCount.current = 0;
           // Disparar sync y refresh de datos en background
-          syncManager.performSync('reconnect').catch(() => {});
-          refreshUserData().catch(() => {});
+          syncManager.performSync('reconnect').catch(() => { });
+          refreshUserData().catch(() => { });
         }
       } else {
         // Sin conexión: esperar 4 segundos antes de marcar offline

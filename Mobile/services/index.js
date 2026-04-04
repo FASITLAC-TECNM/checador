@@ -1,33 +1,22 @@
-
-
-
-
-
-
 export { default as authService } from './authService';
 export {
   login,
   logout,
   cambiarPassword,
-  loginBiometrico } from
-'./authService';
-
-
-
+  loginBiometrico
+} from
+  './authService';
 
 export {
   getUsuarios,
   getUsuario,
   crearUsuario,
   actualizarUsuario,
-  eliminarUsuario } from
-'./api';
-
-
-
+  eliminarUsuario
+} from
+  './api';
 
 export { default as empleadoService } from './empleadoServices.js';
-
 export {
   getEmpleados,
   getEmpleado,
@@ -41,28 +30,22 @@ export {
   getDepartamentosDeEmpleado,
   asignarDepartamento,
   removerDepartamento,
-  getHorarioDeEmpleado } from
-'./empleadoServices.js';
-
-
-
+  getHorarioDeEmpleado
+} from
+  './empleadoServices.js';
 
 export { default as asistenciasService } from './asistenciasService.js';
-
 export {
   registrarAsistencia,
   getAsistencias,
   getAsistenciasEmpleado,
   getUltimoRegistroHoy,
   getAsistenciasHoy,
-  obtenerEstadoPreflight } from
-'./asistenciasService.js';
-
-
-
+  obtenerEstadoPreflight
+} from
+  './asistenciasService.js';
 
 export { default as horariosService } from './horariosService.js';
-
 export {
   getHorarioPorEmpleado,
   parsearHorario,
@@ -74,19 +57,17 @@ export {
   updateHorario,
   deleteHorario,
   reactivarHorario,
-  asignarHorario } from
-'./horariosService.js';
-
-
-
+  asignarHorario
+} from
+  './horariosService.js';
 
 export { default as toleranciaService } from './toleranciaService.js';
-
 export {
   getTolerancias,
   getToleranciaById,
   getToleranciaEmpleado,
   createTolerancia,
   updateTolerancia,
-  deleteTolerancia } from
-'./toleranciaService.js';
+  deleteTolerancia
+} from
+  './toleranciaService.js';

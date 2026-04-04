@@ -1,10 +1,5 @@
 import { getApiEndpoint } from '../config/api.js';
-
 const API_URL = getApiEndpoint('/api');
-
-
-
-
 export const getEmpleados = async (token, params = {}) => {
   try {
     const queryParams = new URLSearchParams(params).toString();
@@ -17,17 +12,12 @@ export const getEmpleados = async (token, params = {}) => {
         'Authorization': `Bearer ${token}`
       }
     });
-
     if (!response.ok) throw new Error('Error al obtener empleados');
     return await response.json();
   } catch (error) {
     throw error;
   }
 };
-
-
-
-
 export const getEmpleado = async (id, token) => {
   try {
     const response = await fetch(`${API_URL}/empleados/${id}`, {
@@ -45,23 +35,16 @@ export const getEmpleado = async (id, token) => {
   }
 };
 
-
-
-
-
 export const getEmpleadoById = async (empleadoId, token) => {
   try {
     if (!empleadoId) {
       throw new Error('empleado_id es requerido');
     }
-
     if (!token) {
       throw new Error('Token de autenticación no disponible');
     }
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
-
     let response;
     try {
       response = await Promise.race([
@@ -83,7 +66,6 @@ export const getEmpleadoById = async (empleadoId, token) => {
       throw new Error(`Timeout o error de red: ${e.message}`);
     }
     clearTimeout(timeoutId);
-
     if (!response.ok) {
       if (response.status === 404) {
         throw new Error('Empleado no encontrado');
@@ -96,34 +78,24 @@ export const getEmpleadoById = async (empleadoId, token) => {
       }
       throw new Error(`Error HTTP: ${response.status}`);
     }
-
     const data = await response.json();
-
     if (!data.success) {
       throw new Error(data.message || 'Error al obtener empleado');
     }
-
     return data;
-
   } catch (error) {
     throw error;
   }
 };
-
-
-
-
 
 export const getUsuarioCompleto = async (usuarioId, token) => {
   try {
     if (!usuarioId) {
       throw new Error('usuario_id es requerido');
     }
-
     if (!token) {
       throw new Error('Token de autenticación no disponible');
     }
-
     const response = await fetch(`${API_URL}/usuarios/${usuarioId}`, {
       method: 'GET',
       headers: {
@@ -131,7 +103,6 @@ export const getUsuarioCompleto = async (usuarioId, token) => {
         'Authorization': `Bearer ${token}`
       }
     });
-
     if (!response.ok) {
       if (response.status === 404) {
         throw new Error('Usuario no encontrado');
@@ -141,22 +112,15 @@ export const getUsuarioCompleto = async (usuarioId, token) => {
       }
       throw new Error(`Error HTTP: ${response.status}`);
     }
-
     const data = await response.json();
-
     if (!data.success) {
       throw new Error(data.message || 'Error al obtener usuario');
     }
-
     return data;
-
   } catch (error) {
     throw error;
   }
 };
-
-
-
 
 export const getEmpleadoPorUsuario = async (idUsuario, token) => {
   try {
@@ -167,16 +131,12 @@ export const getEmpleadoPorUsuario = async (idUsuario, token) => {
         'Authorization': `Bearer ${token}`
       }
     });
-
     if (!response.ok) throw new Error('Error al obtener empleado');
     return await response.json();
   } catch (error) {
     throw error;
   }
 };
-
-
-
 
 export const crearEmpleado = async (empleado, token) => {
   try {
@@ -192,14 +152,12 @@ export const crearEmpleado = async (empleado, token) => {
     if (!empleado.pin || empleado.pin.length !== 4) {
       throw new Error('El PIN debe tener exactamente 4 dígitos');
     }
-
     const empleadoDB = {
       id_usuario: empleado.id_usuario,
       nss: empleado.nss,
       rfc: empleado.rfc.toUpperCase(),
       pin: empleado.pin
     };
-
     const response = await fetch(`${API_URL}/empleados`, {
       method: 'POST',
       headers: {
@@ -208,20 +166,15 @@ export const crearEmpleado = async (empleado, token) => {
       },
       body: JSON.stringify(empleadoDB)
     });
-
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || 'Error al crear empleado');
     }
-
     return await response.json();
   } catch (error) {
     throw error;
   }
 };
-
-
-
 
 export const actualizarEmpleado = async (id, empleado, token) => {
   try {
@@ -234,14 +187,12 @@ export const actualizarEmpleado = async (id, empleado, token) => {
     if (empleado.pin && empleado.pin.length !== 4) {
       throw new Error('El PIN debe tener exactamente 4 dígitos');
     }
-
     const empleadoDB = {
       nss: empleado.nss,
       rfc: empleado.rfc?.toUpperCase(),
       pin: empleado.pin,
       horario_id: empleado.horario_id
     };
-
     const response = await fetch(`${API_URL}/empleados/${id}`, {
       method: 'PUT',
       headers: {
@@ -255,15 +206,11 @@ export const actualizarEmpleado = async (id, empleado, token) => {
       const error = await response.json();
       throw new Error(error.error || 'Error al actualizar empleado');
     }
-
     return await response.json();
   } catch (error) {
     throw error;
   }
 };
-
-
-
 
 export const eliminarEmpleado = async (id, token) => {
   try {
@@ -274,7 +221,6 @@ export const eliminarEmpleado = async (id, token) => {
         'Authorization': `Bearer ${token}`
       }
     });
-
     if (!response.ok) throw new Error('Error al eliminar empleado');
     return await response.json();
   } catch (error) {
@@ -282,15 +228,11 @@ export const eliminarEmpleado = async (id, token) => {
   }
 };
 
-
-
-
 export const validarPinEmpleado = async (idEmpleado, pin, token) => {
   try {
     if (!pin || pin.length !== 4) {
       throw new Error('El PIN debe tener 4 dígitos');
     }
-
     const response = await fetch(`${API_URL}/empleados/${idEmpleado}/validar-pin`, {
       method: 'POST',
       headers: {
@@ -299,21 +241,15 @@ export const validarPinEmpleado = async (idEmpleado, pin, token) => {
       },
       body: JSON.stringify({ pin })
     });
-
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || 'Error al validar PIN');
     }
-
     return await response.json();
   } catch (error) {
     throw error;
   }
 };
-
-
-
-
 
 export const getDepartamentosDeEmpleado = async (empleadoId, token) => {
   try {
@@ -324,17 +260,12 @@ export const getDepartamentosDeEmpleado = async (empleadoId, token) => {
         'Authorization': `Bearer ${token}`
       }
     });
-
     if (!response.ok) throw new Error('Error al obtener departamentos del empleado');
     return await response.json();
   } catch (error) {
     throw error;
   }
 };
-
-
-
-
 
 export const asignarDepartamento = async (empleadoId, departamentoId, token) => {
   try {
@@ -357,10 +288,6 @@ export const asignarDepartamento = async (empleadoId, departamentoId, token) => 
   }
 };
 
-
-
-
-
 export const removerDepartamento = async (empleadoId, departamentoId, token) => {
   try {
     const response = await fetch(`${API_URL}/empleados/${empleadoId}/departamentos/${departamentoId}`, {
@@ -381,9 +308,6 @@ export const removerDepartamento = async (empleadoId, departamentoId, token) => 
   }
 };
 
-
-
-
 export const getHorarioDeEmpleado = async (empleadoId, token) => {
   try {
     const response = await fetch(`${API_URL}/empleados/${empleadoId}/horario`, {
@@ -400,10 +324,6 @@ export const getHorarioDeEmpleado = async (empleadoId, token) => {
     throw error;
   }
 };
-
-
-
-
 
 export const buscarPorNSS = async (nss, token) => {
   try {
@@ -424,10 +344,6 @@ export const buscarPorNSS = async (nss, token) => {
     throw error;
   }
 };
-
-
-
-
 
 export const buscarPorRFC = async (rfc, token) => {
   try {

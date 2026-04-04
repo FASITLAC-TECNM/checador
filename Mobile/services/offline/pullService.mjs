@@ -1,19 +1,6 @@
-
-
-
-
-
-
-
-
 import sqliteManager from './sqliteManager.mjs';
-
-
 let apiBaseUrl = '';
 let authToken = '';
-
-
-
 
 export function configure(baseUrl, token) {
   if (baseUrl !== undefined && baseUrl !== null) {
@@ -24,19 +11,14 @@ export function configure(baseUrl, token) {
   }
 }
 
-
-
-
 async function apiFetch(endpoint, options = {}) {
   if (!apiBaseUrl) {
     throw new Error(`URL base no configurada. No se puede hacer fetch de ${endpoint}`);
   }
-
   const fullUrl = `${apiBaseUrl}${endpoint}`;
   const timeoutMs = options.timeoutMs || 30000;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
   try {
     const headers = {
       'Content-Type': 'application/json',
@@ -45,21 +27,17 @@ async function apiFetch(endpoint, options = {}) {
     if (authToken) {
       headers['Authorization'] = `Bearer ${authToken}`;
     }
-
     const response = await fetch(fullUrl, {
       method: options.method || 'GET',
       headers,
       body: options.body || undefined,
       signal: controller.signal
     });
-
     clearTimeout(timeoutId);
-
     if (!response.ok) {
       const txt = await response.text();
       throw new Error(`HTTP ${response.status}: ${txt}`);
     }
-
     return await response.json();
   } catch (error) {
     clearTimeout(timeoutId);
@@ -69,30 +47,14 @@ async function apiFetch(endpoint, options = {}) {
     throw error;
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
 export async function fullPull(empleadoId) {
   if (!empleadoId) {
     return { success: false, error: 'empleadoId requerido' };
   }
-
   if (!authToken) {
     return { success: false, error: 'Sin token' };
   }
-
   const startTime = Date.now();
-
   const results = {
     empleado: { success: false, count: 0 },
     credenciales: { success: false, count: 0 },
@@ -104,16 +66,11 @@ export async function fullPull(empleadoId) {
     diasFestivos: { success: false, count: 0 },
     duration: 0
   };
-
   try {
-
     const data = await apiFetch(`/movil/sync/mis-datos?empleado_id=${empleadoId}`);
-
     if (!data.success) {
       throw new Error(data.error || 'Respuesta no exitosa');
     }
-
-
     try {
       if (data.empleado) {
         await sqliteManager.upsertEmpleados([data.empleado]);
@@ -123,8 +80,6 @@ export async function fullPull(empleadoId) {
     } catch (empError) {
       results.empleado = { success: false, error: empError.message };
     }
-
-
     try {
       if (data.credencial) {
         const cred = {
@@ -141,10 +96,6 @@ export async function fullPull(empleadoId) {
     } catch (credError) {
       results.credenciales = { success: false, error: credError.message };
     }
-
-
-
-
     try {
       if (data.tolerancia) {
         const toleranciaCompleta = {
@@ -168,13 +119,12 @@ export async function fullPull(empleadoId) {
         await sqliteManager.setLastFullSync('cache_tolerancias');
         results.tolerancia = { success: true, count: 1 };
       } else {
-        try { await sqliteManager.getDatabase().runAsync('DELETE FROM cache_tolerancias WHERE empleado_id = ?', [empleadoId]); } catch(e) {}
+        try { await sqliteManager.getDatabase().runAsync('DELETE FROM cache_tolerancias WHERE empleado_id = ?', [empleadoId]); } catch (e) { }
         results.tolerancia = { success: true, count: 0 };
       }
     } catch (tolError) {
       results.tolerancia = { success: false, error: tolError.message };
     }
-
     try {
       if (data.departamentos && data.departamentos.length > 0) {
         const deptos = data.departamentos.map((d) => {
@@ -211,8 +161,6 @@ export async function fullPull(empleadoId) {
     } catch (deptError) {
       results.departamentos = { success: false, error: deptError.message };
     }
-
-
     try {
       const horarioUrl = `/empleados/${empleadoId}/horario`;
       const horarioData = await apiFetch(horarioUrl).catch(() => null);
@@ -233,8 +181,6 @@ export async function fullPull(empleadoId) {
     } catch (horError) {
       results.horario = { success: false, error: horError.message };
     }
-
-
     try {
       const incUrl = `/incidencias?empleado_id=${empleadoId}`;
       const incData = await apiFetch(incUrl).catch(() => null);
@@ -251,41 +197,30 @@ export async function fullPull(empleadoId) {
     } catch (incError) {
       results.incidencias = { success: false, error: incError.message };
     }
-
-
     try {
-
       const globUrl = `/avisos/globales`;
       const globData = await apiFetch(globUrl).catch(() => null);
       let avisosTotal = [];
-
       if (globData && globData.success && globData.data) {
         const globales = globData.data;
         await sqliteManager.upsertAvisosGlobales(globales);
         avisosTotal = [...avisosTotal, ...globales];
       }
-
-
       const empUrl = `/empleados/${empleadoId}/avisos`;
       const empData = await apiFetch(empUrl).catch(() => null);
-
       if (empData && empData.success && empData.data) {
         const personales = empData.data;
         await sqliteManager.upsertAvisosEmpleado(empleadoId, personales);
         avisosTotal = [...avisosTotal, ...personales];
       }
-
       if (avisosTotal.length > 0) {
         results.avisos = { success: true, count: avisosTotal.length, data: avisosTotal };
       } else {
         results.avisos = { success: true, count: 0, data: [] };
       }
-
     } catch (avisoError) {
       results.avisos = { success: false, error: avisoError.message };
     }
-
-
     // ── Caché de configuración (orden y estado de credenciales) ──
     try {
       const cfgData = await apiFetch('/configuracion').catch(() => null);
@@ -303,7 +238,6 @@ export async function fullPull(empleadoId) {
           });
           await sqliteManager.saveOrdenCredenciales(ordenNorm);
         }
-
         let omisionRedEmpleados = cfg.omision_red_empleados;
         if (typeof omisionRedEmpleados === 'string') {
           try { omisionRedEmpleados = JSON.parse(omisionRedEmpleados); } catch { omisionRedEmpleados = []; }
@@ -312,7 +246,6 @@ export async function fullPull(empleadoId) {
         if (typeof omisionGpsEmpleados === 'string') {
           try { omisionGpsEmpleados = JSON.parse(omisionGpsEmpleados); } catch { omisionGpsEmpleados = []; }
         }
-
         const omisionesGlobales = {
           omision_red_activa: cfg.omision_red_activa === true,
           omision_red_empleados: Array.isArray(omisionRedEmpleados) ? omisionRedEmpleados : [],
@@ -320,25 +253,21 @@ export async function fullPull(empleadoId) {
           omision_gps_empleados: Array.isArray(omisionGpsEmpleados) ? omisionGpsEmpleados : []
         };
         await sqliteManager.saveOmisionesGlobales(omisionesGlobales);
-
         results.configuracion = { success: true, count: 1 };
       }
     } catch (cfgError) {
       results.configuracion = { success: false, error: cfgError.message };
     }
-
     // ── Descarga de Días Festivos ──
     try {
       const year = new Date().getFullYear();
       const festivosUrl = `/dias-festivos?year=${year}`;
       const festivosData = await apiFetch(festivosUrl).catch(() => null);
-
       if (festivosData && festivosData.success && festivosData.data) {
         // Filtrar solo los obligatorios y activos
         const festivosObligatorios = festivosData.data.filter(
           (f) => f.es_obligatorio && f.es_activo
         );
-
         if (festivosObligatorios.length > 0) {
           await sqliteManager.clearDiasFestivos(year.toString());
           await sqliteManager.upsertDiasFestivos(festivosObligatorios.map(f => ({
@@ -357,14 +286,10 @@ export async function fullPull(empleadoId) {
     } catch (festivosError) {
       results.diasFestivos = { success: false, error: festivosError.message };
     }
-
   } catch (error) {
-
   }
-
   results.duration = Date.now() - startTime;
   const allSuccess = results.empleado.success && results.credenciales.success;
-
   return { success: allSuccess, ...results };
 }
 

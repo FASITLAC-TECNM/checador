@@ -1,6 +1,3 @@
-
-
-
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,7 +6,6 @@ const STORAGE_KEYS = {
   LAST_INCIDENCIAS_ESTADOS: '@notif_incidencias_estados',
   LAST_AVISOS_IDS: '@notif_avisos_ids'
 };
-
 const NOTIF_CONFIG_KEY = '@notificaciones_config';
 const NOTIF_DEFAULTS = {
   incidencias: true,
@@ -18,7 +14,6 @@ const NOTIF_DEFAULTS = {
   asistencia_proxima: true,
   avisos: true
 };
-
 
 const getNotifConfig = async () => {
   try {
@@ -29,7 +24,6 @@ const getNotifConfig = async () => {
   }
 };
 
-
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -38,22 +32,17 @@ Notifications.setNotificationHandler({
   })
 });
 
-
 export const initNotifications = async () => {
   try {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
-
     if (existingStatus !== 'granted') {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
-
     if (finalStatus !== 'granted') {
       return false;
     }
-
-
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('asistencia', {
         name: 'Asistencia',
@@ -62,7 +51,6 @@ export const initNotifications = async () => {
         lightColor: '#2563eb',
         sound: 'default'
       });
-
       await Notifications.setNotificationChannelAsync('incidencias', {
         name: 'Incidencias',
         importance: Notifications.AndroidImportance.HIGH,
@@ -70,7 +58,6 @@ export const initNotifications = async () => {
         lightColor: '#8b5cf6',
         sound: 'default'
       });
-
       await Notifications.setNotificationChannelAsync('avisos', {
         name: 'Avisos',
         importance: Notifications.AndroidImportance.DEFAULT,
@@ -78,24 +65,20 @@ export const initNotifications = async () => {
         sound: 'default'
       });
     }
-
     return true;
   } catch (error) {
     return false;
   }
 };
 
-
 export const notificarRegistro = async (tipo, estado) => {
   try {
     const cfg = await getNotifConfig();
     const key = tipo === 'salida' ? 'asistencia_salida' : 'asistencia_entrada';
     if (!cfg[key]) return;
-
     const esSalida = tipo === 'salida';
     let titulo = esSalida ? 'Salida Registrada' : 'Entrada Registrada';
     let cuerpo = '';
-
     if (esSalida) {
       switch (estado) {
         case 'salida_temprana':
@@ -133,7 +116,6 @@ export const notificarRegistro = async (tipo, estado) => {
           }
       }
     }
-
     await Notifications.scheduleNotificationAsync({
       content: {
         title: titulo,
@@ -148,12 +130,10 @@ export const notificarRegistro = async (tipo, estado) => {
   }
 };
 
-
 export const notificarEstadoAsistencia = async (tipoRegistro) => {
   try {
     const cfg = await getNotifConfig();
     if (!cfg.asistencia_proxima) return;
-
     const esEntrada = tipoRegistro === 'entrada';
     const titulo = esEntrada ? 'Listo para registrar entrada' : 'Listo para registrar salida';
     const cuerpo = esEntrada ?
@@ -170,19 +150,15 @@ export const notificarEstadoAsistencia = async (tipoRegistro) => {
       ...(Platform.OS === 'android' && { channelId: 'asistencia' })
     });
   } catch (error) {
-
   }
 };
-
 
 export const notificarIncidencia = async (tipoIncidencia, estado) => {
   try {
     const cfg = await getNotifConfig();
     if (!cfg.incidencias) return;
-
     let titulo = '';
     let cuerpo = '';
-
     const tipoLabel = {
       retardo: 'Retardo',
       justificante: 'Justificante',
@@ -215,12 +191,10 @@ export const notificarIncidencia = async (tipoIncidencia, estado) => {
   }
 };
 
-
 export const notificarAviso = async (titulo) => {
   try {
     const cfg = await getNotifConfig();
     if (!cfg.avisos) return;
-
     await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Nuevo Aviso',
@@ -231,17 +205,13 @@ export const notificarAviso = async (titulo) => {
       ...(Platform.OS === 'android' && { channelId: 'avisos' })
     });
   } catch (error) {
-
   }
 };
-
 
 export const detectarCambiosIncidencias = async (incidenciasActuales) => {
   try {
     const stored = await AsyncStorage.getItem(STORAGE_KEYS.LAST_INCIDENCIAS_ESTADOS);
     const estadosPrevios = stored ? JSON.parse(stored) : {};
-
-
     const estadosActuales = {};
     for (const inc of incidenciasActuales) {
       if (inc.id && !inc.is_offline) {
@@ -252,19 +222,14 @@ export const detectarCambiosIncidencias = async (incidenciasActuales) => {
       STORAGE_KEYS.LAST_INCIDENCIAS_ESTADOS,
       JSON.stringify(estadosActuales)
     );
-
-
     if (Object.keys(estadosPrevios).length === 0) return;
-
-
     for (const inc of incidenciasActuales) {
       if (!inc.id || inc.is_offline) continue;
       const estadoPrevio = estadosPrevios[inc.id];
       if (
-      estadoPrevio &&
-      estadoPrevio !== inc.estado && (
-      inc.estado === 'aprobado' || inc.estado === 'rechazado'))
-      {
+        estadoPrevio &&
+        estadoPrevio !== inc.estado && (
+          inc.estado === 'aprobado' || inc.estado === 'rechazado')) {
         await notificarIncidencia(inc.tipo, inc.estado);
       }
     }
@@ -273,23 +238,16 @@ export const detectarCambiosIncidencias = async (incidenciasActuales) => {
   }
 };
 
-
 export const detectarAvisosNuevos = async (avisosActuales) => {
   try {
     const stored = await AsyncStorage.getItem(STORAGE_KEYS.LAST_AVISOS_IDS);
     const idsPrevios = stored ? JSON.parse(stored) : [];
-
-
     const idsActuales = avisosActuales.map((a) => a.id).filter(Boolean);
     await AsyncStorage.setItem(
       STORAGE_KEYS.LAST_AVISOS_IDS,
       JSON.stringify(idsActuales)
     );
-
-
     if (idsPrevios.length === 0) return;
-
-
     const prevSet = new Set(idsPrevios);
     const nuevos = avisosActuales.filter((a) => a.id && !prevSet.has(a.id));
 
@@ -297,7 +255,6 @@ export const detectarAvisosNuevos = async (avisosActuales) => {
       await notificarAviso(aviso.titulo || 'Tienes un nuevo aviso');
     }
   } catch (error) {
-
   }
 };
 

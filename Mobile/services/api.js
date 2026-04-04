@@ -1,19 +1,8 @@
-
-
-
 import { getApiEndpoint } from '../config/api.js';
-
-
 export * as empleadoService from './empleadoServices.js';
 export * as authService from './authService.js';
 
-
 const API_URL = getApiEndpoint('/api');
-
-
-
-
-
 
 export const getUsuarios = async (token) => {
   try {
@@ -30,10 +19,6 @@ export const getUsuarios = async (token) => {
   }
 };
 
-
-
-
-
 export const getUsuario = async (id, token) => {
   try {
     const response = await fetch(`${API_URL}/usuarios/${id}`, {
@@ -48,10 +33,6 @@ export const getUsuario = async (id, token) => {
     throw error;
   }
 };
-
-
-
-
 
 export const crearUsuario = async (usuario, token) => {
   try {
@@ -87,10 +68,6 @@ export const crearUsuario = async (usuario, token) => {
   }
 };
 
-
-
-
-
 export const actualizarUsuario = async (id, usuario, token) => {
   try {
     const usuarioDB = {
@@ -102,7 +79,6 @@ export const actualizarUsuario = async (id, usuario, token) => {
       activo: usuario.activo,
       estado: usuario.estado
     };
-
 
     if (usuario.password && usuario.password.trim() !== '') {
       usuarioDB.password = usuario.password;
@@ -127,10 +103,6 @@ export const actualizarUsuario = async (id, usuario, token) => {
     throw error;
   }
 };
-
-
-
-
 
 export const eliminarUsuario = async (id, token) => {
   try {

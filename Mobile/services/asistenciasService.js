@@ -1,14 +1,5 @@
 import { getApiEndpoint } from '../config/api.js';
-
 const API_URL = getApiEndpoint('/api');
-
-
-
-
-
-
-
-
 
 export const registrarAsistencia = async (empleadoId, ubicacion, token, departamentoId = null, tipo = null) => {
   try {
@@ -29,9 +20,7 @@ export const registrarAsistencia = async (empleadoId, ubicacion, token, departam
       },
       body: JSON.stringify(payload)
     });
-
     const responseText = await response.text();
-
     if (!response.ok) {
       let errorData;
       try {
@@ -39,8 +28,6 @@ export const registrarAsistencia = async (empleadoId, ubicacion, token, departam
       } catch {
         errorData = { message: responseText };
       }
-
-
       const err = new Error(errorData.message || `Error del servidor (${response.status})`);
       err.bloque_completado = errorData.bloque_completado || false;
       err.es_festivo = errorData.es_festivo || false;
@@ -53,15 +40,12 @@ export const registrarAsistencia = async (empleadoId, ubicacion, token, departam
     throw error;
   }
 };
-
 export const getAsistenciasEmpleado = async (empleadoId, token, filtros = {}) => {
   try {
     const params = new URLSearchParams();
     if (filtros.fecha_inicio) params.append('fecha_inicio', filtros.fecha_inicio);
     if (filtros.fecha_fin) params.append('fecha_fin', filtros.fecha_fin);
-
     const url = `${API_URL}/asistencias/empleado/${empleadoId}${params.toString() ? `?${params}` : ''}`;
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
@@ -104,15 +88,12 @@ export const getUltimoRegistroHoy = async (empleadoId, token) => {
     if (!data.data || !Array.isArray(data.data) || data.data.length === 0) {
       return null;
     }
-
     const hoy = new Date().toDateString();
     const registrosHoy = data.data.filter((a) => {
       const fechaRegistro = new Date(a.fecha_registro);
       return fechaRegistro.toDateString() === hoy;
     });
-
     if (!registrosHoy.length) return null;
-
     const ultimaAsistencia = registrosHoy[0];
     const fechaRegistro = new Date(ultimaAsistencia.fecha_registro);
 
@@ -143,7 +124,6 @@ export const getAsistencias = async (token, filtros = {}) => {
     if (filtros.offset) params.append('offset', filtros.offset);
 
     const url = `${API_URL}/asistencias${params.toString() ? `?${params}` : ''}`;
-
     const response = await fetch(url, {
       method: 'GET',
       headers: {

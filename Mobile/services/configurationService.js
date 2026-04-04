@@ -1,12 +1,6 @@
 
 import { getApiEndpoint } from '../config/api';
-
 const API_URL = getApiEndpoint('/api');
-
-
-
-
-
 
 export const getConfiguracion = async (token) => {
   try {
@@ -17,30 +11,20 @@ export const getConfiguracion = async (token) => {
         'Content-Type': 'application/json'
       }
     });
-
     if (!configResponse.ok) {
       const errorData = await configResponse.json();
       throw new Error(errorData.error || 'Error al obtener configuración');
     }
-
     const responseJson = await configResponse.json();
-
-
     const config = responseJson.data || responseJson;
-
-
     let paletaColores = config.paleta_colores;
     if (typeof paletaColores === 'string') {
       try {
         paletaColores = JSON.parse(paletaColores);
       } catch (e) {
-
       }
     }
-
-
     let ordenCredenciales = config.credenciales_orden || config.orden_credenciales;
-
     if (typeof ordenCredenciales === 'string') {
       try {
         ordenCredenciales = JSON.parse(ordenCredenciales);
@@ -48,7 +32,6 @@ export const getConfiguracion = async (token) => {
 
       }
     }
-
     // Map aliases from desktop naming to mobile naming
     const ALIAS_MAP = {
       'huella': 'dactilar',
@@ -58,7 +41,6 @@ export const getConfiguracion = async (token) => {
       'face': 'facial',
       'fingerprint': 'dactilar'
     };
-
     // Normalizar a formato uniforme [{ metodo: 'pin', activo: true, nivel: 1 }, ...]
     let ordenNormalizado = [];
     if (Array.isArray(ordenCredenciales)) {
@@ -90,7 +72,6 @@ export const getConfiguracion = async (token) => {
         { metodo: 'facial', activo: true, nivel: 3 }
       ];
     }
-
     const configuracion = {
       ...config,
       paleta_colores: paletaColores,
@@ -108,7 +89,6 @@ export const getConfiguracion = async (token) => {
   }
 };
 
-
 export const updateConfiguracion = async (configId, configuracionData, token) => {
   try {
     const response = await fetch(`${API_URL}/configuracion/${configId}`, {
@@ -119,20 +99,16 @@ export const updateConfiguracion = async (configId, configuracionData, token) =>
       },
       body: JSON.stringify(configuracionData)
     });
-
     if (!response.ok) {
       const data = await response.json();
       throw new Error(data.error || 'Error al actualizar configuración');
     }
-
     const data = await response.json();
     return { success: true, data };
-
   } catch (error) {
     throw error;
   }
 };
-
 
 export const toggleMantenimiento = async (configId, esMantenimiento, token) => {
   try {
@@ -144,20 +120,16 @@ export const toggleMantenimiento = async (configId, esMantenimiento, token) => {
       },
       body: JSON.stringify({ es_mantenimiento: esMantenimiento })
     });
-
     if (!response.ok) {
       const data = await response.json();
       throw new Error(data.error || 'Error al alternar mantenimiento');
     }
-
     const data = await response.json();
     return { success: true, data };
-
   } catch (error) {
     throw error;
   }
 };
-
 
 export const getOrdenCredenciales = async (token) => {
   try {
@@ -170,18 +142,15 @@ export const getOrdenCredenciales = async (token) => {
         const sqliteManager = (await import('./offline/sqliteManager.mjs')).default;
         await sqliteManager.saveOrdenCredenciales(orden);
       } catch { /* non-critical */ }
-
       return {
         success: true,
         ordenCredenciales: orden
       };
     }
-
     return {
       success: true,
       ordenCredenciales: null
     };
-
   } catch (error) {
     // Network failed — try the SQLite cache
     try {
@@ -191,14 +160,12 @@ export const getOrdenCredenciales = async (token) => {
         return { success: true, ordenCredenciales: cached };
       }
     } catch { /* ignore */ }
-
     return {
       success: true,
       ordenCredenciales: null
     };
   }
 };
-
 
 export const getMaintenanceStatus = async () => {
   try {

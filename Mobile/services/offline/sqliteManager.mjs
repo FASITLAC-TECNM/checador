@@ -1,55 +1,27 @@
-
-
-
-
-
-
-
-
 import * as SQLite from 'expo-sqlite';
 import 'react-native-get-random-values';
 import { v4 as uuidv4 } from 'uuid';
-
 let db = null;
 let initializationPromise = null;
 const DB_NAME = 'checador_offline.db';
-
-
-
-
-
-
-
-
-
-
 export async function initDatabase() {
   if (db) return db;
-
-
   if (initializationPromise) {
     return initializationPromise;
   }
-
   initializationPromise = (async () => {
     try {
       const database = await SQLite.openDatabaseAsync(DB_NAME);
-
-
       try {
         await database.execAsync('SELECT 1');
       } catch (e) {
         throw new Error('Database verification failed');
       }
-
-
       await database.execAsync('PRAGMA journal_mode = WAL');
       await database.execAsync('PRAGMA synchronous = NORMAL');
       await database.execAsync('PRAGMA foreign_keys = ON');
-
       db = database;
       await runMigrations();
-
       return db;
     } catch (error) {
       db = null;
@@ -57,12 +29,8 @@ export async function initDatabase() {
       throw error;
     }
   })();
-
   return initializationPromise;
 }
-
-
-
 
 async function runMigrations() {
 
@@ -90,7 +58,6 @@ async function runMigrations() {
       last_sync_attempt TEXT,
       created_at TEXT DEFAULT (datetime('now', 'localtime'))
     );
-
     -- Caché de empleados
     CREATE TABLE IF NOT EXISTS cache_empleados (
       empleado_id TEXT PRIMARY KEY,
@@ -103,7 +70,6 @@ async function runMigrations() {
       foto TEXT,
       updated_at TEXT NOT NULL
     );
-
     -- Caché de credenciales para validación offline
     CREATE TABLE IF NOT EXISTS cache_credenciales (
       id TEXT PRIMARY KEY,
@@ -113,7 +79,6 @@ async function runMigrations() {
       facial_descriptor BLOB,
       updated_at TEXT NOT NULL
     );
-
     -- Caché de horarios
     CREATE TABLE IF NOT EXISTS cache_horarios (
       horario_id TEXT PRIMARY KEY,
@@ -122,7 +87,6 @@ async function runMigrations() {
       es_activo INTEGER DEFAULT 1,
       updated_at TEXT NOT NULL
     );
-
     -- Caché de tolerancias por empleado
     CREATE TABLE IF NOT EXISTS cache_tolerancias (
       empleado_id TEXT PRIMARY KEY,
@@ -140,7 +104,6 @@ async function runMigrations() {
       intervalo_bloques_minutos INTEGER DEFAULT 60,
       updated_at TEXT NOT NULL
     );
-
     -- Caché de departamentos del empleado
     CREATE TABLE IF NOT EXISTS cache_departamentos (
       empleado_id TEXT NOT NULL,
@@ -152,7 +115,6 @@ async function runMigrations() {
       PRIMARY KEY (empleado_id, departamento_id),
       UNIQUE(empleado_id, nombre)
     );
-
     -- Metadata de sincronización
     CREATE TABLE IF NOT EXISTS sync_metadata (
       tabla TEXT PRIMARY KEY,
@@ -160,7 +122,6 @@ async function runMigrations() {
       last_incremental_sync TEXT,
       total_records INTEGER DEFAULT 0
     );
-
     -- Cola de eventos de sesión (login/logout offline)
     CREATE TABLE IF NOT EXISTS sesiones_offline (
       local_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -174,7 +135,6 @@ async function runMigrations() {
       sync_error TEXT,
       created_at TEXT DEFAULT (datetime('now', 'localtime'))
     );
-
     -- Caché de datos de empresa
     CREATE TABLE IF NOT EXISTS cache_empresa (
       id TEXT PRIMARY KEY,
@@ -185,7 +145,6 @@ async function runMigrations() {
       es_activo INTEGER DEFAULT 1,
       updated_at TEXT NOT NULL
     );
-
     -- Caché de asistencias (historial descargado del servidor)
     CREATE TABLE IF NOT EXISTS cache_asistencias (
       id TEXT PRIMARY KEY,
@@ -199,7 +158,6 @@ async function runMigrations() {
       mes_key TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
-
     -- Caché de avisos (globales y personales)
     CREATE TABLE IF NOT EXISTS cache_avisos (
       id TEXT NOT NULL,
@@ -213,7 +171,6 @@ async function runMigrations() {
       updated_at TEXT NOT NULL,
       PRIMARY KEY (id, tipo)
     );
-
     -- Caché de incidencias (descargadas del servidor)
     CREATE TABLE IF NOT EXISTS cache_incidencias (
       id TEXT PRIMARY KEY,
@@ -227,14 +184,12 @@ async function runMigrations() {
       empleado_nombre TEXT,
       updated_at TEXT NOT NULL
     );
-
     -- Caché de configuración global (incluyendo orden y estado de credenciales)
     CREATE TABLE IF NOT EXISTS cache_configuracion (
       clave TEXT PRIMARY KEY,
       valor TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
-
     -- Cola de incidencias creadas offline pendientes de sync
     CREATE TABLE IF NOT EXISTS offline_incidencias (
       local_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -251,7 +206,6 @@ async function runMigrations() {
       last_sync_error TEXT,
       created_at TEXT DEFAULT (datetime('now', 'localtime'))
     );
-
     -- Cola de eventos offline
     CREATE TABLE IF NOT EXISTS offline_events (
       local_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -265,7 +219,6 @@ async function runMigrations() {
       sync_error TEXT,
       created_at TEXT DEFAULT (datetime('now', 'localtime'))
     );
-
     -- Índices para rendimiento
     CREATE INDEX IF NOT EXISTS idx_offline_asistencias_synced ON offline_asistencias(is_synced);
     CREATE INDEX IF NOT EXISTS idx_offline_asistencias_empleado ON offline_asistencias(empleado_id, fecha_registro);
@@ -278,7 +231,6 @@ async function runMigrations() {
     CREATE INDEX IF NOT EXISTS idx_cache_avisos_tipo ON cache_avisos(tipo, empleado_id);
     CREATE INDEX IF NOT EXISTS idx_offline_events_synced ON offline_events(is_synced);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_cache_deps_unique_nombre ON cache_departamentos(empleado_id, nombre);
-
     -- Caché de Días Festivos
     CREATE TABLE IF NOT EXISTS cache_dias_festivos (
       fecha TEXT PRIMARY KEY,
@@ -287,26 +239,19 @@ async function runMigrations() {
       updated_at TEXT NOT NULL
     );
   `);
-
-
   try {
     await db.execAsync('ALTER TABLE cache_departamentos ADD COLUMN ubicacion TEXT');
   } catch (e) {
-
   }
-
-
   for (const col of [
     'ALTER TABLE offline_asistencias ADD COLUMN ubicacion TEXT',
     'ALTER TABLE offline_asistencias ADD COLUMN ip TEXT',
     'ALTER TABLE offline_asistencias ADD COLUMN wifi TEXT']) {
     try { await db.execAsync(col); } catch (e) { }
   }
-
   try { await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN reglas TEXT'); } catch (e) { }
   try { await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN intervalo_bloques_minutos INTEGER DEFAULT 60'); } catch (e) { }
   try { await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN segmentos_red TEXT'); } catch (e) { }
-
   // Migración: columnas de anticipo de salida (pueden no existir en DBs antiguas)
   for (const col of [
     'ALTER TABLE cache_tolerancias ADD COLUMN minutos_anticipo_salida INTEGER DEFAULT 5',
@@ -314,43 +259,27 @@ async function runMigrations() {
     'ALTER TABLE offline_asistencias ADD COLUMN empresa_id TEXT']) {
     try { await db.execAsync(col); } catch (e) { /* columna ya existe */ }
   }
-
-
   const tables = ['cache_empleados', 'cache_credenciales', 'cache_horarios', 'cache_tolerancias', 'cache_departamentos', 'cache_dias_festivos'];
   for (const t of tables) {
     await db.runAsync('INSERT OR IGNORE INTO sync_metadata (tabla) VALUES (?)', t);
   }
-
 }
-
-
-
-
-
-
-
 
 export async function saveOfflineAsistencia(data) {
   if (!db) await initDatabase();
-
   const idempotencyKey = uuidv4();
-
-
   let ubicacionStr = null;
   if (data.ubicacion) {
     ubicacionStr = typeof data.ubicacion === 'string' ?
       data.ubicacion :
       JSON.stringify(data.ubicacion);
   }
-
-
   let wifiStr = null;
   if (data.wifi) {
     wifiStr = typeof data.wifi === 'string' ?
       data.wifi :
       JSON.stringify(data.wifi);
   }
-
   try {
     const result = await db.runAsync(
       `INSERT INTO offline_asistencias
@@ -371,9 +300,7 @@ export async function saveOfflineAsistencia(data) {
         ubicacionStr,
         data.ip || null,
         wifiStr]
-
     );
-
     return {
       local_id: result.lastInsertRowId,
       idempotency_key: idempotencyKey,
@@ -383,7 +310,6 @@ export async function saveOfflineAsistencia(data) {
     throw error;
   }
 }
-
 export async function getPendingAsistencias(limit = 50) {
   if (!db) await initDatabase();
   return await db.getAllAsync(
@@ -391,7 +317,6 @@ export async function getPendingAsistencias(limit = 50) {
     [limit]
   );
 }
-
 export async function markAsSynced(localId, serverId, estadoSincronizado) {
   if (!db) await initDatabase();
   await db.runAsync(
@@ -404,7 +329,6 @@ export async function markAsSynced(localId, serverId, estadoSincronizado) {
     [serverId, estadoSincronizado, localId]
   );
 }
-
 export async function markSyncError(localId, error, definitivo = false) {
   if (!db) await initDatabase();
   await db.runAsync(
@@ -417,7 +341,6 @@ export async function markSyncError(localId, error, definitivo = false) {
     [definitivo ? 1 : 0, error, localId]
   );
 }
-
 export async function getPendingCount() {
   if (!db) await initDatabase();
   const row = await db.getFirstAsync(`
@@ -433,7 +356,6 @@ export async function getPendingCount() {
     synced: row?.synced || 0
   };
 }
-
 export async function getRegistrosHoy(empleadoId) {
   if (!db) await initDatabase();
   const hoy = new Date().toISOString().split('T')[0];
@@ -448,11 +370,6 @@ export async function getRegistrosHoy(empleadoId) {
     [empleadoId, hoy, empleadoId, hoy]
   );
 }
-
-
-
-
-
 
 export async function saveOnlineAsistenciaToCache(data) {
   if (!db) await initDatabase();
@@ -472,17 +389,12 @@ export async function saveOnlineAsistenciaToCache(data) {
         data.departamento_id || null,
         data.departamento_nombre || null,
         mesKey]
-
     );
   } catch (error) {
 
     (function () { })('saveOnlineAsistenciaToCache error (no crítico):', error.message);
   }
 }
-
-
-
-
 
 export async function getPendingOfflineRegistrosHoy(empleadoId) {
   if (!db) await initDatabase();
@@ -492,14 +404,6 @@ export async function getPendingOfflineRegistrosHoy(empleadoId) {
     [empleadoId, hoy]
   );
 }
-
-
-
-
-
-
-
-
 
 export async function getRegistrosByRange(empleadoId, fechaInicio, fechaFin) {
   if (!db) await initDatabase();
@@ -513,11 +417,6 @@ export async function getRegistrosByRange(empleadoId, fechaInicio, fechaFin) {
   );
 }
 
-
-
-
-
-
 export async function getErrorRecords() {
   if (!db) await initDatabase();
   return await db.getAllAsync(
@@ -525,22 +424,13 @@ export async function getErrorRecords() {
   );
 }
 
-
-
-
-
 export async function upsertEmpleados(empleados) {
   if (!db) await initDatabase();
-
-
-
   try {
     for (const emp of empleados) {
-
       let estadoCuenta = emp.estado_cuenta || 'activo';
       if (emp.es_activo === false) estadoCuenta = 'inactivo';
       if (emp.es_activo === true) estadoCuenta = 'activo';
-
       await db.runAsync(
         `INSERT INTO cache_empleados (empleado_id, usuario_id, nombre, usuario, correo, estado_cuenta, es_empleado, foto, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
@@ -562,20 +452,15 @@ export async function upsertEmpleados(empleados) {
           estadoCuenta,
           emp.es_empleado !== false ? 1 : 0,
           emp.foto || null]
-
       );
     }
-
   } catch (error) {
-
     throw error;
   }
   await updateMetaCount('cache_empleados');
 }
-
 export async function upsertCredenciales(credenciales) {
   if (!db) await initDatabase();
-
   try {
     for (const cred of credenciales) {
       await db.runAsync(
@@ -604,7 +489,6 @@ export async function upsertCredenciales(credenciales) {
 
 export async function upsertHorario(empleadoId, horario) {
   if (!db) await initDatabase();
-
   await db.runAsync(
     `INSERT INTO cache_horarios (horario_id, empleado_id, configuracion, es_activo, updated_at)
      VALUES (?, ?, ?, ?, datetime('now', 'localtime'))
@@ -618,7 +502,6 @@ export async function upsertHorario(empleadoId, horario) {
       empleadoId,
       typeof horario.configuracion === 'string' ? horario.configuracion : JSON.stringify(horario.configuracion),
       horario.es_activo ? 1 : 0]
-
   );
 }
 
@@ -635,7 +518,6 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
   const segmentosRedJson = tolerancia.segmentos_red ?
     (typeof tolerancia.segmentos_red === 'string' ? tolerancia.segmentos_red : JSON.stringify(tolerancia.segmentos_red)) :
     null;
-
   try {
     await db.runAsync(
       `INSERT INTO cache_tolerancias (
@@ -692,7 +574,6 @@ export async function upsertTolerancia(empleadoId, tolerancia) {
     await upsertTolerancia(empleadoId, tolerancia);
   }
 }
-
 export async function upsertDepartamentos(empleadoId, departamentos) {
   if (!db) await initDatabase();
 
@@ -718,12 +599,6 @@ export async function upsertDepartamentos(empleadoId, departamentos) {
   }
 }
 
-
-
-
-
-
-
 export async function markDeletedEmpleados(serverIds) {
   if (!db) await initDatabase();
   if (!serverIds || serverIds.length === 0) return 0;
@@ -738,25 +613,15 @@ export async function markDeletedEmpleados(serverIds) {
   return result.changes || 0;
 }
 
-
-
-
-
 export async function getEmpleado(empleadoId) {
   if (!db) await initDatabase();
   return await db.getFirstAsync('SELECT * FROM cache_empleados WHERE empleado_id = ? AND estado_cuenta = ?', [empleadoId, 'activo']);
 }
 
-
-
-
-
-
 export async function getAllEmpleados() {
   if (!db) await initDatabase();
   return await db.getAllAsync("SELECT * FROM cache_empleados WHERE estado_cuenta = 'activo'");
 }
-
 export async function getAllCredenciales() {
   if (!db) await initDatabase();
   return await db.getAllAsync(`
@@ -766,12 +631,6 @@ export async function getAllCredenciales() {
     WHERE ce.estado_cuenta = 'activo'
   `);
 }
-
-
-
-
-
-
 
 export async function getCredenciales(empleadoId) {
   if (!db) await initDatabase();
@@ -823,34 +682,19 @@ export async function getTolerancia(empleadoId) {
   };
 }
 
-
-
-
 export async function getDepartamentos(empleadoId) {
   if (!db) await initDatabase();
   return await db.getAllAsync('SELECT * FROM cache_departamentos WHERE empleado_id = ? AND es_activo = 1', [empleadoId]);
 }
-
-
-
-
-
 
 export async function getDepartamento(empleadoId) {
   if (!db) await initDatabase();
   return await db.getFirstAsync('SELECT * FROM cache_departamentos WHERE empleado_id = ? AND es_activo = 1 LIMIT 1', [empleadoId]);
 }
 
-
-
-
-
 export async function upsertAsistenciasMes(empleadoId, mesKey, asistencias) {
   if (!db) await initDatabase();
-
   await db.withTransactionAsync(async () => {
-
-
     for (const reg of asistencias) {
       await db.runAsync(
         `INSERT OR REPLACE INTO cache_asistencias (id, empleado_id, tipo, estado, fecha_registro, dispositivo_origen, departamento_id, departamento_nombre, mes_key, updated_at)
@@ -879,17 +723,9 @@ export async function getAsistenciasMesLocal(empleadoId, mesKey) {
   );
 }
 
-
-
-
-
 export async function upsertIncidencias(empleadoId, incidencias) {
   if (!db) await initDatabase();
-
   await db.withTransactionAsync(async () => {
-
-
-
     for (const inc of incidencias) {
       await db.runAsync(
         `INSERT OR REPLACE INTO cache_incidencias (id, empleado_id, tipo, motivo, observaciones, fecha_inicio, fecha_fin, estado, empleado_nombre, updated_at)
@@ -920,9 +756,7 @@ export async function getIncidenciasLocal(empleadoId) {
 
 export async function saveOfflineIncidencia(data) {
   if (!db) await initDatabase();
-
   const idempotencyKey = uuidv4();
-
   const result = await db.runAsync(
     `INSERT INTO offline_incidencias
          (idempotency_key, empleado_id, tipo, motivo, fecha_inicio, fecha_fin, estado)
@@ -935,7 +769,6 @@ export async function saveOfflineIncidencia(data) {
       data.fecha_inicio || null,
       data.fecha_fin || null,
       'pendiente']
-
   );
 
   return {
@@ -971,13 +804,8 @@ export async function markIncidenciaSyncError(localId, error) {
   );
 }
 
-
-
-
-
 export async function upsertEmpresa(empresa) {
   if (!db) await initDatabase();
-
   await db.runAsync(
     `INSERT OR REPLACE INTO cache_empresa (id, nombre, logo, telefono, correo, es_activo, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))`,
@@ -997,16 +825,9 @@ export async function getEmpresaLocal(empresaId) {
   return await db.getFirstAsync('SELECT * FROM cache_empresa WHERE id = ?', [empresaId]);
 }
 
-
-
-
-
 export async function upsertAvisosGlobales(avisos) {
   if (!db) await initDatabase();
   if (!avisos || avisos.length === 0) return;
-
-
-
   for (const aviso of avisos) {
     await db.runAsync(
       `INSERT OR REPLACE INTO cache_avisos (id, tipo, empleado_id, titulo, contenido, fecha_registro, fecha_asignacion, remitente_nombre, updated_at)
@@ -1032,8 +853,6 @@ export async function upsertAvisosGlobales(avisos) {
 
 export async function upsertAvisosEmpleado(empleadoId, avisos) {
   if (!db) await initDatabase();
-
-
   for (const aviso of avisos) {
     await db.runAsync(
       `INSERT OR REPLACE INTO cache_avisos (id, tipo, empleado_id, titulo, contenido, fecha_registro, fecha_asignacion, remitente_nombre, updated_at)
@@ -1080,10 +899,6 @@ export async function getAvisosEmpleadoLocal(empleadoId) {
   );
 }
 
-
-
-
-
 async function saveOfflineSession({ usuario_id, empleado_id, tipo, modo = 'offline' }) {
   if (!db) await initDatabase();
   const fecha = new Date().toISOString();
@@ -1118,13 +933,6 @@ async function markSessionSyncError(localId, error) {
   );
 }
 
-
-
-
-
-
-
-
 export async function saveOfflineEvent(data) {
   if (!db) await initDatabase();
   await db.runAsync(
@@ -1141,9 +949,6 @@ export async function saveOfflineEvent(data) {
   );
 }
 
-
-
-
 export async function getPendingEvents(limit = 100) {
   if (!db) await initDatabase();
   return await db.getAllAsync(
@@ -1151,9 +956,6 @@ export async function getPendingEvents(limit = 100) {
     [limit]
   );
 }
-
-
-
 
 export async function markEventSynced(localId) {
   if (!db) await initDatabase();
@@ -1163,9 +965,6 @@ export async function markEventSynced(localId) {
   );
 }
 
-
-
-
 export async function markEventSyncError(localId, error) {
   if (!db) await initDatabase();
   await db.runAsync(
@@ -1173,14 +972,6 @@ export async function markEventSyncError(localId, error) {
     [error, localId]
   );
 }
-
-
-
-
-
-
-
-
 
 async function updateMetaCount(tabla) {
   try {
@@ -1191,10 +982,6 @@ async function updateMetaCount(tabla) {
   }
 }
 
-
-
-
-
 export async function setLastFullSync(tabla) {
   if (!db) await initDatabase();
   await db.runAsync(
@@ -1202,10 +989,6 @@ export async function setLastFullSync(tabla) {
     [tabla]
   );
 }
-
-
-
-
 
 export async function setLastIncrementalSync(tabla) {
   if (!db) await initDatabase();
@@ -1215,78 +998,45 @@ export async function setLastIncrementalSync(tabla) {
   );
 }
 
-
-
-
-
-
 export async function getSyncMetadata(tabla) {
   if (!db) await initDatabase();
   return await db.getFirstAsync('SELECT * FROM sync_metadata WHERE tabla = ?', [tabla]);
 }
-
-
-
-
 
 export async function getAllSyncMetadata() {
   if (!db) await initDatabase();
   return await db.getAllAsync('SELECT * FROM sync_metadata');
 }
 
-
-
-
-
-
-
-
-
-
-
 export async function cleanupSyncedRecords(diasRetencion = 7) {
   if (!db) await initDatabase();
-
   const cutoff = `datetime('now', '-${diasRetencion} days', 'localtime')`;
   let totalEliminados = 0;
-
   try {
-
     const r1 = await db.runAsync(
       `DELETE FROM offline_asistencias WHERE is_synced != 0 AND created_at < ${cutoff}`
     );
     totalEliminados += r1.changes || 0;
-
-
     const r2 = await db.runAsync(
       `DELETE FROM sesiones_offline WHERE is_synced = 1 AND created_at < ${cutoff}`
     );
     totalEliminados += r2.changes || 0;
-
-
     const r3 = await db.runAsync(
       `DELETE FROM offline_events WHERE is_synced = 1 AND created_at < ${cutoff}`
     );
     totalEliminados += r3.changes || 0;
-
-
     const r4 = await db.runAsync(
       `DELETE FROM offline_incidencias WHERE is_synced = 1 AND created_at < ${cutoff}`
     );
     totalEliminados += r4.changes || 0;
-
     if (totalEliminados > 50) {
       await db.execAsync('VACUUM');
     }
-
     return { success: true, eliminados: totalEliminados };
   } catch (error) {
     return { success: false, error: error.message };
   }
 }
-
-
-
 
 export async function closeDatabase() {
   if (db) {
@@ -1300,16 +1050,11 @@ export async function closeDatabase() {
   }
 }
 
-
-
-
-
 export function getDatabase() {
   return db;
 }
 
 // ─── Configuración: orden y estado de credenciales ───────────────────────────
-
 /**
  * Guarda el orden de credenciales en el caché local de SQLite.
  * @param {Array<{metodo: string, activo: boolean, nivel: number}>} orden
@@ -1357,7 +1102,7 @@ export async function saveOmisionesGlobales(omisiones) {
        ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor, updated_at = excluded.updated_at`,
       [JSON.stringify(omisiones), now]
     );
-  } catch (e) {}
+  } catch (e) { }
 }
 
 export async function getOmisionesGlobalesCache() {

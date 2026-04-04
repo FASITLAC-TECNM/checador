@@ -1,23 +1,4 @@
-
-
-
-
-
-
-
-
 import sqliteManager from './sqliteManager.mjs';
-
-
-
-
-
-
-
-
-
-
-
 function calcularDistanciaEuclidiana(desc1, desc2) {
   if (desc1.length !== desc2.length) return Infinity;
   let sum = 0;
@@ -27,13 +8,8 @@ function calcularDistanciaEuclidiana(desc1, desc2) {
   }
   return Math.sqrt(sum);
 }
-
-
-
-
 function bufferToFloat32Array(data) {
   if (!data) return null;
-
   try {
     if (data instanceof Float32Array) return data;
     if (Array.isArray(data)) return new Float32Array(data);
@@ -53,32 +29,21 @@ function bufferToFloat32Array(data) {
         return new Float32Array(bytes.buffer);
       }
     }
-
     return null;
   } catch (error) {
     return null;
   }
 }
 
-
-
-
-
 export async function identificarPorPinOffline(pinIngresado) {
   try {
     const credenciales = await sqliteManager.getAllCredenciales();
-
     if (!credenciales || credenciales.length === 0) {
       return null;
     }
-
-
-
     const pinStr = String(pinIngresado).trim();
-
     for (const cred of credenciales) {
       if (!cred.pin_hash && cred.pin_hash !== 0) continue;
-
       if (String(cred.pin_hash).trim() === pinStr) {
         const empleado = await sqliteManager.getEmpleado(cred.empleado_id);
         if (empleado && empleado.estado_cuenta === 'activo') {
@@ -91,7 +56,6 @@ export async function identificarPorPinOffline(pinIngresado) {
         }
       }
     }
-
     return null;
   } catch (error) {
     return null;
@@ -102,32 +66,25 @@ export async function identificarPorFacialOffline(descriptorCapturado, umbral = 
   try {
     const credenciales = await sqliteManager.getAllCredenciales();
     const conFacial = credenciales.filter((c) => c.facial_descriptor);
-
     if (conFacial.length === 0) {
       return null;
     }
-
     let bestMatch = null;
     let bestDistance = Infinity;
-
     for (const cred of conFacial) {
       const storedDescriptor = bufferToFloat32Array(cred.facial_descriptor);
       if (!storedDescriptor || storedDescriptor.length === 0) continue;
-
       const distance = calcularDistanciaEuclidiana(
         Array.from(descriptorCapturado),
         Array.from(storedDescriptor)
       );
-
       if (distance < bestDistance) {
         bestDistance = distance;
         bestMatch = cred;
       }
     }
-
     if (bestMatch && bestDistance < umbral) {
       const empleado = await sqliteManager.getEmpleado(bestMatch.empleado_id);
-
       return {
         empleado_id: bestMatch.empleado_id,
         nombre: empleado?.nombre || bestMatch.nombre,
@@ -136,7 +93,6 @@ export async function identificarPorFacialOffline(descriptorCapturado, umbral = 
         metodo: 'FACIAL'
       };
     }
-
     return null;
   } catch (error) {
     return null;
@@ -146,11 +102,10 @@ export async function identificarPorFacialOffline(descriptorCapturado, umbral = 
 export async function cargarDatosOffline(empleadoId) {
   try {
     const [horario, tolerancia, registrosHoy] = await Promise.all([
-    sqliteManager.getHorario(empleadoId),
-    sqliteManager.getTolerancia(empleadoId),
-    sqliteManager.getRegistrosHoy(empleadoId)]
+      sqliteManager.getHorario(empleadoId),
+      sqliteManager.getTolerancia(empleadoId),
+      sqliteManager.getRegistrosHoy(empleadoId)]
     );
-
     return {
       horario: horario ? {
         id: horario.horario_id,

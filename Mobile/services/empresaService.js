@@ -1,20 +1,11 @@
 
 import getApiEndpoint from '../config/api.js';
-
-
-
-
-
-
 export const getEmpresas = async (token, esActivo = null) => {
   try {
-
     let url = '/api/empresas';
-
     if (esActivo !== null) {
       url += `?es_activo=${esActivo}`;
     }
-
     const response = await fetch(
       getApiEndpoint(url),
       {
@@ -25,20 +16,15 @@ export const getEmpresas = async (token, esActivo = null) => {
         }
       }
     );
-
     const data = await response.json();
-
     if (!response.ok) {
       throw new Error(data.message || 'Error al obtener empresas');
     }
-
     return data;
-
   } catch (error) {
     throw error;
   }
 };
-
 
 export const getMiEmpresa = async (token) => {
   try {
@@ -52,24 +38,18 @@ export const getMiEmpresa = async (token) => {
         }
       }
     );
-
     const data = await response.json();
-
     if (!response.ok) {
       throw new Error(data.message || 'Error al obtener datos de tu empresa');
     }
-
     return data;
-
   } catch (error) {
     throw error;
   }
 };
 
-
 export const getEmpresaById = async (empresaId, token) => {
   try {
-
     const response = await fetch(
       getApiEndpoint(`/api/empresas/${empresaId}`),
       {
@@ -80,24 +60,19 @@ export const getEmpresaById = async (empresaId, token) => {
         }
       }
     );
-
     const data = await response.json();
 
     if (!response.ok) {
       throw new Error(data.message || 'Error al obtener empresa');
     }
-
     return data;
-
   } catch (error) {
     throw error;
   }
 };
 
-
 export const createEmpresa = async (empresaData, token) => {
   try {
-
     const response = await fetch(
       getApiEndpoint('/api/empresas'),
       {
@@ -109,24 +84,18 @@ export const createEmpresa = async (empresaData, token) => {
         body: JSON.stringify(empresaData)
       }
     );
-
     const data = await response.json();
-
     if (!response.ok) {
       throw new Error(data.message || 'Error al crear empresa');
     }
-
     return data;
-
   } catch (error) {
     throw error;
   }
 };
 
-
 export const updateEmpresa = async (empresaId, empresaData, token) => {
   try {
-
     const response = await fetch(
       getApiEndpoint(`/api/empresas/${empresaId}`),
       {
@@ -138,24 +107,19 @@ export const updateEmpresa = async (empresaId, empresaData, token) => {
         body: JSON.stringify(empresaData)
       }
     );
-
     const data = await response.json();
 
     if (!response.ok) {
       throw new Error(data.message || 'Error al actualizar empresa');
     }
-
     return data;
-
   } catch (error) {
     throw error;
   }
 };
 
-
 export const deleteEmpresa = async (empresaId, token) => {
   try {
-
     const response = await fetch(
       getApiEndpoint(`/api/empresas/${empresaId}`),
       {
@@ -166,13 +130,10 @@ export const deleteEmpresa = async (empresaId, token) => {
         }
       }
     );
-
     const data = await response.json();
-
     if (!response.ok) {
       throw new Error(data.message || 'Error al desactivar empresa');
     }
-
     return data;
 
   } catch (error) {
@@ -180,12 +141,10 @@ export const deleteEmpresa = async (empresaId, token) => {
   }
 };
 
-
 export const getEmpresaPublicaById = async (empresaId) => {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
-
     let response;
     try {
       response = await Promise.race([
@@ -209,15 +168,11 @@ export const getEmpresaPublicaById = async (empresaId) => {
       throw new Error(`Timeout o error de red: ${e.message}`);
     }
     clearTimeout(timeoutId);
-
     const data = await response.json();
-
     if (!response.ok) {
       throw new Error(data.message || 'Error al obtener información pública de la empresa');
     }
-
     return data;
-
   } catch (error) {
     throw error;
   }

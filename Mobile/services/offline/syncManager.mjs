@@ -1,12 +1,3 @@
-
-
-
-
-
-
-
-
-
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DeviceEventEmitter } from 'react-native';
@@ -15,22 +6,14 @@ import pullService from './pullService.mjs';
 import pushService from './pushService.mjs';
 import { detectarCambiosIncidencias, detectarAvisosNuevos } from '../localNotificationService';
 import { getApiEndpoint } from '../../config/api.js';
-
-
 let authToken = null;
 let storedEmpleadoId = null;
 let isPushingSessions = false;
 let isPushingIncidencias = false;
 let isSyncing = false;
 let isBackendDown = false;
-
 const API_URL = getApiEndpoint('/api');
 const CLEANUP_KEY = '@sqlite_last_cleanup';
-
-
-
-
-
 async function cleanupDiario() {
   try {
     const hoy = new Date().toISOString().split('T')[0];
@@ -43,10 +26,6 @@ async function cleanupDiario() {
 
   }
 }
-
-
-
-
 export function setAuthToken(token, empleadoId = null) {
   authToken = token;
   if (empleadoId) storedEmpleadoId = empleadoId;
@@ -55,24 +34,11 @@ export function setAuthToken(token, empleadoId = null) {
   pullService.configure(API_URL, token);
   pushService.configure(API_URL, token);
 }
-
-
-
-
 export async function isOnline() {
   const state = await NetInfo.fetch();
 
   return state.isConnected && (state.isInternetReachable === true || state.isInternetReachable === null);
 }
-
-
-
-
-
-
-
-
-
 export async function pullData(empleadoId = null) {
   const empId = empleadoId || storedEmpleadoId;
   if (!empId) return { success: false, error: 'empleadoId requerido' };
@@ -83,14 +49,6 @@ export async function pullData(empleadoId = null) {
 
   return await pullService.fullPull(empId);
 }
-
-
-
-
-
-
-
-
 export async function pushData() {
   if (!authToken) return { success: false, error: 'No token' };
 
@@ -99,15 +57,6 @@ export async function pushData() {
 
   return await pushService.pushPendingRecords();
 }
-
-
-
-
-
-
-
-
-
 export async function pushSessions() {
   if (isPushingSessions) {
     return { success: false, busy: true };
@@ -118,17 +67,13 @@ export async function pushSessions() {
     isPushingSessions = false;
     return { success: false, error: 'No hay token' };
   }
-
   const online = await isOnline();
   if (!online) { isPushingSessions = false; return { success: false, error: 'Offline' }; }
-
   try {
     const pending = await sqliteManager.getPendingSessions(50);
-
     if (pending.length === 0) {
       return { success: true, count: 0 };
     }
-
     const sesiones = pending.map((s) => ({
       local_id: s.local_id,
       usuario_id: s.usuario_id,
@@ -138,12 +83,9 @@ export async function pushSessions() {
       fecha_evento: s.fecha_evento,
       dispositivo: s.dispositivo || 'movil'
     }));
-
     const url = `${API_URL}/movil/sync/sesiones`;
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
-
     let response;
     try {
       response = await Promise.race([
@@ -173,38 +115,26 @@ export async function pushSessions() {
       isPushingSessions = false;
       throw new Error(`HTTP ${response.status}`);
     }
-
     const result = await response.json();
-
     if (result.sincronizados) {
       for (const s of result.sincronizados) {
         await sqliteManager.markSessionSynced(s.local_id);
-
-
-
         const original = pending.find((p) => p.local_id === s.local_id);
         const tipo = original ? original.tipo : s.tipo;
         const empleadoId = original ? original.empleado_id : s.empleado_id;
         const modo = original ? original.modo : s.modo;
-
-
         if (tipo === 'login') {
           const isOffline = modo === 'offline';
           let nombreEmpleado = 'Usuario';
-
           try {
             if (empleadoId) {
               const emp = await sqliteManager.getEmpleado(empleadoId);
               if (emp && emp.nombre) nombreEmpleado = emp.nombre;
             }
           } catch (e) {
-
           }
-
-
           const title = 'Inicio de sesión';
           const desc = `${nombreEmpleado} inicio sesión`;
-
           await pushService.postEvent(
             title,
             'autenticacion',
@@ -213,21 +143,15 @@ export async function pushSessions() {
             'baja'
           );
         }
-
       }
     }
-
     if (result.errores && result.errores.length > 0) {
       for (const e of result.errores) {
         await sqliteManager.markSessionSyncError(e.local_id, e.error);
       }
     }
-
     await pushService.pushEvents().catch(() => { });
-
-
     return { success: true, count: result.sincronizados?.length };
-
   } catch (error) {
     return { success: false, error: error.message };
   } finally {
@@ -235,42 +159,26 @@ export async function pushSessions() {
   }
 }
 
-
-
-
-
-
-
-
-
 export async function pushIncidencias() {
   if (isPushingIncidencias) {
     return { success: false, busy: true };
   }
-
-
   isPushingIncidencias = true;
-
   try {
     if (!authToken) {
       return { success: false, error: 'No token' };
     }
-
     const online = await isOnline();
     if (!online) {
       return { success: false, error: 'Offline' };
     }
-
     const pending = await sqliteManager.getPendingIncidencias(50);
     if (pending.length === 0) {
       return { success: true, count: 0 };
     }
-
     let sincronizadas = 0;
     const processedIds = new Set();
-
     for (const inc of pending) {
-
       if (processedIds.has(inc.local_id)) continue;
       processedIds.add(inc.local_id);
 
@@ -303,9 +211,7 @@ export async function pushIncidencias() {
         await sqliteManager.markIncidenciaSyncError(inc.local_id, e.message);
       }
     }
-
     return { success: true, count: sincronizadas };
-
   } catch (error) {
     return { success: false, error: error.message };
   } finally {
@@ -313,39 +219,22 @@ export async function pushIncidencias() {
   }
 }
 
-
-
-
-
-
-
-
-
 export async function performSync(reason = 'manual') {
   if (isSyncing) {
     return;
   }
-
   const online = await isOnline();
   if (!online && reason !== 'initial') {
     return;
   }
-
   // Si el backend está caído (según health check) y no es sync inicial, omitir
   if (isBackendDown && reason !== 'initial') {
     return;
   }
-
   isSyncing = true;
-
   try {
-
     await cleanupDiario();
-
-
     await pushSessions().catch(() => { });
-
-
     if (authToken) {
       const pushResult = await pushData().catch(() => null);
       // Si hubo rechazos definitivos, avisar a RegisterButton para limpiar estado optimista
@@ -353,18 +242,12 @@ export async function performSync(reason = 'manual') {
         DeviceEventEmitter.emit('sync_rechazado', { errors: pushResult.errors });
       }
     }
-
-
     if (authToken) {
       await pushIncidencias().catch(() => { });
     }
-
-
     if (authToken) {
       await pushService.pushEvents().catch(() => { });
     }
-
-
     if (authToken && storedEmpleadoId) {
       const pullRes = await pullData(storedEmpleadoId).catch(() => null);
 
@@ -381,7 +264,6 @@ export async function performSync(reason = 'manual') {
         DeviceEventEmitter.emit('config_actualizada');
       }
     }
-
   } catch (error) {
 
   } finally {
@@ -402,17 +284,12 @@ export function getIsBackendDown() {
 }
 
 export function initAutoSync() {
-
   NetInfo.fetch().then((state) => {
     if (state.isConnected && state.isInternetReachable) {
       setTimeout(() => performSync('initial'), 2000);
     }
   });
-
-
-
   let syncDebounceTimer = null;
-
   const unsubscribe = NetInfo.addEventListener((state) => {
     if (state.isConnected && state.isInternetReachable) {
       if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
@@ -423,15 +300,12 @@ export function initAutoSync() {
       }, 2000);
     }
   });
-
-
   setInterval(async () => {
     const state = await NetInfo.fetch();
     if (state.isConnected && state.isInternetReachable) {
       performSync('periodic');
     }
   }, 120000);
-
   return unsubscribe;
 }
 

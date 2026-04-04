@@ -1,15 +1,4 @@
-
-
-
-
 import * as visionCameraService from './visionCameraService';
-
-
-
-
-
-
-
 export const requestCameraPermission = visionCameraService.requestCameraPermission;
 export const checkCameraAvailability = visionCameraService.checkCameraAvailability;
 export const processFaceData = visionCameraService.processFaceData;

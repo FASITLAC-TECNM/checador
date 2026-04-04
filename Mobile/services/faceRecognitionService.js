@@ -1,34 +1,16 @@
-
-
-
-
 import { getApiEndpoint } from '../config/api';
-
 const API_URL = getApiEndpoint('/api');
-
-
-
-
-
-
-
 
 export const processFaceImage = async (imageUri) => {
   try {
-
     const formData = new FormData();
-
-
     const fileName = imageUri.split('/').pop();
     const fileType = fileName.split('.').pop();
-
     formData.append('image', {
       uri: imageUri,
       type: `image/${fileType}`,
       name: fileName
     });
-
-
     const response = await fetch(`${API_URL}/credenciales/facial/process-mobile`, {
       method: 'POST',
       body: formData,
@@ -36,18 +18,14 @@ export const processFaceImage = async (imageUri) => {
         'Content-Type': 'multipart/form-data'
       }
     });
-
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`Error HTTP: ${response.status}: ${errorText}`);
     }
-
     const result = await response.json();
-
     if (!result.success || !result.descriptor) {
       throw new Error(result.message || 'No se pudo extraer el descriptor facial');
     }
-
     return {
       success: true,
       descriptorBase64: result.descriptor,
@@ -62,16 +40,6 @@ export const processFaceImage = async (imageUri) => {
   }
 };
 
-
-
-
-
-
-
-
-
-
-
 export const registrarDescriptorFacial = async (empleadoId, descriptorBase64, token) => {
   try {
     const response = await fetch(`${API_URL}/credenciales/facial`, {
@@ -85,7 +53,6 @@ export const registrarDescriptorFacial = async (empleadoId, descriptorBase64, to
         facial: descriptorBase64
       })
     });
-
     if (!response.ok) {
       const errorText = await response.text();
       let errorMessage = `Error HTTP: ${response.status}`;
@@ -97,7 +64,6 @@ export const registrarDescriptorFacial = async (empleadoId, descriptorBase64, to
       }
       throw new Error(errorMessage);
     }
-
     return {
       success: true,
       data: {
@@ -106,7 +72,6 @@ export const registrarDescriptorFacial = async (empleadoId, descriptorBase64, to
         timestamp: new Date().toISOString()
       }
     };
-
   } catch (error) {
     return {
       success: false,
@@ -114,13 +79,6 @@ export const registrarDescriptorFacial = async (empleadoId, descriptorBase64, to
     };
   }
 };
-
-
-
-
-
-
-
 
 export const identificarPorFacial = async (descriptorBase64) => {
   try {
@@ -133,7 +91,6 @@ export const identificarPorFacial = async (descriptorBase64) => {
         facial: descriptorBase64
       })
     });
-
     if (!response.ok) {
       const errorText = await response.text();
       let errorMessage = `Error HTTP: ${response.status}`;
@@ -145,22 +102,18 @@ export const identificarPorFacial = async (descriptorBase64) => {
       }
       throw new Error(errorMessage);
     }
-
     if (!result.success || !result.data) {
       return {
         success: false,
         error: result.message || 'Rostro no reconocido en el sistema'
       };
     }
-
     const { empleado, matchScore } = result.data;
-
     return {
       success: true,
       usuario: empleado,
       matchScore: matchScore || 100
     };
-
   } catch (error) {
     return {
       success: false,
@@ -168,12 +121,6 @@ export const identificarPorFacial = async (descriptorBase64) => {
     };
   }
 };
-
-
-
-
-
-
 
 export const captureAndIdentify = async (imageUri) => {
   try {
@@ -186,12 +133,8 @@ export const captureAndIdentify = async (imageUri) => {
         error: processResult.error
       };
     }
-
-
     const identifyResult = await identificarPorFacial(processResult.descriptorBase64);
-
     return identifyResult;
-
   } catch (error) {
     return {
       success: false,
@@ -199,14 +142,6 @@ export const captureAndIdentify = async (imageUri) => {
     };
   }
 };
-
-
-
-
-
-
-
-
 
 export const captureAndRegister = async (imageUri, empleadoId, token) => {
   try {
@@ -219,16 +154,12 @@ export const captureAndRegister = async (imageUri, empleadoId, token) => {
         error: processResult.error
       };
     }
-
-
     const registerResult = await registrarDescriptorFacial(
       empleadoId,
       processResult.descriptorBase64,
       token
     );
-
     return registerResult;
-
   } catch (error) {
     return {
       success: false,

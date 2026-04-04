@@ -5,7 +5,6 @@ import NetInfo from '@react-native-community/netinfo';
 
 export const detectDeviceInfo = async () => {
   try {
-
     const deviceInfo = {
       model: Device.modelName || 'Desconocido',
       brand: Device.brand || 'Desconocido',
@@ -13,15 +12,10 @@ export const detectDeviceInfo = async () => {
       platform: Platform.OS,
       osVersion: Device.osVersion
     };
-
-
     const netInfo = await NetInfo.fetch();
     const ipAddress = netInfo.details?.ipAddress || '192.168.1.0';
-
-
     const today = new Date();
     const registrationDate = today.toISOString().split('T')[0];
-
     return {
       deviceInfo,
       ipAddress,

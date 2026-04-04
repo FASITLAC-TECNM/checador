@@ -3,10 +3,7 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import getApiEndpoint from '../config/api';
-
-
 const API_BASE_URL = getApiEndpoint('/api');
-
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
@@ -14,7 +11,6 @@ const api = axios.create({
     'Content-Type': 'application/json'
   }
 });
-
 
 api.interceptors.request.use(
   async (config) => {
@@ -33,9 +29,6 @@ api.interceptors.request.use(
   }
 );
 
-
-
-
 export const crearSolicitudMovil = async (data) => {
   try {
     const payload = {
@@ -49,15 +42,12 @@ export const crearSolicitudMovil = async (data) => {
       observaciones: data.observaciones,
       empresa_id: data.empresa_id
     };
-
     const response = await api.post('/solicitudes', payload);
-
     return {
       id: response.data.data.id,
       token_solicitud: response.data.data.token,
       estado: response.data.data.estado
     };
-
   } catch (error) {
     if (error.response) {
       throw new Error(error.response.data.message || 'Error al crear solicitud');
@@ -69,23 +59,17 @@ export const crearSolicitudMovil = async (data) => {
   }
 };
 
-
-
-
 export const reabrirSolicitudMovil = async (solicitudId, observaciones) => {
   try {
     const payload = {
       observaciones: observaciones || 'Solicitud reabierta desde dispositivo móvil'
     };
-
     const response = await api.patch(`/solicitudes/${solicitudId}/pendiente`, payload);
-
     return {
       id: response.data.data.id,
       token_solicitud: response.data.data.token,
       estado: response.data.data.estado
     };
-
   } catch (error) {
     if (error.response) {
       if (error.response.status === 400 && error.response.data?.message?.includes('ya está en estado pendiente')) {
@@ -104,9 +88,6 @@ export const reabrirSolicitudMovil = async (solicitudId, observaciones) => {
   }
 };
 
-
-
-
 export const getSolicitudPorToken = async (token) => {
   try {
     const response = await api.get(`/solicitudes/verificar/${token}`);
@@ -122,9 +103,6 @@ export const getSolicitudPorToken = async (token) => {
   }
 };
 
-
-
-
 export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
   try {
     if (!correo || !empresaId) {
@@ -133,9 +111,7 @@ export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
         mensaje: 'Correo o empresa no válidos'
       };
     }
-
     const correoLower = correo.trim().toLowerCase();
-
     try {
       const response = await api.get(`/empleados/verificar-correo`, {
         params: {
@@ -143,10 +119,8 @@ export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
           empresa_id: empresaId
         }
       });
-
       if (response.data.success && response.data.data) {
         const empleado = response.data.data;
-
         return {
           existe: true,
           activo: empleado.es_activo,
@@ -157,16 +131,14 @@ export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
             correo: empleado.correo
           },
           mensaje: empleado.es_activo ?
-          `Correo verificado: ${empleado.nombre}` :
-          'Usuario inactivo'
+            `Correo verificado: ${empleado.nombre}` :
+            'Usuario inactivo'
         };
       }
-
       return {
         existe: false,
         mensaje: 'Correo no encontrado en esta empresa'
       };
-
     } catch (error) {
       if (error.response?.status === 404) {
         return {
@@ -174,7 +146,6 @@ export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
           mensaje: 'Este correo no está registrado en la empresa'
         };
       }
-
       if (error.response?.status === 401 || error.response?.status === 403) {
         return {
           existe: true,
@@ -189,10 +160,8 @@ export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
           mensaje: 'Se verificará al enviar la solicitud'
         };
       }
-
       throw error;
     }
-
   } catch (error) {
     return {
       existe: true,
@@ -209,27 +178,19 @@ export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
   }
 };
 
-
-
-
-
 export const verificarEmpresa = async (empresaId, ip) => {
   try {
-
     if (!empresaId || empresaId.trim().length < 3) {
       return {
         existe: false,
         mensaje: 'Código de empresa inválido'
       };
     }
-
     try {
-
       const response = await api.post(`/solicitudes/validar-afiliacion`, {
         identificador: empresaId,
         ip: ip
       });
-
       if (response.data.success && response.data.data) {
         const { empresa, validacionRed } = response.data.data;
         return {
@@ -241,22 +202,17 @@ export const verificarEmpresa = async (empresaId, ip) => {
           alertasRed: validacionRed?.alertas || []
         };
       }
-
       return {
         existe: false,
         mensaje: 'Empresa no encontrada'
       };
-
     } catch (error) {
-
       if (error.response?.status === 404) {
         return {
           existe: false,
           mensaje: 'Empresa no encontrada'
         };
       }
-
-
       if (error.response?.status === 403) {
         return {
           existe: true,
@@ -264,23 +220,15 @@ export const verificarEmpresa = async (empresaId, ip) => {
           mensaje: error.response?.data?.message || 'La empresa no está activa'
         };
       }
-
-
       if (!error.response) {
         throw new Error('No se pudo conectar con el servidor. Verifica tu conexión.');
       }
-
-
       throw new Error(error.response?.data?.message || 'Error al verificar empresa');
     }
-
   } catch (error) {
     throw error;
   }
 };
-
-
-
 
 export const guardarToken = async (token) => {
   try {
@@ -290,16 +238,11 @@ export const guardarToken = async (token) => {
   }
 };
 
-
-
-
 export const verificarDispositivoActivo = async (solicitudId) => {
   try {
     const response = await api.get(`/solicitudes/${solicitudId}`);
-
     if (response.data.success && response.data.data) {
       const solicitud = response.data.data;
-
       if (solicitud.estado?.toLowerCase() === 'aceptado') {
         return {
           valido: true,
@@ -313,12 +256,10 @@ export const verificarDispositivoActivo = async (solicitudId) => {
         };
       }
     }
-
     return {
       valido: false,
       motivo: 'Solicitud no encontrada'
     };
-
   } catch (error) {
     if (error.response?.status === 404) {
       return {
@@ -326,7 +267,6 @@ export const verificarDispositivoActivo = async (solicitudId) => {
         motivo: 'Solicitud eliminada o no existe'
       };
     }
-
     if (error.response?.status === 401 || error.response?.status === 403) {
       return {
         valido: false,
@@ -334,7 +274,6 @@ export const verificarDispositivoActivo = async (solicitudId) => {
         requiereLogin: true
       };
     }
-
     throw error;
   }
 };

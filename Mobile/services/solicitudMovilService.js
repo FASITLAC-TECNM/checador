@@ -103,24 +103,36 @@ export const getSolicitudPorToken = async (token) => {
   }
 };
 
-export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
+export const verificarCorreoEnEmpresa = async (correo, empresaId, tokenOverride = null) => {
+  console.log('[SolicitudSvc] ─── verificarCorreoEnEmpresa ───');
+  console.log('[SolicitudSvc] correo (raw):', correo, '| empresaId:', empresaId);
+  console.log('[SolicitudSvc] tokenOverride:', tokenOverride ? '✓ token personal recibido' : 'null (usará interceptor/storage)');
   try {
     if (!correo || !empresaId) {
+      console.warn('[SolicitudSvc] ✗ correo o empresaId vacíos');
       return {
         existe: false,
         mensaje: 'Correo o empresa no válidos'
       };
     }
     const correoLower = correo.trim().toLowerCase();
+    console.log('[SolicitudSvc] correo normalizado:', correoLower);
     try {
-      const response = await api.get(`/empleados/verificar-correo`, {
-        params: {
-          correo: correoLower,
-          empresa_id: empresaId
-        }
-      });
+      const requestConfig = {
+        params: { correo: correoLower, empresa_id: empresaId }
+      };
+      // Si se pasa token personal, sobrescribir el header para no usar el token-movil del storage
+      if (tokenOverride) {
+        requestConfig.headers = { Authorization: `Bearer ${tokenOverride}` };
+        console.log('[SolicitudSvc] Usando token personal en header (override)');
+      }
+      console.log('[SolicitudSvc] GET /empleados/verificar-correo → params:', { correo: correoLower, empresa_id: empresaId });
+      const response = await api.get(`/empleados/verificar-correo`, requestConfig);
+      console.log('[SolicitudSvc] Respuesta HTTP status:', response.status);
+      console.log('[SolicitudSvc] Respuesta body:', JSON.stringify(response.data));
       if (response.data.success && response.data.data) {
         const empleado = response.data.data;
+        console.log('[SolicitudSvc] ✓ Empleado encontrado:', JSON.stringify(empleado));
         return {
           existe: true,
           activo: empleado.es_activo,
@@ -135,18 +147,23 @@ export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
             'Usuario inactivo'
         };
       }
+      console.warn('[SolicitudSvc] ✗ response.data.success=false o data vacío → data:', JSON.stringify(response.data));
       return {
         existe: false,
         mensaje: 'Correo no encontrado en esta empresa'
       };
     } catch (error) {
+      console.error('[SolicitudSvc] ✗ Error HTTP en verificar-correo → status:', error.response?.status);
+      console.error('[SolicitudSvc]   body del error:', JSON.stringify(error.response?.data));
       if (error.response?.status === 404) {
+        console.warn('[SolicitudSvc] 404 → correo no existe en la empresa');
         return {
           existe: false,
           mensaje: 'Este correo no está registrado en la empresa'
         };
       }
       if (error.response?.status === 401 || error.response?.status === 403) {
+        console.warn('[SolicitudSvc] 401/403 → sin token válido, retornando pendienteValidacion=true');
         return {
           existe: true,
           activo: true,
@@ -163,6 +180,7 @@ export const verificarCorreoEnEmpresa = async (correo, empresaId) => {
       throw error;
     }
   } catch (error) {
+    console.error('[SolicitudSvc] ✗ Excepción general en verificarCorreoEnEmpresa:', error?.message);
     return {
       existe: true,
       activo: true,
@@ -187,26 +205,43 @@ export const verificarEmpresa = async (empresaId, ip) => {
       };
     }
     try {
-      const response = await api.post(`/solicitudes/validar-afiliacion`, {
-        identificador: empresaId,
-        ip: ip
+      console.log('Solicitando token movil para afiliación con identificador:', empresaId);
+      
+      const tokenResponse = await api.post(`/auth/token-movil`, {
+        identificador: empresaId
       });
-      if (response.data.success && response.data.data) {
-        const { empresa, validacionRed } = response.data.data;
-        return {
-          existe: true,
-          id: empresa.id,
-          nombre: empresa.nombre,
-          activa: empresa.es_activo,
-          fueraDeRed: validacionRed?.fueraDeRed || false,
-          alertasRed: validacionRed?.alertas || []
-        };
+      
+      if (tokenResponse.data.success && tokenResponse.data.data) {
+        const { empresa, token } = tokenResponse.data.data;
+        console.log('Token movil obtenido, guardando...');
+        await guardarToken(token);
+        
+        // Ahora con el token guardado, el interceptor lo enviará, validamos la red
+        console.log('Validando afiliación y red con token...');
+        const response = await api.post(`/solicitudes/validar-afiliacion`, {
+          identificador: empresaId,
+          ip: ip
+        });
+        
+        if (response.data.success && response.data.data) {
+          const { empresa: empresaValidada, validacionRed } = response.data.data;
+          return {
+            existe: true,
+            id: empresaValidada.id,
+            nombre: empresaValidada.nombre,
+            activa: empresaValidada.es_activo,
+            fueraDeRed: validacionRed?.fueraDeRed || false,
+            alertasRed: validacionRed?.alertas || [],
+            token: token
+          };
+        }
       }
       return {
         existe: false,
-        mensaje: 'Empresa no encontrada'
+        mensaje: 'Empresa no encontrada o no se pudo generar el token'
       };
     } catch (error) {
+      console.log('Error en verificarEmpresa:', error.response?.status, error.response?.data);
       if (error.response?.status === 404) {
         return {
           existe: false,
@@ -320,8 +355,9 @@ export const verificarDispositivoPorEmpleado = async (empleadoId, token) => {
         dispositivosActivos = syncResponse.data.dispositivos || [];
       }
     } catch (syncError) {
-
-      throw syncError;
+      // Si el sync endpoint falla (403/404/error), no propagamos.
+      // Dejamos dispositivosActivos = [] y continuamos al fallback /movil/empleado/
+      // que sí devuelve es_activo: false para dispositivos desactivados.
     }
 
 

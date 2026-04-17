@@ -117,7 +117,6 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
     try {
       setIsDetecting(true);
 
-
       const solicitudRechazadaId = await AsyncStorage.getItem('@solicitud_rechazada_id');
       const solicitudRechazadaToken = await AsyncStorage.getItem('@solicitud_rechazada_token');
 
@@ -125,9 +124,7 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
         setSolicitudExistente({ id: solicitudRechazadaId, token: solicitudRechazadaToken });
       }
 
-
       await detectDevice();
-
 
       let emailToUse = '';
 
@@ -215,7 +212,22 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
     setIsValidatingEmail(true);
 
     try {
-      const result = await verificarCorreoEnEmpresa(emailTrimmed, empresaId);
+      // Si el correo coincide con el del usuario autenticado, aceptar directamente sin llamada API
+      if (userData?.correo && emailTrimmed === userData.correo.trim().toLowerCase()) {
+        setEmailValidation({
+          isValid: true,
+          message: `Correo verificado: ${userData.nombre || emailTrimmed.split('@')[0]}`,
+          checked: true,
+          usuario: { id: userData.id, nombre: userData.nombre, correo: emailTrimmed },
+          empleadoId: userData.empleado_id || null
+        });
+        setIsValidatingEmail(false);
+        return;
+      }
+
+      // Usar token personal si está disponible para no usar el token-movil del storage
+      const tokenParaVerificar = userData?.token || null;
+      const result = await verificarCorreoEnEmpresa(emailTrimmed, empresaId, tokenParaVerificar);
 
       const esValido = result.existe && result.activo && (result.usuario || result.pendienteValidacion);
 
@@ -223,7 +235,6 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
         let mensaje = result.usuario ?
           `Correo verificado: ${result.usuario.nombre}` :
           `[Atención] ${result.mensaje || 'Correo pendiente de verificación'}`;
-
         setEmailValidation({
           isValid: true,
           message: mensaje,
@@ -249,7 +260,6 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
         });
       }
     } catch (error) {
-
       setEmailValidation({
         isValid: false,
         message: 'No se pudo verificar el correo. Verifica tu conexión a internet.',
@@ -305,7 +315,6 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
       let response;
 
       if (solicitudExistente?.id) {
-
         const observaciones = `Reintento desde app móvil el ${formData.registrationDate}. Email: ${emailTrimmed}, SO: ${formData.os}`;
         response = await reabrirSolicitudMovil(solicitudExistente.id, observaciones);
 
@@ -316,7 +325,6 @@ export const DeviceConfigScreen = ({ empresaId, empresaNombre, onNext, onPreviou
         await AsyncStorage.removeItem('@solicitud_rechazada_token');
 
       } else {
-
         const solicitudData = {
           nombre: formData.deviceModel,
           correo: emailTrimmed,

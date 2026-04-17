@@ -7,6 +7,11 @@
  */
 
 export function srvBuscarBloqueActual(turnosDelDia, horaMinutos, intervaloBloquesMinutos, anticipoEntradaMax, posteriorSalidaMax = 60) {
+    console.log('[TOLERANCIA] ─── srvBuscarBloqueActual ───');
+    console.log('[TOLERANCIA] anticipoEntradaMax (min)   :', anticipoEntradaMax ?? 0, '← minutos ANTES de la entrada que se permite registrar');
+    console.log('[TOLERANCIA] posteriorSalidaMax (min)   :', posteriorSalidaMax, '← minutos DESPUÉS de la salida que se permite registrar');
+    console.log('[TOLERANCIA] intervaloBloquesMinutos    :', intervaloBloquesMinutos, '← gap para fusionar turnos en un mismo bloque');
+    console.log('[TOLERANCIA] horaActual (min desde 00:00):', horaMinutos);
     if (!turnosDelDia || turnosDelDia.length === 0) return null;
 
     // Convertir a minutos y ordenar
@@ -60,6 +65,25 @@ export function srvBuscarBloqueActual(turnosDelDia, horaMinutos, intervaloBloque
 }
 
 export function srvEvaluarEstado(tipoAsistencia, horaMinutos, bloque, tolerancia) {
+    console.log('[TOLERANCIA] ─── srvEvaluarEstado ───');
+    console.log('[TOLERANCIA] tipoAsistencia             :', tipoAsistencia);
+    console.log('[TOLERANCIA] horaActual (min desde 00:00):', horaMinutos);
+    console.log('[TOLERANCIA] bloque encontrado          :', bloque ? `entrada=${bloque.entrada}min  salida=${bloque.salida}min` : 'NINGUNO');
+    console.log('[TOLERANCIA] ── Reglas generales ──');
+    console.log('[TOLERANCIA]   aplica_tolerancia_entrada:', tolerancia?.aplica_tolerancia_entrada);
+    console.log('[TOLERANCIA]   aplica_tolerancia_salida :', tolerancia?.aplica_tolerancia_salida);
+    console.log('[TOLERANCIA]   permite_registro_anticipado:', tolerancia?.permite_registro_anticipado);
+    console.log('[TOLERANCIA]   minutos_anticipado_max   :', tolerancia?.minutos_anticipado_max, 'min  ← máx de anticipación en entrada');
+    console.log('[TOLERANCIA]   minutos_anticipo_salida  :', tolerancia?.minutos_anticipo_salida, 'min  ← anticipación permitida en salida');
+    console.log('[TOLERANCIA]   minutos_posterior_salida :', tolerancia?.minutos_posterior_salida, 'min  ← cuánto puede tardarse en salida');
+    console.log('[TOLERANCIA]   minutos_retardo          :', tolerancia?.minutos_retardo, 'min  ← retardo simple');
+    console.log('[TOLERANCIA]   minutos_falta            :', tolerancia?.minutos_falta, 'min  ← a partir de aquí es falta');
+    console.log('[TOLERANCIA]   minutos_retardo_a_max    :', tolerancia?.minutos_retardo_a_max, 'min');
+    console.log('[TOLERANCIA]   minutos_retardo_b_max    :', tolerancia?.minutos_retardo_b_max, 'min');
+    console.log('[TOLERANCIA]   equivalencia_retardo_a   :', tolerancia?.equivalencia_retardo_a);
+    console.log('[TOLERANCIA]   equivalencia_retardo_b   :', tolerancia?.equivalencia_retardo_b);
+    console.log('[TOLERANCIA]   dias_aplica              :', JSON.stringify(tolerancia?.dias_aplica));
+    console.log('[TOLERANCIA]   reglas (ordenadas)       :', JSON.stringify((tolerancia?.reglas || []).sort((a,b) => a.limite_minutos - b.limite_minutos)));
     if (!bloque) return (tipoAsistencia === 'entrada') ? 'falta' : 'salida_fuera_horario';
 
     const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
@@ -68,6 +92,9 @@ export function srvEvaluarEstado(tipoAsistencia, horaMinutos, bloque, tolerancia
 
     if (tipoAsistencia === 'entrada') {
         const diff = horaMinutos - bloque.entrada;
+        console.log('[TOLERANCIA] ── Evaluación ENTRADA ──');
+        console.log('[TOLERANCIA]   diff respecto a entrada  :', diff, 'min (negativo = anticipado, positivo = tarde)');
+        console.log('[TOLERANCIA]   aplicaHoy (dia actual)   :', aplicaHoy, `(${diaHoy})`);
         if (diff < 0) return 'entrada_temprana';
         if (diff === 0) return 'puntual';
         if (!aplicaHoy) return 'falta';
@@ -79,8 +106,11 @@ export function srvEvaluarEstado(tipoAsistencia, horaMinutos, bloque, tolerancia
         return 'falta';
     } else {
         const diffSalida = bloque.salida - horaMinutos;
-        if (diffSalida > 0) return 'salida_temprana';
         const posteriorPermitido = tolerancia.minutos_posterior_salida || 60;
+        console.log('[TOLERANCIA] ── Evaluación SALIDA ──');
+        console.log('[TOLERANCIA]   diff respecto a salida   :', diffSalida, 'min (positivo = temprana, negativo = tardía)');
+        console.log('[TOLERANCIA]   posteriorPermitido (min) :', posteriorPermitido, '← min_posterior_salida usada');
+        if (diffSalida > 0) return 'salida_temprana';
         if (Math.abs(diffSalida) > posteriorPermitido) return 'salida_tarde';
         return 'salida_puntual';
     }

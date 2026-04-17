@@ -1,19 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, Text, StyleSheet, Animated,
-  StatusBar, TouchableOpacity, ActivityIndicator } from
-'react-native';
+  StatusBar, TouchableOpacity, ActivityIndicator
+} from
+  'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { verificarDispositivoPorEmpleado } from '../../services/solicitudMovilService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-
-
-
-
-
-
-
 
 const DeviceDisabledScreen = ({ onReRequest, onReEnabled, darkMode = false }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -22,20 +15,19 @@ const DeviceDisabledScreen = ({ onReRequest, onReEnabled, darkMode = false }) =>
   const [checking, setChecking] = useState(false);
   const [checkResult, setCheckResult] = useState(null);
 
-
   useEffect(() => {
     Animated.parallel([
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 600,
-      useNativeDriver: true
-    }),
-    Animated.spring(slideAnim, {
-      toValue: 0,
-      tension: 55,
-      friction: 10,
-      useNativeDriver: true
-    })]
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 55,
+        friction: 10,
+        useNativeDriver: true
+      })]
     ).start();
   }, []);
 
@@ -48,11 +40,6 @@ const DeviceDisabledScreen = ({ onReRequest, onReEnabled, darkMode = false }) =>
     }, 400);
   };
 
-
-
-
-
-
   const handleCheckStatus = async () => {
     if (checking) return;
     setChecking(true);
@@ -60,8 +47,8 @@ const DeviceDisabledScreen = ({ onReRequest, onReEnabled, darkMode = false }) =>
 
     try {
       const [storedUserData, storedToken] = await Promise.all([
-      AsyncStorage.getItem('@user_data'),
-      AsyncStorage.getItem('userToken')]
+        AsyncStorage.getItem('@user_data'),
+        AsyncStorage.getItem('userToken')]
       );
 
       if (!storedUserData || !storedToken) {
@@ -122,111 +109,106 @@ const DeviceDisabledScreen = ({ onReRequest, onReEnabled, darkMode = false }) =>
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
-            <StatusBar
+      <StatusBar
         barStyle={dm ? 'light-content' : 'dark-content'}
         backgroundColor={colors.bg} />
-      
 
-            <Animated.View style={[
-      styles.card,
-      {
-        backgroundColor: colors.card,
-        borderColor: colors.cardBorder,
-        opacity: fadeAnim,
-        transform: [{ translateY: slideAnim }]
-      }]
+
+      <Animated.View style={[
+        styles.card,
+        {
+          backgroundColor: colors.card,
+          borderColor: colors.cardBorder,
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }]
+        }]
       }>
-                {}
-                <View style={styles.topBar} />
-
-                {}
-                <View style={[styles.stripesContainer, { backgroundColor: colors.stripeBg }]}>
-                    {[...Array(20)].map((_, i) =>
-          <View key={i} style={[styles.stripe, {
-            left: -10 + i * 20,
-            backgroundColor: colors.stripeColor
-          }]} />
+        { }
+        <View style={styles.topBar} />
+        { }
+        <View style={[styles.stripesContainer, { backgroundColor: colors.stripeBg }]}>
+          {[...Array(20)].map((_, i) =>
+            <View key={i} style={[styles.stripe, {
+              left: -10 + i * 20,
+              backgroundColor: colors.stripeColor
+            }]} />
           )}
-                </View>
-
-                {}
-                <View style={styles.cardBody}>
-                    {}
-                    <View style={styles.iconWrapper}>
-                        <View style={[styles.iconCircle, { backgroundColor: colors.iconBg }]}>
-                            <Ionicons name="phone-portrait" size={38} color="#ef4444" />
-                        </View>
-                        {}
-                        <View style={[styles.iconBadge, {
+        </View>
+        { }
+        <View style={styles.cardBody}>
+          { }
+          <View style={styles.iconWrapper}>
+            <View style={[styles.iconCircle, { backgroundColor: colors.iconBg }]}>
+              <Ionicons name="phone-portrait" size={38} color="#ef4444" />
+            </View>
+            { }
+            <View style={[styles.iconBadge, {
               borderColor: colors.card,
               backgroundColor: colors.badgeBg
             }]}>
-                            <Ionicons name="ban" size={14} color="#dc2626" />
-                        </View>
-                    </View>
-
-                    {}
-                    <Text style={[styles.title, { color: colors.title }]}>
-                        Nodo Deshabilitado
-                    </Text>
-                    <Text style={[styles.subtitle, { color: colors.subtitle }]}>
-                        Este dispositivo ha sido desactivado por el administrador del sistema y ya no cuenta con acceso autorizado.{'\n\n'}Contacta a tu administrador o solicita nuevamente el acceso.
-                    </Text>
-
-                    {}
-                    {checkResult === 'enabled' &&
-          <View style={[styles.statusRow, { backgroundColor: colors.checkBg, borderColor: colors.checkBorder, marginBottom: 10 }]}>
-                            <Ionicons name="checkmark-circle" size={18} color={colors.checkText} />
-                            <Text style={[styles.statusText, { color: colors.checkText }]}>
-                                Acceso restaurado
-                            </Text>
-                        </View>
+              <Ionicons name="ban" size={14} color="#dc2626" />
+            </View>
+          </View>
+          { }
+          <Text style={[styles.title, { color: colors.title }]}>
+            Nodo Deshabilitado
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.subtitle }]}>
+            Este dispositivo ha sido desactivado por el administrador del sistema y ya no cuenta con acceso autorizado.{'\n\n'}Contacta a tu administrador o solicita nuevamente el acceso.
+          </Text>
+          { }
+          {checkResult === 'enabled' &&
+            <View style={[styles.statusRow, { backgroundColor: colors.checkBg, borderColor: colors.checkBorder, marginBottom: 10 }]}>
+              <Ionicons name="checkmark-circle" size={18} color={colors.checkText} />
+              <Text style={[styles.statusText, { color: colors.checkText }]}>
+                Acceso restaurado
+              </Text>
+            </View>
           }
-                    {checkResult === 'still_disabled' &&
-          <View style={[styles.statusRow, { backgroundColor: colors.statusBg, borderColor: colors.statusBorder, marginBottom: 10 }]}>
-                            <Ionicons name="close-circle" size={18} color={colors.statusText} />
-                            <Text style={[styles.statusText, { color: colors.statusText }]}>
-                                Sigue deshabilitado.
-                            </Text>
-                        </View>
+          {checkResult === 'still_disabled' &&
+            <View style={[styles.statusRow, { backgroundColor: colors.statusBg, borderColor: colors.statusBorder, marginBottom: 10 }]}>
+              <Ionicons name="close-circle" size={18} color={colors.statusText} />
+              <Text style={[styles.statusText, { color: colors.statusText }]}>
+                Sigue deshabilitado.
+              </Text>
+            </View>
           }
-
-                    {}
-                    <TouchableOpacity
+          { }
+          <TouchableOpacity
             style={[styles.checkBtn, { opacity: checking ? 0.75 : 1 }]}
             onPress={handleCheckStatus}
             activeOpacity={0.8}
             disabled={checking || checkResult === 'enabled'}>
-            
-                        {checking ?
-            <ActivityIndicator size="small" color="#ffffff" /> :
-            <Ionicons name="cloud-download-outline" size={18} color="#ffffff" />
-            }
-                        <Text style={styles.checkBtnText}>
-                            {checking ? 'Verificando...' : 'Actualizar estado'}
-                        </Text>
-                    </TouchableOpacity>
 
-                    {}
-                    <TouchableOpacity
+            {checking ?
+              <ActivityIndicator size="small" color="#ffffff" /> :
+              <Ionicons name="cloud-download-outline" size={18} color="#ffffff" />
+            }
+            <Text style={styles.checkBtnText}>
+              {checking ? 'Verificando...' : 'Actualizar estado'}
+            </Text>
+          </TouchableOpacity>
+
+          { }
+          <TouchableOpacity
             style={[styles.retryBtn, { backgroundColor: colors.retryBg, opacity: confirming ? 0.7 : 1 }]}
             onPress={handleReRequest}
             activeOpacity={0.8}
             disabled={confirming}>
-            
-                        <Ionicons name="refresh" size={18} color={colors.retryText} />
-                        <Text style={[styles.retryText, { color: colors.retryText }]}>
-                            {confirming ? 'Redirigiendo...' : 'Re-solicitar Acceso'}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            </Animated.View>
 
-            {}
-            <Animated.Text style={[styles.footer, { color: colors.footer, opacity: fadeAnim }]}>
-                FASITLAC  {new Date().getFullYear()}
-            </Animated.Text>
-        </View>);
+            <Ionicons name="refresh" size={18} color={colors.retryText} />
+            <Text style={[styles.retryText, { color: colors.retryText }]}>
+              {confirming ? 'Redirigiendo...' : 'Re-solicitar Acceso'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+
+      { }
+      <Animated.Text style={[styles.footer, { color: colors.footer, opacity: fadeAnim }]}>
+        FASITLAC  {new Date().getFullYear()}
+      </Animated.Text>
+    </View>);
 
 };
 

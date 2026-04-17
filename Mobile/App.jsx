@@ -510,10 +510,11 @@ export default function App() {
     setDeviceRegistered(false);
 
     if (isDisabled) {
-
+      // Dispositivo desactivado mientras estaba en home — mostrar DeviceDisabledScreen
+      // isLoggedIn ya es true porque estaba usando la app, solo activamos la flag
       setDeviceDisabled(true);
     } else {
-
+      // Dispositivo eliminado del servidor — regresar a onboarding con aviso
       setDeviceDisabled(false);
       Alert.alert(
         'Registro de Dispositivo Requerido',
@@ -602,10 +603,17 @@ export default function App() {
               (function () { })(' [App] Dispositivo activo en servidor. Onboarding OK.');
               setDeviceRegistered(true);
             } else if (dispositivoEnBD.existe && !dispositivoEnBD.activo) {
-              (function () { })(' [App] Dispositivo DESACTIVADO en servidor. Limpiando onboarding.');
+              // Dispositivo desactivado: mostrar DeviceDisabledScreen
+              (function () { })(' [App] Dispositivo DESACTIVADO en servidor. Mostrando DeviceDisabledScreen.');
               await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
               setDeviceRegistered(false);
-
+              setDeviceDisabled(true);
+              // Si hay sesión guardada, marcar como loggeado para que el render muestre la pantalla
+              if (storedUserData && storedToken) {
+                const parsedForLogin = JSON.parse(storedUserData);
+                setUserData(parsedForLogin);
+                setIsLoggedIn(true);
+              }
             } else {
               (function () { })('️ [App] Dispositivo no encontrado en servidor. Limpiando onboarding.');
               await AsyncStorage.multiRemove([
@@ -614,6 +622,7 @@ export default function App() {
                 STORAGE_KEYS.TOKEN_SOLICITUD]
               );
               setDeviceRegistered(false);
+              setDeviceDisabled(false);
             }
           } else {
 
@@ -729,43 +738,41 @@ export default function App() {
               setIsLoggedIn(true);
               return;
             } else {
-              (function () { })('️ [App] No se encontró dispositivo registrado. Primera afiliación.');
-              await AsyncStorage.removeItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
-              await AsyncStorage.removeItem(STORAGE_KEYS.SOLICITUD_ID);
-              await AsyncStorage.removeItem(STORAGE_KEYS.TOKEN_SOLICITUD);
+              (function () { })('️ [App] No se encontró dispositivo registrado.');
+              const yaTeníaOnboarding = await AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
+              await AsyncStorage.multiRemove([
+                STORAGE_KEYS.ONBOARDING_COMPLETED,
+                STORAGE_KEYS.SOLICITUD_ID,
+                STORAGE_KEYS.TOKEN_SOLICITUD
+              ]);
               setDeviceRegistered(false);
               setDeviceDisabled(false);
               setIsLoggedIn(true);
+              if (yaTeníaOnboarding === 'true') {
+                Alert.alert(
+                  'Dispositivo Desvinculado',
+                  'Tu dispositivo fue eliminado del sistema por el administrador.\n\nDebes registrarlo nuevamente para continuar.',
+                  [{ text: 'Entendido' }],
+                  { cancelable: false }
+                );
+              }
               return;
             }
 
         } catch (error) {
           (function () { })(' [App] Error verificando en nube:', error);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-          Alert.alert(
-            'Error de Verificación',
-            'No se pudo verificar el estado del dispositivo en el servidor. Intenta nuevamente.',
-            [{ text: 'Reintentar', onPress: () => handleLogout() }],
-            { cancelable: false }
-          );
+          // No podemos verificar el dispositivo — dejar pasar al onboarding/offline
+          // en lugar de mostrar un alert que bloquea al usuario
+          const deviceCompleted = await AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETED);
+          setDeviceRegistered(deviceCompleted === 'true');
+          setDeviceDisabled(false);
+          setIsLoggedIn(true);
           return;
         }
       }
+
+
+
 
 
 

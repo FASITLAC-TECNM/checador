@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { verificarEmpresa } from '../../services/solicitudMovilService';
 import * as Network from 'expo-network';
+import syncManager from '../../services/offline/syncManager.mjs';
 
 const AFFILIATION_CONFIG = {
   title: "Afiliación a la Empresa",
@@ -96,6 +97,10 @@ export const CompanyAffiliationScreen = ({ onNext, onPrevious, initialEmpresaIde
 
       (function () {})(' Empresa y red válidas, continuando...');
 
+      if (empresaInfo.token) {
+        console.log('Token movil configurado en syncManager:', empresaInfo.token.substring(0, 15) + '...');
+        syncManager.setAuthToken(empresaInfo.token);
+      }
 
       setIsVerified(true);
       setVerifiedCompanyName(empresaInfo.nombre);

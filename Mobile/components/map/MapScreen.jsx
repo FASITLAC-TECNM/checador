@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,11 +13,34 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView } from 'react-native-webview';
 import { extraerCoordenadas } from '../../services/ubicacionService';
+import { getCentroPoligono, calcularDistancia } from '../../services/ubicacionService';
 import { useNavigationBarColor } from '../../services/useNavigationBarColor';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+// Distancia del usuario al centroide del polígono de un departamento (metros).
+// Usa extraerCoordenadas y getCentroPoligono del servicio oficial para que el
+// parseo sea idéntico al del resto del sistema.
+// Devuelve Infinity si no hay GPS o no se pueden extraer coordenadas.
+const distanciaAlDepto = (depto, userLat, userLng) => {
+  if (userLat == null || userLng == null || !depto.ubicacion) return Infinity;
+  try {
+    const coords = extraerCoordenadas(depto.ubicacion);
+    if (!coords || coords.length === 0) return Infinity;
 
+    // MultiPolygon: array de arrays → aplanar para el centroide
+    const puntos = Array.isArray(coords[0]) && !('lat' in coords[0])
+      ? coords.flat(1)
+      : coords;
+
+    const centro = getCentroPoligono(puntos);
+    if (!centro) return Infinity;
+
+    return calcularDistancia({ lat: userLat, lng: userLng }, centro);
+  } catch {
+    return Infinity;
+  }
+};
 
 
 const MapaZonasPermitidas = ({
@@ -36,18 +59,35 @@ const MapaZonasPermitidas = ({
 
   const styles = darkMode ? mapStylesDark : mapStyles;
 
+  // Guardamos la ubicación al momento de abrir el mapa para el HTML inicial.
+  // El GPS puede seguir actualizando via postMessage sin recrear el WebView.
+  const ubicacionInicialRef = useRef(ubicacionActual);
 
   useNavigationBarColor(darkMode);
 
 
-  const listaDepartamentos = departamentos.length > 0 ? departamentos : departamento ? [departamento] : [];
+  // Ordenar departamentos por distancia al usuario (más cercano primero).
+  // Los que no tienen ubicación o el usuario no tiene GPS van al final.
+  const userLat = ubicacionActual?.lat ?? null;
+  const userLng = ubicacionActual?.lng ?? null;
+
+  const listaDepartamentos = useMemo(() => {
+    const base = departamentos.length > 0
+      ? departamentos
+      : departamento ? [departamento] : [];
+
+    if (userLat == null || userLng == null) return base; // sin GPS: orden original
+
+    return [...base].sort((a, b) =>
+      distanciaAlDepto(a, userLat, userLng) - distanciaAlDepto(b, userLat, userLng)
+    );
+  }, [departamentos, departamento, userLat, userLng]);
 
   useEffect(() => {
-    if (departamento) {
-      setDepartamentoSeleccionado(departamento);
-    } else if (listaDepartamentos.length > 0) {
-      setDepartamentoSeleccionado(listaDepartamentos[0]);
-    }
+    if (!listaDepartamentos.length) return;
+    // Si ya hay un departamento específico solicitado, usarlo;
+    // de lo contrario usar el primero de la lista (que ya está ordenado por distancia).
+    setDepartamentoSeleccionado(departamento ?? listaDepartamentos[0]);
   }, [departamento, listaDepartamentos]);
 
   useEffect(() => {
@@ -398,6 +438,20 @@ const MapaZonasPermitidas = ({
     `;
   };
 
+  // IMPORTANTE: useMemo debe estar ANTES de cualquier early return para no
+  // violar las Rules of Hooks (los hooks deben llamarse siempre en el mismo orden).
+  // El HTML del mapa solo se regenera cuando cambian las zonas o el departamento;
+  // las actualizaciones de GPS se propagan via postMessage sin recargar el WebView.
+  const htmlContent = useMemo(() => {
+    if (zonasData.length === 0) return '';
+    return generarHTMLLeaflet(
+      zonasData,
+      ubicacionInicialRef.current,
+      departamentoSeleccionado?.id
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zonasData, departamentoSeleccionado?.id]);
+
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
@@ -419,11 +473,6 @@ const MapaZonasPermitidas = ({
 
   }
 
-  const htmlContent = generarHTMLLeaflet(
-    zonasData,
-    ubicacionActual,
-    departamentoSeleccionado?.id
-  );
 
   return (
     <SafeAreaView style={styles.container}>

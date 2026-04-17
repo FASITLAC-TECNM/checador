@@ -244,6 +244,30 @@ const baseStyles = {
         marginTop: 16,
         marginBottom: 8,
     },
+    // Nuevo header de sección estilo history.jsx
+    sectionDayHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        marginTop: 4,
+    },
+    sectionDayDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        marginRight: 8,
+    },
+    sectionDayTitle: {
+        flex: 1,
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#374151',
+    },
+    sectionDayCount: {
+        fontSize: 12,
+        color: '#9ca3af',
+    },
     incidenciasList: {
         paddingHorizontal: 16,
         gap: 12,
@@ -590,5 +614,13 @@ export const incidenciasStylesDark = StyleSheet.create({
     },
     sectionListHeader: {
         color: '#e2e8f0',
+    },
+    sectionDayTitle: {
+        ...baseStyles.sectionDayTitle,
+        color: '#cbd5e1',
+    },
+    sectionDayCount: {
+        ...baseStyles.sectionDayCount,
+        color: '#64748b',
     },
 });

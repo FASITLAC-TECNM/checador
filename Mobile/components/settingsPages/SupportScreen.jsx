@@ -143,26 +143,25 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
         displayPhone: empresaData.telefono,
         icon: "logo-whatsapp",
         color: "#25D366",
-        action: () => {
+        action: async () => {
           const message = `Hola, soy ${userData?.nombre || 'Usuario'}, necesito ayuda con la App de Asistencia.`;
-          const url = Platform.OS === 'ios' ?
-          `https://api.whatsapp.com/send?phone=${phoneClean}&text=${encodeURIComponent(message)}` :
-          `whatsapp://send?phone=${phoneClean}&text=${encodeURIComponent(message)}`;
+          // En Android 11+, canOpenURL para 'whatsapp://' falla si no está en el AndroidManifest.
+          // La forma más robusta es probar el protocolo y hacer fallback al enlace web.
+          const waProtocol = `whatsapp://send?phone=${phoneClean}&text=${encodeURIComponent(message)}`;
+          const waWeb = `https://wa.me/${phoneClean}?text=${encodeURIComponent(message)}`;
 
-          Linking.canOpenURL(url).
-          then((supported) => {
-            if (supported) {
-              return Linking.openURL(url);
-            } else {
+          try {
+            await Linking.openURL(waProtocol);
+          } catch (e) {
+            try {
+              await Linking.openURL(waWeb);
+            } catch (fallbackError) {
               Alert.alert(
                 "WhatsApp no disponible",
-                "WhatsApp no está instalado en tu dispositivo"
+                "No se pudo abrir WhatsApp en este dispositivo. Verifica que lo tengas instalado."
               );
             }
-          }).
-          catch(() => {
-            Alert.alert("Error", "No se pudo abrir WhatsApp");
-          });
+          }
         }
       });
     }
@@ -194,7 +193,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
         title: "Teléfono",
         subtitle: empresaData.telefono,
         icon: "call",
-        color: "#a1afff",
+        color: "#3b82f6",
         action: () => {
           Alert.alert(
             "Llamar a Soporte",
@@ -311,7 +310,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
               <Ionicons
               name="chatbubbles"
               size={18}
-              color={darkMode ? '#3794fd' : '#6366f1'} />
+              color={darkMode ? '#3794fd' : '#2563eb'} />
             
               <Text style={styles.sectionTitle}>Contáctanos</Text>
             </View>
@@ -354,7 +353,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
             <Ionicons
               name="help-buoy"
               size={18}
-              color={darkMode ? '#3794fd' : '#6366f1'} />
+              color={darkMode ? '#3794fd' : '#2563eb'} />
             
             <Text style={styles.sectionTitle}>Preguntas Frecuentes</Text>
           </View>
@@ -374,7 +373,7 @@ export const SupportScreen = ({ darkMode, onBack, userData }) => {
                   <Ionicons
                   name={faq.icon}
                   size={20}
-                  color={darkMode ? '#818cf8' : '#6366f1'} />
+                  color={darkMode ? '#60a5fa' : '#2563eb'} />
                 
                 </View>
                 <Text style={styles.faqQuestion}>{faq.pregunta}</Text>
@@ -462,11 +461,11 @@ const supportStyles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 24,
     backgroundColor: '#dbeafe',
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 4
+    elevation: 2
   },
   quickHelpGradient: {
     padding: 24,

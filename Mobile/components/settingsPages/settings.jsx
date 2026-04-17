@@ -335,7 +335,7 @@ export const SettingsScreen = ({
               <Ionicons name="construct" size={18} color="#6b7280" />
               <Text style={styles.infoLabel}>Build</Text>
             </View>
-            <Text style={styles.infoValue}>10/03/2026</Text>
+            <Text style={styles.infoValue}>16/04/2026</Text>
           </View>
           <View style={styles.infoDivider} />
         </View>
@@ -387,11 +387,11 @@ const settingsStyles = StyleSheet.create({
     borderRadius: 24,
     marginBottom: 24,
     overflow: 'hidden',
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
     backgroundColor: '#ffffff'
   },
   profileGradient: {
@@ -555,11 +555,11 @@ const settingsStyles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     marginBottom: 20,
-    shadowColor: '#ef4444',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3
   },
   logoutGradient: {
     flexDirection: 'row',

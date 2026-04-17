@@ -234,6 +234,21 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       (function () { })('Error verificando biometría local:', e);
     }
 
+    // ─── Regla de activación de Huella Dactilar ───────────────────────────────
+    // La opción SOLO se activa cuando se cumplen AMBAS condiciones:
+    //   1) El usuario tiene credencial FACIAL registrada en BD (tiene_facial = true)
+    //   2) El dispositivo físicamente soporta huella (hardware + enrollado)
+    //
+    // NO se activa si solo tiene tiene_dactilar (credencial dactilar en BD).
+    // NO se activa si el dispositivo tiene hardware pero no hay credencial facial.
+    // Razón: la huella local actúa como verificación alternativa de identidad cuando
+    // el usuario tiene dato facial en BD — no como método primario propio.
+    const tieneFacialEnBD = credenciales?._offlineMode
+      ? true
+      : (credenciales?.tiene_facial || false);
+
+    const dactilarDisponible = tieneFacialEnBD && biometricSupported;
+
     const metodosBase = {
       'pin': {
         id: 'pin',
@@ -245,13 +260,13 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         id: 'dactilar',
         nombre: 'Huella',
         icono: 'finger-print',
-        disponible: biometricSupported
+        disponible: dactilarDisponible
       },
       'facial': {
         id: 'facial',
         nombre: 'Facial',
         icono: 'scan',
-        disponible: credenciales?._offlineMode ? true : (credenciales?.tiene_facial || false)
+        disponible: tieneFacialEnBD
       }
     };
 

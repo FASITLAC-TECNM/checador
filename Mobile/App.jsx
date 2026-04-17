@@ -414,7 +414,15 @@ export default function App() {
         };
 
         await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(updatedUserData));
-        setUserData(updatedUserData);
+
+        // Solo actualizar el estado si los datos realmente cambiaron.
+        // Evita re-renders innecesarios cada 60 s que reseteaban el mapa.
+        setUserData(prev => {
+          const prevStr = JSON.stringify(prev);
+          const nextStr = JSON.stringify(updatedUserData);
+          return prevStr === nextStr ? prev : updatedUserData;
+        });
+
         syncManager.setAuthToken(token, response.data.empleado_id?.toString());
       }
     } catch (error) {

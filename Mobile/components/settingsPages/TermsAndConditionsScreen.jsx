@@ -6,8 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  Platform } from
-'react-native';
+  Platform,
+  BackHandler
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -39,19 +40,13 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
   };
 
 
-  const handleToggleAcceptance = async () => {
-    const newValue = !acceptedTerms;
-    setAcceptedTerms(newValue);
+  const onAccept = async () => {
     try {
-      await AsyncStorage.setItem(TERMS_ACCEPTED_KEY, String(newValue));
+      await AsyncStorage.setItem(TERMS_ACCEPTED_KEY, 'true');
+      setAcceptedTerms(true);
     } catch (error) {
     }
-  };
-
-  const onAccept = () => {
-    if (acceptedTerms) {
-      onBack();
-    }
+    onBack();
   };
 
   const onDecline = async () => {
@@ -60,7 +55,7 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
       setAcceptedTerms(false);
     } catch (error) {
     }
-    onBack();
+    BackHandler.exitApp();
   };
 
   const styles = darkMode ? termsStylesDark : termsStyles;
@@ -212,7 +207,7 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
           
             <View style={styles.sectionHeader}>
               <View style={styles.sectionHeaderLeft}>
-                <View style={[styles.sectionIconContainer, { backgroundColor: section.color }]}>
+                <View style={[styles.sectionIconContainer, { backgroundColor: '#2563eb' }]}>
                   <Ionicons name={section.icon} size={22} color="#fff" />
                 </View>
                 <Text style={styles.sectionTitle}>{section.title}</Text>
@@ -224,14 +219,18 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
                 <Ionicons
                 name={expandedSections[section.id] ? "chevron-up" : "chevron-down"}
                 size={20}
-                color={expandedSections[section.id] ? section.color : "#9ca3af"} />
+                color={
+                  expandedSections[section.id] 
+                    ? (darkMode ? "#60a5fa" : "#2563eb") 
+                    : (darkMode ? "#ffffff" : "#9ca3af")
+                } />
               
               </View>
             </View>
 
             {expandedSections[section.id] &&
           <View style={styles.sectionContent}>
-                <View style={[styles.sectionDivider, { backgroundColor: section.bg }]} />
+                <View style={[styles.sectionDivider, { backgroundColor: '#dbeafe' }]} />
                 <Text style={styles.sectionText}>{section.content}</Text>
               </View>
           }
@@ -239,65 +238,18 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
         )}
 
         {}
-        <View style={styles.acceptanceCard}>
-          <View style={[
-          styles.acceptanceGradient,
-          { backgroundColor: acceptedTerms ? '#2563eb' : '#f3f4f6' }]
-          }>
-            <TouchableOpacity
-              style={styles.checkboxContainer}
-              onPress={handleToggleAcceptance}
-              activeOpacity={0.7}>
-              
-              <View style={styles.checkboxWrapper}>
-                <View style={[
-                styles.checkbox,
-                acceptedTerms && styles.checkboxChecked]
-                }>
-                  {acceptedTerms &&
-                  <Ionicons name="checkmark" size={20} color="#000" />
-                  }
-                </View>
-              </View>
-              <Text style={[
-              styles.checkboxLabel,
-              acceptedTerms && styles.checkboxLabelActive]
-              }>
-                He leído y acepto los términos y condiciones
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {}
         <View style={styles.buttonContainer}>
-          {acceptedTerms &&
           <TouchableOpacity
             style={styles.acceptButton}
             onPress={onAccept}
             activeOpacity={0.85}>
             
-              <View style={styles.buttonGradient}>
-                <Ionicons name="checkmark-circle" size={22} color="#fff" />
-                <Text style={styles.buttonTitle}>Aceptar y Continuar</Text>
-                <Ionicons name="arrow-forward" size={20} color="#fff" />
-              </View>
-            </TouchableOpacity>
-          }
-
-          {!acceptedTerms &&
-          <View style={styles.acceptDisabledCard}>
-              <View style={styles.acceptDisabledContent}>
-                <Ionicons name="information-circle" size={24} color="#6b7280" />
-                <View style={styles.acceptDisabledTextContainer}>
-                  <Text style={styles.acceptDisabledTitle}>Acepta los términos</Text>
-                  <Text style={styles.acceptDisabledSubtitle}>
-                    Marca la casilla arriba para continuar
-                  </Text>
-                </View>
-              </View>
+            <View style={styles.buttonGradient}>
+              <Ionicons name="checkmark-circle" size={22} color="#fff" />
+              <Text style={styles.buttonTitle}>Aceptar y Continuar</Text>
+              <Ionicons name="arrow-forward" size={20} color="#fff" />
             </View>
-          }
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.declineButton}
@@ -306,7 +258,7 @@ export const TermsAndConditionsScreen = ({ darkMode, onBack }) => {
             
             <View style={styles.declineContent}>
               <Ionicons name="close-circle-outline" size={22} color="#ef4444" />
-              <Text style={styles.declineButtonText}>Rechazar y Volver</Text>
+              <Text style={styles.declineButtonText}>Rechazar</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -435,7 +387,7 @@ const termsStyles = StyleSheet.create({
     borderColor: 'transparent'
   },
   sectionCardExpanded: {
-    borderColor: '#e0e7ff',
+    borderColor: '#dbeafe',
     shadowOpacity: 0.12,
     elevation: 4
   },
@@ -478,7 +430,7 @@ const termsStyles = StyleSheet.create({
     alignItems: 'center'
   },
   chevronContainerExpanded: {
-    backgroundColor: '#e0e7ff'
+    backgroundColor: '#dbeafe'
   },
   sectionContent: {
     paddingHorizontal: 16,
@@ -494,63 +446,21 @@ const termsStyles = StyleSheet.create({
     color: '#4b5563',
     lineHeight: 22
   },
-  acceptanceCard: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginTop: 24,
-    marginBottom: 16,
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 4
-  },
-  acceptanceGradient: {
-    padding: 20
-  },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  checkboxWrapper: {
-    marginRight: 14
-  },
-  checkbox: {
-    width: 28,
-    height: 28,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#d1d5db'
-  },
-  checkboxChecked: {
-    backgroundColor: '#fff',
-    borderColor: '#fff'
-  },
-  checkboxLabel: {
-    flex: 1,
-    fontSize: 15,
-    color: '#6b7280',
-    fontWeight: '600'
-  },
-  checkboxLabelActive: {
-    color: '#fff'
-  },
+
   buttonContainer: {
+    marginTop: 30,
     marginBottom: 20,
     gap: 12
   },
   acceptButton: {
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#10b981',
-    shadowColor: '#10b981',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6
+    backgroundColor: '#2563eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 3
   },
   buttonGradient: {
     flexDirection: 'row',
@@ -565,33 +475,7 @@ const termsStyles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.3
   },
-  acceptDisabledCard: {
-    backgroundColor: '#f9fafb',
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-    borderStyle: 'dashed'
-  },
-  acceptDisabledContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14
-  },
-  acceptDisabledTextContainer: {
-    flex: 1
-  },
-  acceptDisabledTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#6b7280',
-    marginBottom: 2
-  },
-  acceptDisabledSubtitle: {
-    fontSize: 13,
-    color: '#9ca3af',
-    fontWeight: '500'
-  },
+
   declineButton: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -664,7 +548,7 @@ const termsStylesDark = StyleSheet.create({
   },
   sectionCardExpanded: {
     ...termsStyles.sectionCardExpanded,
-    borderColor: '#4338ca'
+    borderColor: '#2563eb'
   },
   sectionTitle: {
     ...termsStyles.sectionTitle,
@@ -676,32 +560,13 @@ const termsStylesDark = StyleSheet.create({
   },
   chevronContainerExpanded: {
     ...termsStyles.chevronContainerExpanded,
-    backgroundColor: '#4338ca'
+    backgroundColor: '#1d4ed8'
   },
   sectionText: {
     ...termsStyles.sectionText,
     color: '#d1d5db'
   },
-  acceptanceGradient: {
-    ...termsStyles.acceptanceGradient
-  },
-  checkboxLabel: {
-    ...termsStyles.checkboxLabel,
-    color: '#9ca3af'
-  },
-  acceptDisabledCard: {
-    ...termsStyles.acceptDisabledCard,
-    backgroundColor: '#1e293b',
-    borderColor: '#334155'
-  },
-  acceptDisabledTitle: {
-    ...termsStyles.acceptDisabledTitle,
-    color: '#9ca3af'
-  },
-  acceptDisabledSubtitle: {
-    ...termsStyles.acceptDisabledSubtitle,
-    color: '#6b7280'
-  },
+
   declineButton: {
     ...termsStyles.declineButton,
     backgroundColor: '#1e293b',

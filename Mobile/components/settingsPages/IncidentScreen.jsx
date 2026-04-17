@@ -685,13 +685,28 @@ export const IncidenciasScreen = ({ userData, darkMode, onBack }) => {
         renderItem={({ item }) => renderIncidenciaCard(item)}
         renderSectionHeader={({ section }) => {
           const mNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-          const dia = section.fecha.getDate();
-          const mes = mNames[section.fecha.getMonth()];
+          const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+          const diaNum = String(section.fecha.getDate()).padStart(2, '0');
+          const mesNum = String(section.fecha.getMonth() + 1).padStart(2, '0');
           const anio = section.fecha.getFullYear();
+          const tituloDia = `${diasSemana[section.fecha.getDay()]} - ${diaNum}/${mesNum}/${anio}`;
+          const totalRegistros = section.data.length;
+
+          // Color del punto según el estado dominante de las incidencias del día
+          const tieneRechazado = section.data.some((i) => i.estado?.toLowerCase() === 'rechazado');
+          const tienePendiente = !tieneRechazado && section.data.some((i) =>
+            i.estado?.toLowerCase() === 'pendiente' || i.estado?.toLowerCase() === 'pendiente_sync'
+          );
+          const dotColor = tieneRechazado ? '#ef4444' : tienePendiente ? '#f59e0b' : '#10b981';
+
           return (
-            <Text style={styles.sectionListHeader}>
-              {dia} de {mes} {anio}
-            </Text>
+            <View style={styles.sectionDayHeader}>
+              <View style={[styles.sectionDayDot, { backgroundColor: dotColor }]} />
+              <Text style={styles.sectionDayTitle}>{tituloDia}</Text>
+              <Text style={styles.sectionDayCount}>
+                {totalRegistros} {totalRegistros === 1 ? 'registro' : 'registros'}
+              </Text>
+            </View>
           );
         }}
         ListHeaderComponent={ListHeader}

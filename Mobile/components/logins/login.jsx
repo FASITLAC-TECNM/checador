@@ -822,11 +822,11 @@ const loginStyles = StyleSheet.create({
   loginButtonWrapper: {
     borderRadius: 12,
     overflow: 'hidden',
-    elevation: 4,
-    shadowColor: '#2563eb',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
     marginBottom: 16
   },
   loginButton: {
@@ -909,7 +909,7 @@ const loginStylesDark = StyleSheet.create({
   },
   loginButtonWrapper: {
     ...loginStyles.loginButtonWrapper,
-    shadowColor: '#1d4ed8'
+    shadowColor: '#000'
   },
   copyright: {
     ...loginStyles.copyright,

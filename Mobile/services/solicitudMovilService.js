@@ -206,23 +206,23 @@ export const verificarEmpresa = async (empresaId, ip) => {
     }
     try {
       console.log('Solicitando token movil para afiliación con identificador:', empresaId);
-      
+
       const tokenResponse = await api.post(`/auth/token-movil`, {
         identificador: empresaId
       });
-      
+
       if (tokenResponse.data.success && tokenResponse.data.data) {
         const { empresa, token } = tokenResponse.data.data;
         console.log('Token movil obtenido, guardando...');
         await guardarToken(token);
-        
+
         // Ahora con el token guardado, el interceptor lo enviará, validamos la red
         console.log('Validando afiliación y red con token...');
         const response = await api.post(`/solicitudes/validar-afiliacion`, {
           identificador: empresaId,
           ip: ip
         });
-        
+
         if (response.data.success && response.data.data) {
           const { empresa: empresaValidada, validacionRed } = response.data.data;
           return {
@@ -346,8 +346,6 @@ export const verificarDispositivoPorEmpleado = async (empleadoId, token) => {
       }
     });
 
-
-
     let dispositivosActivos = [];
     try {
       const syncResponse = await tempApi.get(`/movil/sync/dispositivos/${empleadoId}`);
@@ -357,23 +355,23 @@ export const verificarDispositivoPorEmpleado = async (empleadoId, token) => {
     } catch (syncError) {
       // Si el sync endpoint falla (403/404/error), no propagamos.
       // Dejamos dispositivosActivos = [] y continuamos al fallback /movil/empleado/
-      // que sí devuelve es_activo: false para dispositivos desactivados.
     }
-
 
     if (dispositivosActivos.length > 0) {
-      const dispositivo = dispositivosActivos[0];
-      return {
-        existe: true,
-        activo: true,
-        dispositivo_id: dispositivo.id,
-        sistema_operativo: dispositivo.sistema_operativo
-      };
+      const dispositivoActivo = dispositivosActivos.find(d => d.es_activo === true);
+      const dispositivo = dispositivoActivo || dispositivosActivos[0];
+      
+      // Si el backend (posiblemente por caché o no haberse reiniciado) no devolvió la propiedad es_activo,
+      // forzamos a que pase al fallback (que hace SELECT *)
+      if (dispositivo.es_activo !== undefined) {
+        return {
+          existe: true,
+          activo: dispositivo.es_activo === true,
+          dispositivo_id: dispositivo.id,
+          sistema_operativo: dispositivo.sistema_operativo
+        };
+      }
     }
-
-
-
-
 
     try {
       const movilResponse = await tempApi.get(`/movil/empleado/${empleadoId}`);
@@ -381,33 +379,24 @@ export const verificarDispositivoPorEmpleado = async (empleadoId, token) => {
       if (movilResponse.data.success && movilResponse.data.data) {
         const dispositivo = movilResponse.data.data;
 
-        if (dispositivo.es_activo === false) {
-
-          return {
-            existe: true,
-            activo: false,
-            dispositivo_id: dispositivo.id,
-            sistema_operativo: dispositivo.sistema_operativo
-          };
-        }
+        return {
+          existe: true,
+          activo: dispositivo.es_activo === true,
+          dispositivo_id: dispositivo.id,
+          sistema_operativo: dispositivo.sistema_operativo
+        };
       }
     } catch (movilError) {
       if (movilError.response?.status === 404) {
-
         return { existe: false, activo: false };
       }
 
       if (movilError.response?.status === 403) {
-
-
-
         return { existe: false, activo: false };
       }
 
-
       throw movilError;
     }
-
 
     return { existe: false, activo: false };
 

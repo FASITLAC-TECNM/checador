@@ -649,37 +649,49 @@ export async function getHorario(empleadoId) {
 }
 
 export async function getTolerancia(empleadoId) {
-  if (!db) await initDatabase();
-  const row = await db.getFirstAsync('SELECT * FROM cache_tolerancias WHERE empleado_id = ?', [empleadoId]);
+  try {
+    if (!db) await initDatabase();
 
-  if (row && row.dias_aplica) {
+    let row = null;
     try {
-      row.dias_aplica = JSON.parse(row.dias_aplica);
-    } catch (e) { }
+      row = await db.getFirstAsync('SELECT * FROM cache_tolerancias WHERE empleado_id = ?', [empleadoId]);
+    } catch (selectErr) {
+      // Columnas nuevas no existen aún — migrar y reintentar
+      console.log('[SQLITE] getTolerancia migración automática:', selectErr?.message);
+      try { await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN minutos_anticipo_salida INTEGER DEFAULT 0'); } catch (e) { }
+      try { await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN minutos_posterior_salida INTEGER DEFAULT 0'); } catch (e) { }
+      try { await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN reglas TEXT'); } catch (e) { }
+      try { await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN intervalo_bloques_minutos INTEGER DEFAULT 60'); } catch (e) { }
+      try { await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN max_retardos INTEGER DEFAULT 0'); } catch (e) { }
+      try { await db.execAsync('ALTER TABLE cache_tolerancias ADD COLUMN segmentos_red TEXT'); } catch (e) { }
+      try {
+        row = await db.getFirstAsync('SELECT * FROM cache_tolerancias WHERE empleado_id = ?', [empleadoId]);
+      } catch (e2) {
+        console.log('[SQLITE] getTolerancia reintento falló:', e2?.message);
+        return null;
+      }
+    }
+
+    // Sin row → retornar null para que el caller decida (no defaults hardcodeados)
+    if (!row) return null;
+
+    if (row.dias_aplica) {
+      try { row.dias_aplica = JSON.parse(row.dias_aplica); } catch (e) { }
+    }
+    if (row.reglas) {
+      try { row.reglas = JSON.parse(row.reglas); } catch (e) { }
+    }
+    if (row.segmentos_red) {
+      try { row.segmentos_red = JSON.parse(row.segmentos_red); } catch (e) { row.segmentos_red = []; }
+    } else {
+      row.segmentos_red = [];
+    }
+
+    return row;
+  } catch (outerErr) {
+    console.log('[SQLITE] getTolerancia ERROR:', outerErr?.message);
+    return null;
   }
-  if (row && row.reglas) {
-    try {
-      row.reglas = JSON.parse(row.reglas);
-    } catch (e) { }
-  }
-  if (row && row.segmentos_red) {
-    try {
-      row.segmentos_red = JSON.parse(row.segmentos_red);
-    } catch (e) { row.segmentos_red = []; }
-  } else if (row) {
-    row.segmentos_red = [];
-  }
-  return row || {
-    minutos_retardo: 0,
-    minutos_falta: 0,
-    permite_anticipado: 1,
-    minutos_anticipado_max: 5,
-    minutos_anticipo_salida: 5,
-    minutos_posterior_salida: 0,
-    aplica_tolerancia_entrada: 1,
-    aplica_tolerancia_salida: 1,
-    dias_aplica: null
-  };
 }
 
 export async function getDepartamentos(empleadoId) {

@@ -835,8 +835,26 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
         const hLocal = await sqliteManager.getHorario(empleadoId);
         if (hLocal) horario = hLocal;
       }
+      // ── Obtener tolerancia: API (online) → SQLite (offline/fallback) ──
       let toleranciasSqlite = null;
-      try { toleranciasSqlite = await sqliteManager.getTolerancia(empleadoId); } catch (e) { }
+      if (online) {
+        try {
+          const tolCtrl = new AbortController();
+          const tolTimer = setTimeout(() => tolCtrl.abort(), 5000);
+          const tolRes = await fetch(`${API_URL}/movil/sync/mis-datos?empleado_id=${empleadoId}`, {
+            headers: { 'Authorization': `Bearer ${userData.token}`, 'Content-Type': 'application/json' },
+            signal: tolCtrl.signal
+          });
+          clearTimeout(tolTimer);
+          if (tolRes.ok) {
+            const tolJson = await tolRes.json();
+            if (tolJson.success && tolJson.tolerancia) toleranciasSqlite = tolJson.tolerancia;
+          }
+        } catch (_e) { /* cae a SQLite */ }
+      }
+      if (!toleranciasSqlite) {
+        try { toleranciasSqlite = await sqliteManager.getTolerancia(empleadoId); } catch (_e) { }
+      }
       if (!horario?.configuracion) return { trabaja: false, numTurnos: 0, entrada: null, salida: null };
 
       let config = typeof horario.configuracion === 'string' ?

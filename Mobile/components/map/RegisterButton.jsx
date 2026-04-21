@@ -233,16 +233,6 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
     } catch (e) {
       (function () { })('Error verificando biometría local:', e);
     }
-
-    // ─── Regla de activación de Huella Dactilar ───────────────────────────────
-    // La opción SOLO se activa cuando se cumplen AMBAS condiciones:
-    //   1) El usuario tiene credencial FACIAL registrada en BD (tiene_facial = true)
-    //   2) El dispositivo físicamente soporta huella (hardware + enrollado)
-    //
-    // NO se activa si solo tiene tiene_dactilar (credencial dactilar en BD).
-    // NO se activa si el dispositivo tiene hardware pero no hay credencial facial.
-    // Razón: la huella local actúa como verificación alternativa de identidad cuando
-    // el usuario tiene dato facial en BD — no como método primario propio.
     const tieneFacialEnBD = credenciales?._offlineMode
       ? true
       : (credenciales?.tiene_facial || false);
@@ -1610,30 +1600,14 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
 
       const tipoRegistrado = data?.data?.tipo || tipoActual;
 
-      // ─── Evaluación dinámica del estado offline ───
-      // Si la respuesta viene del backend online, usar su estado directamente (es la fuente de verdad).
-      // SOLO si fue guardado offline (sin conexión) calcular el estado localmente.
+      // ─── Estado offline ───
+      // Si el registro fue online, el backend ya calcula el estado real (fuente de verdad).
+      // Si fue offline, siempre mostramos 'pendiente' al usuario — el servidor lo analizará
+      // cuando se sincronice. No evaluamos falta/retardo localmente para no confundir.
       const esOffline = data?.data?._offline === true;
       let estadoRegistrado = data?.data?.estado;
       if (esOffline) {
-        try {
-          const horarioLocal = horarioInfoRef.current;
-          const tolCompleta = horarioLocal?.toleranciaCompleta;
-          const turnosLocales = horarioLocal?.turnosHoy;
-          if (tolCompleta && turnosLocales && turnosLocales.length > 0) {
-            const ahora = getTrustedDate();
-            const minsHora = ahora.getHours() * 60 + ahora.getMinutes();
-            const intervalo = tolCompleta.intervalo_bloques_minutos ?? 60;
-            const anticipo = tolCompleta.minutos_anticipado_max ?? 0;
-            const posterior = tolCompleta.minutos_posterior_salida ?? 60;
-            const bloqueActivo = srvBuscarBloqueActual(turnosLocales, minsHora, intervalo, anticipo, posterior);
-            estadoRegistrado = srvEvaluarEstado(tipoRegistrado, minsHora, bloqueActivo, tolCompleta);
-          } else {
-            estadoRegistrado = 'pendiente';
-          }
-        } catch (_) {
-          estadoRegistrado = 'pendiente';
-        }
+        estadoRegistrado = 'pendiente';
       }
 
       const registroOptimista = {
@@ -1664,44 +1638,36 @@ export const RegisterButton = ({ userData, darkMode, onRegistroExitoso }) => {
       await actualizarEstadoPreflight();
 
 
-      let estadoTexto = estadoRegistrado;
+      const tipoMayuscula = tipoRegistrado === 'entrada' ? 'Entrada' : 'Salida';
+      const horaStr = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+      Vibration.vibrate(500);
 
-      if (tipoRegistrado === 'salida') {
-        if (estadoRegistrado === 'salida_temprana' || estadoRegistrado === 'salida_temprano') {
-          estadoTexto = 'salida anticipada';
-        } else {
-          estadoTexto = 'salida registrada';
-        }
+      if (esOffline) {
+        Alert.alert(
+          'Pendiente a revisar',
+          `Departamento: ${departamento.nombre}\nHora: ${horaStr}\n\nUna vez que haya conexión a internet, el sistema analizará y clasificará tu asistencia automáticamente.`,
+          [{ text: 'Entendido' }]
+        );
+        notificarRegistro(tipoRegistrado, 'pendiente');
       } else {
-        if (estadoRegistrado === 'pendiente') {
-          estadoTexto = 'pendiente (sin conexión)';
+        let estadoTexto;
+        if (tipoRegistrado === 'salida') {
+          estadoTexto = (estadoRegistrado === 'salida_temprana' || estadoRegistrado === 'salida_temprano')
+            ? 'salida anticipada' : 'salida registrada';
         } else if (estadoRegistrado === 'entrada_temprana') {
           estadoTexto = 'entrada anticipada';
         } else if (estadoRegistrado === 'puntual') {
           estadoTexto = 'puntual';
-        } else if (estadoRegistrado === 'falta') {
-          estadoTexto = 'falta';
-        } else if (estadoRegistrado === 'falta_por_retardo') {
-          estadoTexto = 'falta por retardo';
         } else {
-
-          estadoTexto = estadoRegistrado.replace(/_/g, ' ');
-
+          estadoTexto = estadoRegistrado?.replace(/_/g, ' ') || 'registrado';
         }
+        Alert.alert(
+          '✅ Registro Exitoso',
+          `${tipoMayuscula}: ${estadoTexto}\n\nDepartamento: ${departamento.nombre}\nHora: ${horaStr}`,
+          [{ text: 'OK' }]
+        );
+        notificarRegistro(tipoRegistrado, estadoRegistrado);
       }
-      const tipoMayuscula = tipoRegistrado === 'entrada' ? 'Entrada' : 'Salida';
-      const horaStr = new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-      Vibration.vibrate(500);
-      Alert.alert(
-        esOffline ? 'Pendiente a revisar' : 'Registro Exitoso',
-        [
-          `Departamento: ${departamento.nombre}`,
-          `Hora: ${horaStr}`,
-          esOffline ? '\nSe sincronizará y se analizará tu asistencia automáticamente cuando haya conexión de la base de datos o internet.' : ''].
-          filter(Boolean).join('\n'),
-        [{ text: 'OK' }]
-      );
-      notificarRegistro(tipoRegistrado, estadoRegistrado);
 
       if (onRegistroExitoso) {
         onRegistroExitoso(data);
